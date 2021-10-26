@@ -1,0 +1,30 @@
+version: '3.7'
+
+x-stas: &default-stas
+    build:
+      context: .
+      args:
+        registry: library
+        base: fedora
+        version: 33
+        GITHUB_ORG: linux-nvme
+        GITHUB_REPO: libnvme
+        GITHUB_TOKEN:
+    volumes:
+        - /run/dbus:/run/dbus      
+    privileged: true
+    network_mode: host
+
+services:
+  stafd:
+    <<: *default-stas
+    environment:
+      XDG_CACHE_HOME: /var/cache/stafd
+      PYTHONUNBUFFERED: 1
+    command: -u /usr/sbin/stafd
+  stacd:
+    <<: *default-stas
+    environment:
+      XDG_CACHE_HOME: /var/cache/stacd
+      PYTHONUNBUFFERED: 1
+    command: -u /usr/sbin/stacd

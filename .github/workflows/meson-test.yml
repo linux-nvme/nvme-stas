@@ -1,0 +1,62 @@
+name: nvme-stas CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    # Debian installs python packages in "site-packages", but sets the search 
+    # path to "dist-packages". So let's add "site-packages" to PYTHONPATH
+    env:
+      PYTHONPATH: /usr/lib/python3.10/site-packages
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install requirements
+        run: |
+          sudo apt-get install -y python3-pyudev python3-systemd python3-gi meson
+          sudo pip3 install dasbus
+          sudo pip3 install pylint
+          sudo pip3 install pyflakes
+
+      - name: Checkout private libnvme-tp8010
+        uses: actions/checkout@v2
+        with:
+          repository: martin-belanger/libnvme-tp8010
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          path: libnvme-tp8010
+
+      - name: Build and install libnvme-tp8010
+        run: |
+          cd libnvme-tp8010
+          meson .build
+          cd .build
+          ninja
+          sudo meson install
+
+      - name: Configure nvme-stas
+        run: meson .build
+
+      - name: Test
+        run: |
+          cd .build
+          meson test -v
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: meson-logs
+          path: |
+            ${{ github.workspace }}/.build/meson-logs/*.txt
+

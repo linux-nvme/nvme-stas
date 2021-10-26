@@ -1,0 +1,106 @@
+%global _topdir       .build/rpm-pkg
+%global _sourcedir    .build/meson-dist
+
+Name: @NAME@
+Version: @VERSION@
+Release: 1%{?dist}
+Summary: NVMe STorage Appliance Services
+
+License: @LICENSE@
+Source0: %{name}-%{version}.tar.xz
+BuildArch: noarch
+
+BuildRequires: meson
+BuildRequires: python3-devel
+
+%description
+NVMe STorage Appliance Services
+
+%prep
+%autosetup -c
+
+%build
+%meson
+%meson_build
+
+%install
+%meson_install
+
+%check
+%meson_test
+
+%files
+%{_sbindir}/stacd
+%{_bindir}/stacctl
+%{_sbindir}/stafd
+%{_bindir}/stafctl
+%{_sysconfdir}/dbus-1/system.d/org.nvmexpress.stac.conf
+%{_sysconfdir}/dbus-1/system.d/org.nvmexpress.staf.conf
+%{_sysconfdir}/stas/stacd.conf
+%{_sysconfdir}/stas/stafd.conf
+%{_prefix}/lib/systemd/system/stacd.service
+%{_prefix}/lib/systemd/system/stafd.service
+%{python3_sitelib}/staslib/__init__.py
+%{python3_sitelib}/staslib/stas.py
+%{python3_sitelib}/staslib/avahi.py
+%{python3_sitelib}/staslib/glibudev.py
+
+#-------------------------------------------------------------------------------
+%post
+dbus_reload() {
+	if [ -f /usr/bin/dbus-send ]; then
+		/usr/bin/dbus-send --system --type=method_call --dest=org.freedesktop.DBus / org.freedesktop.DBus.ReloadConfig
+	fi
+}
+systemd_add() {
+	service=$1
+	systemctl --system unmask "${service}" >/dev/null || true
+	systemctl --system enable "${service}" >/dev/null || true
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload >/dev/null || true
+		systemctl --system start "${service}" >/dev/null || true
+	fi
+}
+if [ "$1" = 1 ]; then #install
+	dbus_reload
+	/usr/sbin/modprobe nvme-tcp
+	systemd_add stafd.service
+	systemd_add stacd.service
+fi
+
+#-------------------------------------------------------------------------------
+%preun
+systemd_rm {
+	service=$1
+	systemctl --system unmask "${service}" >/dev/null || true
+	systemctl --system stop "${service}" >/dev/null || true
+	systemctl --system disable "${service}" >/dev/null || true
+}
+
+if [ $1 == 0 ]; then #uninstall
+	systemd_rm stafd.service
+	systemd_rm stacd.service
+fi
+
+#-------------------------------------------------------------------------------
+%postun
+systemd_rm {
+	service=$1
+	systemctl --system unmask "${service}" >/dev/null || true
+	systemctl --system stop "${service}" >/dev/null || true
+	systemctl --system disable "${service}" >/dev/null || true
+}
+
+if [ $1 == 0 ]; then #uninstall
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload >/dev/null || true
+	fi
+	dbus_reload
+fi
+
+
+
+%changelog
+* Wed Sep 08 2021 Martin Belanger <martin.belanger@dell.com> - Release 0.1
+-
+

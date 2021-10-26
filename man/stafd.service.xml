@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+<refentry id="stafd.service">
+    <refentryinfo>
+        <title>stafd.service</title>
+        <productname>nvme-stas</productname>
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>stafd.service</refentrytitle>
+        <manvolnum>8</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>stafd.service</refname>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <para>
+            <filename>/usr/lib/systemd/system/stafd.service</filename>
+        </para>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+        <para>
+            <citerefentry>
+                <refentrytitle>stafd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+            is a system service used to automatically locate NVMe-oF Discovery
+            Controllers using mDNS service discovery.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+
+        <para>
+            <citerefentry>
+                <refentrytitle>stafd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+        </para>
+    </refsect1>
+</refentry>

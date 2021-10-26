@@ -1,0 +1,323 @@
+<?xml version="1.0"?>
+<!DOCTYPE refsection PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+          "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+
+<root>
+
+    <variablelist>
+        <varlistentry id='tron'>
+            <term><varname>tron=</varname></term>
+
+            <listitem id='tron-text'>
+                <para>
+                    Trace ON. Takes a boolean argument. If <literal>true</literal>,
+                    enables full code tracing. The trace will be displayed in
+                    the system log such as systemd's journal. Defaults to
+                    <literal>false</literal>.
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry id='hdr-digest'>
+            <term><varname>hdr-digest=</varname></term>
+
+            <listitem id='hdr-digest-text'>
+                <para>
+                    Enable Protocol Data Unit (PDU) Header Digest. Takes a
+                    boolean argument. NVMe/TCP facilitates an optional PDU
+                    Header digest. Digests are calculated using the CRC32C
+                    algorithm. If <literal>true</literal>, Header Digests
+                    are inserted in PDUs and checked for errors. Defaults to
+                    <literal>false</literal>.
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry id='data-digest'>
+            <term><varname>data-digest=</varname></term>
+
+            <listitem id='data-digest-text'>
+                <para>
+                    Enable Protocol Data Unit (PDU) Data Digest. Takes a
+                    boolean argument. NVMe/TCP facilitates an optional PDU
+                    Data digest. Digests are calculated using the CRC32C
+                    algorithm. If <literal>true</literal>, Data Digests
+                    are inserted in PDUs and checked for errors. Defaults to
+                    <literal>false</literal>.
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry id='kato'>
+            <term><varname>kato=</varname></term>
+
+            <listitem id='kato-text'>
+                <para>
+                    Keep Alive Timeout (KATO) in seconds. Takes an unsigned
+                    integer. This field specifies the timeout value for the Keep
+                    Alive feature in seconds. Defaults to 120 seconds.
+                </para>
+            </listitem>
+        </varlistentry>
+    </variablelist>
+
+    <refsect2 id='controller'>
+        <title>[Controllers] section</title>
+
+        <para>The following options are available in the
+            <literal>[Controllers]</literal> section:</para>
+
+        <varlistentry>
+            <term><varname>controller=</varname></term>
+
+            <listitem id='controller-text'>
+                <para>
+                    Controllers are specified with the <literal>controller</literal>
+                    option. This option may be specified more than once to specify
+                    more than one controller. The format is one line per Controller
+                    composed of a series of fields separated by semi-colons as follows:
+                </para>
+
+                <programlisting>controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
+                </programlisting>
+
+                <refsect3>
+                    <title>Fields</title>
+                    <variablelist>
+                        <varlistentry id='transport'>
+                            <term><varname>transport=</varname></term>
+
+                            <listitem id='transport-text'>
+                                <para>
+                                    This is a mandatory field that specifies the
+                                    network fabric being used for a
+                                    NVMe-over-Fabrics network. Current
+                                    <literal>trtype</literal> values understood
+                                    are:
+                                </para>
+
+                                <table id='transport-types'>
+                                    <title>Transport type</title>
+                                    <tgroup cols="2">
+                                        <thead>
+                                            <row>
+                                                <entry>trtype</entry>
+                                                <entry>Definition</entry>
+                                            </row>
+                                        </thead>
+
+                                        <tbody>
+                                            <row>
+                                                <entry>rdma</entry>
+                                                <entry>
+                                                    The network fabric is an rdma network (RoCE, iWARP, Infiniband, basic rdma, etc)
+                                                </entry>
+                                            </row>
+
+                                            <row>
+                                                <entry>fc</entry>
+                                                <entry>
+                                                    The network fabric is a Fibre Channel network.
+                                                </entry>
+                                            </row>
+
+                                            <row>
+                                                <entry>tcp</entry>
+                                                <entry>
+                                                    The network fabric is a TCP/IP network.
+                                                </entry>
+                                            </row>
+
+                                            <row>
+                                                <entry>loop</entry>
+                                                <entry>
+                                                    Connect to a NVMe over Fabrics target on the local host
+                                                </entry>
+                                            </row>
+                                        </tbody>
+                                    </tgroup>
+                                </table>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='tradd'>
+                            <term>
+                                <varname>traddr=</varname>
+                            </term>
+
+                            <listitem>
+                                <para>
+                                    This is a mandatory field that specifies the
+                                    network address of the Controller. For
+                                    transports using IP addressing (e.g. rdma)
+                                    this should be an IP-based address (ex.
+                                    IPv4, IPv6). It could also be a resolvable
+                                    host name (e.g. localhost).
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='trsvcid'>
+                            <term>
+                                <varname>trsvcid=</varname>
+                            </term>
+
+                            <listitem>
+                                <para>
+                                    This is an optional field that specifies the
+                                    transport service id. For transports using
+                                    IP addressing (e.g. rdma, tcp) this field is
+                                    the port number.
+                                </para>
+
+                                <para>
+                                    Depending on the transport type, this field
+                                    will default to either 8009 or 4420 as
+                                    follows.
+                                </para>
+
+                                <para>
+                                    UDP port 4420 and TCP port 4420 have been
+                                    assigned by IANA for use by NVMe over
+                                    Fabrics. NVMe/RoCEv2 controllers use UDP
+                                    port 4420 by default. NVMe/iWARP controllers
+                                    use TCP port 4420 by default.
+                                </para>
+
+                                <para>
+                                    TCP port 4420 has been assigned for use by
+                                    NVMe over Fabrics and TCP port 8009 has been
+                                    assigned by IANA for use by NVMe over
+                                    Fabrics discovery. TCP port 8009 is the
+                                    default TCP port for NVMe/TCP discovery
+                                    controllers. There is no default TCP port
+                                    for NVMe/TCP I/O controllers, the Transport
+                                    Service Identifier (TRSVCID) field in the
+                                    Discovery Log Entry indicates the TCP port
+                                    to use.
+                                </para>
+
+                                <para>
+                                    The TCP ports that may be used for NVMe/TCP
+                                    I/O controllers include TCP port 4420, and
+                                    the Dynamic and/or Private TCP ports (i.e.,
+                                    ports in the TCP port number range from
+                                    49152 to 65535). NVMe/TCP I/O controllers
+                                    should not use TCP port 8009. TCP port 4420
+                                    shall not be used for both NVMe/iWARP and
+                                    NVMe/TCP at the same IP address on the same
+                                    network.
+                                </para>
+
+                                <para>
+                                    Ref:
+                                    <ulink
+                                        url="https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=nvme">
+                                        IANA Service names port numbers
+                                    </ulink>
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='nqn'>
+                            <term><varname>nqn=</varname></term>
+                            <listitem>
+                                <para>
+                                    This is an optional field that specifies the
+                                    Discovery Controller's NVMe Qualified Name.
+                                    If not specified, this will default to the
+                                    well-known DC NQN: <literal>nqn.2014-08.org.nvmexpress.discovery</literal>.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='host-traddr'>
+                            <term><varname>host-traddr=</varname></term>
+                            <listitem>
+                                <para>
+                                    This is an optional field that specifies the
+                                    network address used on the host to connect
+                                    to the Controller. For TCP, this sets the
+                                    source address on the socket.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='host-iface'>
+                            <term><varname>host-iface=</varname></term>
+                            <listitem>
+                                <para>
+                                    This is an optional field that specifies the
+                                    network interface used on the host to
+                                    connect to the Controller (e.g. IP eth1,
+                                    enp2s0, enx78e7d1ea46da). This forces the
+                                    connection to be made on a specific
+                                    interface instead of letting the system
+                                    decide.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+                    </variablelist>
+                </refsect3>
+
+                <para>
+                    Examples:
+                    <programlisting>controller = transport=tcp;traddr=localhost;trsvcid=8009
+controller = transport=tcp;traddr=[2001:db8:::370:7334];host-iface=enp0s8
+controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
+                    </programlisting>
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term><varname>blacklist=</varname></term>
+
+            <listitem id='blacklist-text'>
+                <para>
+                    Blacklisted controllers can be specified with the
+                    <literal>blacklist</literal> option. Using mDNS to
+                    automatically discover and connect to controllers, can result
+                    in unintentional connections being made. This keyword allows
+                    configuring the controllers that should not be connected to
+                    (whatever the reason may be).
+                </para>
+
+                <para>
+                    The syntax is the same as for "controller", except that the key
+                    <literal>host-traddr</literal> does not apply. Multiple
+                    <literal>blacklist</literal> keywords may appear in the config
+                    file to specify more than 1 blacklisted controller.
+                </para>
+
+                <para>
+                    Note 1: A minimal match approach is used to eliminate unwanted
+                    controllers. That is, you do not need to specify all the
+                    parameters to identify a controller. Just specifying the
+                    <literal>host-iface</literal>, for example, can be used to
+                    blacklist all controllers on an interface.
+                </para>
+
+                <para>
+                    Note 2: <literal>blacklist</literal> takes precedence over
+                    <literal>controller</literal>. A controller specified by the
+                    <literal>controller</literal> keyword, can be eliminated by
+                    the <literal>blacklist</literal> keyword.
+                </para>
+
+                <para>
+                    Examples:
+                    <programlisting>blacklist = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
+blacklist = host-iface=enp0s8                             # Eliminate everything on this interface
+                    </programlisting>
+                </para>
+            </listitem>
+        </varlistentry>
+
+    </refsect2>
+</root>

@@ -1,0 +1,21 @@
+#!/bin/sh
+# see: dh_installdeb(1)
+# for details, see http://www.debian.org/doc/debian-policy/ or
+# the debian-policy package
+set -e
+
+if [ "$1" = "remove" ]; then
+	if [ -x "/usr/bin/deb-systemd-helper" ]; then
+		deb-systemd-helper mask 'stacd.service' >/dev/null || true
+		deb-systemd-helper mask 'stafd.service' >/dev/null || true
+	fi
+fi
+
+if [ "$1" = "purge" ]; then
+	if [ -x "/usr/bin/deb-systemd-helper" ]; then
+		deb-systemd-helper purge 'stacd.service' >/dev/null || true
+		deb-systemd-helper unmask 'stacd.service' >/dev/null || true
+		deb-systemd-helper purge 'stafd.service' >/dev/null || true
+		deb-systemd-helper unmask 'stafd.service' >/dev/null || true
+	fi
+fi

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+
+<refentry id="nvme-stas">
+
+  <refentryinfo>
+    <title>nvme-stas</title>
+    <productname>nvme-stas</productname>
+    <author>
+        <personname>
+            <honorific>Mr</honorific>
+            <firstname>Martin</firstname>
+            <surname>Belanger</surname>
+        </personname>
+        <affiliation>
+            <orgname>Dell, Inc.</orgname>
+        </affiliation>
+    </author>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle>nvme-stas</refentrytitle>
+    <manvolnum>7</manvolnum>
+  </refmeta>
+
+  <refnamediv>
+    <refname>nvme-stas</refname>
+    <refpurpose>NVMe over Fabrics STorage Appliance Services</refpurpose>
+  </refnamediv>
+
+  <refsect1>
+    <title>Introduction</title>
+
+    <para>
+        This page describes the services provided by the <code>nvme-stas</code> package.
+    </para>
+
+    <para>
+        <code>nvme-stas</code> is composed of two services, <citerefentry><refentrytitle>stafd</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+        and <citerefentry><refentrytitle>stacd</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+        running on a host computer (the NVMe Host).
+    </para>
+
+    <refsect2>
+        <title>STorage Appliance Finder (<code>stafd</code>)</title>
+        <para>
+            The tasks performed by <code>stafd</code> include:
+        </para>
+        <itemizedlist mark='opencircle'>
+            <listitem>
+                <para>
+                    Register for mDNS service type <parameter>_nvme-disc._tcp</parameter>
+                    with Avahi, the service discovery daemon. This allows <code>stafd</code>
+                    to automatically locate Central or Direct Discovery
+                    Controllers (CDC, DDC) with zero-configuration networking
+                    (zeroconf). <code>stafd</code> also allows users to manually enter CDCs
+                    and DDCs in a configuration file
+                    (<filename>/etc/stas/stafd.conf</filename>) when users
+                    prefer not to enable mDNS-based zeroconf.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Connect to discovered or configured CDCs or DDCs.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Retrieve the list of NVMe subsystem IO Controllers or
+                    Discovery Controller referrals from the Discovery Log Page 
+                    using the NVMe command "Get Log Page".
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Maintain a cache of the discovery log pages.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Provide a D-Bus API where other applications can interact
+                    with <code>stafd</code>. This API can be used, for example, to retrieve
+                    the list of cached discovery log pages.
+                </para>
+            </listitem>
+        </itemizedlist>
+    </refsect2>
+
+    <refsect2>
+        <title>STorage Appliance Connector (<code>stacd</code>)</title>
+        <para>
+            The tasks performed by <code>stacd</code> include:
+        </para>
+        <itemizedlist mark='opencircle'>
+            <listitem>
+                <para>
+                    Read the list of storage subsystems (i.e., discovery log pages)
+                    from <code>stafd</code> over the D-Bus API.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Similar to <code>stafd</code>, <code>stacd</code> can also read a list of storage
+                    subsystems to connect to from a configuration
+                    file: (<filename>/etc/stas/stacd.conf</filename>).
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Set up the I/O controller connections to each storage subsystem.
+                </para>
+            </listitem>
+            <listitem>
+                <para>
+                    Provide a D-Bus API where other applications can interact
+                    with <code>stacd</code>. For example, an application could retrieve the
+                    list of I/O controllers that <code>stacd</code> connected to.
+                </para>
+            </listitem>
+        </itemizedlist>
+    </refsect2>
+
+  </refsect1>
+
+
+  <refsect1>
+    <title>See Also</title>
+    <para>
+        <citerefentry><refentrytitle>stacctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+        <citerefentry><refentrytitle>stacd.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+        <citerefentry><refentrytitle>stacd.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+        <citerefentry><refentrytitle>stacd</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+        <citerefentry><refentrytitle>stafctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+        <citerefentry><refentrytitle>stafd.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+        <citerefentry><refentrytitle>stafd.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+        <citerefentry><refentrytitle>stafd</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+    </para>
+  </refsect1>
+
+</refentry>

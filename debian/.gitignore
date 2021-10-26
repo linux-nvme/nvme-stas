@@ -1,0 +1,9 @@
+.debhelper/
+*.debhelper
+*.debhelper.log
+*.substvars
+tmp/
+files
+*/DEBIAN/*
+nvme-stas
+debhelper-build-stamp

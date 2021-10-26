@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+
+<variablelist>
+  <varlistentry id='help'>
+    <term><option>-h</option></term>
+    <term><option>--help</option></term>
+
+    <listitem id='help-text'>
+      <para>Print the help text and exit.
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry id='version'>
+    <term><option>--version</option></term>
+
+    <listitem id='version-text'>
+      <para>Print the version string and exit.</para>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry id='tron'>
+      <term><command>tron</command></term>
+      <listitem>
+          <para>Trace ON. Enable code tracing, which is to say that lots of
+                debug information will be printed to the syslog
+                (e.g. systemd-journal).</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='troff'>
+      <term><command>troff</command></term>
+      <listitem>
+          <para>Trace OFF. Disable code tracing.</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='status'>
+      <term><command>status</command></term>
+      <listitem>
+          <para>Show runtime status information.</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='detailed'>
+      <term><option>-d</option></term>
+      <term><option>--detailed</option></term>
+      <listitem>
+          <para>Print additional details.</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='transport'>
+      <term><option>-tTRTYPE</option></term>
+      <term><option>--transport=TRTYPE</option></term>
+
+      <listitem>
+          <para>NVMe-over-Fabrics fabric type (default: "tcp").</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='traddr'>
+      <term><option>-aTRADDR</option></term>
+      <term><option>--traddr=TRADDR</option></term>
+      <listitem>
+          <para>Discovery controller's network address.</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='trsvcid'>
+      <term><option>-sTRSVCID</option></term>
+      <term><option>--trsvcid=TRSVCID</option></term>
+      <listitem>
+          <para>
+              Transport service id (for IP addressing, e.g. tcp, rdma,
+              this field is the port number).
+          </para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='host-traddr'>
+      <term><option>-wTRADDR</option></term>
+      <term><option>--host-traddr=TRADDR</option></term>
+      <listitem>
+          <para>
+              Network source address used on the host to connect to
+              the controller.
+          </para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='host-iface'>
+      <term><option>-fIFACE</option></term>
+      <term><option>--host-iface=IFACE</option></term>
+      <listitem>
+          <para>
+              This field specifies the network interface used on the
+              host to connect to the controller.
+          </para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='nqn'>
+      <term><option>-nNQN</option></term>
+      <term><option>--nqn=NQN</option></term>
+      <listitem>
+          <para>
+              This is an optional field that specifies the
+              Discovery Controller's NVMe Qualified Name.
+              If not specified, this will default to the
+              well-known DC NQN: <literal>nqn.2014-08.org.nvmexpress.discovery</literal>.
+          </para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='TRTYPE-value'>
+      <term><replaceable>TRTYPE</replaceable></term>
+      <listitem>
+          <para>rdma, fc, tcp, loop.</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='TRADDR-value'>
+      <term><replaceable>TRADDR</replaceable></term>
+      <listitem>
+          <para>IP or Fibre Channel address. E.g. 10.10.0.100.</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='TRSVCID-value'>
+      <term><replaceable>TRSVCID</replaceable></term>
+      <listitem>
+          <para>E.g., 8009.</para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='IFACE-value'>
+      <term><replaceable>IFACE</replaceable></term>
+      <listitem>
+          <para>
+              Network interface name. E.g., eth1, enp0s8, wlp0s20f3.
+          </para>
+      </listitem>
+  </varlistentry>
+
+  <varlistentry id='NQN-value'>
+      <term><replaceable>NQN</replaceable></term>
+      <listitem>
+          <para>
+              NVMe Qualified Name.
+          </para>
+      </listitem>
+  </varlistentry>
+
+</variablelist>

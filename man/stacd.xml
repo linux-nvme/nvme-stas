@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" [
+<!ENTITY daemon "stacd">
+<!ENTITY deamondesc "STorage Appliance Connector">
+<!ENTITY control "stacctl">
+]>
+
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+
+<refentry id="&daemon;" xmlns:xi="http://www.w3.org/2001/XInclude">
+    <refentryinfo>
+        <title>&daemon;</title>
+        <productname>nvme-stas</productname>
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>&daemon;</refentrytitle>
+        <manvolnum>8</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>&daemon;</refname>
+        <refpurpose>&deamondesc;</refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <cmdsynopsis>
+            <command>&daemon;</command>
+            <arg choice="opt" rep="repeat">OPTIONS</arg>
+        </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+
+        <para>
+            <command>&daemon;</command>
+            is a system daemon that can be used to automatically connect to
+            NVMe-oF I/O Controllers using the discovery log pages collected by
+            <citerefentry>
+                <refentrytitle>stafd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>. It can also be manually configured with
+            <citerefentry>
+                <refentrytitle>&daemon;.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>
+            to connect to I/O Controllers that otherwise cannot be found
+            automatically.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Options</title>
+        <para>The following options are understood:</para>
+
+        <variablelist>
+            <xi:include href="standard-options.xml" xpointer="help"/>
+            <xi:include href="standard-options.xml" xpointer="version"/>
+        </variablelist>
+
+        <varlistentry>
+            <term><option>-fFILE</option></term>
+            <term><option>--conf-file=FILE</option></term>
+            <listitem>
+                <para>
+                    Specify a different configuration file than
+                    <citerefentry>
+                        <refentrytitle>&daemon;.conf</refentrytitle>
+                        <manvolnum>5</manvolnum>
+                    </citerefentry>
+                    (default: <filename>/etc/stas/&daemon;.conf</filename>).
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term><option>-s</option></term>
+            <term><option>--syslog</option></term>
+            <listitem>
+                <para>
+                    Send messages to syslog instead of stdout. Use this when
+                    running &daemon; as a daemon. (default: <literal>false</literal>).
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term><option>--tron</option></term>
+            <listitem>
+                <para>Trace ON. (default: <literal>false</literal>)</para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term><option>--idl=FILE</option></term>
+            <listitem>
+                <para>Print D-Bus IDL to FILE and exit.</para>
+            </listitem>
+        </varlistentry>
+    </refsect1>
+
+    <refsect1>
+        <title>Exit status</title>
+        <para>
+            On success, 0 is returned, a non-zero failure code otherwise.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Daemonization</title>
+        <para>
+            &daemon; is managed by <code>systemd</code>. The following
+            operations are supported:
+        </para>
+
+        <table align='left' frame='all'>
+            <tgroup cols="2" align='left' colsep='1' rowsep='1'>
+                <thead>
+                    <row>
+                        <entry>Command</entry>
+                        <entry>Description</entry>
+                    </row>
+                </thead>
+
+                <tbody>
+                    <row>
+                        <entry><programlisting>$ systemctl start &daemon; </programlisting></entry>
+                        <entry>Start daemon.</entry>
+                    </row>
+
+                    <row>
+                        <entry><programlisting>$ systemctl stop &daemon; </programlisting></entry>
+                        <entry>Stop daemon. The <code>SIGTERM</code> signal is used to tell the daemon to stop.</entry>
+                    </row>
+
+                    <row>
+                        <entry><programlisting>$ systemctl restart &daemon; </programlisting></entry>
+                        <entry>Effectively a <code>stop</code> + <code>start</code>.</entry>
+                    </row>
+
+                    <row>
+                        <entry><programlisting>$ systemctl reload &daemon; </programlisting></entry>
+                        <entry>Reload configuration. This is done in real time without restarting the daemon. The <code>SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code>kato</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</entry>
+                    </row>
+                </tbody>
+            </tgroup>
+        </table>
+    </refsect1>
+
+    <refsect1>
+      <title>Design</title>
+
+      <para>
+          <command>&daemon;</command> use the <code>GLib</code> main loop.
+          The <code>GLib</code> Python module provides several low-level
+          building blocks that <command>&daemon;</command> requires. In
+          addition, many Python modules "play nice" with <code>GLib</code>
+          such as <code>dasbus</code> (D-Bus package) and <code>pyudev</code>
+          (UDev package). <code>GLib</code> also provides additional components
+          such as timers, signal handlers, and much more.
+      </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Configuration</title>
+        <para>
+            <command>&daemon;</command> can automatically set up the I/O
+            connections to discovered storage subsystems. However,
+            <command>&daemon;</command> can also operate in a non-automatic
+            mode based on manually entered configuration. In other words,
+            storage subsystems can be entered in a configuration file named
+            <filename>/etc/stas/&daemon;.conf</filename>.
+            This configuration file also provides additional parameters,
+            as log-level attributes used for debugging purposes.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>D-Bus API</title>
+        <para>
+            The interface to <command>&daemon;</command> is D-Bus.
+            This allows other programs, such as <command>&control;</command>,
+            to communicate with <command>&daemon;</command>. The D-Bus address
+            is <code>org.nvmexpress.stac</code>.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+
+        <para>
+            <citerefentry>
+                <refentrytitle>&daemon;.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>&daemon;.service</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>stacctl</refentrytitle>
+                <manvolnum>1</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>stafd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>org.nvmexpress.stac</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
+        </para>
+    </refsect1>
+</refentry>

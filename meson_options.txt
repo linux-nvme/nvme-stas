@@ -1,0 +1,4 @@
+# -*- mode: meson -*-
+
+option('man',  type : 'boolean', value : false, description : 'build and install man pages')
+option('html', type : 'boolean', value : false, description : 'build and install html pages')

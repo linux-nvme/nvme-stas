@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+<refentry id="stacd.conf" xmlns:xi="http://www.w3.org/2001/XInclude">
+    <refentryinfo>
+        <title>stacd.conf</title>
+        <productname>nvme-stas</productname>
+
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>stacd.conf</refentrytitle>
+        <manvolnum>5</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>stacd.conf</refname>
+        <refpurpose>
+            <citerefentry project="man-pages">
+                <refentrytitle>stacd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+            configuration file
+        </refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <para>
+            <filename>/etc/stas/stacd.conf</filename>
+        </para>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+
+        <para>
+            When <citerefentry project="man-pages"><refentrytitle>stacd</refentrytitle>
+            <manvolnum>8</manvolnum></citerefentry> starts up, it reads its
+            configuration from <filename>stacd.conf</filename>.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Configuration File Format</title>
+        <para>
+            <filename>stacd.conf</filename> is a plain text file divided into
+            sections, with configuration entries in the style
+            <replaceable>key</replaceable>=<replaceable>value</replaceable>.
+            Whitespace immediately before or after the <literal>=</literal> is
+            ignored. Empty lines and lines starting with <literal>#</literal>
+            are ignored, which may be used for commenting.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Options</title>
+
+        <refsect2>
+            <title>[Global] section</title>
+            <para>
+                The following options are available in the
+                <literal>[Global]</literal>section:
+            </para>
+
+            <variablelist>
+                <xi:include href="standard-conf.xml" xpointer="tron"/>
+                <xi:include href="standard-conf.xml" xpointer="hdr-digest"/>
+                <xi:include href="standard-conf.xml" xpointer="data-digest"/>
+                <xi:include href="standard-conf.xml" xpointer="kato"/>
+            </variablelist>
+        </refsect2>
+
+        <xi:include href="standard-conf.xml" xpointer="controller"/>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+        <para>
+            <citerefentry>
+                <refentrytitle>stacd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+        </para>
+    </refsect1>
+</refentry>

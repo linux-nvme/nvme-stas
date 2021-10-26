@@ -1,0 +1,17 @@
+#!/bin/bash -e
+# Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# See the LICENSE file for details.
+#
+# This file is part of NVMe STorage Appliance Services (nvme-stas).
+#
+# Authors: Martin Belanger <Martin.Belanger@dell.com>
+#
+BUILD_DIR=".build"
+
+if [ ! -d ${BUILD_DIR} ]; then
+    exec meson ${BUILD_DIR} "$@"
+else
+    echo "Project already configured. Remove ${BUILD_DIR} directory to clear previous configuration."
+fi
+

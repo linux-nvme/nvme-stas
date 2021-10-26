@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+<refentry id="stafctl"  xmlns:xi="http://www.w3.org/2001/XInclude">
+    <refentryinfo>
+        <title>stafctl</title>
+        <productname>nvme-stas</productname>
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>stafctl</refentrytitle>
+        <manvolnum>1</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>stafctl</refname>
+        <refpurpose>STorage Appliance Finder (STAF) utility program</refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <cmdsynopsis>
+            <command>stafctl</command>
+            <arg choice="opt" rep="repeat">OPTIONS</arg>
+            <arg choice="req">COMMAND</arg>
+            <arg choice="opt" rep="repeat">OPTIONS</arg>
+        </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+
+        <para>
+            <command>stafctl</command> is a tool that can be used to communicate
+            with the <citerefentry><refentrytitle>stafd</refentrytitle>
+            <manvolnum>8</manvolnum></citerefentry> daemon to retrieve
+            operational data.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Commands</title>
+        <para>The following commands are understood:</para>
+
+        <variablelist>
+            <xi:include href="standard-options.xml" xpointer="tron"/>
+            <xi:include href="standard-options.xml" xpointer="troff"/>
+            <xi:include href="standard-options.xml" xpointer="status"/>
+
+            <varlistentry>
+                <term><command>ls</command></term>
+                <listitem>
+                    <para>
+                        Show the list of discovery controllers. This will list
+                        all the controllers configured in
+                        <citerefentry><refentrytitle>stafd.conf</refentrytitle>
+                        <manvolnum>5</manvolnum></citerefentry> as well as those
+                        discovered with mDNS service discovery.
+                    </para>
+                </listitem>
+            </varlistentry>
+
+            <varlistentry>
+                <term><command>dlp</command></term>
+                <listitem>
+                    <para>Show discovery log pages.</para>
+                </listitem>
+            </varlistentry>
+
+            <varlistentry>
+                <term><command>adlp</command></term>
+                <listitem>
+                    <para>Show all discovery log pages.</para>
+                </listitem>
+            </varlistentry>
+        </variablelist>
+    </refsect1>
+
+    <refsect1>
+        <title>Options</title>
+
+        <para>The following options are understood:</para>
+
+        <variablelist>
+            <xi:include href="standard-options.xml" xpointer="help"/>
+            <xi:include href="standard-options.xml" xpointer="version"/>
+            <xi:include href="standard-options.xml" xpointer="detailed"/>
+            <xi:include href="standard-options.xml" xpointer="transport"/>
+            <xi:include href="standard-options.xml" xpointer="traddr"/>
+            <xi:include href="standard-options.xml" xpointer="trsvcid"/>
+            <xi:include href="standard-options.xml" xpointer="host-traddr"/>
+            <xi:include href="standard-options.xml" xpointer="host-iface"/>
+            <xi:include href="standard-options.xml" xpointer="nqn"/>
+        </variablelist>
+    </refsect1>
+
+    <refsect1>
+        <title>Values</title>
+
+        <variablelist>
+            <xi:include href="standard-options.xml" xpointer="TRTYPE-value"/>
+            <xi:include href="standard-options.xml" xpointer="TRADDR-value"/>
+            <xi:include href="standard-options.xml" xpointer="TRSVCID-value"/>
+            <xi:include href="standard-options.xml" xpointer="IFACE-value"/>
+            <xi:include href="standard-options.xml" xpointer="NQN-value"/>
+        </variablelist>
+    </refsect1>
+
+    <refsect1>
+        <title>Exit status</title>
+        <para>
+            On success, 0 is returned; otherwise, a non-zero failure code is
+            returned.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Examples</title>
+
+        <example>
+            <title>List all the discovery controllers</title>
+            <programlisting>$ stafctl ls
+[{'device':      'nvme0',
+  'host-iface':  '',
+  'host-traddr': '',
+  'subsysnqn':   'nqn.2014-08.org.nvmexpress.discovery',
+  'traddr':      '::1',
+  'transport':   'tcp',
+  'trsvcid':     '8009'}]</programlisting>
+        </example>
+
+        <example>
+            <title>Enable tracing</title>
+            <programlisting>$ stafctl tron</programlisting>
+        </example>
+
+        <example>
+            <title>
+                Show discovery log pages from a specific discovery controller
+            </title>
+
+            <programlisting>$ stafctl dlp --transport tcp --traddr ::1 --trsvcid 8009
+[{'adrfam':  'ipv6',
+  'asqsz':   '32',
+  'cntlid':  '65535',
+  'portid':  '1',
+  'subnqn':  'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
+  'subtype': 'nvme',
+  'traddr':  '::1',
+  'treq':    'disable sqflow',
+  'trsvcid': '8009',
+  'trtype':  'tcp'},
+ {'adrfam':  'ipv6',
+  'asqsz':   '32',
+  'cntlid':  '65535',
+  'portid':  '1',
+  'subnqn':  'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aedead',
+  'subtype': 'nvme',
+  'traddr':  '::1',
+  'treq':    'disable sqflow',
+  'trsvcid': '8009',
+  'trtype':  'tcp'},
+ {'adrfam':  'ipv6',
+  'asqsz':   '32',
+  'cntlid':  '65535',
+  'portid':  '1',
+  'subnqn':  'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aebeef',
+  'subtype': 'nvme',
+  'traddr':  '::1',
+  'treq':    'disable sqflow',
+  'trsvcid': '8009',
+  'trtype':  'tcp'}]</programlisting>
+        </example>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+
+        <para>
+            <citerefentry>
+                <refentrytitle>stafd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>stafd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+            <citerefentry project="man-pages"/>
+        </para>
+    </refsect1>
+</refentry>

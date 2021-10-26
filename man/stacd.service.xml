@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+<refentry id="stacd.service">
+    <refentryinfo>
+        <title>stacd.service</title>
+        <productname>nvme-stas</productname>
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>stacd.service</refentrytitle>
+        <manvolnum>8</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>stacd.service</refname>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <para>
+            <filename>/usr/lib/systemd/system/stacd.service</filename>
+        </para>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+        <para>
+            <citerefentry>
+                <refentrytitle>stacd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+            is a system service used to automatically connect to I/O controllers
+            discovered by <citerefentry>
+                              <refentrytitle>stacf</refentrytitle>
+                              <manvolnum>8</manvolnum>
+                          </citerefentry>.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+
+        <para>
+            <citerefentry>
+                <refentrytitle>stacd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+            <citerefentry>
+                <refentrytitle>stafd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+        </para>
+    </refsect1>
+</refentry>

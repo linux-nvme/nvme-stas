@@ -1,0 +1,32 @@
+# Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# See the LICENSE file for details.
+#
+# This file is part of NVMe STorage Appliance Services (nvme-stas).
+#
+[Unit]
+Description=@STAC_DESCRIPTION@ (@STAC_ACRONYM@)
+After=modprobe@nvme_tcp.service network.target
+Wants=modprobe@nvme_tcp.service network.target
+
+# Check that the nvme-tcp kernel module was previously
+# loaded by checking for the presence of /dev/nvme-fabrics.
+AssertPathExists=/dev/nvme-fabrics
+
+[Service]
+Type=dbus
+BusName=@STACD_DBUS_NAME@
+SyslogIdentifier=@STACD_PROCNAME@
+
+Environment=XDG_CACHE_HOME=/var/cache/@STACD_PROCNAME@
+
+ExecStart=/usr/bin/python3 -u @STACD_EXECUTABLE@ --syslog
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Run-time directory: /run/@STACD_PROCNAME@
+# Cache directory: /var/cache/@STACD_PROCNAME@
+RuntimeDirectory=@STACD_PROCNAME@
+CacheDirectory=@STACD_PROCNAME@
+
+[Install]
+WantedBy=multi-user.target

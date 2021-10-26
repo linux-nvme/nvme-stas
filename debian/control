@@ -1,0 +1,23 @@
+Source: nvme-stas
+Section: misc
+Priority: optional
+Maintainer: Martin Belanger <Martin.Belanger@dell.com>
+Build-Depends: debhelper-compat (= 12), python3-setuptools, dh-python
+Standards-Version: 4.4.1
+#Homepage: <insert the upstream URL, if relevant>
+#Vcs-Browser: https://salsa.debian.org/debian/pack
+#Vcs-Git: https://salsa.debian.org/debian/pack.git
+#Testsuite: autopkgtest-pkg-python
+
+Package: nvme-stas
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3-pyudev, python3-systemd, python3-gi
+Description: NVMe STorage Appliance Services
+ This package provides two daemons, stafd and stacd. The STorage Appliance
+ Finder Daemon (stafd) automatically discovers NVMe-oF Discovery Controllers (DC)
+ and retrieves the list of NVMe Storage Appliances. The STorage Appliance
+ Connector Daemon (stacd) establishes I/O connections to the NVMe Storage
+ Appliances discovered by stafd.
+ .
+ This package installs the library for Python 3.
+

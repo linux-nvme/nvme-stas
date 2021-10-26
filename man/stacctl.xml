@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+<refentry id="stacctl"  xmlns:xi="http://www.w3.org/2001/XInclude">
+    <refentryinfo>
+        <title>stacctl</title>
+        <productname>nvme-stas</productname>
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>stacctl</refentrytitle>
+        <manvolnum>1</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>stacctl</refname>
+        <refpurpose>STorage Appliance Connector (STAC) utility program</refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <cmdsynopsis>
+            <command>stacctl</command>
+            <arg choice="opt" rep="repeat">OPTIONS</arg>
+            <arg choice="req">COMMAND</arg>
+            <arg choice="opt" rep="repeat">OPTIONS</arg>
+        </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+
+        <para>
+            <command>stacctl</command> is a tool that can be used to communicate
+            with the <citerefentry><refentrytitle>stacd</refentrytitle>
+            <manvolnum>8</manvolnum></citerefentry> daemon to retrieve
+            operational data.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Commands</title>
+        <para>The following commands are understood:</para>
+
+        <variablelist>
+            <xi:include href="standard-options.xml" xpointer="tron"/>
+            <xi:include href="standard-options.xml" xpointer="troff"/>
+            <xi:include href="standard-options.xml" xpointer="status"/>
+
+            <varlistentry>
+                <term><command>ls</command></term>
+                <listitem>
+                    <para>
+                        Show the list of I/O controllers. This will list
+                        all the I/O controllers configured in
+                        <citerefentry>
+                            <refentrytitle>stacd.conf</refentrytitle>
+                            <manvolnum>5</manvolnum>
+                        </citerefentry> as well as those discovered by the
+                        <citerefentry>
+                            <refentrytitle>stafd</refentrytitle>
+                            <manvolnum>8</manvolnum>
+                        </citerefentry> daemon.
+                    </para>
+                </listitem>
+            </varlistentry>
+        </variablelist>
+    </refsect1>
+
+    <refsect1>
+        <title>Options</title>
+
+        <para>The following options are understood:</para>
+
+        <variablelist>
+            <xi:include href="standard-options.xml" xpointer="help"/>
+            <xi:include href="standard-options.xml" xpointer="version"/>
+            <xi:include href="standard-options.xml" xpointer="detailed"/>
+        </variablelist>
+    </refsect1>
+
+    <refsect1>
+        <title>Exit status</title>
+        <para>
+            On success, 0 is returned; otherwise, a non-zero failure code is
+            returned.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Examples</title>
+
+        <example>
+            <title>List I/O controllers</title>
+            <programlisting>$ stacctl ls --detailed
+[{'connect attempts': 0,
+  'device': 'nvme1',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'model': 'Linux',
+  'retry connect timer': '60.0s [off]',
+  'serial': '8d22fa96da912fb13f5a',
+  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aedead',
+  'traddr': '::1',
+  'transport': 'tcp',
+  'trsvcid': '8009'},
+ {'connect attempts': 0,
+  'device': 'nvme2',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'model': 'Linux',
+  'retry connect timer': '60.0s [off]',
+  'serial': 'a9987ae2fd173d100fd0',
+  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aebeef',
+  'traddr': '::1',
+  'transport': 'tcp',
+  'trsvcid': '8009'},
+ {'connect attempts': 0,
+  'device': 'nvme3',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'model': 'Linux',
+  'retry connect timer': '60.0s [off]',
+  'serial': '13e122f1a8122bed5a8d',
+  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
+  'traddr': '::1',
+  'transport': 'tcp',
+  'trsvcid': '8009'}]</programlisting>
+        </example>
+
+        <example>
+            <title>Disable tracing</title>
+            <programlisting>$ stacctl troff</programlisting>
+        </example>
+
+        <example>
+            <title>
+                Show <citerefentry><refentrytitle>stacd</refentrytitle>
+                <manvolnum>8</manvolnum></citerefentry> operational status.
+            </title>
+
+            <programlisting>$ stacctl status
+{'config soak timer': '1.5s [off]',
+ 'controllers': [{'connect attempts': 0,
+                  'device': 'nvme1',
+                  'host-iface': '',
+                  'host-traddr': '',
+                  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+                  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+                  'model': 'Linux',
+                  'retry connect timer': '60.0s [off]',
+                  'serial': '8d22fa96da912fb13f5a',
+                  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aedead',
+                  'traddr': '::1',
+                  'transport': 'tcp',
+                  'trsvcid': '8009'},
+                 {'connect attempts': 0,
+                  'device': 'nvme2',
+                  'host-iface': '',
+                  'host-traddr': '',
+                  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+                  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+                  'model': 'Linux',
+                  'retry connect timer': '60.0s [off]',
+                  'serial': 'a9987ae2fd173d100fd0',
+                  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aebeef',
+                  'traddr': '::1',
+                  'transport': 'tcp',
+                  'trsvcid': '8009'},
+                 {'connect attempts': 0,
+                  'device': 'nvme3',
+                  'host-iface': '',
+                  'host-traddr': '',
+                  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+                  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+                  'model': 'Linux',
+                  'retry connect timer': '60.0s [off]',
+                  'serial': '13e122f1a8122bed5a8d',
+                  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
+                  'traddr': '::1',
+                  'transport': 'tcp',
+                  'trsvcid': '8009'}],
+ 'log-level': 'DEBUG',
+ 'tron': True}</programlisting>
+        </example>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+
+        <para>
+            <citerefentry>
+                <refentrytitle>stacd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>stacd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+            <citerefentry project="man-pages"/>
+        </para>
+    </refsect1>
+</refentry>
