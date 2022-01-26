@@ -2,9 +2,9 @@ name: nvme-stas CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
   workflow_dispatch:
 
@@ -35,6 +35,7 @@ jobs:
           repository: martin-belanger/libnvme-tp8010
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           path: libnvme-tp8010
+          ref: kernel-dim
 
       - name: Build and install libnvme-tp8010
         run: |
@@ -45,7 +46,7 @@ jobs:
           sudo meson install
 
       - name: Configure nvme-stas
-        run: meson .build
+        run: meson .build -Dcheck_pymodules=false
 
       - name: Test
         run: |

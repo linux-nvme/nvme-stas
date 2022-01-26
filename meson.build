@@ -27,20 +27,32 @@ want_man  = get_option('man')
 want_html = get_option('html')
 
 # Check that we have all the right Python3 dependencies
-py_modules_reqd = ['libnvme', 'dasbus', 'pyudev', 'systemd']
-if want_man or want_html
-    py_modules_reqd += 'lxml'
-endif
-
-python3 = import('python').find_installation('python3', modules: py_modules_reqd)
+python3 = import('python').find_installation('python3')
 python_version = python3.language_version()
 python_version_req = '>=3.6'
 if not python_version.version_compare(python_version_req)
     error('Python @0@ required. Found @1@ instead'.format(python_version_req, python_version))
 endif
 
-if run_command(python3, '-c', 'from gi.repository import GObject').returncode() != 0
-    error('Required GObject python3 module not found. Usually comes from python3-gi (deb) OR python3-gobject (yum)')
+check_pymodules = get_option('check_pymodules')
+if check_pymodules
+    py_modules_reqd = [
+        ['libnvme', 'This library must be installed from sources (at this time)'],
+        ['dasbus',  'Install python3-dasbus (yum) OR pip3 install dasbus'],
+        ['pyudev',  'Install python3-pyudev (deb/yum)'],
+        ['systemd', 'Install python3-systemd (deb/yum)'],
+        ['gi.repository.GObject', 'Install python3-gi (deb) OR python3-gobject (yum)'],
+    ]
+    if want_man or want_html
+        py_modules_reqd += [['lxml', 'Install python3-lxml (deb/yum)']]
+    endif
+    foreach p : py_modules_reqd
+        # Source: https://docs.python.org/3/library/importlib.html#checking-if-a-module-can-be-imported
+        script = 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("@0@") is not None else 1)'
+        if run_command(python3, '-c', script.format(p[0])).returncode() != 0
+            error('Required python3 module "@0@" not found. @1@'.format(p[0], p[1]))
+        endif
+    endforeach
 endif
 
 pylint = find_program('pylint', required: false)
