@@ -25,9 +25,9 @@ jobs:
       - name: Install requirements
         run: |
           sudo apt-get install -y python3-pyudev python3-systemd python3-gi meson
-          sudo pip3 install dasbus
-          sudo pip3 install pylint
-          sudo pip3 install pyflakes
+          sudo pip3 install -t /usr/lib/python3.10/dist-packages dasbus
+          sudo pip3 install -t /usr/lib/python3.10/dist-packages pylint
+          sudo pip3 install -t /usr/lib/python3.10/dist-packages pyflakes
 
       - name: Checkout private libnvme-tp8010
         uses: actions/checkout@v2

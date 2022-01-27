@@ -19,9 +19,10 @@ project(
 
 prefix  = get_option('prefix')
 etcdir  = get_option('sysconfdir')
+datadir = get_option('datadir')
 bindir  = join_paths(prefix, get_option('bindir'))
 sbindir = join_paths(prefix, get_option('sbindir'))
-docdir  = join_paths(prefix, get_option('datadir'), 'doc', 'nvme-stas')
+docdir  = join_paths(prefix, datadir, 'doc', 'nvme-stas')
 
 want_man  = get_option('man')
 want_html = get_option('html')
@@ -41,15 +42,13 @@ if check_pymodules
         ['dasbus',  'Install python3-dasbus (yum) OR pip3 install dasbus'],
         ['pyudev',  'Install python3-pyudev (deb/yum)'],
         ['systemd', 'Install python3-systemd (deb/yum)'],
-        ['gi.repository.GObject', 'Install python3-gi (deb) OR python3-gobject (yum)'],
+        ['gi',      'Install python3-gi (deb) OR python3-gobject (yum)'],
     ]
     if want_man or want_html
         py_modules_reqd += [['lxml', 'Install python3-lxml (deb/yum)']]
     endif
     foreach p : py_modules_reqd
-        # Source: https://docs.python.org/3/library/importlib.html#checking-if-a-module-can-be-imported
-        script = 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("@0@") is not None else 1)'
-        if run_command(python3, '-c', script.format(p[0])).returncode() != 0
+        if run_command(python3, '-c', 'import @0@'.format(p[0])).returncode() != 0
             error('Required python3 module "@0@" not found. @1@'.format(p[0], p[1]))
         endif
     endforeach
@@ -189,7 +188,19 @@ if meson.version().version_compare('>=0.57.0')
     foreach key : conf.keys()
         summary += (key + ':  ' + conf.get(key))
     endforeach
+
     summary += [
+        '------------------------------------------------------------',
+        'prefix:              ' + prefix,
+        'etcdir:              ' + etcdir,
+        'datadir:             ' + datadir,
+        'bindir:              ' + bindir,
+        'sbindir:             ' + sbindir,
+        'docdir:              ' + docdir,
+        'want_man:            ' + want_man.to_string(),
+        'want_html:           ' + want_html.to_string(),
+        'dbus_conf_dir:       ' + dbus_conf_dir,
+        'sd_service_file_dir: ' + sd_service_file_dir,
         '------------------------------------------------------------',
         '',
     ]
