@@ -129,11 +129,6 @@ install_subdir(
     install_dir: etcdir,
 )
 
-install_subdir(
-    'usr/lib/modules-load.d',
-    install_dir: join_paths(prefix, 'lib'),
-)
-
 #===============================================================================
 test_env = environment({'MALLOC_PERTURB_': '0'})
 test_env.prepend('PYTHONPATH', meson.current_build_dir())
