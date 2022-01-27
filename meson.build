@@ -19,9 +19,10 @@ project(
 
 prefix  = get_option('prefix')
 etcdir  = get_option('sysconfdir')
+datadir = get_option('datadir')
 bindir  = join_paths(prefix, get_option('bindir'))
 sbindir = join_paths(prefix, get_option('sbindir'))
-docdir  = join_paths(prefix, get_option('datadir'), 'doc', 'nvme-stas')
+docdir  = join_paths(prefix, datadir, 'doc', 'nvme-stas')
 
 want_man  = get_option('man')
 want_html = get_option('html')
@@ -187,7 +188,19 @@ if meson.version().version_compare('>=0.57.0')
     foreach key : conf.keys()
         summary += (key + ':  ' + conf.get(key))
     endforeach
+
     summary += [
+        '------------------------------------------------------------',
+        'prefix:              ' + prefix,
+        'etcdir:              ' + etcdir,
+        'datadir:             ' + datadir,
+        'bindir:              ' + bindir,
+        'sbindir:             ' + sbindir,
+        'docdir:              ' + docdir,
+        'want_man:            ' + want_man.to_string(),
+        'want_html:           ' + want_html.to_string(),
+        'dbus_conf_dir:       ' + dbus_conf_dir,
+        'sd_service_file_dir: ' + sd_service_file_dir,
         '------------------------------------------------------------',
         '',
     ]

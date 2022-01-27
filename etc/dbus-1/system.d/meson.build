@@ -6,7 +6,7 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-dbus_conf_dir = join_paths(etcdir, 'dbus-1', 'system.d')
+dbus_conf_dir = join_paths(prefix, datadir, 'dbus-1', 'system.d')
 
 configure_file(
     input: 'org.nvmexpress.staf.in.conf',
