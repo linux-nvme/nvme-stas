@@ -23,10 +23,10 @@ FROM $registry/$base:$version
 WORKDIR /root
 
 RUN dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject meson
-COPY . .
-RUN meson .build && ninja -C .build && cd .build && meson install
-
 # TODO: once libnvme project has a package, use: dnf install -y libnvme
 COPY --from=libnvme-builder /root/install /
+
+COPY . .
+RUN meson .build && ninja -C .build && cd .build && meson install
 
 ENTRYPOINT ["python3"]
