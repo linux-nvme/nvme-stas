@@ -167,7 +167,29 @@ This performs the same operations as the meson approach described above. The `co
 
 ## Compiling and running nvme-stas in a docker container
 
-TBD
+Use published image (optional)
+```bash
+docker pull ghcr.io/linux-nvme/nvme-stas:main
+```
+
+Build your own image (optional)
+```bash
+docker-compose up --build
+```
+
+Run services using docker-compose like this
+```bash
+docker-compose up
+```
+
+Run companion programs **`stafctl`** and **`stacctl`** like this
+```bash
+docker-compose exec stafd stafctl ls
+docker-compose exec stafd stafctl status
+
+docker-compose exec stacd stacctl ls
+docker-compose exec stacd stacctl status
+```
 
 dependencies: dbus, avahi.
 

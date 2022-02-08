@@ -1,6 +1,7 @@
 version: '3.7'
 
 x-stas: &default-stas
+    image: ghcr.io/linux-nvme/nvme-stas:main
     build:
       context: .
       args:
