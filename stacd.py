@@ -80,18 +80,23 @@ import systemd.daemon
 import dasbus.error
 import dasbus.client.observer
 import dasbus.client.proxy
+from libnvme import nvme
 from gi.repository import GLib
 
 LOG = stas.get_logger(ARGS.syslog, defs.STACD_PROCNAME)
 CNF = stas.get_configuration(ARGS.conf_file)
 stas.trace_control(ARGS.tron or CNF.tron)
 
+SYS_CNF   = stas.get_sysconf() # Singleton
+NVME_ROOT = nvme.root()        # Singleton
+NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname) # Singleton
+
 #*******************************************************************************
 class Ioc(stas.Controller):
     ''' @brief This object establishes a connection to one I/O Controller.
     '''
     def __init__(self, tid:stas.TransportId):
-        super().__init__(tid)
+        super().__init__(NVME_ROOT, NVME_HOST, tid)
 
     def _on_udev_remove(self, udev):
         ''' Called when the associated nvme device (/dev/nvmeX) is removed

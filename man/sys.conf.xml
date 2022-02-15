@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+<refentry id="sys.conf" xmlns:xi="http://www.w3.org/2001/XInclude">
+    <refentryinfo>
+        <title>sys.conf</title>
+        <productname>nvme-stas</productname>
+
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>sys.conf</refentrytitle>
+        <manvolnum>5</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>sys.conf</refname>
+
+        <refpurpose>
+            <citerefentry project="man-pages">
+                <refentrytitle>nvme-stas</refentrytitle>
+                <manvolnum>7</manvolnum>
+            </citerefentry>
+            configuration file
+        </refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <para>
+            <filename>/etc/stas/sys.conf</filename>
+        </para>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+
+        <para>
+            When <citerefentry project="man-pages"><refentrytitle>stafd</refentrytitle>
+            <manvolnum>8</manvolnum></citerefentry> and
+            <citerefentry project="man-pages"><refentrytitle>stacd</refentrytitle>
+            <manvolnum>8</manvolnum></citerefentry> start up, they read the
+            system configuration from <filename>sys.conf</filename>.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Configuration File Format</title>
+        <para>
+            <filename>sys.conf</filename> is a plain text file divided into
+            sections, with configuration entries in the style
+            <replaceable>key</replaceable>=<replaceable>value</replaceable>.
+            Whitespace immediately before or after the <literal>=</literal> is
+            ignored. Empty lines and lines starting with <literal>#</literal>
+            are ignored, which may be used for commenting.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Options</title>
+
+        <refsect2>
+            <title>[Host] section</title>
+            <para>
+                The following options are available in the
+                <literal>[Host]</literal> section:
+            </para>
+
+            <variablelist>
+                <varlistentry>
+                    <term><varname>nqn=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes a string argument identifying the Host NQN.
+                            A value starting with <code>file://</code>
+                            indicates that the Host NQN can be retrieved from
+                            a separate file. This is a mandatory parameter.
+                            Defaults to: <literal>file:///etc/nvme/hostnqn</literal>.
+                        </para>
+                    </listitem>
+                </varlistentry>
+            </variablelist>
+
+            <variablelist>
+                <varlistentry>
+                    <term><varname>id=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes a string argument identifying the Host ID.
+                            A value starting with <code>file://</code>
+                            indicates that the Host ID can be retrieved from
+                            a separate file. This is a mandatory parameter.
+                            Defaults to: <literal>file:///etc/nvme/hostid</literal>.
+                        </para>
+                    </listitem>
+                </varlistentry>
+            </variablelist>
+
+            <variablelist>
+                <varlistentry>
+                    <term><varname>symname=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes a string argument identifying the Host symbolic name.
+                            A value starting with <code>file://</code>
+                            indicates that the symbolic name can be retrieved from
+                            a separate file. This is an optional parameter.
+                            There is no default value.
+                        </para>
+                    </listitem>
+                </varlistentry>
+            </variablelist>
+        </refsect2>
+
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+        <para>
+            <citerefentry>
+                <refentrytitle>nvme-stas</refentrytitle>
+                <manvolnum>7</manvolnum>
+            </citerefentry>
+        </para>
+    </refsect1>
+</refentry>

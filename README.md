@@ -118,6 +118,17 @@ The configuration file is named `/etc/stas/stafd.conf`. This file contains confi
 
 The configuration file is named `/etc/stas/stacd.conf`. In this file you can configure storage appliances that **`stacd`** will connect to. By default, **`stacd`** uses information (log pages) collected from **`stafd`** to connect to storage appliances. However, you can also manually enter IP addresses of storage appliances in this file.
 
+# System configuration
+
+A host must be provided with a Host NQN and a Host ID. `nvme-stas` will not run without these two mandatory configuration parameters. To follow in the footsteps of `nvme-cli` and `libnvme`, `nvme-stas` will use the same Host NQN and ID that `nvme-cli` and `libnvme` use by default. In other words, `nvme-stas` will read the Host NQN and ID from these two files by default:
+
+1. `/etc/nvme/hostnqn`
+2. `/etc/nvme/hostid`
+
+Using the same configuration files will ensure consistency between `nvme-stas`, `nvme-cli`, and `libnvme`. On the other hand, `nvme-stas` can operate with a different Host NQN and/or ID. In that case, one can specify them in `/etc/stas/sys.conf`. 
+
+A new optional configuration parameters introduced in TP8010, the Host Symbolic Name, can also be specified in `/etc/stas/sys.conf`. The schema/documentation for `/etc/stas/sys.conf` can be found `/etc/stas/sys.conf.doc`.
+
 # Build, install, unit tests
 
 STAS uses the `meson` build system. Since STAS is a Python project, there is no code to build. However, the code needs to be installed using `meson`. Once installed, unit tests can be run with `meson` as well.

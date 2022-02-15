@@ -31,13 +31,9 @@ nvme-stas also depends on the following run-time libraries and modules. Note tha
 
 ## Things to do post installation
 
-### Kernel modules
-
-nvme-stas installs **`/usr/lib/modules-load.d/nvme-tcp.conf`**, which loads the `nvme-tcp` kernel module at boot. However, this will only take effect the next time the system is booted. Therefore, after installing `nvme-stas`, one needs to "`modprobe nvme-tcp`" to ensure the kernel module is loaded immediately after installation.
-
 ### D-Bus configuration
 
-We also install D-Bus configuration files under `/etc/dbus-1/system.d`. One needs to run **`systemctl reload dbus-broker.service`** for the new configuration to take effect.
+We install D-Bus configuration files under `/usr/share/dbus-1/system.d`. One needs to run **`systemctl reload dbus-broker.service`** (Fedora) OR **`systemctl reload dbus.service`** (SuSE, Debian) for the new configuration to take effect.
 
 ### NVMe configuration
 

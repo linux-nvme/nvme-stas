@@ -23,6 +23,7 @@ datadir = get_option('datadir')
 bindir  = join_paths(prefix, get_option('bindir'))
 sbindir = join_paths(prefix, get_option('sbindir'))
 docdir  = join_paths(prefix, datadir, 'doc', 'nvme-stas')
+cnfdir  = join_paths(etcdir, 'stas')
 
 want_man  = get_option('man')
 want_html = get_option('html')
@@ -39,13 +40,13 @@ check_pymodules = get_option('check_pymodules')
 if check_pymodules
     py_modules_reqd = [
         ['libnvme', 'This library must be installed from sources (at this time)'],
-        ['dasbus',  'Install python3-dasbus (yum) OR pip3 install dasbus'],
-        ['pyudev',  'Install python3-pyudev (deb/yum)'],
-        ['systemd', 'Install python3-systemd (deb/yum)'],
-        ['gi',      'Install python3-gi (deb) OR python3-gobject (yum)'],
+        ['dasbus',  'Install python3-dasbus (rpm) OR pip3 install dasbus'],
+        ['pyudev',  'Install python3-pyudev (deb/rpm)'],
+        ['systemd', 'Install python3-systemd (deb/rpm)'],
+        ['gi',      'Install python3-gi (deb) OR python3-gobject (rpm)'],
     ]
     if want_man or want_html
-        py_modules_reqd += [['lxml', 'Install python3-lxml (deb/yum)']]
+        py_modules_reqd += [['lxml', 'Install python3-lxml (deb/rpm)']]
     endif
     foreach p : py_modules_reqd
         if run_command(python3, '-c', 'import @0@'.format(p[0])).returncode() != 0
@@ -68,14 +69,14 @@ conf = configuration_data()
 
 conf.set('KERNEL_REQD_MIN_VERSION', '5.14')
 conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
-conf.set('KERNEL_TP8010_MIN_VERSION', '5.17')
+conf.set('KERNEL_TP8010_MIN_VERSION', '5.18')
 
 foreach component : [ ['staf', 'STorage Appliance Finder'],
                       ['stac', 'STorage Appliance Connector'] ]
     COMPONENT   = component[0].to_upper()
     daemon_name = component[0] + 'd'
     DAEMON_NAME = daemon_name.to_upper()
-    conf.set(DAEMON_NAME + '_CONFIG_FILE', join_paths(etcdir, 'stas', daemon_name + '.conf'))
+    conf.set(DAEMON_NAME + '_CONFIG_FILE', join_paths(cnfdir, daemon_name + '.conf'))
     conf.set(DAEMON_NAME + '_DBUS_NAME', 'org.nvmexpress.' + component[0])
     conf.set(DAEMON_NAME + '_DBUS_PATH', '/org/nvmexpress/' + component[0])
     conf.set(DAEMON_NAME + '_EXECUTABLE', join_paths(sbindir, daemon_name))
@@ -127,6 +128,19 @@ stasadm = configure_file(
 install_subdir(
     'etc/stas',
     install_dir: etcdir,
+)
+
+sys_conf = configure_file(
+    input: 'sys.conf',
+    output: 'sys.conf',
+    install_dir: cnfdir,
+    copy: true,
+)
+sys_conf = configure_file(
+    input: 'sys.conf',
+    output: 'sys.conf.doc',
+    install_dir: cnfdir,
+    copy: true,
 )
 
 #===============================================================================
@@ -192,6 +206,7 @@ if meson.version().version_compare('>=0.57.0')
         'bindir:              ' + bindir,
         'sbindir:             ' + sbindir,
         'docdir:              ' + docdir,
+        'cnfdir:              ' + cnfdir,
         'want_man:            ' + want_man.to_string(),
         'want_html:           ' + want_html.to_string(),
         'dbus_conf_dir:       ' + dbus_conf_dir,
