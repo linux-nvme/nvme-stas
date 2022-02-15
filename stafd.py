@@ -101,11 +101,19 @@ stas.check_if_allowed_to_continue()
 import json
 import dasbus.server.interface
 import systemd.daemon
+from libnvme import nvme
 from gi.repository import GLib
+
+DLP_CHANGED = ((nvme.NVME_LOG_LID_DISCOVER << 16) |
+               (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE) # 0x70f002
 
 LOG = stas.get_logger(ARGS.syslog, defs.STAFD_PROCNAME)
 CNF = stas.get_configuration(ARGS.conf_file)
 stas.trace_control(ARGS.tron or CNF.tron)
+
+SYS_CNF   = stas.get_sysconf() # Singleton
+NVME_ROOT = nvme.root()        # Singleton
+NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname) # Singleton
 
 #*******************************************************************************
 class Dc(stas.Controller):
@@ -115,25 +123,27 @@ class Dc(stas.Controller):
                the cached discovery log pages accordingly.
     '''
     GET_LOG_PAGE_RETRY_RERIOD_SEC = 20
+    REGISTRATION_RETRY_RERIOD_SEC = 10
 
     def __init__(self, tid:stas.TransportId):
-        super().__init__(tid, discovery_ctrl=True, register=stas.NVME_OPTIONS.register_supp)
-        self._get_log_op = None
-        self._log_pages  = list() # Log pages cache
+        super().__init__(NVME_ROOT, NVME_HOST, tid, discovery_ctrl=True)
+        self._register_op = None
+        self._get_log_op  = None
+        self._log_pages   = list() # Log pages cache
 
     def _release_resources(self):
         LOG.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
         super()._release_resources()
-        self._log_pages  = list()
-        if self._get_log_op:
-            self._get_log_op.kill()
-            self._get_log_op = None
+        self._log_pages = list()
 
     def _kill_ops(self):
         super()._kill_ops()
         if self._get_log_op:
             self._get_log_op.kill()
             self._get_log_op = None
+        if self._register_op:
+            self._register_op.kill()
+            self._register_op = None
 
     def info(self) -> dict:
         ''' @brief Get the controller info for this object
@@ -141,6 +151,8 @@ class Dc(stas.Controller):
         info = super().info()
         if self._get_log_op:
             info['get log page operation'] = self._get_log_op.as_dict()
+        if self._register_op:
+            info['register operation'] = self._register_op.as_dict()
         return info
 
     def cancel(self):
@@ -149,6 +161,8 @@ class Dc(stas.Controller):
         super().cancel()
         if self._get_log_op:
             self._get_log_op.cancel()
+        if self._register_op:
+            self._register_op.cancel()
 
     def disconnect(self, disconnected_cb):
         LOG.debug('Dc.disconnect()                    - %s | %s', self.id, self.device)
@@ -181,10 +195,15 @@ class Dc(stas.Controller):
         '''
         return [ page for page in self._log_pages if page['subtype'] == 'referral' ]
 
-    def _on_udev_change(self, udev):
-        super()._on_udev_change(udev)
-        if self._get_log_op:
+    def _on_aen(self, udev, aen:int):
+        super()._on_aen(udev, aen)
+        if aen == DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
+
+    def _on_nvme_event(self, udev, nvme_event:str):
+        super()._on_nvme_event(udev, nvme_event)
+        if nvme_event == 'connected' and self._register_op:
+            self._register_op.run_async()
 
     def _on_udev_remove(self, udev):
         super()._on_udev_remove(udev)
@@ -203,8 +222,42 @@ class Dc(stas.Controller):
         super()._on_connect_success(op_obj, data)
 
         if self._alive():
+            if self._ctrl.is_registration_supported():
+                self._register_op = stas.AsyncOperationWithRetry(self._on_registration_success, self._on_registration_fail, self._ctrl.registration_ctl, nvme.NVME_TAS_REGISTER)
+                self._register_op.run_async()
+            else:
+                self._get_log_op = stas.AsyncOperationWithRetry(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
+                self._get_log_op.run_async()
+
+    #--------------------------------------------------------------------------
+    def _on_registration_success(self, op_obj, data):
+        ''' @brief Function called when we successfully register with the
+                   Discovery Controller. See self._register_op object
+                   for details.
+        '''
+        if self._alive():
+            if data is not None:
+                LOG.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
+            else:
+                LOG.debug('Dc._on_registration_success()      - %s | %s %s', self.id, self.device, data if data else 'success')
             self._get_log_op = stas.AsyncOperationWithRetry(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
             self._get_log_op.run_async()
+        else:
+            LOG.debug('Dc._on_registration_success()      - %s | %s Received event on dead object.', self.id, self.device)
+
+    def _on_registration_fail(self, op_obj, err, fail_cnt):
+        ''' @brief Function called when we fail to register with the
+                   Discovery Controller. See self._register_op object
+                   for details.
+        '''
+        if self._alive():
+            LOG.debug('Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec', self.id, self.device, err, Dc.REGISTRATION_RETRY_RERIOD_SEC)
+            if fail_cnt == 1: # Throttle the logs. Only print the first time we fail to connect
+                LOG.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
+            #op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
+        else:
+            LOG.debug('Dc._on_registration_fail()         - %s | %s Received event on dead object. %s', self.id, self.device, err)
+            op_obj.kill()
 
     #--------------------------------------------------------------------------
     def _on_get_log_success(self, op_obj, data): # pylint: disable=unused-argument

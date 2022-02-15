@@ -144,7 +144,7 @@ class Configuration:
     ''' Read and cache configuration file.
     '''
     def __init__(self, conf_file):
-        self.defaults = {
+        self._defaults = {
             ('Global', 'tron'): 'false',
             ('Global', 'persistent-connections'): 'true',
             ('Global', 'hdr-digest'): 'false',
@@ -254,20 +254,130 @@ class Configuration:
         return config
 
     def __get_value(self, section, option):
-        default = self.defaults[(section, option)]
-        if not isinstance(default, list):
-            default = [default]
         try:
-            return ( self._config.get(section=section, option=option, fallback=default)
-                     if isinstance(self._config, configparser.ConfigParser) else default )
-        except configparser.NoSectionError:
-            return default
+            value = self._config.get(section=section, option=option)
+        except (configparser.NoSectionError, configparser.NoOptionError, KeyError):
+            value = self._defaults.get((section, option), [])
+            if not isinstance(value, list):
+                value = [value]
+        return value if value is not None else list()
 
 CNF = None # Singleton
 def get_configuration(conf_file:str):
     global CNF # pylint: disable=global-statement
     CNF = Configuration(conf_file)
     return CNF
+
+#*******************************************************************************
+class SysConfiguration:
+    ''' Read and cache the host configuration file.
+    '''
+    def __init__(self, conf_file:str):
+        self._conf_file = conf_file
+        self.reload()
+
+    def reload(self):
+        ''' @brief Reload the configuration file.
+        '''
+        self._config = self.read_conf_file()
+
+    def as_dict(self):
+        return {
+            'hostnqn': self.hostnqn,
+            'hostid':  self.hostid,
+            'symname': self.hostsymname,
+        }
+
+    @property
+    def hostnqn(self):
+        ''' @brief return the host NQN
+            @return: Host NQN
+            @raise: Host NQN is mandatory. The program will terminate if a
+                    Host NQN cannot be determined.
+        '''
+        try:
+            value = self.__get_value('Host', 'nqn', '/etc/nvme/hostnqn')
+        except FileNotFoundError as ex:
+            sys.exit('Error reading mandatory Host NQN (see stasadm --help): %s', ex)
+
+        return value
+
+    @property
+    def hostid(self):
+        ''' @brief return the host ID
+            @return: Host ID
+            @raise: Host ID is mandatory. The program will terminate if a
+                    Host ID cannot be determined.
+        '''
+        try:
+            value = self.__get_value('Host', 'id', '/etc/nvme/hostid')
+        except FileNotFoundError as ex:
+            sys.exit('Error reading mandatory Host ID (see stasadm --help): %s', ex)
+
+        return value
+
+    @property
+    def hostsymname(self):
+        ''' @brief return the host symbolic name (or None)
+            @return: symbolic name or None
+        '''
+        try:
+            value = self.__get_value('Host', 'symname')
+        except FileNotFoundError as ex:
+            LOG.warning('Error reading host symbolic name (will remain undefined): %s', ex)
+            value = None
+
+        return value
+
+    def read_conf_file(self):
+        ''' @brief Read the configuration file if the file exists.
+        '''
+        config = configparser.ConfigParser(default_section=None, allow_no_value=True, delimiters=('='),
+                                           interpolation=None, strict=False)
+        if os.path.isfile(self._conf_file):
+            config.read(self._conf_file)
+        return config
+
+    def __get_value(self, section, option, default_file=None):
+        ''' @brief A configuration file consists of sections, each led by a
+                   [section] header, followed by key/value entries separated
+                   by a equal sign (=). This method retrieves the value
+                   associated with the key @option from the section @section.
+                   If the value starts with the string "file://", then the value
+                   will be retrieved from that file.
+
+            @param section:      Configuration section
+            @param option:       The key to look for
+            @param default_file: A file that contains the default value
+
+            @return: On success, the value associated with the key. On failure,
+                     this method will return None is a default_file is not
+                     specified, or will raise an exception if a file is not
+                     found.
+
+            @raise: This method will raise the FileNotFoundError exception if
+                    the value retrieved is a file that does not exist.
+        '''
+        try:
+            value = self._config.get(section=section, option=option)
+            if not value.startswith('file://'):
+                return value
+            file = value[7:]
+        except (configparser.NoSectionError, configparser.NoOptionError, KeyError):
+            if default_file is None:
+                return None
+            file = default_file
+
+        with open(file) as f:
+            return f.readline().split()[0]
+
+__SYS_CNF = None
+def get_sysconf():
+    global __SYS_CNF
+    if __SYS_CNF is None:
+        __SYS_CNF = SysConfiguration('/etc/stas/sys.conf') # Singleton
+    return __SYS_CNF
+
 
 #*******************************************************************************
 KERNEL_VERSION = platform.release()
@@ -284,7 +394,6 @@ class NvmeOptions():
         # version meets the minimum version for that option, then we don't need
         # even need to read '/dev/nvme-fabrics'.
         self._supported_options = {
-            'register':   LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_TP8010_MIN_VERSION),
             'discovery':  LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_TP8013_MIN_VERSION),
             'host_iface': LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_REQD_MIN_VERSION),
         }
@@ -310,11 +419,6 @@ class NvmeOptions():
         return f'supported options: {self._supported_options}'
 
     @property
-    def register_supp(self):
-        ''' This option adds support for TP8010 '''
-        return self._supported_options['register']
-
-    @property
     def discovery_supp(self):
         ''' This option adds support for TP8013 '''
         return self._supported_options['discovery']
@@ -326,7 +430,12 @@ class NvmeOptions():
         '''
         return self._supported_options['host_iface']
 
-NVME_OPTIONS = NvmeOptions()
+__NVME_OPTIONS = None
+def get_nvme_options():
+    global __NVME_OPTIONS # pylint: disable=global-statement
+    if __NVME_OPTIONS is None:
+        __NVME_OPTIONS = NvmeOptions()
+    return __NVME_OPTIONS
 
 #*******************************************************************************
 class GTimer:
@@ -880,10 +989,10 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
 
 #*******************************************************************************
 class Controller:
-    NVME_ROOT = nvme.root()          # Singleton
-    NVME_HOST = nvme.host(NVME_ROOT) # Singleton
     CONNECT_RETRY_PERIOD_SEC = 60
-    def __init__(self, tid:TransportId, discovery_ctrl=False, register=False):
+    def __init__(self, root, host, tid:TransportId, discovery_ctrl=False):
+        self._root              = root
+        self._host              = host
         self._tid               = tid
         self._cancellable       = Gio.Cancellable()
         self._connect_op        = None
@@ -892,7 +1001,6 @@ class Controller:
         self._device            = None
         self._ctrl              = None
         self._discovery_ctrl    = discovery_ctrl
-        self._register          = register
 
         # Defer attempt to connect to the next main loop's idle period.
         GLib.idle_add(self._try_to_connect)
@@ -932,10 +1040,15 @@ class Controller:
     def _on_udev_notification(self, udev):
         if self._alive():
             if udev.action == 'change':
-                LOG.info('%s | %s - Received "change" notification.', self.id, udev.sys_name)
-                self._on_udev_change(udev)
+                NVME_AEN = udev.get("NVME_AEN")
+                NVME_EVENT = udev.get("NVME_EVENT")
+                if isinstance(NVME_AEN, str):
+                    LOG.info('%s | %s - Received AEN: %s', self.id, udev.sys_name, NVME_AEN)
+                    self._on_aen(udev, int(NVME_AEN, 16))
+                if isinstance(NVME_EVENT, str):
+                    self._on_nvme_event(udev, NVME_EVENT)
             elif udev.action == 'remove':
-                LOG.info('%s | %s - Received "remove" notification.', self.id, udev.sys_name)
+                LOG.info('%s | %s - Received "remove" event', self.id, udev.sys_name)
                 self._on_udev_remove(udev)
             else:
                 LOG.debug('Controller._on_udev_notification() - %s | %s - Received "%s" notification.',
@@ -944,7 +1057,10 @@ class Controller:
             LOG.debug('Controller._on_udev_notification() - %s | %s - Received event on dead object. udev %s: %s',
                       self.id, self.device, udev.action, udev.sys_name)
 
-    def _on_udev_change(self, udev):
+    def _on_aen(self, udev, aen:int):
+        pass
+
+    def _on_nvme_event(self, udev, nvme_event):
         pass
 
     def _on_udev_remove(self, udev): # pylint: disable=unused-argument
@@ -962,8 +1078,8 @@ class Controller:
     def _try_to_connect(self):
         self._connect_attempts += 1
 
-        host_iface = self.tid.host_iface if self.tid.host_iface and NVME_OPTIONS.host_iface_supp else None
-        self._ctrl = nvme.ctrl(subsysnqn=self.tid.subsysnqn,
+        host_iface = self.tid.host_iface if self.tid.host_iface and get_nvme_options().host_iface_supp else None
+        self._ctrl = nvme.ctrl(self._root, subsysnqn=self.tid.subsysnqn,
                                transport=self.tid.transport,
                                traddr=self.tid.traddr,
                                trsvcid=self.tid.trsvcid,
@@ -971,7 +1087,6 @@ class Controller:
                                host_iface=host_iface)
         self._ctrl.discovery_ctrl_set(self._discovery_ctrl)
         self._ctrl.persistent_set(True)
-        self._ctrl.explicit_registration_set(self._register)
 
         # Audit existing nvme devices. If we find a match, then
         # we'll just borrow that device instead of creating a new one.
@@ -981,7 +1096,7 @@ class Controller:
             self._device = udev.sys_name
             LOG.debug('Controller._try_to_connect()       - %s Found existing control device: %s', self.id, udev.sys_name)
             self._connect_op = AsyncOperationWithRetry(self._on_connect_success, self._on_connect_fail,
-                                                       self._ctrl.init, Controller.NVME_HOST, int(udev.sys_number))
+                                                       self._ctrl.init, self._host, int(udev.sys_number))
         else:
             self._device = None
             cfg = { 'hdr_digest':  CNF.hdr_digest,
@@ -990,7 +1105,7 @@ class Controller:
                 cfg['keep_alive_tmo'] = CNF.kato
             LOG.debug('Controller._try_to_connect()       - %s Connecting to nvme control with cfg=%s', self.id, cfg)
             self._connect_op = AsyncOperationWithRetry(self._on_connect_success, self._on_connect_fail,
-                                                       self._ctrl.connect, Controller.NVME_HOST, cfg)
+                                                       self._ctrl.connect, self._host, cfg)
 
         self._connect_op.run_async()
 
@@ -1094,7 +1209,8 @@ class Service:
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr) # systemctl stop stafd
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGHUP, reload_hdlr)      # systemctl reload stafd
 
-        if not NVME_OPTIONS.host_iface_supp:
+        nvme_options = get_nvme_options()
+        if not nvme_options.host_iface_supp or not nvme_options.discovery_supp:
             LOG.warning('Kernel does not appear to support all the options needed to run this program. Consider updating to a later kernel version.')
 
     def _release_resources(self):
@@ -1132,13 +1248,15 @@ class Service:
     def info(self) -> dict:
         ''' @brief Get the status info for this object (used for debug)
         '''
+        nvme_options = get_nvme_options()
+        sys_cnf = get_sysconf()
         return {
             'config soak timer': str(self._cfg_soak_tmr),
             'kernel support': {
-                'TP8010':     NVME_OPTIONS.register_supp,
-                'TP8013':     NVME_OPTIONS.discovery_supp,
-                'host_iface': NVME_OPTIONS.host_iface_supp,
+                'TP8013':     nvme_options.discovery_supp,
+                'host_iface': nvme_options.host_iface_supp,
             },
+            'system config': sys_cnf.as_dict(),
         }
 
     def get_controllers(self):

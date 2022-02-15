@@ -45,7 +45,23 @@
         <title>Description</title>
 
         <para>
-            <command>stasadm</command> is used to configure nvme-stas.
+            <command>stasadm</command> is used to configure <code>nvme-stas</code>. The
+            configuration is saved to <filename>/etc/stas/sys.conf</filename>.
+        </para>
+
+        <para>
+            Although <code>nvme-stas</code>' configuration is saved to
+            <filename>/etc/stas/sys.conf</filename>, it's still possible to
+            interoperate with the configuration of <command>nvme-cli</command>
+            and <command>libnvme</command>. <code>nvme-stas</code> allows to
+            save individual parameters such as the Host NQN and ID outside of
+            <filename>/etc/stas/sys.conf</filename>. This allows, for example,
+            using the same default Host NQN and ID defined by
+            <command>nvme-cli</command> and <command>libnvme</command> in
+            <filename>/etc/nvme/hostnqn</filename> and <filename>/etc/nvme/hostid</filename>
+            respectively. To tell <code>nvme-stas</code> that you want to use the
+            those files, simply use <command>stasadm</command>'s
+            <option>--file=FILE</option> option.
         </para>
     </refsect1>
 
@@ -87,6 +103,29 @@
                     </para>
                 </listitem>
             </varlistentry>
+
+            <varlistentry>
+                <term><command>set-symname [SYMNAME]</command></term>
+                <listitem>
+                    <para>
+                        Set the host symbolic name.
+                    </para>
+
+                    <para>
+                        The symbolic name is an optional parameter that can be
+                        used for explicit registration with a discovery controller.
+                    </para>
+                </listitem>
+            </varlistentry>
+
+            <varlistentry>
+                <term><command>clear-symname</command></term>
+                <listitem>
+                    <para>
+                        Clear the host symbolic name.
+                    </para>
+                </listitem>
+            </varlistentry>
         </variablelist>
     </refsect1>
 
@@ -105,8 +144,17 @@
                 <listitem>
                     <para>
                         By default, <command>hostnqn</command> and <command>hostid</command> 
-                        print outputs to screen. This option allows printing 
-                        to a file instead of the screen.
+                        save the values to <filename>/etc/stas/sys.conf</filename>.
+                        This option allows saving to a separate file.
+                    </para>
+                    <para>
+                        Traditionally, <command>nvme-cli</command> and
+                        <command>libnvme</command> retrieve the default Host NQN
+                        and ID from <filename>/etc/nvme/hostnqn</filename> and
+                        <filename>/etc/nvme/hostid</filename> respectively. The
+                        <option>--file=FILE</option> option can be
+                        used to tell <code>nvme-stas</code> that it should
+                        use those same configuration files.
                     </para>
                 </listitem>
             </varlistentry>
@@ -133,5 +181,21 @@
             <title>Generate <filename>/etc/nvme/hostid</filename></title>
             <programlisting>$ stasadm hostid -f /etc/nvme/hostid</programlisting>
         </example>
+
+        <example>
+            <title>Configure the host's symbolic name</title>
+            <programlisting>$ stasadm set-symname LukeSkywalker</programlisting>
+        </example>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+
+        <para>
+            <citerefentry>
+                <refentrytitle>nvme-stas</refentrytitle>
+                <manvolnum>7</manvolnum>
+            </citerefentry>
+        </para>
     </refsect1>
 </refentry>

@@ -311,7 +311,7 @@ class Avahi():
                 'traddr':     address,
                 'trsvcid':    str(port),
                 'host-iface': socket.if_indextoname(interface),
-                'subsysnqn':  txt.get('NQN', 'nqn.2014-08.org.nvmexpress.discovery') if stas.NVME_OPTIONS.discovery_supp else 'nqn.2014-08.org.nvmexpress.discovery',
+                'subsysnqn':  txt.get('NQN', 'nqn.2014-08.org.nvmexpress.discovery') if stas.get_nvme_options().discovery_supp else 'nqn.2014-08.org.nvmexpress.discovery',
             }
         self._change_cb()
 
