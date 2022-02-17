@@ -67,9 +67,8 @@ endif
 #===============================================================================
 conf = configuration_data()
 
-conf.set('KERNEL_REQD_MIN_VERSION', '5.14')
+conf.set('KERNEL_IFACE_MIN_VERSION', '5.14')
 conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
-conf.set('KERNEL_TP8010_MIN_VERSION', '5.18')
 
 foreach component : [ ['staf', 'STorage Appliance Finder'],
                       ['stac', 'STorage Appliance Connector'] ]

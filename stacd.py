@@ -63,8 +63,8 @@ if ARGS.idl:
 
 
 # There is a reason for having this import here and not at the top of the file.
-# We want to allow running stafd with the --version and --idl options without
-# having to import stas.
+# We want to allow running stafd with the --version and --idl options and exit
+# without having to import stas.
 from staslib import stas # pylint: disable=wrong-import-position
 
 # Before going any further, make sure the script is allowed to run.
@@ -222,15 +222,15 @@ class Stac(stas.Service):
         new_controller_ids = { stas.TransportId(controller) for controller in controllers }
         cur_controller_ids = set(self._controllers.keys())
         controllers_to_add = new_controller_ids - cur_controller_ids
-        #controllers_to_rm  = cur_controller_ids - new_controller_ids
+        controllers_to_rm  = cur_controller_ids - new_controller_ids
 
         LOG.debug('Stac._config_ctrls_finish()        - controllers_to_add = %s', list(controllers_to_add))
-        #LOG.debug('Stac._config_ctrls_finish()        - controllers_to_rm  = %s', list(controllers_to_rm))
+        LOG.debug('Stac._config_ctrls_finish()        - controllers_to_rm  = %s', list(controllers_to_rm))
 
-        #for tid in controllers_to_rm:
-        #    controller = self._controllers.pop(tid, None)
-        #    if controller is not None:
-        #        controller.kill()
+        for tid in controllers_to_rm:
+            controller = self._controllers.pop(tid, None)
+            if controller is not None:
+                controller.kill()
 
         for tid in controllers_to_add:
             self._controllers[tid] = Ioc(tid)
@@ -255,7 +255,7 @@ class Stac(stas.Service):
             dasbus.client.proxy.disconnect_proxy(self._staf)
             self._staf = None
         # When we lose connectivity with stafd, the most logical explanation
-        # is that stafd restarted. In that case, it may time some time for stafd
+        # is that stafd restarted. In that case, it may take some time for stafd
         # to re-populate its log pages cache. So let's give stafd plenty of time
         # to update its log pages cache and send log pages change notifications
         # before triggering a stacd re-config. We do this by momentarily

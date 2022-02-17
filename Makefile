@@ -49,6 +49,7 @@ loc-full:
 	@cloc --by-file --exclude-dir=${BUILD-DIR},Documentation,test,utils,debian,obj-x86_64-linux-gnu,.github .
 
 
+# THE FOLLOWING TARGETS ARE EXPERIMENTAL:
 # Use "DEB_BUILD_OPTIONS=nocheck make debian" to skip unit testing.
 .PHONY: deb
 deb: ${BUILD-DIR}

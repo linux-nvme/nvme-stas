@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from lxml import etree
 
 def parse_args():
-    parser = ArgumentParser(description=f'Extract D-Bus IDL from executable and genarate DocBook documentation.')
+    parser = ArgumentParser(description='Extract D-Bus IDL from executable and genarate DocBook documentation.')
     parser.add_argument('--executable',       action='store', help='Executable from which to get the IDL (must provide an --idl option)', required=True, type=str, metavar='FILE')
     parser.add_argument('--output-directory', action='store', help='Output directory where DocBook files will be saved', required=True, type=str, metavar='DIR')
     parser.add_argument('--tmp',              action='store', help='Temporary directory for intermediate files', required=True, type=str, metavar='DIR')
@@ -58,8 +58,8 @@ def add_missing_info(fname, stem):
     et.write(fname, pretty_print=True)
 
 
-file_prefix = 'nvme-stas'
-final_prefix = file_prefix + '-'
+FILE_PREFIX = 'nvme-stas'
+FINAL_PREFIX = FILE_PREFIX + '-'
 
 with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
     idl_file = os.path.join(tmpdirname, 'dbus.idl')
@@ -69,15 +69,15 @@ with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
         sys.exit(f'Failed to generate IDL file. {ex}')
 
     try:
-        subprocess.run(['gdbus-codegen', '--output-directory', tmpdirname, '--generate-docbook', file_prefix, idl_file])
+        subprocess.run(['gdbus-codegen', '--output-directory', tmpdirname, '--generate-docbook', FILE_PREFIX, idl_file])
     except subprocess.CalledProcessError as ex:
         sys.exit(f'Failed to generate DocBook file. {ex}')
 
     stems = []
     with os.scandir(tmpdirname) as it:
         for entry in it:
-            if entry.is_file() and entry.name.endswith('.xml') and entry.name.startswith(final_prefix):
-                fname = entry.name[len(final_prefix):] # Strip prefix
+            if entry.is_file() and entry.name.endswith('.xml') and entry.name.startswith(FINAL_PREFIX):
+                fname = entry.name[len(FINAL_PREFIX):] # Strip prefix
                 stem = fname[0:-4]                     # Strip '.xml' suffix
                 stems.append(stem)
                 tmp_file = os.path.join(tmpdirname, entry.name)
@@ -85,4 +85,3 @@ with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
                 os.replace(tmp_file, os.path.join(ARGS.output_directory, fname))
 
     print(';'.join(stems))
-

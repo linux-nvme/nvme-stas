@@ -31,4 +31,3 @@ for fname in file_list:
         output.append(','.join([stem, manvolnum, fname, deps]))
 
 print(';'.join(output))
-
