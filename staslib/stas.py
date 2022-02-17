@@ -150,7 +150,7 @@ class Configuration:
             ('Global', 'hdr-digest'): 'false',
             ('Global', 'data-digest'): 'false',
             ('Global', 'kato'): None,
-            ('Service Discovery', 'stype'): list(),
+            ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'blacklist'): list(),
         }
@@ -242,7 +242,10 @@ class Configuration:
     def get_stypes(self):
         ''' @brief Get the DNS-SD/mDNS service types.
         '''
-        return self.__get_value('Service Discovery', 'stype')
+        return ['_nvme-disc._tcp'] if self.zeroconf_enabled() else list()
+
+    def zeroconf_enabled(self):
+        return self.__get_value('Service Discovery', 'zeroconf')[0] == 'enabled'
 
     def read_conf_file(self):
         ''' @brief Read the configuration file if the file exists.

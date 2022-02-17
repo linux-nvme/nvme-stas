@@ -112,20 +112,24 @@
 
             <variablelist>
                 <varlistentry>
-                    <term><varname>stype=</varname></term>
+                    <term><varname>zeroconf=</varname></term>
 
                     <listitem>
                         <para>
-                            DNS-SD/mDNS service type. Takes a string argument
-                            which sets the service type that <literal>stafd</literal>
-                            will use to locate Discovery Controllers (DC) using mDNS
-                            service discovery. This option may be specified more
-                            than once to specify more than one service types.
-                            The NVMe-oF specifications only defines one service
-                            type for Discovery Controllers: "<literal>_nvme-disc._tcp</literal>".
-                            This is the value you should use to enable mDNS
-                            service discovery. When unspecified or commented
-                            out, mDNS discovery of DCs is disabled.
+                            Enable zeroconf provisioning using DNS-SD/mDNS.
+                            Takes a string argument <literal>enabled</literal> or
+                            <literal>disabled</literal>.
+                        </para>
+                        <para>
+                            When <literal>enabled</literal>, the default,
+                            <literal>stafd</literal> makes a request with the
+                            Avahi daemon to locate Discovery Controllers using
+                            DNS-SD/mDNS.
+                        </para>
+                        <para>
+                            Discovery Controllers that support zeroconf advertize
+                            themselves over mDNS with the service type
+                            "<literal>_nvme-disc._tcp</literal>".
                         </para>
                     </listitem>
                 </varlistentry>
