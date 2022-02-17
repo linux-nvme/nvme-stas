@@ -217,14 +217,14 @@ class Avahi():
     def _avahi_available(self, _avahi_watcher):
         ''' @brief Hook up DBus signal handlers for signals from stafd.
         '''
-        self._logger.info('mDNS discovery with avahi-daemon enabled.')
+        self._logger.info('avahi-daemon service available, zeroconf supported.')
         success = self._configure_browsers()
         if not success:
             self._kick_avahi_tmr.start()
 
     def _avahi_unavailable(self, _avahi_watcher):
         self._disconnect()
-        self._logger.warning('avahi-daemon not available, operating w/o mDNS discovery.')
+        self._logger.warning('avahi-daemon not available, zeroconf not supported.')
         self._kick_avahi_tmr.start()
 
     def _configure_browsers(self):
