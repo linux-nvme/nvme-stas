@@ -132,12 +132,6 @@ install_subdir(
 
 sys_conf = configure_file(
     input: 'sys.conf',
-    output: 'sys.conf',
-    install_dir: cnfdir,
-    copy: true,
-)
-sys_conf = configure_file(
-    input: 'sys.conf',
     output: 'sys.conf.doc',
     install_dir: cnfdir,
     copy: true,

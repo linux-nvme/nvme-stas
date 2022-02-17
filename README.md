@@ -46,7 +46,15 @@ STAS is composed of two services, STAF and STAC, running on the Host computer.
 
 ## Configuration
 
-As stated before, **`stafd`** can automatically locate discovery controllers with the help of Avahi and connect to them, and **`stacd`** can automatically set up the I/O connections to discovered storage subsystems. However, **`stafd`** and **`stacd`** can also operate in a non-automatic mode based on manually entered configuration. In other words, discovery controllers and/or storage subsystems can be entered manually. This is again to provide customers with more flexibility. The configuration for each daemon is found in **`/etc/stas/stafd.conf`** and **`/etc/stas/stacd.conf`** respectively. The configuration files also provide additional parameters, such as log-level attributes used mainly for debugging purposes.
+As stated before, **`stafd`** can automatically locate discovery controllers with the help of Avahi and connect to them, and **`stacd`** can automatically set up the I/O connections to discovered storage subsystems. However, **`stafd`** and **`stacd`** can also operate in a non-automatic mode based on manually entered configuration. In other words, discovery controllers and/or storage subsystems can be entered manually. This is to provide customers with more flexibility. The configuration for each daemon is found in **`/etc/stas/stafd.conf`** and **`/etc/stas/stacd.conf`** respectively. The configuration files also provide additional parameters, such as log-level attributes used mainly for debugging purposes.
+
+The following configuration files are defined:
+
+| File                   | Consumer          | Purpose                                                      |
+| ---------------------- | ----------------- | ------------------------------------------------------------ |
+| `/etc/stas/sys.conf`   | `stafd` + `stacd` | Contains system-wide (i.e. host) configuration such as the Host NQN, the Host ID, and the Host Symbolic Name. Changes to this file can be made manually or with the help of the `stasadm` utility as described in the previous section. <br /><br />For example, `stasadm hostnqn -f /etc/nvme/hostnqn` writes the Host NQN to the file `/etc/nvme/hostnqn`, but also adds an entry to `/etc/stas/sys.conf` to indicate where the Host NQN has been saved. <br /><br />This gives nvme-stas the flexibility of defining its own Host parameters or to use the same parameters defined by `libnvme` and `nvme-cli`. |
+| `/etc/stas/stafd.conf` | `stafd`           | Contains configuration specific to `stafd`. Discovery controllers can be manually added or blacklisted in this file. |
+| `/etc/stas/stacd.conf` | `stacd`           | Contains configuration specific to `stacd`. I/O controllers can be manually added or blacklisted in this file. |
 
 ## D-Bus interface
 

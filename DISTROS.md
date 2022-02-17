@@ -35,9 +35,9 @@ nvme-stas also depends on the following run-time libraries and modules. Note tha
 
 We install D-Bus configuration files under `/usr/share/dbus-1/system.d`. One needs to run **`systemctl reload dbus-broker.service`** (Fedora) OR **`systemctl reload dbus.service`** (SuSE, Debian) for the new configuration to take effect.
 
-### NVMe configuration
+### Configuration shared with `libnvme` and `nvme-cli`
 
-`stafd` and `stacd` use the `libnvme` library to interact with the Linux kernel. And `libnvme` relies on two configuration files, `/etc/nvme/hostnqn` and `/etc/nvme/hostid`, to retrieve the Host NQN and ID respectively. These files should be created post installation. Here's an example for Debian-based systems:
+`stafd` and `stacd` use the `libnvme` library to interact with the Linux kernel. And `libnvme` as well as `nvme-cli` rely on two configuration files, `/etc/nvme/hostnqn` and `/etc/nvme/hostid`, to retrieve the Host NQN and ID respectively. These files should be created post installation with the help of the `stadadm` utility. Here's an example for Debian-based systems:
 
 ```
 if [ "$1" = "configure" ]; then
@@ -53,9 +53,18 @@ if [ "$1" = "configure" ]; then
 fi
 ```
 
-Note that the above uses the utility program `stasadm` that gets installed with `nvme-stas`.
+The utility program `stasadm` gets installed with `nvme-stas`. `stasadm` also manages the creation (and updating) of `/etc/stas/sys.conf`, the `nvme-stas` system configuration file.
+
+### Configuration specific to nvme-stas
+
+The [README](./README.md) file defines the following three configuration files:
+
+- `/etc/stas/sys.conf`
+- `/etc/stas/stafd.conf`
+- `/etc/stas/stacd.conf`
+
+Care should be taken during upgrades to preserve customer configuration and not simply overwrite it.  The process to migrate the configuration data and the list of parameters to migrate is still to be defined.
 
 ### Enabling and starting the daemons
 
 Lastly, the two daemons, `stafd` and `stacd`, should be enabled (e.g. `systemctl enable stafd.service stacd.service`) and started (e.g. `systemctl start stafd.service stacd.service`).
-
