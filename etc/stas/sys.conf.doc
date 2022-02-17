@@ -12,31 +12,34 @@
 
 
 [Host]
-# nqn:     The host's unique Non-Qualified Name. This can either be an NQN or
-#          the name of a file containing the NQN. Typically, nvme-cli saves the
-#          Host NQN in /etc/nvme/hostnqn. For compatibility with nvme-cli, nvme-
-#          stas defaults to looking for the existance of this file and will read
-#          the NQN from it. Otherwise, you can overwrite the default NQN by
-#          specifying its value here or specifying another file that contains
-#          the Host NQN to use.
+# nqn:     The host's unique Non-Qualified Name. A value starting with "file://"
+#          indicates that the Host NQN can be retrieved from a separate file.
+#          Typically, nvme-cli saves the Host NQN in /etc/nvme/hostnqn. For
+#          compatibility with nvme-cli, nvme-stas defaults to looking for the
+#          existance of this file and will read the NQN from it. Otherwise, you
+#          can overwrite the default NQN by specifying its value here or
+#          specifying another file that contains the Host NQN to use.
 #          Type: string
-#          Default: The Host NQN is retrieved from /etc/nvme/hostnqn be default.
-#nqn=/etc/nvme/hostnqn
+#          Default: file:///etc/nvme/hostnqn
+#nqn=file:///etc/nvme/hostnqn
 
-# id:      The host's unique Identifier (ID). This can either be a UUID or
-#          the name of a file containing the UUID. Typically, nvme-cli saves the
-#          Host ID in /etc/nvme/hostid. For compatibility with nvme-cli, nvme-
-#          stas defaults to looking for the existance of this file and will read
-#          the ID from it. Otherwise, you can overwrite the default ID by
-#          specifying its value here or specifying another file that contains
-#          the Host ID to use.
+
+# id:      The host's unique Identifier (ID). A value starting with "file://"
+#          indicates that the Host ID can be retrieved from a separate file.
+#          Typically, nvme-cli saves the Host ID in /etc/nvme/hostid. For
+#          compatibility with nvme-cli, nvme-stas defaults to looking for the
+#          existance of this file and will read the ID from it. Otherwise, you
+#          can overwrite the default ID by specifying its value here or
+#          specifying another file that contains the Host ID to use.
 #          Type: string
-#          Default: The Host ID is retrieved from /etc/nvme/hostid be default.
-#id=/etc/nvme/hostid
+#          Default: file:///etc/nvme/hostid
+#id=file:///etc/nvme/hostid
 
 
 # symname: The host's symbolic name. This can be a string or the name of a file
-#          containing the symbolic name
+#          containing the symbolic name. A value starting with "file://"
+#          indicates that the Symbolic Name can be retrieved from a separate
+#          file.
 #          Type: string
 #          Default: There is no default. The symbolic name is undefined by
 #                   default.

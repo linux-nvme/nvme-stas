@@ -9,7 +9,6 @@
 #
 ''' STorage Appliance Finder Daemon
 '''
-import os
 import sys
 from argparse import ArgumentParser
 from staslib import defs
@@ -86,8 +85,8 @@ if ARGS.idl:
 
 
 # There is a reason for having this import here and not at the top of the file.
-# We want to allow running stafd with the --version and --idl options without
-# having to import stas and avahi.
+# We want to allow running stafd with the --version and --idl options and exit
+# without having to import stas and avahi.
 from staslib import stas, avahi # pylint: disable=wrong-import-position
 
 # Before going any further, make sure the script is allowed to run.
@@ -311,6 +310,8 @@ class Staf(stas.Service):
 
         @dasbus.server.interface.dbus_signal
         def log_pages_changed(self, transport:str, traddr:str, trsvcid:str, host_traddr:str, host_iface:str, subsysnqn:str, device:str):
+            ''' @brief Signal sent when log pages have changed.
+            '''
             pass
 
         @property
@@ -363,14 +364,6 @@ class Staf(stas.Service):
     #===========================================================================
     def __init__(self):
         super().__init__(self._reload_hdlr)
-
-        # Check that the hostnqn and hostid are configured
-        for file in ('/etc/nvme/hostnqn', '/etc/nvme/hostid'):
-            if not os.path.exists(file):
-                LOG.warning('Mising "/etc/nvme/hostnqn" and/or "/etc/nvme/hostid". %s will operate with reduced functionality.', defs.STAFD_PROCNAME)
-                LOG.warning('Use stasadm to configure these files (see stasadm [hostnqn|hostid] -f /etc/nvme/[hostnqn|hostid])')
-                break
-
         self._avahi = avahi.Avahi(LOG, self._sysbus, self._avahi_change)
         self._avahi.config_stypes(CNF.get_stypes())
 

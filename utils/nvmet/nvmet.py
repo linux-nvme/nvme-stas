@@ -121,7 +121,7 @@ def create(args):
     if subsystems is None:
         sys.exit(f'Config file "{args.conf_file}" missing a "subsystems" section')
 
-    # Extract the list of transport types found in the 
+    # Extract the list of transport types found in the
     # config file and load the corresponding kernel module.
     trtypes = { port.get('trtype') for port in ports if port.get('trtype') is not None }
     for trtype in trtypes:
@@ -303,4 +303,3 @@ if args.version:
 
 # Invoke the sub-command
 args.func(args)
-

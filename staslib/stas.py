@@ -122,7 +122,7 @@ def parse_controller(controller):
 
 #*******************************************************************************
 class OrderedMultisetDict(dict):
-    ''' This calls is used to change the behavior of configparser.ConfigParser
+    ''' This class is used to change the behavior of configparser.ConfigParser
         and allow multiple configuration parameters with the same key. The
         result is a list of values.
     '''
@@ -376,7 +376,7 @@ class SysConfiguration:
 
 __SYS_CNF = None
 def get_sysconf():
-    global __SYS_CNF
+    global __SYS_CNF # pylint: disable=global-statement
     if __SYS_CNF is None:
         __SYS_CNF = SysConfiguration('/etc/stas/sys.conf') # Singleton
     return __SYS_CNF
@@ -394,16 +394,16 @@ class NvmeOptions():
         # or by reading '/dev/nvme-fabrics'. The ability to read the options
         # from '/dev/nvme-fabrics' was only introduced in kernel 5.17, but may
         # have been backported to older kernels. In any case, if the kernel
-        # version meets the minimum version for that option, then we don't need
+        # version meets the minimum version for that option, then we don't
         # even need to read '/dev/nvme-fabrics'.
         self._supported_options = {
             'discovery':  LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_TP8013_MIN_VERSION),
-            'host_iface': LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_REQD_MIN_VERSION),
+            'host_iface': LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_IFACE_MIN_VERSION),
         }
 
         # If some of the options are False, we need to check wether they can be
         # read from '/dev/nvme-fabrics'. This method allows us to determine that
-        # an older kernels actually supports a specific option because it was
+        # an older kernel actually supports a specific option because it was
         # backported to that kernel.
         if not all(self._supported_options.values()): # At least one option is False.
             try:
@@ -788,7 +788,7 @@ class NameResolver:
         ''' @brief The traddr fields may specify a hostname instead of an IP
                    address. We need to resolve all the host names to addresses.
                    Resolving hostnames may take a while as a DNS server may need
-                   to be contracted. For that reason we're using async APIs with
+                   to be contacted. For that reason, we're using async APIs with
                    callbacks to resolve all the hostnames.
 
                    The callback @callback will be called once all hostnames have
@@ -1043,13 +1043,13 @@ class Controller:
     def _on_udev_notification(self, udev):
         if self._alive():
             if udev.action == 'change':
-                NVME_AEN = udev.get("NVME_AEN")
-                NVME_EVENT = udev.get("NVME_EVENT")
-                if isinstance(NVME_AEN, str):
-                    LOG.info('%s | %s - Received AEN: %s', self.id, udev.sys_name, NVME_AEN)
-                    self._on_aen(udev, int(NVME_AEN, 16))
-                if isinstance(NVME_EVENT, str):
-                    self._on_nvme_event(udev, NVME_EVENT)
+                nvme_aen = udev.get("NVME_AEN")
+                nvme_event = udev.get("NVME_EVENT")
+                if isinstance(nvme_aen, str):
+                    LOG.info('%s | %s - Received AEN: %s', self.id, udev.sys_name, nvme_aen)
+                    self._on_aen(udev, int(nvme_aen, 16))
+                if isinstance(nvme_event, str):
+                    self._on_nvme_event(udev, nvme_event)
             elif udev.action == 'remove':
                 LOG.info('%s | %s - Received "remove" event', self.id, udev.sys_name)
                 self._on_udev_remove(udev)

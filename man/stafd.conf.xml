@@ -93,7 +93,7 @@
                             Discovery Controllers (DC) are persistent. When
                             true, connections initiated by stafd will persists
                             even when stafd is stopped. When
-                            <literal>false</literal>, <literal>stafd</literal>
+                            <literal>false</literal>, <code>stafd</code>
                             will disconnect from all DCs it is connected to on
                             exit. Defaults to<literal>false</literal>.
                         </para>
@@ -122,14 +122,14 @@
                         </para>
                         <para>
                             When <literal>enabled</literal>, the default,
-                            <literal>stafd</literal> makes a request with the
+                            <code>stafd</code> makes a request with the
                             Avahi daemon to locate Discovery Controllers using
                             DNS-SD/mDNS.
                         </para>
                         <para>
                             Discovery Controllers that support zeroconf advertize
                             themselves over mDNS with the service type
-                            "<literal>_nvme-disc._tcp</literal>".
+                            <literal>_nvme-disc._tcp</literal>.
                         </para>
                     </listitem>
                 </varlistentry>
