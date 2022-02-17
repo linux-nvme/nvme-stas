@@ -130,13 +130,6 @@ install_subdir(
     install_dir: etcdir,
 )
 
-sys_conf = configure_file(
-    input: 'sys.conf',
-    output: 'sys.conf.doc',
-    install_dir: cnfdir,
-    copy: true,
-)
-
 #===============================================================================
 test_env = environment({'MALLOC_PERTURB_': '0'})
 test_env.prepend('PYTHONPATH', meson.current_build_dir())
