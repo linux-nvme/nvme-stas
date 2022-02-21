@@ -59,9 +59,8 @@ jobs:
         with:
           context: .
           build-args: |
-            GITHUB_ORG=martin-belanger
-            GITHUB_REPO=libnvme-tp8010
-            GITHUB_TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }}@
+            GITHUB_ORG=linux-nvme
+            GITHUB_REPO=libnvme
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
