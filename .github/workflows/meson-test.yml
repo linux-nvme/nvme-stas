@@ -18,29 +18,27 @@ jobs:
           sudo apt-get install -y python3-pyudev python3-systemd python3-gi meson
           python -m pip install --upgrade pip dasbus pylint pyflakes
 
-      - name: Checkout private libnvme-tp8010
+      - name: Checkout libnvme
         uses: actions/checkout@v2
         with:
-          repository: martin-belanger/libnvme-tp8010
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          path: libnvme-tp8010
-          ref: kernel-dim
+          repository: linux-nvme/libnvme
+          path: libnvme
 
-      - name: Build and install libnvme-tp8010
+      - name: Build and install libnvme
         run: |
-          cd libnvme-tp8010
+          cd libnvme
           meson .build
           cd .build
           ninja
           sudo meson install
 
       - name: Configure nvme-stas
-        run: PYTHONPATH=libnvme-tp8010/.build meson .build
+        run: PYTHONPATH=libnvme/.build meson .build
 
       - name: Test
         run: |
           cd .build
-          PYTHONPATH=../libnvme-tp8010/.build meson test -v
+          PYTHONPATH=../libnvme/.build meson test -v
 
       - name: Upload logs
         if: failure()
