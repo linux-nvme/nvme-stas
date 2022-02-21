@@ -7,7 +7,7 @@ FROM $registry/$base:$version as libnvme-builder
 WORKDIR /root
 
 # TODO: once libnvme project has a package or docker image, remove this stage and install libnvme
-RUN dnf install -y git gcc g++ cmake libuuid-devel json-c-devel swig python-devel meson
+RUN dnf install -y git gcc g++ cmake openssl-devel libuuid-devel json-c-devel swig python-devel meson
 ARG GITHUB_ORG=linux-nvme
 ARG GITHUB_REPO=libnvme
 ARG GITHUB_TOKEN
