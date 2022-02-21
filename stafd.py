@@ -222,7 +222,7 @@ class Dc(stas.Controller):
 
         if self._alive():
             if self._ctrl.is_registration_supported():
-                self._register_op = stas.AsyncOperationWithRetry(self._on_registration_success, self._on_registration_fail, self._ctrl.registration_ctl, nvme.NVME_TAS_REGISTER)
+                self._register_op = stas.AsyncOperationWithRetry(self._on_registration_success, self._on_registration_fail, self._ctrl.registration_ctlr, nvme.NVMF_DIM_TAS_REGISTER)
                 self._register_op.run_async()
             else:
                 self._get_log_op = stas.AsyncOperationWithRetry(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
