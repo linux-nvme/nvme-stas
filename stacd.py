@@ -89,9 +89,12 @@ stas.trace_control(ARGS.tron or CNF.tron)
 
 SYS_CNF   = stas.get_sysconf() # Singleton
 NVME_ROOT = nvme.root()        # Singleton
+NVME_ROOT.log_level("debug" if (ARGS.tron or CNF.tron) else "err")
 NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname) # Singleton
 
-NVME_ROOT.log_level('debug' if ARGS.tron or CNF.tron else 'info') # extra debug info
+def set_loglevel(tron):
+    stas.trace_control(tron)
+    NVME_ROOT.log_level("debug" if tron else "err")
 
 #*******************************************************************************
 class Ioc(stas.Controller):
@@ -134,7 +137,7 @@ class Stac(stas.Service):
         @tron.setter
         def tron(self, value): # pylint: disable=no-self-use
             ''' @brief Set Trace ON property '''
-            stas.trace_control(value)
+            set_loglevel(value)
 
         @property
         def log_level(self) -> str:
@@ -200,7 +203,7 @@ class Stac(stas.Service):
         '''
         systemd.daemon.notify('RELOADING=1')
         CNF.reload()
-        stas.trace_control(CNF.tron)
+        set_loglevel(CNF.tron)
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
