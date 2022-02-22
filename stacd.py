@@ -91,6 +91,8 @@ SYS_CNF   = stas.get_sysconf() # Singleton
 NVME_ROOT = nvme.root()        # Singleton
 NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname) # Singleton
 
+NVME_ROOT.log_level('debug' if ARGS.tron or CNF.tron else 'info') # extra debug info
+
 #*******************************************************************************
 class Ioc(stas.Controller):
     ''' @brief This object establishes a connection to one I/O Controller.
