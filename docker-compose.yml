@@ -12,7 +12,8 @@ x-stas: &default-stas
         GITHUB_REPO: libnvme
         GITHUB_TOKEN:
     volumes:
-        - /run/dbus:/run/dbus      
+        - /run/dbus:/run/dbus
+        - /etc/nvme:/etc/nvme
     privileged: true
     network_mode: host
 
