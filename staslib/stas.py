@@ -604,6 +604,13 @@ class Udev:
             @return The device if a match is found, None otherwise.
         '''
         for device in self._context.list_devices(subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport):
+            # Note: Prior to 5.18 linux didn't expose the cntrltype through
+            # the sysfs. So, this may return None on older kernels.
+            cntrltype = device.attributes.get('cntrltype')
+            if cntrltype is not None and cntrltype.decode() != 'discovery':
+                continue
+
+            # Imply Discovery controller based on the absence of children.
             # Discovery Controllers have no children devices
             if len(list(device.children)) != 0:
                 continue
@@ -617,6 +624,13 @@ class Udev:
 
     def find_nvme_ioc_device(self, tid):
         for device in self._context.list_devices(subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport):
+            # Note: Prior to 5.18 linux didn't expose the cntrltype through
+            # the sysfs. So, this may return None on older kernels.
+            cntrltype = device.attributes.get('cntrltype')
+            if cntrltype is not None and cntrltype.decode() != 'io':
+                continue
+
+            # Imply I/O controller based on the presence of children.
             # I/O Controllers have children devices
             if len(list(device.children)) == 0:
                 continue
