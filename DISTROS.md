@@ -14,9 +14,18 @@ nvme-stas is a Python 3 project and does not require compile-time libraries per 
 
 ## Run-time dependencies
 
-nvme-stas requires Linux kernel version of 5.14 or later. This version of Linux introduces a new configuration parameter (`host-iface`) needed by the nvme-tcp kernel module.
+nvme-stas is built on top of libnvme, which is used to interact with the kernel's NVMe driver (i.e. `drivers/nvme/host/`). To support all the features of nvme-stas, several changes to the Linux kernel are required. nvme-stas can also operate with older kernels, but with limited functionality. Kernel 5.18 provides all the features needed by nvme-stas. nvme-stas can also work with older kernels that include back-ported changes to the NVMe driver.
 
-nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with. With the exception of the Linux kernel 5.14, which is the mandatory minimum kernel required, all other libraries could potentially work with an earlier version.
+The next table shows different features that were added to the NVMe driver and in which version of the Linux kernel they were added. Note that the ability to query the NVMe driver to determine what options it supports was added in 5.17. This is needed if nvme-stas is to make the right decision on whether a feature is supported. Otherwise, nvme-stas can only rely on the kernel version to decide what is supported. This can greatly limit the features supported on back-ported kernels.
+
+| Feature                                                      | Introduced in kernel version |
+| ------------------------------------------------------------ | ---------------------------- |
+| **`host-iface` option** - Ability to force TCP connections over a specific interface. Needed for zeroconf provisioning. | 5.14                         |
+| **TP8013 Support** - Discovery Controller (DC) Unique NQN. Allow the creation of connections to DC with a NQN other than the default `nqn.2014-08.org.nvmexpress.discovery` | 5.16                         |
+| **Query supported options** - Allow user-space applications to query which options the NVMe driver supports | 5.17                         |
+| **TP8010 Support** - Ability for a Host to register with a Discovery Controller. This version of the kernel introduces a new event to indicate to user-space apps (e.g. nvme-stas) when a connection to a DC is restored. This is used to trigger a re-registration of the host. This kernel also exposes the DC Type (dctype) attribute through the sysfs, which is needed to determine whether registration is supported. | 5.18                         |
+
+nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with. 
 
 | Library                                         | Min version | stafd         | stacd         |
 | ----------------------------------------------- | ----------- | ------------- | ------------- |
@@ -24,10 +33,12 @@ nvme-stas also depends on the following run-time libraries and modules. Note tha
 | python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** |
 | python3-pyudev                                  | 0.22.0      | **Mandatory** | **Mandatory** |
 | python3-systemd                                 | 234         | **Mandatory** | **Mandatory** |
-| python3-gi (Debian) OR python3-gobject (Fedora) | 3.40.1      | **Mandatory** | **Mandatory** |
-| nvme-tcp (kernel module)                        | 5.14        | **Mandatory** | **Mandatory** |
-| dbus-daemon                                     | 1.12.20     | **Mandatory** | **Mandatory** |
+| python3-gi (Debian) OR python3-gobject (Fedora) | 3.36.0      | **Mandatory** | **Mandatory** |
+| nvme-tcp (kernel module)                        | 5.18 *      | **Mandatory** | **Mandatory** |
+| dbus-daemon                                     | 1.12.2      | **Mandatory** | **Mandatory** |
 | avahi-daemon                                    | 0.8         | **Mandatory** | Not required  |
+
+* Kernel 5.18 provides full functionality. nvme-stas can work with older kernels, but with limited functionality. 
 
 ## Things to do post installation
 
