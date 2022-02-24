@@ -84,14 +84,14 @@ The following packages must be installed to use **`stafd`**/**`stacd`**
 **Debian packages (tested on Ubuntu 20.04):**
 
 ```bash
-sudo apt-get install -y python3-pyudev python3-systemd python3-gi
+sudo apt-get install -y python3-pyudev python3-systemd python3-gi python3-netifaces
 sudo pip3 install dasbus
 ```
 
 **Yum packages (tested on Fedora 34):**
 
 ```bash
-sudo dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject
+sudo dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject python3-netifaces
 ```
 
 Additionally, the `libnvme` library (with Python bindings) needs to be installed. Currently only available from source at: https://github.com/linux-nvme/libnvme

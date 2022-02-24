@@ -223,6 +223,7 @@ class Stac(stas.Service):
         LOG.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
 
         controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list)
+        controllers = stas.remove_invalid_addresses(controllers)
 
         new_controller_ids = { stas.TransportId(controller) for controller in controllers }
         cur_controller_ids = set(self._controllers.keys())
