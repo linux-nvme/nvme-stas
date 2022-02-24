@@ -39,11 +39,12 @@ endif
 check_pymodules = get_option('check_pymodules')
 if check_pymodules
     py_modules_reqd = [
-        ['libnvme', 'This library must be installed from sources (at this time)'],
-        ['dasbus',  'Install python3-dasbus (rpm) OR pip3 install dasbus'],
-        ['pyudev',  'Install python3-pyudev (deb/rpm)'],
-        ['systemd', 'Install python3-systemd (deb/rpm)'],
-        ['gi',      'Install python3-gi (deb) OR python3-gobject (rpm)'],
+        ['libnvme',   'This library must be installed from sources (at this time)'],
+        ['dasbus',    'Install python3-dasbus (rpm) OR pip3 install dasbus'],
+        ['pyudev',    'Install python3-pyudev (deb/rpm)'],
+        ['netifaces', 'Install python3-netifaces (deb/rpm)'],
+        ['systemd',   'Install python3-systemd (deb/rpm)'],
+        ['gi',        'Install python3-gi (deb) OR python3-gobject (rpm)'],
     ]
     if want_man or want_html
         py_modules_reqd += [['lxml', 'Install python3-lxml (deb/rpm)']]
