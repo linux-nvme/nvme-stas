@@ -303,6 +303,9 @@ class SysConfiguration:
         except FileNotFoundError as ex:
             sys.exit('Error reading mandatory Host NQN (see stasadm --help): %s', ex)
 
+        if not value.startswith('nqn.'):
+            sys.exit('Error Host NQN "%s" should start with "nqn."', value)
+
         return value
 
     @property

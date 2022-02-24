@@ -32,7 +32,7 @@ ifneq ("$(wildcard ${BUILD-DIR})","")
 	rm -rf ${BUILD-DIR}
 endif
 
-.PHONY: install
+.PHONY: install test
 install test: ${BUILD-DIR}
 	cd ${BUILD-DIR} && meson $@
 
