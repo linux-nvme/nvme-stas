@@ -94,8 +94,6 @@ sudo pip3 install dasbus
 sudo dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject python3-netifaces
 ```
 
-Additionally, the `libnvme` library (with Python bindings) needs to be installed. Currently only available from source at: https://github.com/linux-nvme/libnvme
-
 # STAF - STorage Appliance Finder
 
 
@@ -150,6 +148,13 @@ meson .build
 ```
 
 Note that the first line, `meson .build`, need only be called once. This analyzes the project and the host computer to determine if all the necessary tools are available. The result is in the directory named `.build`.
+
+Do as follows to compile the code:
+
+```bash
+cd .build
+ninja
+```
 
 Do as follows to install the code:
 
