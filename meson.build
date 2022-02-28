@@ -17,6 +17,7 @@ project(
     ]
 )
 
+#===============================================================================
 prefix  = get_option('prefix')
 etcdir  = get_option('sysconfdir')
 datadir = get_option('datadir')
@@ -27,6 +28,9 @@ cnfdir  = join_paths(etcdir, 'stas')
 
 want_man  = get_option('man')
 want_html = get_option('html')
+
+# Check for libnvme availability
+libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
 
 # Check that we have all the right Python3 dependencies
 python3 = import('python').find_installation('python3')
@@ -39,7 +43,6 @@ endif
 check_pymodules = get_option('check_pymodules')
 if check_pymodules
     py_modules_reqd = [
-        ['libnvme',   'This library must be installed from sources (at this time)'],
         ['dasbus',    'Install python3-dasbus (rpm) OR pip3 install dasbus'],
         ['pyudev',    'Install python3-pyudev (deb/rpm)'],
         ['netifaces', 'Install python3-netifaces (deb/rpm)'],

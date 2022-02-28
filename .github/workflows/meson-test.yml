@@ -15,30 +15,14 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install requirements
         run: |
-          sudo apt-get install -y python3-pyudev python3-systemd python3-gi python3-netifaces meson
+          sudo apt-get install -y libjson-c-dev python3-pyudev python3-systemd python3-gi python3-netifaces meson
           python -m pip install --upgrade pip dasbus pylint pyflakes
 
-      - name: Checkout libnvme
-        uses: actions/checkout@v2
+      - uses: BSFishy/meson-build@v1.0.3
         with:
-          repository: linux-nvme/libnvme
-          path: libnvme
-
-      - name: Build and install libnvme
-        run: |
-          cd libnvme
-          meson .build
-          cd .build
-          ninja
-          sudo meson install
-
-      - name: Configure nvme-stas
-        run: PYTHONPATH=libnvme/.build meson .build
-
-      - name: Test
-        run: |
-          cd .build
-          PYTHONPATH=../libnvme/.build meson test -v
+          setup-options: --werror
+          options: --verbose
+          action: test
 
       - name: Upload logs
         if: failure()
