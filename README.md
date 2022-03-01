@@ -88,7 +88,7 @@ sudo apt-get install -y python3-pyudev python3-systemd python3-gi python3-netifa
 sudo pip3 install dasbus
 ```
 
-**Yum packages (tested on Fedora 34):**
+**RPM packages (tested on Fedora 34..35 and SLES15):**
 
 ```bash
 sudo dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject python3-netifaces
@@ -137,7 +137,7 @@ A new optional configuration parameters introduced in TP8010, the Host Symbolic 
 
 # Build, install, unit tests
 
-STAS uses the `meson` build system. Since STAS is a Python project, there is no code to build. However, the code needs to be installed using `meson`. Once installed, unit tests can be run with `meson` as well.
+STAS uses the `meson` build system. Since STAS is a Python project, there is no code to build. However, the code needs to be installed using `meson`. Unit tests can also be run with `meson`.
 
 ## Using meson
 
@@ -147,23 +147,23 @@ Invoke `meson` to configure the project:
 meson .build
 ```
 
-Note that the first line, `meson .build`, need only be called once. This analyzes the project and the host computer to determine if all the necessary tools are available. The result is in the directory named `.build`.
+The command `meson .build` need only be called once. This analyzes the project and the host computer to determine if all the necessary tools and dependencies are available. The result is saved to the directory named `.build`.
 
-Do as follows to compile the code:
+To compile the code:
 
 ```bash
 cd .build
 ninja
 ```
 
-Do as follows to install the code:
+To install the code:
 
 ```bash
 cd .build
 meson install
 ```
 
-Do as follows to run the unit tests:
+To run the unit tests:
 
 ```bash
 cd .build
@@ -179,7 +179,7 @@ Recognizing that many people are not familiar with `meson`, we're providing a se
 make
 ```
 
-This performs the same operations as the meson approach described above. The `configure` script simply invokes `meson .build` and generates a `Makefile`. The generated `Makefile` provides the following operations.
+This performs the same operations as the meson approach described above. The `configure` script simply invokes `meson .build`.
 
 | make command       | Corresponding commands using meson                           |
 | ------------------ | ------------------------------------------------------------ |
@@ -219,7 +219,7 @@ dependencies: dbus, avahi.
 
 ## Generating man and html pages
 
-nvme-stas uses the following programs to generate the documentation. These can be installed as shown in the "dependencies" section.
+nvme-stas uses the following programs to generate the documentation. These can be installed as shown in the "dependencies" section below.
 
 - `xsltproc` - Used to convert DocBook XML notation to "man pages" and "html pages".
 - `gdbus-codegen` - Used to convert D-Bus IDL to DocBook XML notation.
@@ -234,13 +234,13 @@ The following packages must be installed to generate the documentation
 sudo apt-get install -y docbook-xml docbook-xsl xsltproc libglib2.0-dev
 ```
 
-**Yum packages (tested on Fedora 34):**
+**RPM packages (tested on Fedora 34..35 and SLES15):**
 
 ```bash
 sudo dnf install -y docbook-style-xsl libxslt glib2-devel
 ```
 
-### Configuring to build the man and html pages
+### Configuring and building the man and html pages
 
 By default, the documentation is not built. You need to run the `configure`  as follows to tell meson that you want to build the documentation. You may need to first purge any previous configuration.
 
@@ -249,8 +249,4 @@ make purge
 ./configure -Dman=true -Dhtml=true
 make
 ```
-
-
-
- 
 
