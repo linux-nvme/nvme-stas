@@ -850,7 +850,7 @@ class NameResolver:
 
         def addr_resolved(resolver, result, indx):
             hostname = controllers[indx]['traddr']
-            traddr = None
+            traddr = hostname
             try:
                 addresses = resolver.lookup_by_name_finish(result)
                 if addresses:
