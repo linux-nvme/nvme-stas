@@ -152,6 +152,8 @@ class Configuration:
             ('Global', 'hdr-digest'): 'false',
             ('Global', 'data-digest'): 'false',
             ('Global', 'kato'): None,
+            ('Global', 'ignore-iface'): 'false',
+            ('Global', 'ip-family'): 'ipv4+ipv6',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'blacklist'): list(),
@@ -165,22 +167,52 @@ class Configuration:
         self._config = self.read_conf_file()
 
     @property
+    def conf_file(self):
+        return self._conf_file
+
+    @property
     def tron(self):
         ''' @brief return the "tron" config parameter
         '''
-        return self.__get_value('Global', 'tron')[0] == 'true'
+        return self.__get_bool('Global', 'tron')
 
     @property
     def hdr_digest(self):
         ''' @brief return the "hdr-digest" config parameter
         '''
-        return self.__get_value('Global', 'hdr-digest')[0] == 'true'
+        return self.__get_bool('Global', 'hdr-digest')
 
     @property
     def data_digest(self):
         ''' @brief return the "data-digest" config parameter
         '''
-        return self.__get_value('Global', 'data-digest')[0] == 'true'
+        return self.__get_bool('Global', 'data-digest')
+
+    @property
+    def persistent_connections(self):
+        ''' @brief return the "persistent-connections" config parameter
+        '''
+        return self.__get_bool('Global', 'persistent-connections')
+
+    @property
+    def ignore_iface(self):
+        ''' @brief return the "ignore-iface" config parameter
+        '''
+        return self.__get_bool('Global', 'ignore-iface')
+
+    @property
+    def ip_family(self):
+        ''' @brief return the "ip-family" config parameter.
+            @rtype tuple
+        '''
+        family = self.__get_value('Global', 'ip-family')[0]
+
+        if family == 'ipv4':
+            return (4, )
+        if family == 'ipv6':
+            return (6, )
+
+        return (4, 6)
 
     @property
     def kato(self):
@@ -188,12 +220,6 @@ class Configuration:
         '''
         kato = self.__get_value('Global', 'kato')[0]
         return None if kato is None else int(kato)
-
-    @property
-    def persistent_connections(self):
-        ''' @brief return the "persistent-connections" config parameter
-        '''
-        return self.__get_value('Global', 'persistent-connections')[0] == 'true'
 
     def get_controllers(self):
         ''' @brief Return the list of controllers in the config file.
@@ -257,6 +283,9 @@ class Configuration:
         if os.path.isfile(self._conf_file):
             config.read(self._conf_file)
         return config
+
+    def __get_bool(self, section, option):
+        return self.__get_value(section, option)[0] == 'true'
 
     def __get_value(self, section, option):
         try:
@@ -717,7 +746,12 @@ def remove_invalid_addresses(controllers:list):
         try:
             ip = ipaddress.ip_address(traddr)
         except ValueError:
-            LOG.warning('controller traddr=%s is not valid', traddr)
+            LOG.warning('%s IP address is not valid', TransportId(controller))
+            continue
+
+        if ip.version not in CNF.ip_family:
+            LOG.debug('%s ignored because IPv%s is disabled in %s',
+                      TransportId(controller), ip.version, CNF.conf_file)
             continue
 
         # Next, if the interface is not specified, we'll assume that the
@@ -735,8 +769,8 @@ def remove_invalid_addresses(controllers:list):
                  (ip.version == 6 and netifaces.AF_INET6 in ifaddresses) ):
                 valid_controllers.append(controller)
             else:
-                LOG.warning('controller traddr=%s rejected because interface %s is not configured for IPv%s',
-                            traddr, iface, ip.version)
+                LOG.warning('%s rejected because interface %s is not configured for IPv%s',
+                            TransportId(controller), iface, ip.version)
 
     return valid_controllers
 
@@ -1133,7 +1167,9 @@ class Controller:
     def _try_to_connect(self):
         self._connect_attempts += 1
 
-        host_iface = self.tid.host_iface if self.tid.host_iface and get_nvme_options().host_iface_supp else None
+        host_iface = self.tid.host_iface if (self.tid.host_iface and
+                                             not CNF.ignore_iface and
+                                             get_nvme_options().host_iface_supp) else None
         self._ctrl = nvme.ctrl(self._root, subsysnqn=self.tid.subsysnqn,
                                transport=self.tid.transport,
                                traddr=self.tid.traddr,
