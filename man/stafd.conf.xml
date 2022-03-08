@@ -84,6 +84,7 @@
                 <xi:include href="standard-conf.xml" xpointer="hdr-digest"/>
                 <xi:include href="standard-conf.xml" xpointer="data-digest"/>
                 <xi:include href="standard-conf.xml" xpointer="kato"/>
+                <xi:include href="standard-conf.xml" xpointer="ip-family"/>
 
                 <varlistentry>
                     <term><varname>persistent-connections=</varname></term>
@@ -95,7 +96,43 @@
                             even when stafd is stopped. When
                             <literal>false</literal>, <code>stafd</code>
                             will disconnect from all DCs it is connected to on
-                            exit. Defaults to<literal>false</literal>.
+                            exit. Defaults to <literal>false</literal>.
+                        </para>
+                    </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                    <term><varname>ignore-iface=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes a boolean argument. This option controls how
+                            connections with Discovery Controllers (DC) are made.
+                        </para>
+
+                        <para>
+                            DCs are automatically discovered using DNS-SD/mDNS.
+                            mDNS provides the DC's IP address and the interface
+                            on which the DC was discovered.
+                        </para>
+
+                        <para>
+                            There is no guarantee that there will be a route to
+                            reach that DC. However, we can use the socket option
+                            SO_BINDTODEVICE to force the connection to be made
+                            on a specific interface instead of letting the
+                            routing tables decide where to make the connection.
+                        </para>
+
+                        <para>
+                            This option determines whether <code>stafd</code>
+                            will use SO_BINDTODEVICE to force connections on an
+                            interface or just rely on the routing tables. The
+                            default is to use SO_BINDTODEVICE, in other words,
+                            <code>stafd</code> does not ignore the interface by
+                            default.
+                        </para>
+                        <para>
+                            Defaults to <literal>false</literal>.
                         </para>
                     </listitem>
                 </varlistentry>
