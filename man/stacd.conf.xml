@@ -83,6 +83,78 @@
                 <xi:include href="standard-conf.xml" xpointer="hdr-digest"/>
                 <xi:include href="standard-conf.xml" xpointer="data-digest"/>
                 <xi:include href="standard-conf.xml" xpointer="kato"/>
+                <xi:include href="standard-conf.xml" xpointer="ip-family"/>
+
+                <varlistentry>
+                    <term><varname>ignore-iface=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes a boolean argument. This option controls how
+                            connections with I/O Controllers (IOC) are made.
+                        </para>
+
+                        <para>
+                            There is no guarantee that there will be a route to
+                            reach that IOC. However, we can use the socket
+                            option SO_BINDTODEVICE to force the connection to be
+                            made on a specific interface instead of letting the
+                            routing tables decide where to make the connection.
+                        </para>
+
+                        <para>
+                            This option determines whether <code>stacd</code> will use
+                            SO_BINDTODEVICE to force connections on an interface
+                            or just rely on the routing tables. The default is
+                            to use SO_BINDTODEVICE, in other words, <code>stacd</code> does
+                            not ignore the interface.
+                        </para>
+
+                        <para>
+                            BACKGROUND:
+                            By default, <code>stacd</code> will connect to IOCs on the same
+                            interface that was used to retrieve the discovery
+                            log pages. If stafd discovers a DC on an interface
+                            using mDNS, and stafd connects to that DC and
+                            retrieves the log pages, it is expected that the
+                            storage subsystems listed in the log pages are
+                            reachable on the same interface where the DC was
+                            discovered.
+                        </para>
+
+                        <para>
+                            For example, let's say a DC is discovered on
+                            interface ens102. Then all the subsystems listed in
+                            the log pages retrieved from that DC must be
+                            reachable on interface ens102. If this doesn't work,
+                            for example you cannot "ping -I ens102 [storage-ip]",
+                            then the most likely explanation is that arp proxy
+                            is not enabled on the switch that the host is
+                            connected to on interface ens102. Whatever you do,
+                            resist the temptation to manually set up the routing
+                            tables or to add alternate routes going over a
+                            different interface than the one where the DC is
+                            located. That simply won't work. Make sure arp proxy
+                            is enabled on the switch first.
+                        </para>
+
+                        <para>
+                            Setting routes won't work because, by default, <code>stacd</code>
+                            uses the SO_BINDTODEVICE socket option when it
+                            connects to IOCs. This option is used to force a
+                            socket connection to be made on a specific interface
+                            instead of letting the routing tables decide where
+                            to connect the socket. Even if you were to manually
+                            configure an alternate route on a different interface,
+                            the connections (i.e. host to IOC) will still be
+                            made on the interface where the DC was discovered by
+                            stafd.
+                        </para>
+
+                        <para>
+                            Defaults to <literal>false</literal>.
+                        </para>
+                    </listitem>
+                </varlistentry>
             </variablelist>
         </refsect2>
 

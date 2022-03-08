@@ -64,6 +64,30 @@
                 </para>
             </listitem>
         </varlistentry>
+
+        <varlistentry id='ip-family'>
+            <term><varname>ip-family=</varname></term>
+
+            <listitem id='ip-family-text'>
+                <para>
+                    Takes a string argument. With this you can specify
+                    whether IPv4, IPv6, or both are supported when
+                    connecting to a Controller. Connections will not be
+                    attempted to IP addresses (whether discovered or
+                    manually configured with the 'controller') if those
+                    IP addresses are disabled by this option. If an invalid
+                    value is entered, then "ipv4+ipv6" will be used by default.
+                </para>
+
+                <para>
+                    Choices are <literal>ipv4</literal>, <literal>ipv6</literal>, or <literal>ipv4+ipv6</literal>.
+                </para>
+
+                <para>
+                    Defaults to <literal>ipv4+ipv6</literal>.
+                </para>
+            </listitem>
+        </varlistentry>
     </variablelist>
 
     <refsect2 id='controller'>
