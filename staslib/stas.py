@@ -799,7 +799,7 @@ class TransportId:
         trsvcid = cid.get('trsvcid')
         self._trsvcid     = trsvcid if trsvcid else (TransportId.RDMA_IP_PORT if self._transport == 'rdma' else TransportId.DISC_IP_PORT) # pylint: disable=used-before-assignment
         self._host_traddr = cid.get('host-traddr', '')
-        self._host_iface  = cid.get('host-iface', '')
+        self._host_iface  = '' if CNF.ignore_iface else cid.get('host-iface', '')
         self._subsysnqn   = cid.get('subsysnqn')
         self._key         = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._host_iface, self._subsysnqn)
         self._hash        = hash(self._key)
