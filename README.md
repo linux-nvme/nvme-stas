@@ -250,3 +250,7 @@ make purge
 make
 ```
 
+## Generating RPM and/or DEB packages
+```bash
+make rpm deb
+```
