@@ -65,4 +65,4 @@ deb: ${BUILD-DIR}
 
 .PHONY: rpm
 rpm: dist
-	rpmbuild ${BUILD-DIR}/nvme-stas.spec
+	rpmbuild -ba ${BUILD-DIR}/nvme-stas.spec
