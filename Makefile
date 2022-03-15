@@ -12,7 +12,7 @@ DEB-PKG-DIR   := ${BUILD-DIR}/deb-pkg
 RPM-PKG-DIR   := ${BUILD-DIR}/rpm-pkg
 
 ${BUILD-DIR}:
-	./configure
+	BUILD_DIR=${BUILD-DIR} ./configure
 	@echo "Configuration located in: $@"
 	@echo "-------------------------------------------------------"
 
