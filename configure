@@ -7,7 +7,7 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-BUILD_DIR=".build"
+BUILD_DIR="${BUILD_DIR:-.build}"
 
 if [ ! -d ${BUILD_DIR} ]; then
     exec meson ${BUILD_DIR} "$@"
