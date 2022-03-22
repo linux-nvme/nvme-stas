@@ -111,6 +111,12 @@ The configuration file is named `/etc/stas/stafd.conf`. This file contains confi
 
 **`stafd`** can automatically find and set up connections to Discovery Controllers. To do this, **`stafd`** registers with the [Avahi](https://www.avahi.org/), the mDNS/DNS-SD (Service Discovery) daemon. Discovery Controllers that advertise themselves with service type `_nvme-disc._tcp` will be recognized by Avahi, which will inform **`stafd`**.
 
+### Why is Avahi failing to discover services on some interfaces?
+
+Linux limits the number of multicast group memberships that a host can belong to. The default is 20. For Avahi to monitor mDNS (multicast DNS) packets on all interfaces, the host computer must be able to register one multicast group per interface. This can be physical or logical interfaces. For example, configuring 10 VLANs on a physical interface increases the total number of interfaces by 10. If the total number of interfaces is greater than the limit of 20, then Avahi won't be able to monitor all interfaces.
+
+The limit can be changed by configuring the variable **`igmp_max_memberships`**. This variable is defined [here](https://sysctl-explorer.net/net/ipv4/igmp_max_memberships/) in the kernel documentation. And this [StackExchange page](https://unix.stackexchange.com/questions/23832/is-there-a-way-to-increase-the-20-multicast-group-limit-per-socket) describes how one can increase the limit.
+
 # STAC - STorage Appliance Connector
 
 
