@@ -45,7 +45,6 @@ if check_pymodules
     py_modules_reqd = [
         ['dasbus',    'Install python3-dasbus (rpm) OR pip3 install dasbus'],
         ['pyudev',    'Install python3-pyudev (deb/rpm)'],
-        ['netifaces', 'Install python3-netifaces (deb/rpm)'],
         ['systemd',   'Install python3-systemd (deb/rpm)'],
         ['gi',        'Install python3-gi (deb) OR python3-gobject (rpm)'],
     ]
