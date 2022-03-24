@@ -1,5 +1,8 @@
 # STorage Appliance Services (STAS)
 
+![Build](https://github.com/linux-nvme/nvme-stas/actions/workflows/meson-test.yml/badge.svg)
+![GitHub](https://img.shields.io/github/license/linux-nvme/nvme-stas)
+
 What does nvme-stas provide?
 
 - A Central Discovery Controller (CDC) client for Linux
