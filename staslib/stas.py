@@ -17,7 +17,6 @@ import logging as LG
 import configparser
 import platform
 import ipaddress
-import netifaces
 import pyudev
 import systemd.daemon
 import dasbus.connection
@@ -754,23 +753,7 @@ def remove_invalid_addresses(controllers:list):
                       TransportId(controller), ip.version, CNF.conf_file)
             continue
 
-        # Next, if the interface is not specified, we'll assume that the
-        # IP address is valid and that there is a route to reach traddr.
-        iface = controller.get('host-iface')
-        if not iface:
-            valid_controllers.append(controller)
-        else:
-            # Finally, if there is an interface specified, let's make sure
-            # that the interface is enabled to connect using traddr. In other
-            # words, if traddr is an IPv4 address, then the interface must have
-            # IPv4 enabled. Same logic applies to IPv6.
-            ifaddresses = netifaces.ifaddresses(iface) # List of IP addresses configured on the interface
-            if ( (ip.version == 4 and netifaces.AF_INET in ifaddresses) or
-                 (ip.version == 6 and netifaces.AF_INET6 in ifaddresses) ):
-                valid_controllers.append(controller)
-            else:
-                LOG.warning('%s rejected because interface %s is not configured for IPv%s',
-                            TransportId(controller), iface, ip.version)
+        valid_controllers.append(controller)
 
     return valid_controllers
 

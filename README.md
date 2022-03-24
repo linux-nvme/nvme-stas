@@ -87,14 +87,14 @@ The following packages must be installed to use **`stafd`**/**`stacd`**
 **Debian packages (tested on Ubuntu 20.04):**
 
 ```bash
-sudo apt-get install -y python3-pyudev python3-systemd python3-gi python3-netifaces
+sudo apt-get install -y python3-pyudev python3-systemd python3-gi
 sudo pip3 install dasbus
 ```
 
 **RPM packages (tested on Fedora 34..35 and SLES15):**
 
 ```bash
-sudo dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject python3-netifaces
+sudo dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject
 ```
 
 # STAF - STorage Appliance Finder
