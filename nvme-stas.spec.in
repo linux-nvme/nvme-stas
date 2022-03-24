@@ -2,18 +2,37 @@
 %global _sourcedir    .build/meson-dist
 
 Name: @NAME@
+Summary: NVMe STorage Appliance Services
 Version: @VERSION@
 Release: 1%{?dist}
-Summary: NVMe STorage Appliance Services
-
 License: @LICENSE@
-Source0: %{name}-%{version}.tar.xz
+URL:     https://github.com/linux-nvme/nvme-stas
+Source0: %{url}/archive/v%{version_no_tilde}/%{name}-%{version_no_tilde}.tar.gz
+
 BuildArch: noarch
 
 BuildRequires: meson
-BuildRequires: python3-devel
-BuildRequires: python3-libnvme
+BuildRequires: glib2-devel
+BuildRequires: libnvme-devel
+BuildRequires: libxslt
+BuildRequires: docbook-style-xsl
+BuildRequires: systemd-devel
 BuildRequires: systemd-rpm-macros
+
+BuildRequires: python3
+BuildRequires: python3-devel
+BuildRequires: python3-pyflakes
+BuildRequires: python3-pylint
+BuildRequires: pylint
+
+BuildRequires: python3-libnvme
+BuildRequires: python3-dasbus
+BuildRequires: python3-pyudev
+BuildRequires: python3-systemd
+BuildRequires: python3-gobject-devel
+BuildRequires: python3-lxml
+
+Requires:      avahi
 Requires:      python3-libnvme
 Requires:      python3-dasbus
 Requires:      python3-pyudev
@@ -21,13 +40,17 @@ Requires:      python3-systemd
 Requires:      python3-gobject
 
 %description
-NVMe STorage Appliance Services
+nvme-stas is a Central Discovery Controller (CDC) client for Linux. It
+handles Asynchronous Event Notifications (AEN), Automated NVMe subsystem
+connection controls, Error handling and reporting, and Automatic (zeroconf)
+and Manual configuration. nvme-stas is composed of two daemons:
+stafd (STorage Appliance Finder) and stacd (STorage Appliance Connector).
 
 %prep
-%autosetup -c
+%autosetup -p1 -n %{name}-%{version_no_tilde}
 
 %build
-%meson
+%meson -Dman=true -Dhtml=true
 %meson_build
 
 %install
@@ -36,78 +59,43 @@ NVMe STorage Appliance Services
 %check
 %meson_test
 
-%files
-%{_sbindir}/stacd
-%{_bindir}/stacctl
-%{_sbindir}/stafd
-%{_bindir}/stafctl
-%{_sysconfdir}/dbus-1/system.d/org.nvmexpress.stac.conf
-%{_sysconfdir}/dbus-1/system.d/org.nvmexpress.staf.conf
-%{_sysconfdir}/stas/stacd.conf
-%{_sysconfdir}/stas/stafd.conf
-%{_prefix}/lib/systemd/system/stacd.service
-%{_prefix}/lib/systemd/system/stafd.service
-%{python3_sitelib}/staslib/__init__.py
-%{python3_sitelib}/staslib/stas.py
-%{python3_sitelib}/staslib/avahi.py
-%{python3_sitelib}/staslib/glibudev.py
+%define services stacd.service stafd.service
 
-#-------------------------------------------------------------------------------
+%pre
+%service_add_pre %services
+
 %post
-dbus_reload() {
-	if [ -f /usr/bin/dbus-send ]; then
-		/usr/bin/dbus-send --system --type=method_call --dest=org.freedesktop.DBus / org.freedesktop.DBus.ReloadConfig
-	fi
-}
-systemd_add() {
-	service=$1
-	systemctl --system unmask "${service}" >/dev/null || true
-	systemctl --system enable "${service}" >/dev/null || true
-	if [ -d /run/systemd/system ]; then
-		systemctl --system daemon-reload >/dev/null || true
-		systemctl --system start "${service}" >/dev/null || true
-	fi
-}
-if [ "$1" = 1 ]; then #install
-	dbus_reload
-	/usr/sbin/modprobe nvme-tcp
-	systemd_add stafd.service
-	systemd_add stacd.service
-fi
+%service_add_post %services
 
-#-------------------------------------------------------------------------------
 %preun
-systemd_rm {
-	service=$1
-	systemctl --system unmask "${service}" >/dev/null || true
-	systemctl --system stop "${service}" >/dev/null || true
-	systemctl --system disable "${service}" >/dev/null || true
-}
+%service_del_preun %services
 
-if [ $1 == 0 ]; then #uninstall
-	systemd_rm stafd.service
-	systemd_rm stacd.service
-fi
-
-#-------------------------------------------------------------------------------
 %postun
-systemd_rm {
-	service=$1
-	systemctl --system unmask "${service}" >/dev/null || true
-	systemctl --system stop "${service}" >/dev/null || true
-	systemctl --system disable "${service}" >/dev/null || true
-}
+%service_del_postun %services
 
-if [ $1 == 0 ]; then #uninstall
-	if [ -d /run/systemd/system ]; then
-		systemctl --system daemon-reload >/dev/null || true
-	fi
-	dbus_reload
-fi
-
-
+%files
+%license LICENSE
+%doc README.md
+%dir %{_sysconfdir}/stas
+%config(noreplace) %{_sysconfdir}/stas/stacd.conf
+%config(noreplace) %{_sysconfdir}/stas/stafd.conf
+%{_sysconfdir}/stas/sys.conf.doc
+%{_datadir}/dbus-1/system.d/org.nvmexpress.*.conf
+%{_bindir}/stacctl
+%{_bindir}/stafctl
+%{_bindir}/stasadm
+%{_sbindir}/stacd
+%{_sbindir}/stafd
+%{_unitdir}/stacd.service
+%{_unitdir}/stafd.service
+%dir %{python3_sitearch}/staslib
+%{python3_sitearch}/staslib/*
+%doc %{_pkgdocdir}
+%{_mandir}/man1/sta*.1*
+%{_mandir}/man5/*.5*
+%{_mandir}/man7/nvme*.7*
+%{_mandir}/man8/sta*.8*
 
 %changelog
-* Wed Sep 08 2021 Martin Belanger <martin.belanger@dell.com> - Release 0.1
+* Thu Mar 24 2022 Martin Belanger <martin.belanger@dell.com> - Release 1.0-rc4
 -
-
