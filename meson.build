@@ -70,6 +70,9 @@ endif
 #===============================================================================
 conf = configuration_data()
 
+conf.set('PROJECT_NAME', meson.project_name())
+conf.set('VERSION', meson.project_version())
+conf.set('LICENSE', meson.project_license()[0])
 conf.set('KERNEL_IFACE_MIN_VERSION', '5.14')
 conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
 
@@ -85,9 +88,6 @@ foreach component : [ ['staf', 'STorage Appliance Finder'],
     conf.set(DAEMON_NAME + '_PROCNAME', daemon_name)
     conf.set(COMPONENT + '_ACRONYM', COMPONENT)
     conf.set(COMPONENT + '_DESCRIPTION', component[1])
-    conf.set('VERSION', meson.project_version())
-    conf.set('LICENSE', meson.project_license()[0])
-    conf.set('PROJECT_NAME', meson.project_name())
 endforeach
 
 #===============================================================================
@@ -162,14 +162,10 @@ else
 endif
 
 #===============================================================================
-substs = configuration_data()
-substs.set('NAME',    meson.project_name())
-substs.set('VERSION', meson.project_version())
-substs.set('LICENSE', meson.project_license()[0])
 configure_file(
     input:         'nvme-stas.spec.in',
     output:        'nvme-stas.spec',
-    configuration: substs,
+    configuration: conf,
 )
 
 #===============================================================================
