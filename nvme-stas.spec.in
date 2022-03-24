@@ -1,7 +1,7 @@
 %global _topdir       .build/rpm-pkg
 %global _sourcedir    .build/meson-dist
 
-Name: @NAME@
+Name: @PROJECT_NAME@
 Summary: NVMe STorage Appliance Services
 Version: @VERSION@
 Release: 1%{?dist}
