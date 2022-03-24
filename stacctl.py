@@ -32,7 +32,7 @@ def status(args):
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
     info = json.loads(iface.process_info())
-    info['controllers'] = json.loads(iface.list_controllers(True))
+    info['controllers'] = iface.list_controllers(True)
     for controller in info['controllers']:
         transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn = _extract_cid(controller)
         controller.update(json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)))
@@ -42,7 +42,7 @@ def status(args):
 def ls(args):
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
-    info = json.loads(iface.list_controllers(args.detailed))
+    info = iface.list_controllers(args.detailed)
     print(pprint.pformat(info, width=120))
 
 PARSER = ArgumentParser(description=f'{defs.STAC_DESCRIPTION} ({defs.STAC_ACRONYM})')
