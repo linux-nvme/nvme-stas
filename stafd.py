@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # See the LICENSE file for details.
