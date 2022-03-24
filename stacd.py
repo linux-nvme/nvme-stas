@@ -35,7 +35,7 @@ DBUS_IDL = '''
     <interface name="%s">
         <method name="list_controllers">
             <arg direction="in" type="b" name="detailed"/>
-            <arg direction="out" type="s" name="controller_list_json"/>
+            <arg direction="out" type="aa{ss}" name="controller_list"/>
         </method>
     </interface>
 </node>
@@ -160,7 +160,7 @@ class Stac(stas.Service):
             return json.dumps(controller.info()) if controller else '{}'
 
         def list_controllers(self, detailed) -> str: # pylint: disable=no-self-use
-            return json.dumps([ controller.details() if detailed else controller.controller_id_dict() for controller in STAC.get_controllers() ])
+            return [ controller.details() if detailed else controller.controller_id_dict() for controller in STAC.get_controllers() ]
 
 
     #===========================================================================

@@ -35,7 +35,7 @@ DBUS_IDL = '''
     <interface name="%s">
         <method name="list_controllers">
             <arg direction="in" type="b" name="detailed"/>
-            <arg direction="out" type="s" name="controller_list_json"/>
+            <arg direction="out" type="aa{ss}" name="controller_list"/>
         </method>
         <method name="get_log_pages">
             <arg direction="in" type="s" name="transport"/>
@@ -44,7 +44,7 @@ DBUS_IDL = '''
             <arg direction="in" type="s" name="host_traddr"/>
             <arg direction="in" type="s" name="host_iface"/>
             <arg direction="in" type="s" name="subsysnqn"/>
-            <arg direction="out" type="s" name="log_pages_json"/>
+            <arg direction="out" type="aa{ss}" name="log_pages"/>
         </method>
         <method name="get_all_log_pages">
             <arg direction="in" type="b" name="detailed"/>
@@ -351,7 +351,7 @@ class Staf(stas.Service):
 
         def get_log_pages(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn) -> str: # pylint: disable=no-self-use,too-many-arguments
             controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
-            return json.dumps(controller.log_pages()) if controller else '[]'
+            return controller.log_pages() if controller else '[]'
 
         def get_all_log_pages(self, detailed) -> str: # pylint: disable=no-self-use
             log_pages = list()
@@ -363,7 +363,7 @@ class Staf(stas.Service):
         def list_controllers(self, detailed) -> str: # pylint: disable=no-self-use
             ''' @brief Return the list of discovery controller IDs
             '''
-            return json.dumps([ controller.details() if detailed else controller.controller_id_dict() for controller in STAF.get_controllers() ])
+            return [ controller.details() if detailed else controller.controller_id_dict() for controller in STAF.get_controllers() ]
 
 
     #===========================================================================

@@ -32,10 +32,10 @@ def status(args):
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
     info = json.loads(iface.process_info())
-    info['controllers'] = json.loads(iface.list_controllers(True))
+    info['controllers'] = iface.list_controllers(True)
     for controller in info['controllers']:
         transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn = _extract_cid(controller)
-        controller['log_pages'] = json.loads(iface.get_log_pages(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn))
+        controller['log_pages'] = iface.get_log_pages(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
         controller.update(json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)))
 
     print(pprint.pformat(info, width=120))
@@ -43,13 +43,13 @@ def status(args):
 def ls(args):
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
-    info  = json.loads(iface.list_controllers(args.detailed))
+    info  = iface.list_controllers(args.detailed)
     print(pprint.pformat(info, width=120))
 
 def dlp(args):
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
-    info = json.loads(iface.get_log_pages(args.transport, args.traddr, args.trsvcid, args.host_traddr, args.host_iface, args.nqn))
+    info = iface.get_log_pages(args.transport, args.traddr, args.trsvcid, args.host_traddr, args.host_iface, args.nqn)
     print(pprint.pformat(info, width=120))
 
 def adlp(args):

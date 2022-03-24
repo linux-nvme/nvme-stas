@@ -1234,7 +1234,7 @@ class Controller:
     def details(self) -> dict:
         details = self.controller_id_dict()
         details.update(UDEV.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial')))
-        details['connect attempts'] = self._connect_attempts
+        details['connect attempts'] = str(self._connect_attempts)
         details['retry connect timer'] = str(self._retry_connect_tmr)
         return details
 
