@@ -30,6 +30,8 @@ from distutils.version import LooseVersion
 from libnvme import nvme
 from staslib import defs
 
+DC_KATO_DEFAULT = 30 # seconds
+
 #*******************************************************************************
 def check_if_allowed_to_continue():
     ''' @brief Let's perform some basic checks before going too far. There are
@@ -1160,7 +1162,6 @@ class Controller:
                                host_traddr=self.tid.host_traddr if self.tid.host_traddr else None,
                                host_iface=host_iface)
         self._ctrl.discovery_ctrl_set(self._discovery_ctrl)
-        self._ctrl.persistent_set(True)
 
         # Audit existing nvme devices. If we find a match, then
         # we'll just borrow that device instead of creating a new one.
@@ -1177,6 +1178,16 @@ class Controller:
                     'data_digest': CNF.data_digest }
             if CNF.kato is not None:
                 cfg['keep_alive_tmo'] = CNF.kato
+            elif self._discovery_ctrl:
+                # All the connections to Controllers (I/O and Discovery) are
+                # persistent. Persistent connections MUST configure the KATO.
+                # The kernel already assigns a default 2-minute KATO to I/O
+                # controller connections, but it doesn't assign one to
+                # Discovery controller (DC) connections. Here we set the default
+                # DC connection KATO to match the default set by nvme-cli on
+                # persistent DC connections (i.e. 30 sec).
+                cfg['keep_alive_tmo'] = DC_KATO_DEFAULT
+
             LOG.debug('Controller._try_to_connect()       - %s Connecting to nvme control with cfg=%s', self.id, cfg)
             self._connect_op = AsyncOperationWithRetry(self._on_connect_success, self._on_connect_fail,
                                                        self._ctrl.connect, self._host, cfg)
