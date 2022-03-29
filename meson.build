@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.52.0',
-    version: '1.0rc5',
+    version: '1.0rc6',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
