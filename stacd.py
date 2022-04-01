@@ -13,6 +13,7 @@ import sys
 from argparse import ArgumentParser
 from staslib import defs
 
+# pylint: disable=consider-using-f-string
 DBUS_IDL = '''
 <node>
     <interface name="%s.debug">
