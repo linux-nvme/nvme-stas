@@ -63,7 +63,7 @@ DBUS_IDL = '''
 </node>
 ''' % (defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_NAME)
 
-def parse_args(conf_file:str):
+def parse_args(conf_file:str): # pylint: disable=missing-function-docstring
     parser = ArgumentParser(description=f'{defs.STAF_DESCRIPTION} ({defs.STAF_ACRONYM}). Must be root to run this program.')
     parser.add_argument('-f', '--conf-file', action='store', help='Configuration file (default: %(default)s)', default=conf_file, type=str, metavar='FILE')
     parser.add_argument('-s', '--syslog', action='store_true', help='Send messages to syslog instead of stdout. Use this when running %(prog)s as a daemon. (default: %(default)s)', default=False)
@@ -79,7 +79,7 @@ if ARGS.version:
     sys.exit(0)
 
 if ARGS.idl:
-    with open(ARGS.idl, 'w') as f:
+    with open(ARGS.idl, 'w') as f: # pylint: disable=unspecified-encoding
         print(f'{DBUS_IDL}', file=f)
     sys.exit(0)
 
@@ -115,7 +115,7 @@ NVME_ROOT = nvme.root()        # Singleton
 NVME_ROOT.log_level("debug" if (ARGS.tron or CNF.tron) else "err")
 NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname) # Singleton
 
-def set_loglevel(tron):
+def set_loglevel(tron): # pylint: disable=missing-function-docstring
     stas.trace_control(tron)
     NVME_ROOT.log_level("debug" if tron else "err")
 
@@ -234,7 +234,7 @@ class Dc(stas.Controller):
                 self._get_log_op.run_async()
 
     #--------------------------------------------------------------------------
-    def _on_registration_success(self, op_obj, data):
+    def _on_registration_success(self, op_obj, data): # pylint: disable=unused-argument
         ''' @brief Function called when we successfully register with the
                    Discovery Controller. See self._register_op object
                    for details.
@@ -314,10 +314,9 @@ class Staf(stas.Service):
         __dbus_xml__ = DBUS_IDL
 
         @dasbus.server.interface.dbus_signal
-        def log_pages_changed(self, transport:str, traddr:str, trsvcid:str, host_traddr:str, host_iface:str, subsysnqn:str, device:str):
+        def log_pages_changed(self, transport:str, traddr:str, trsvcid:str, host_traddr:str, host_iface:str, subsysnqn:str, device:str): # pylint: disable=too-many-arguments
             ''' @brief Signal sent when log pages have changed.
             '''
-            pass
 
         @property
         def tron(self):
@@ -346,14 +345,20 @@ class Staf(stas.Service):
             return json.dumps(info)
 
         def controller_info(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn) -> str: # pylint: disable=no-self-use,too-many-arguments
+            ''' @brief D-Bus method used to return information about a controller
+            '''
             controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
             return json.dumps(controller.info()) if controller else '{}'
 
         def get_log_pages(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn) -> str: # pylint: disable=no-self-use,too-many-arguments
+            ''' @brief D-Bus method used to retrieve the discovery log pages from one controller
+            '''
             controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
             return controller.log_pages() if controller else '[]'
 
         def get_all_log_pages(self, detailed) -> str: # pylint: disable=no-self-use
+            ''' @brief D-Bus method used to retrieve the discovery log pages from all controllers
+            '''
             log_pages = list()
             for controller in STAF.get_controllers():
                 log_pages.append({'discovery-controller': controller.details() if detailed else controller.controller_id_dict(),
@@ -410,10 +415,17 @@ class Staf(stas.Service):
         return GLib.SOURCE_CONTINUE
 
     def log_pages_changed(self, controller, device):
+        ''' @brief Function invoked when a controller's cached log pages
+                   have changed. This will emit a D-Bus signal to inform
+                   other applications that the cached log pages have changed.
+        '''
         self._dbus_iface.log_pages_changed.emit(controller.tid.transport, controller.tid.traddr, controller.tid.trsvcid,
                                                 controller.tid.host_traddr, controller.tid.host_iface, controller.tid.subsysnqn, device)
 
     def referrals_changed(self):
+        ''' @brief Function invoked when a controller's cached referrals
+                   have changed.
+        '''
         LOG.debug('Staf.referrals_changed()')
         self._cfg_soak_tmr.start()
 

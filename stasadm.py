@@ -7,6 +7,7 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
+''' STorage Appliance Services Admin Tool '''
 import os
 import sys
 import uuid
@@ -22,9 +23,9 @@ except (ImportError, ModuleNotFoundError):
     hashlib = None
 
 
-def read_from_file(fname, size):
+def read_from_file(fname, size): # pylint: disable=missing-function-docstring
     try:
-        with open(fname) as f:
+        with open(fname) as f:   # pylint: disable=unspecified-encoding
             data = f.read(size)
         if len(data) == size:
             return data
@@ -59,8 +60,8 @@ def get_machine_app_specific(app_id):
     if not data:
         return None
 
-    m = hmac.new(app_id, uuid.UUID(data).bytes, hashlib.sha256)
-    id128_bytes = m.digest()[0:16]
+    hmac_obj = hmac.new(app_id, uuid.UUID(data).bytes, hashlib.sha256)
+    id128_bytes = hmac_obj.digest()[0:16]
     return str(uuid.UUID(bytes=id128_bytes, version=4))
 
 def get_uuid_from_system():
@@ -87,8 +88,16 @@ def get_uuid_from_system():
     return read_from_file('/proc/device-tree/ibm,partition-uuid', 36)
 
 def save(section, option, string, conf_file, fname):
+    ''' @brief Save configuration
+
+        @param section: section in @conf_file where @option will be added
+        @param option: option to be added under @section in @conf_file
+        @param string: Text to be saved to @fname
+        @param conf_file: Configuration file name
+        @param fname: Optional file where @string will be saved
+    '''
     if fname and string is not None:
-        with open(fname, 'w') as f:
+        with open(fname, 'w') as f: # pylint: disable=unspecified-encoding
             print(string, file=f)
 
     if conf_file:
@@ -110,24 +119,32 @@ def save(section, option, string, conf_file, fname):
         else:
             config.remove_option(section, option)
 
-        with open(conf_file, 'w') as f:
+        with open(conf_file, 'w') as f: # pylint: disable=unspecified-encoding
             config.write(f)
 
 def hostnqn(args):
+    ''' @brief Configure the host NQN
+    '''
     uuid_str = get_uuid_from_system() or str(uuid.uuid4())
     uuid_str = f'nqn.2014-08.org.nvmexpress:uuid:{uuid_str}'
     save('Host', 'nqn', uuid_str, args.conf_file, args.file)
 
 def hostid(args):
+    ''' @brief Configure the host ID
+    '''
     save('Host', 'id', str(uuid.uuid4()), args.conf_file, args.file)
 
 def set_symname(args):
+    ''' @brief Define the host Symbolic Name
+    '''
     save('Host', 'symname', args.symname, args.conf_file, args.file)
 
 def clr_symname(args):
+    ''' @brief Undefine the host NQN
+    '''
     save('Host', 'symname', None, args.conf_file, None)
 
-def get_parser():
+def get_parser(): # pylint: disable=missing-function-docstring
     parser = ArgumentParser(description='Configuration utility for STAS.')
     parser.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
     parser.add_argument('-c', '--conf-file', action='store', help='Configuration file. Default %(default)s.', default='/etc/stas/sys.conf', type=str, metavar='FILE')

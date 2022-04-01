@@ -40,7 +40,7 @@ if libnvme_found
     foreach module: modules_to_test
         file = join_paths(meson.current_source_dir(), module[1])
         if pylint.found()
-            test('pylint ' + module[0], pylint, args: ['--errors-only', '--rcfile=' + rcfile, file], env: test_env)
+            test('pylint ' + module[0], pylint, args: ['--rcfile=' + rcfile, file], env: test_env)
         endif
         if pyflakes.found()
             test('pyflakes ' + module[0], pyflakes, args: [file], env: test_env)
