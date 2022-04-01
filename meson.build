@@ -151,7 +151,7 @@ if libnvme_found
     ]
     foreach module: modules_to_test
         if pylint.found()
-            test('pylint ' + module[0], pylint, args: ['--errors-only', '--rcfile=' + rcfile, module[1]], env: test_env)
+            test('pylint ' + module[0], pylint, args: ['--rcfile=' + rcfile, module[1]], env: test_env)
         endif
         if pyflakes.found()
             test('pyflakes ' + module[0], pyflakes, args: [module[1]], env: test_env)

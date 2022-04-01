@@ -7,6 +7,8 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
+''' STorage Appliance Connector Control Utility
+'''
 import sys
 import json
 import pprint
@@ -15,20 +17,26 @@ import dasbus.error
 from dasbus.connection import SystemMessageBus
 from staslib import defs
 
-def tron(args):
+def tron(args):               # pylint: disable=unused-argument
+    ''' @brief Trace ON
+    '''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
     iface.tron = True         # pylint: disable=assigning-non-slot
 
-def troff(args):
+def troff(args):              # pylint: disable=unused-argument
+    ''' @brief Trace OFF
+    '''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
     iface.tron = False        # pylint: disable=assigning-non-slot
 
-def _extract_cid(ctrl):
+def _extract_cid(ctrl):       # pylint: disable=missing-function-docstring
     return ctrl['transport'], ctrl['traddr'], ctrl['trsvcid'], ctrl['host-traddr'], ctrl['host-iface'], ctrl['subsysnqn']
 
-def status(args):
+def status(args):             # pylint: disable=unused-argument
+    ''' @brief retrieve stacd's status information
+    '''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
     info = json.loads(iface.process_info())
@@ -40,6 +48,9 @@ def status(args):
     print(pprint.pformat(info, width=120))
 
 def ls(args):
+    ''' @brief list the I/O controller's that stacd is
+               connected (or trying to connect) to.
+    '''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
     info = iface.list_controllers(args.detailed)

@@ -35,7 +35,7 @@ def txt2dict(txt:list):
     return the_dict
 
 #*******************************************************************************
-class Avahi():
+class Avahi(): # pylint: disable=too-many-instance-attributes
     ''' @brief Avahi Server proxy. Set up the D-Bus connection to the Avahi
                daemon and register to be notified when services of a certain
                type (stype) are discovered or lost.
@@ -113,6 +113,8 @@ class Avahi():
         self._avahi_watcher.connect_once_available()
 
     def kill(self):
+        ''' @brief Clean up object
+        '''
         self._logger.debug('Avahi.kill()')
 
         self._kick_avahi_tmr.kill()
@@ -136,6 +138,8 @@ class Avahi():
         self._sysbus    = None
 
     def info(self) -> dict:
+        ''' @brief return debug info about this object
+        '''
         services = dict()
         for service, obj in self._services.items():
             interface, protocol, name, stype, domain = service
@@ -298,11 +302,13 @@ class Avahi():
 
         self._change_cb()
 
-    def _service_identified(self, _connection, _sender_name:str, _object_path:str, _interface_name:str, _signal_name:str, args:typing.Tuple[int, int, str, str, str, str, int, str, int, list, int], *_user_data):
+    def _service_identified(self, _connection, _sender_name:str, _object_path:str, _interface_name:str,
+                           _signal_name:str, args:typing.Tuple[int, int, str, str, str, str, int, str, int, list, int], *_user_data):
         (interface, protocol, name, stype, domain, host, aprotocol, address, port, txt, flags) = args
         txt = txt2dict(txt)
         self._logger.debug('Avahi._service_identified()        - interface=%s (%s), protocol=%s, stype=%s, domain=%s, flags=%s %-14s name=%s, host=%s, aprotocol=%s, address=%s, port=%s, txt=%s',
-                           interface, socket.if_indextoname(interface), Avahi.protocol_as_string(protocol), stype, domain, flags, '(' + Avahi.result_flags_as_string(flags) + '),', name, host, Avahi.protocol_as_string(aprotocol), address, port, txt)
+                           interface, socket.if_indextoname(interface), Avahi.protocol_as_string(protocol), stype, domain, flags, '(' + Avahi.result_flags_as_string(flags) + '),',
+                           name, host, Avahi.protocol_as_string(aprotocol), address, port, txt)
 
         service = (interface, protocol, name, stype, domain)
         if service in self._services:
@@ -315,7 +321,8 @@ class Avahi():
             }
         self._change_cb()
 
-    def _failure_handler(self, _connection, _sender_name:str, _object_path:str, interface_name:str, _signal_name:str, args:typing.Tuple[str], *_user_data):
+    def _failure_handler(self, _connection, _sender_name:str, _object_path:str, interface_name:str,
+                         _signal_name:str, args:typing.Tuple[str], *_user_data):
         (error,) = args
         if 'ServiceResolver' not in interface_name or 'TimeoutError' not in error: # ServiceResolver may fire a timeout event after being Free'd(). This seems to be normal.
             self._logger.error('Avahi._failure_handler()    - name=%s, error=%s', interface_name, error)

@@ -17,6 +17,7 @@ import logging as LG
 import configparser
 import platform
 import ipaddress
+from distutils.version import LooseVersion
 import pyudev
 import systemd.daemon
 import dasbus.connection
@@ -26,7 +27,6 @@ except ModuleNotFoundError:
     from .glibudev import MonitorObserver # pylint: disable=relative-beyond-top-level
 
 from gi.repository import Gio, GLib, GObject
-from distutils.version import LooseVersion
 from libnvme import nvme
 from staslib import defs
 
@@ -168,7 +168,7 @@ class Configuration:
         self._config = self.read_conf_file()
 
     @property
-    def conf_file(self):
+    def conf_file(self): # pylint: disable=missing-function-docstring
         return self._conf_file
 
     @property
@@ -273,7 +273,7 @@ class Configuration:
         '''
         return ['_nvme-disc._tcp'] if self.zeroconf_enabled() else list()
 
-    def zeroconf_enabled(self):
+    def zeroconf_enabled(self): # pylint: disable=missing-function-docstring
         return self.__get_value('Service Discovery', 'zeroconf')[0] == 'enabled'
 
     def read_conf_file(self):
@@ -298,8 +298,8 @@ class Configuration:
         return value if value is not None else list()
 
 CNF = None # Singleton
-def get_configuration(conf_file:str):
-    global CNF # pylint: disable=global-statement
+def get_configuration(conf_file:str):  # pylint: disable=missing-function-docstring
+    global CNF                         # pylint: disable=global-statement
     CNF = Configuration(conf_file)
     return CNF
 
@@ -316,7 +316,7 @@ class SysConfiguration:
         '''
         self._config = self.read_conf_file()
 
-    def as_dict(self):
+    def as_dict(self): # pylint: disable=missing-function-docstring
         return {
             'hostnqn': self.hostnqn,
             'hostid':  self.hostid,
@@ -406,11 +406,11 @@ class SysConfiguration:
                 return None
             file = default_file
 
-        with open(file) as f:
+        with open(file) as f: # pylint: disable=unspecified-encoding
             return f.readline().split()[0]
 
 __SYS_CNF = None
-def get_sysconf():
+def get_sysconf():   # pylint: disable=missing-function-docstring
     global __SYS_CNF # pylint: disable=global-statement
     if __SYS_CNF is None:
         __SYS_CNF = SysConfiguration('/etc/stas/sys.conf') # Singleton
@@ -421,10 +421,10 @@ def get_sysconf():
 KERNEL_VERSION = platform.release()
 
 class NvmeOptions():
+    ''' Object used to read and cache contents of file /dev/nvme-fabrics.
+        Note that this file was not readable prior to Linux 5.16.
+    '''
     def __init__(self):
-        ''' Read and cache contents of file /dev/nvme-fabrics.
-            Note that this file was not readable prior to Linux 5.16.
-        '''
         # Supported options can be determined by looking at the kernel version
         # or by reading '/dev/nvme-fabrics'. The ability to read the options
         # from '/dev/nvme-fabrics' was only introduced in kernel 5.17, but may
@@ -442,7 +442,7 @@ class NvmeOptions():
         # backported to that kernel.
         if not all(self._supported_options.values()): # At least one option is False.
             try:
-                with open('/dev/nvme-fabrics') as f:
+                with open('/dev/nvme-fabrics') as f:  # pylint: disable=unspecified-encoding
                     options = [ option.split('=')[0].strip() for option in f.readlines()[0].rstrip('\n').split(',') ]
             except PermissionError: # Must be root to read this file
                 raise
@@ -469,7 +469,7 @@ class NvmeOptions():
         return self._supported_options['host_iface']
 
 __NVME_OPTIONS = None
-def get_nvme_options():
+def get_nvme_options():   # pylint: disable=missing-function-docstring
     global __NVME_OPTIONS # pylint: disable=global-statement
     if __NVME_OPTIONS is None:
         __NVME_OPTIONS = NvmeOptions()
@@ -479,7 +479,7 @@ def get_nvme_options():
 class GTimer:
     ''' @brief Convenience class to wrap GLib timers
     '''
-    def __init__(self, interval_sec:float=0, user_cback=lambda: GLib.SOURCE_REMOVE, *user_data, priority=GLib.PRIORITY_DEFAULT):
+    def __init__(self, interval_sec:float=0, user_cback=lambda: GLib.SOURCE_REMOVE, *user_data, priority=GLib.PRIORITY_DEFAULT): # pylint: disable=keyword-arg-before-vararg
         self._source       = None
         self._interval_sec = float(interval_sec)
         self._user_cback   = user_cback
@@ -541,14 +541,20 @@ class GTimer:
             self._source.set_ready_time(0) # Expire now!
 
     def set_callback(self, user_cback, *user_data):
+        ''' @brief set the callback function to invoke when timer expires
+        '''
         self._user_cback = user_cback
         self._user_data  = user_data
 
     def set_timeout(self, new_interval_sec:float):
+        ''' @brief set the timer's duration
+        '''
         if new_interval_sec >= 0:
             self._interval_sec = float(new_interval_sec)
 
     def get_timeout(self):
+        ''' @brief get the timer's duration
+        '''
         return self._interval_sec
 
     def time_remaining(self) -> float:
@@ -619,7 +625,9 @@ class Udev:
                 self._registry.pop(sys_name, None)
                 break
 
-    def get_attributes(self, sys_name:str, attr_ids):
+    def get_attributes(self, sys_name:str, attr_ids) -> dict:
+        ''' @brief Get all the attributes associated with device @sys_name
+        '''
         attrs = { attr_id: '' for attr_id in attr_ids }
         if sys_name:
             udev = self.get_nvme_device(sys_name)
@@ -658,6 +666,10 @@ class Udev:
         return None
 
     def find_nvme_ioc_device(self, tid):
+        ''' @brief  Find the nvme device associated with the specified
+                    I/O Controller.
+            @return The device if a match is found, None otherwise.
+        '''
         for device in self._context.list_devices(subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport):
             # Note: Prior to 5.18 linux didn't expose the cntrltype through
             # the sysfs. So, this may return None on older kernels.
@@ -712,6 +724,8 @@ UDEV = Udev() # Singleton
 
 #*******************************************************************************
 def cid_from_dlpe(dlpe, host_traddr, host_iface):
+    ''' @brief Take a Discovery Log Page Entry and return a Controller ID as a dict.
+    '''
     return {
         'transport':   dlpe['trtype'],
         'traddr':      dlpe['traddr'],
@@ -723,6 +737,8 @@ def cid_from_dlpe(dlpe, host_traddr, host_iface):
 
 #*******************************************************************************
 def blacklisted(blacklisted_ctrl_list, controller):
+    ''' @brief Check if @controller is black-listed.
+    '''
     for blacklisted_ctrl in blacklisted_ctrl_list:
         test_results = [ val == controller.get(key, None) for key, val in blacklisted_ctrl.items() ]
         if all(test_results):
@@ -731,6 +747,8 @@ def blacklisted(blacklisted_ctrl_list, controller):
 
 #*******************************************************************************
 def remove_blacklisted(controllers:list):
+    ''' @brief Remove black-listed controllers from the list of controllers.
+    '''
     blacklisted_ctrl_list = CNF.get_blacklist()
     if blacklisted_ctrl_list:
         LOG.debug('remove_blacklisted()               - blacklisted_ctrl_list = %s', blacklisted_ctrl_list)
@@ -739,6 +757,8 @@ def remove_blacklisted(controllers:list):
 
 #*******************************************************************************
 def remove_invalid_addresses(controllers:list):
+    ''' @brief Remove controllers with invalid addresses from the list of controllers.
+    '''
     valid_controllers = list()
     for controller in controllers:
         # First, let's make sure that traddr is
@@ -788,41 +808,41 @@ class TransportId:
         self._subsysnqn   = cid.get('subsysnqn')
         self._key         = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._host_iface, self._subsysnqn)
         self._hash        = hash(self._key)
-        self._id = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'
+        self._id = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})' # pylint: disable=line-too-long
 
     @property
-    def key(self):
+    def key(self):          # pylint: disable=missing-function-docstring
         return self._key
 
     @property
-    def hash(self):
+    def hash(self):         # pylint: disable=missing-function-docstring
         return self._hash
 
     @property
-    def transport(self):
+    def transport(self):    # pylint: disable=missing-function-docstring
         return self._transport
 
     @property
-    def traddr(self):
+    def traddr(self):       # pylint: disable=missing-function-docstring
         return self._traddr
 
     @property
-    def trsvcid(self):
+    def trsvcid(self):      # pylint: disable=missing-function-docstring
         return self._trsvcid
 
     @property
-    def host_traddr(self):
+    def host_traddr(self):  # pylint: disable=missing-function-docstring
         return self._host_traddr
 
     @property
-    def host_iface(self):
+    def host_iface(self):   # pylint: disable=missing-function-docstring
         return self._host_iface
 
     @property
-    def subsysnqn(self):
+    def subsysnqn(self):    # pylint: disable=missing-function-docstring
         return self._subsysnqn
 
-    def as_dict(self):
+    def as_dict(self):      # pylint: disable=missing-function-docstring
         return {
             'transport': self.transport,
             'traddr': self.traddr,
@@ -960,6 +980,9 @@ class AsyncCaller(GObject.Object):
 
 #*******************************************************************************
 class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
+    ''' Object used to manage an asynchronous GLib operation. The operation
+        can be cancelled or retried.
+    '''
     def __init__(self, on_success_callback, on_failure_callback, operation, *op_args):
         ''' @param on_success_callback: Callback method invoked when @operation completes successfully
             @param on_failure_callback: Callback method invoked when @operation fails
@@ -993,7 +1016,7 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
     def __str__(self):
         return str(self.as_dict())
 
-    def as_dict(self):
+    def as_dict(self): # pylint: disable=missing-function-docstring
         info = {
             'fail count': self._fail_cnt,
         }
@@ -1007,10 +1030,14 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
         return info
 
     def cancel(self):
+        ''' @brief cancel async operation
+        '''
         if not self._cancellable.is_cancelled():
             self._cancellable.cancel()
 
     def kill(self):
+        ''' @brief kill and clean up this object
+        '''
         self._release_resources()
 
     def run_async(self, *args):
@@ -1023,6 +1050,10 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
         async_caller.communicate(self._cancellable, self._on_operation_complete, *args)
 
     def retry(self, interval_sec, *args):
+        ''' @brief Tell this object that the async operation is to be retried
+                   in @interval_sec seconds.
+
+        '''
         if self._retry_tmr is None:
             self._retry_tmr = GTimer()
         self._retry_tmr.set_callback(self._on_retry_timeout, *args)
@@ -1062,7 +1093,9 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
 
 
 #*******************************************************************************
-class Controller:
+class Controller: # pylint: disable=too-many-instance-attributes
+    ''' @brief Base class used to manage the connection to a controller.
+    '''
     CONNECT_RETRY_PERIOD_SEC = 60
     def __init__(self, root, host, tid:TransportId, discovery_ctrl=False):
         self._root              = root
@@ -1226,23 +1259,27 @@ class Controller:
             LOG.debug('Controller._on_connect_fail()      - %s Received event on dead object. %s', self.id, err)
 
     @property
-    def id(self) -> str:
+    def id(self) -> str:        # pylint: disable=missing-function-docstring
         return str(self.tid)
 
     @property
-    def tid(self):
+    def tid(self):              # pylint: disable=missing-function-docstring
         return self._tid
 
     @property
-    def device(self) -> str:
+    def device(self) -> str:    # pylint: disable=missing-function-docstring
         return self._device if self._device else ''
 
     def controller_id_dict(self) -> dict:
+        ''' @brief return the controller ID as a dict.
+        '''
         cid = self.tid.as_dict()
         cid['device'] = self.device
         return cid
 
     def details(self) -> dict:
+        ''' @brief return detailed debug info about this controller
+        '''
         details = self.controller_id_dict()
         details.update(UDEV.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial')))
         details['connect attempts'] = str(self._connect_attempts)
@@ -1268,6 +1305,8 @@ class Controller:
             self._connect_op.cancel()
 
     def disconnect(self, disconnected_cb):
+        ''' @brief initiate a disconnect request with the controller
+        '''
         LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
         self._kill_ops()
         # Defer callback to the next main loop's idle period.
@@ -1281,6 +1320,8 @@ class Controller:
 
 #*******************************************************************************
 class Service:
+    ''' @brief Base class used to manage a STorage Appliance Service
+    '''
     def __init__(self, reload_hdlr):
         self._loop         = GLib.MainLoop()
         self._cancellable  = Gio.Cancellable()
@@ -1350,6 +1391,8 @@ class Service:
         return self._controllers.values()
 
     def get_controller(self, transport:str, traddr:str, trsvcid:str, host_traddr:str, host_iface:str, subsysnqn:str): # pylint: disable=too-many-arguments
+        ''' @brief get the specified controller object from the list of controllers
+        '''
         cid = {
             'transport': transport,
             'traddr': traddr,
@@ -1361,6 +1404,8 @@ class Service:
         return self._controllers.get(TransportId(cid))
 
     def remove_controller(self, tid, device):
+        ''' @brief remove the specified controller object from the list of controllers
+        '''
         LOG.debug('Service.remove_controller()        - %s %s', tid, device)
         controller = self._controllers.pop(tid, None)
         if controller is not None:

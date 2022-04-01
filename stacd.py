@@ -41,7 +41,7 @@ DBUS_IDL = '''
 </node>
 ''' % (defs.STACD_DBUS_NAME, defs.STACD_DBUS_NAME)
 
-def parse_args(conf_file:str):
+def parse_args(conf_file:str): # pylint: disable=missing-function-docstring
     parser = ArgumentParser(description=f'{defs.STAC_DESCRIPTION} ({defs.STAC_ACRONYM}). Must be root to run this program.')
     parser.add_argument('-f', '--conf-file', action='store', help='Configuration file (default: %(default)s)', default=conf_file, type=str, metavar='FILE')
     parser.add_argument('-s', '--syslog', action='store_true', help='Send messages to syslog instead of stdout. Use this when running %(prog)s as a daemon. (default: %(default)s)', default=False)
@@ -57,7 +57,7 @@ if ARGS.version:
     sys.exit(0)
 
 if ARGS.idl:
-    with open(ARGS.idl, 'w') as f:
+    with open(ARGS.idl, 'w') as f: # pylint: disable=unspecified-encoding
         print(f'{DBUS_IDL}', file=f)
     sys.exit(0)
 
@@ -92,7 +92,7 @@ NVME_ROOT = nvme.root()        # Singleton
 NVME_ROOT.log_level("debug" if (ARGS.tron or CNF.tron) else "err")
 NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname) # Singleton
 
-def set_loglevel(tron):
+def set_loglevel(tron): # pylint: disable=missing-function-docstring
     stas.trace_control(tron)
     NVME_ROOT.log_level("debug" if tron else "err")
 
@@ -156,10 +156,14 @@ class Stac(stas.Service):
             return json.dumps(info)
 
         def controller_info(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn) -> str: # pylint: disable=too-many-arguments,no-self-use
+            ''' @brief D-Bus method used to return information about a controller
+            '''
             controller = STAC.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
             return json.dumps(controller.info()) if controller else '{}'
 
         def list_controllers(self, detailed) -> str: # pylint: disable=no-self-use
+            ''' @brief Return the list of I/O controller IDs
+            '''
             return [ controller.details() if detailed else controller.controller_id_dict() for controller in STAC.get_controllers() ]
 
 
