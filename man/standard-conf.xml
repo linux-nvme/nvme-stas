@@ -60,7 +60,9 @@
                 <para>
                     Keep Alive Timeout (KATO) in seconds. Takes an unsigned
                     integer. This field specifies the timeout value for the Keep
-                    Alive feature in seconds. Defaults to 120 seconds.
+                    Alive feature in seconds. Defaults to 30 seconds for
+                    Discovery Controller connections and 120 seconds for I/O
+                    Controller connections.
                 </para>
             </listitem>
         </varlistentry>
