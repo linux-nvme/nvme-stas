@@ -143,7 +143,7 @@ class Avahi(): # pylint: disable=too-many-instance-attributes
         services = dict()
         for service, obj in self._services.items():
             interface, protocol, name, stype, domain = service
-            key = '({}, {}, {}.{}, {})'.format(socket.if_indextoname(interface), Avahi.protos.get(protocol, 'unknown'), name, domain, stype)
+            key = '({}, {}, {}.{}, {})'.format(socket.if_indextoname(interface), Avahi.protos.get(protocol, 'unknown'), name, domain, stype)  # pylint: disable=consider-using-f-string
             services[key] = obj.get('data', {})
 
         info = {

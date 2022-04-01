@@ -71,7 +71,7 @@ def get_logger(syslog:bool, identifier:str):
             # Go back to standard syslog handler
             import logging.handlers # pylint: disable=import-outside-toplevel
             handler = logging.handlers.SysLogHandler(address="/dev/log")
-            handler.setFormatter(logging.Formatter('{}: %(message)s'.format(identifier)))
+            handler.setFormatter(logging.Formatter('{}: %(message)s'.format(identifier))) # pylint: disable=consider-using-f-string
 
         level = LG.INFO
     else:
