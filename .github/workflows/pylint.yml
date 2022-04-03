@@ -20,8 +20,11 @@ jobs:
           sudo python3 -m pip install --upgrade pip dasbus pylint pyflakes lxml
       - name: Pylint
         run: |
-          pylint --version;
-          pylint --rcfile=test/pylint.rc *.py staslib
+          meson subprojects download
+          meson setup builddir subprojects/libnvme
+          meson test -C builddir
+          pylint --version
+          PYTHONPATH=builddir pylint --rcfile=test/pylint.rc *.py staslib
       - name: Pyflakes
         if: always()
         run: |
