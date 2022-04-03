@@ -6,6 +6,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
     steps:
@@ -17,16 +18,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get install -y python3-pyudev python3-systemd python3-gi meson
-          sudo python3 -m pip install --upgrade pip dasbus pylint pyflakes lxml
+          python -m pip install --upgrade pip dasbus pylint pyflakes lxml
       - name: Pylint
         run: |
           meson subprojects download
           meson setup builddir subprojects/libnvme
           meson test -C builddir
-          pylint --version
-          PYTHONPATH=builddir pylint --rcfile=test/pylint.rc *.py staslib
+          python -m pylint --version
+          PYTHONPATH=builddir python -m pylint --rcfile=test/pylint.rc *.py staslib
       - name: Pyflakes
         if: always()
         run: |
-          pyflakes --version
-          pyflakes *.py staslib
+          python -m pyflakes --version
+          python -m pyflakes *.py staslib
