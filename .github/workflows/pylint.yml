@@ -5,29 +5,49 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
+
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: |
-          sudo apt-get install -y python3-pyudev python3-systemd python3-gi meson
-          python -m pip install --upgrade pip dasbus pylint pyflakes lxml
-      - name: Pylint
+          sudo apt-get install -y meson libgirepository1.0-dev libsystemd-dev python3-systemd python3-pyudev python3-lxml
+          python3 -m pip install --upgrade pip wheel
+          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
+
+      - name: Install libnvme
         run: |
           meson subprojects download
           meson setup builddir subprojects/libnvme
-          meson test -C builddir
-          python -m pylint --version
-          PYTHONPATH=builddir python -m pylint --rcfile=test/pylint.rc *.py staslib
+          ninja -C builddir
+
+      - name: Set PYTHONPATH
+        run: |
+          echo "PYTHONPATH=builddir:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
+
+      - name: Show test environment
+        run: |
+          python3 -VV
+          python3 -m site
+          python3 -m pylint --version
+          echo "pyflakes $(python3 -m pyflakes --version)"
+
+      - name: Pylint
+        run: |
+          python3 -m pylint --rcfile=test/pylint.rc *.py staslib
+
       - name: Pyflakes
         if: always()
         run: |
-          python -m pyflakes --version
-          python -m pyflakes *.py staslib
+          python3 -m pyflakes *.py staslib
+
