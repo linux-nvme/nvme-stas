@@ -8,6 +8,8 @@
 
 ''' @brief This file gets automagically configured by meson at build time.
 '''
+from staslib.version import KernelVersion
+
 VERSION           = '@VERSION@'
 LICENSE           = '@LICENSE@'
 PROJECT_NAME      = '@PROJECT_NAME@'
@@ -29,5 +31,5 @@ STAFD_DBUS_PATH   = '@STAFD_DBUS_PATH@'
 STAFD_EXECUTABLE  = '@STAFD_EXECUTABLE@'
 STAFD_CONFIG_FILE = '@STAFD_CONFIG_FILE@'
 
-KERNEL_IFACE_MIN_VERSION   = '@KERNEL_IFACE_MIN_VERSION@'
-KERNEL_TP8013_MIN_VERSION = '@KERNEL_TP8013_MIN_VERSION@'
+KERNEL_IFACE_MIN_VERSION  = KernelVersion('@KERNEL_IFACE_MIN_VERSION@')
+KERNEL_TP8013_MIN_VERSION = KernelVersion('@KERNEL_TP8013_MIN_VERSION@')

@@ -17,7 +17,6 @@ import logging as LG
 import configparser
 import platform
 import ipaddress
-from distutils.version import LooseVersion
 import pyudev
 import systemd.daemon
 import dasbus.connection
@@ -28,6 +27,7 @@ except ModuleNotFoundError:
 
 from gi.repository import Gio, GLib, GObject
 from libnvme import nvme
+from staslib.version import KernelVersion
 from staslib import defs
 
 DC_KATO_DEFAULT = 30 # seconds
@@ -418,7 +418,7 @@ def get_sysconf():   # pylint: disable=missing-function-docstring
 
 
 #*******************************************************************************
-KERNEL_VERSION = platform.release()
+KERNEL_VERSION = KernelVersion(platform.release())
 
 class NvmeOptions():
     ''' Object used to read and cache contents of file /dev/nvme-fabrics.
@@ -432,8 +432,8 @@ class NvmeOptions():
         # version meets the minimum version for that option, then we don't
         # even need to read '/dev/nvme-fabrics'.
         self._supported_options = {
-            'discovery':  LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_TP8013_MIN_VERSION),
-            'host_iface': LooseVersion(KERNEL_VERSION) >= LooseVersion(defs.KERNEL_IFACE_MIN_VERSION),
+            'discovery':  KERNEL_VERSION >= defs.KERNEL_TP8013_MIN_VERSION,
+            'host_iface': KERNEL_VERSION >= defs.KERNEL_IFACE_MIN_VERSION,
         }
 
         # If some of the options are False, we need to check wether they can be
