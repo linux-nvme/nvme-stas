@@ -6,19 +6,35 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
+PYTHON_SEARCH_PATHS = [
+    TEST_DIR_ROOT,
+    join_paths(TEST_DIR_ROOT, 'subprojects', 'libnvme')
+]
+
+test_env = environment({'MALLOC_PERTURB_': '0'})
+test_env.prepend('PYTHONPATH', ':'.join(PYTHON_SEARCH_PATHS))
 
 if modules_to_lint.length() != 0
+    pylint = find_program('pylint', required: false)
+    pyflakes = find_program('pyflakes3', required: false)
+    if not pyflakes.found()
+        temp = find_program('pyflakes', required: false)
+        if temp.found() and run_command(temp, '--version').stdout().contains('Python 3')
+            pyflakes = temp
+        endif
+    endif
+
     rcfile = join_paths(meson.current_source_dir(), 'pylint.rc')
 
     if pylint.found()
-        test('pylint', pylint, args: ['--rcfile=' + rcfile] + modules_to_lint, env: stas_test_env)
+        test('pylint', pylint, args: ['--rcfile=' + rcfile] + modules_to_lint, env: test_env)
     endif
     if pyflakes.found()
-        test('pyflakes', pyflakes, args: modules_to_lint, env: stas_test_env)
+        test('pyflakes', pyflakes, args: modules_to_lint, env: test_env)
     endif
 endif
 
 foreach module: modules_to_test
     fname = fs.name('@0@'.format(module))
-    test('Unit test ' + fname, python3, args: module, env: stas_test_env)
+    test('Unit test ' + fname, python3, args: module, env: test_env)
 endforeach
