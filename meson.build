@@ -60,15 +60,6 @@ if check_pymodules
     endforeach
 endif
 
-pylint = find_program('pylint', required: false)
-pyflakes = find_program('pyflakes3', required: false)
-if not pyflakes.found()
-    temp = find_program('pyflakes', required: false)
-    if temp.found() and run_command(temp, '--version').stdout().contains('Python 3')
-        pyflakes = temp
-    endif
-endif
-
 #===============================================================================
 conf = configuration_data()
 
@@ -136,12 +127,7 @@ install_subdir(
 
 #===============================================================================
 # Make a list of modules to lint and/or test
-stas_test_env = environment({'MALLOC_PERTURB_': '0'})
-PYTHONPATH_LIST = [
-    meson.current_build_dir(),
-    join_paths(meson.current_build_dir(), 'subprojects', 'libnvme')
-]
-stas_test_env.prepend('PYTHONPATH', ':'.join(PYTHONPATH_LIST))
+TEST_DIR_ROOT = meson.current_build_dir()
 
 if libnvme_dep.found()
     modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
