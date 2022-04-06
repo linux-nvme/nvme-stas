@@ -127,15 +127,13 @@ install_subdir(
 
 #===============================================================================
 # Make a list of modules to lint and/or test
-TEST_DIR_ROOT = meson.current_build_dir()
-
 if libnvme_dep.found()
     modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
     modules_to_test = []
 else
+    warning('Install the libnvme Python package to run the tests.')
     modules_to_lint = []
     modules_to_test = []
-    warning('Install the libnvme Python package to run the tests.')
 endif
 
 #===============================================================================
