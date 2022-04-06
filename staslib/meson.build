@@ -35,26 +35,13 @@ python3.install_sources(
 )
 
 #===============================================================================
-if libnvme_dep.found()
-    fs = import('fs')
-
-    modules_to_skip = ['__init__.py', 'defs.py', 'glibudev.py']
-    modules_to_test = []
-    foreach file: files_to_install
-        fname = fs.name('@0@'.format(file))
-        if fname not in modules_to_skip
-            modules_to_test += file
-        endif
-    endforeach
-
-    if pylint.found()
-        test('pylint staslib/*.py', pylint, args: ['--rcfile=' + rcfile] + modules_to_test, env: stas_test_env)
+# Make a list of modules to lint and/or test
+skip = ['__init__.py', 'defs.py', 'glibudev.py']
+foreach file: files_to_install
+    fname = fs.name('@0@'.format(file))
+    if fname not in skip
+        modules_to_lint += file
+        modules_to_test += file
     endif
-    if pyflakes.found()
-        test('pyflakes staslib/*.py', pyflakes, args: modules_to_test, env: stas_test_env)
-    endif
+endforeach
 
-    foreach module: modules_to_test
-        test('Unit test @0@'.format(module), python3, args: module, env: stas_test_env)
-    endforeach
-endif
