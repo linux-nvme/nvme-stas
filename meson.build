@@ -17,6 +17,8 @@ project(
     ]
 )
 
+fs = import('fs')
+
 #===============================================================================
 prefix  = get_option('prefix')
 etcdir  = get_option('sysconfdir')
@@ -133,6 +135,7 @@ install_subdir(
 )
 
 #===============================================================================
+# Make a list of modules to lint and/or test
 stas_test_env = environment({'MALLOC_PERTURB_': '0'})
 PYTHONPATH_LIST = [
     meson.current_build_dir(),
@@ -141,17 +144,11 @@ PYTHONPATH_LIST = [
 stas_test_env.prepend('PYTHONPATH', ':'.join(PYTHONPATH_LIST))
 
 if libnvme_dep.found()
-    rcfile = join_paths(meson.current_source_dir(), 'test', 'pylint.rc')
-
-    modules_to_test = [stafd, stafctl, stacd, stacctl, stasadm]
-
-    if pylint.found()
-        test('pylint *.py', pylint, args: ['--rcfile=' + rcfile] + modules_to_test, env: stas_test_env)
-    endif
-    if pyflakes.found()
-        test('pyflakes *.py', pyflakes, args: modules_to_test, env: stas_test_env)
-    endif
+    modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+    modules_to_test = []
 else
+    modules_to_lint = []
+    modules_to_test = []
     warning('Install the libnvme Python package to run the tests.')
 endif
 
@@ -167,6 +164,7 @@ subdir('staslib')
 subdir('etc/dbus-1/system.d')
 subdir('usr/lib/systemd/system')
 subdir('man')
+subdir('test')
 
 if meson.version().version_compare('>=0.57.0')
     summary = [
