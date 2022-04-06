@@ -15,14 +15,16 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install requirements
         run: |
-          sudo apt-get install -y libjson-c-dev python3-pyudev python3-systemd python3-gi meson
-          python -m pip install --upgrade pip dasbus pylint pyflakes
+          sudo apt-get install -y meson docbook-xml docbook-xsl xsltproc libjson-c-dev libglib2.0-dev libgirepository1.0-dev libsystemd-dev python3-systemd python3-pyudev python3-lxml
+          python3 -m pip install --upgrade pip wheel
+          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
 
       - uses: BSFishy/meson-build@v1.0.3
         with:
-          setup-options: --werror
-          options: --verbose
           action: test
+          directory: .build
+          setup-options: -Dman=true -Dhtml=true
+          options: --verbose
 
       - name: Upload logs
         if: failure()

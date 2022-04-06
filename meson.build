@@ -133,8 +133,12 @@ install_subdir(
 )
 
 #===============================================================================
-test_env = environment({'MALLOC_PERTURB_': '0'})
-test_env.prepend('PYTHONPATH', meson.current_build_dir())
+stas_test_env = environment({'MALLOC_PERTURB_': '0'})
+PYTHONPATH_LIST = [
+    meson.current_build_dir(),
+    join_paths(meson.current_build_dir(), 'subprojects', 'libnvme')
+]
+stas_test_env.prepend('PYTHONPATH', ':'.join(PYTHONPATH_LIST))
 
 if libnvme_dep.found()
     rcfile = join_paths(meson.current_source_dir(), 'test', 'pylint.rc')
@@ -148,10 +152,10 @@ if libnvme_dep.found()
     ]
     foreach module: modules_to_test
         if pylint.found()
-            test('pylint ' + module[0], pylint, args: ['--rcfile=' + rcfile, module[1]], env: test_env)
+            test('pylint ' + module[0], pylint, args: ['--rcfile=' + rcfile, module[1]], env: stas_test_env)
         endif
         if pyflakes.found()
-            test('pyflakes ' + module[0], pyflakes, args: [module[1]], env: test_env)
+            test('pyflakes ' + module[0], pyflakes, args: [module[1]], env: stas_test_env)
         endif
     endforeach
 else
