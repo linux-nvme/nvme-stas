@@ -1,0 +1,35 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Start containers
+        run: docker-compose -f "docker-compose.yml" up --detach --build
+
+      - name: Run tests
+        run: |
+          docker-compose ps || true
+          docker-compose exec stafd stafctl ls || true
+          docker-compose exec stacd stacctl ls || true
+          docker-compose logs || true
+
+      - name: Logs
+        if: failure()
+        run: |
+          docker-compose ps || true
+          docker-compose logs || true
+
+      - name: Stop containers
+        if: always()
+        run: docker-compose -f "docker-compose.yml" down
