@@ -24,13 +24,13 @@ jobs:
           action: test
           directory: .build
           setup-options: -Dman=true -Dhtml=true
-          options: --verbose
+          options: --print-errorlogs --suite nvme-stas
 
-      - name: Upload logs
-        if: failure()
-        uses: actions/upload-artifact@v2
-        with:
-          name: meson-logs
-          path: |
-            ${{ github.workspace }}/.build/meson-logs/*.txt
+#      - name: Upload logs
+#        if: failure()
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: meson-logs
+#          path: |
+#            ${{ github.workspace }}/.build/meson-logs/*.txt
 

@@ -6,6 +6,12 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
+if meson.version().version_compare('>=0.56.0')
+    TEST_DIR_ROOT = meson.project_build_root()
+else
+    TEST_DIR_ROOT = fs.parent(meson.current_build_dir())
+endif
+
 PYTHON_SEARCH_PATHS = [
     TEST_DIR_ROOT,
     join_paths(TEST_DIR_ROOT, 'subprojects', 'libnvme')
