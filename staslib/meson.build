@@ -31,7 +31,7 @@ foreach file : unconfigured_files
 endforeach
 
 #===============================================================================
-if libnvme_found
+if libnvme_dep.found()
     modules_to_test = [
         [ 'staslib.avahi',   'avahi.py'   ],
         [ 'staslib.stas',    'stas.py'    ],

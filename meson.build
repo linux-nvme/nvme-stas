@@ -136,10 +136,7 @@ install_subdir(
 test_env = environment({'MALLOC_PERTURB_': '0'})
 test_env.prepend('PYTHONPATH', meson.current_build_dir())
 
-rr = run_command([python3, '-c', 'from libnvme import nvme'], env: test_env)
-libnvme_found = rr.returncode() == 0
-
-if libnvme_found
+if libnvme_dep.found()
     rcfile = join_paths(meson.current_source_dir(), 'test', 'pylint.rc')
 
     modules_to_test = [
