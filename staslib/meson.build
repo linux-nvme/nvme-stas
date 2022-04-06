@@ -27,38 +27,34 @@ foreach file : files_to_copy
     )
 endforeach
 
+files_to_install = copied_files + configured_files
 python3.install_sources(
-    copied_files + configured_files,
+    files_to_install,
     pure: false,
     subdir: 'staslib',
 )
 
 #===============================================================================
 if libnvme_dep.found()
-    modules_to_lint = [
-        [ 'staslib.avahi',   'avahi.py'   ],
-        [ 'staslib.stas',    'stas.py'    ],
-        [ 'staslib.version', 'version.py' ],
-    ]
+    fs = import('fs')
 
-    foreach module: modules_to_lint
-        file = join_paths(meson.current_source_dir(), module[1])
-        if pylint.found()
-            test('pylint ' + module[0], pylint, args: ['--rcfile=' + rcfile, file], env: stas_test_env)
-        endif
-        if pyflakes.found()
-            test('pyflakes ' + module[0], pyflakes, args: [file], env: stas_test_env)
+    modules_to_skip = ['__init__.py', 'defs.py', 'glibudev.py']
+    modules_to_test = []
+    foreach file: files_to_install
+        fname = fs.name('@0@'.format(file))
+        if fname not in modules_to_skip
+            modules_to_test += file
         endif
     endforeach
 
-
-    modules_to_test = [
-        [ 'staslib.stas',    'stas.py'    ],
-        [ 'staslib.version', 'version.py' ],
-    ]
+    if pylint.found()
+        test('pylint staslib/*.py', pylint, args: ['--rcfile=' + rcfile] + modules_to_test, env: stas_test_env)
+    endif
+    if pyflakes.found()
+        test('pyflakes staslib/*.py', pyflakes, args: modules_to_test, env: stas_test_env)
+    endif
 
     foreach module: modules_to_test
-        file = join_paths(meson.current_source_dir(), module[1])
-        test('Unit test ' + module[0], python3, args: [file, ], env: stas_test_env)
+        test('Unit test @0@'.format(module), python3, args: module, env: stas_test_env)
     endforeach
 endif

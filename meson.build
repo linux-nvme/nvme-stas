@@ -8,7 +8,7 @@
 #
 project(
     'nvme-stas',
-    meson_version: '>= 0.52.0',
+    meson_version: '>= 0.53.0',
     version: '1.0',
     license: 'Apache-2.0',
     default_options: [
@@ -143,21 +143,14 @@ stas_test_env.prepend('PYTHONPATH', ':'.join(PYTHONPATH_LIST))
 if libnvme_dep.found()
     rcfile = join_paths(meson.current_source_dir(), 'test', 'pylint.rc')
 
-    modules_to_test = [
-        [ 'stafd',   stafd   ],
-        [ 'stafctl', stafctl ],
-        [ 'stacd',   stacd   ],
-        [ 'stacctl', stacctl ],
-        [ 'stasadm', stasadm ],
-    ]
-    foreach module: modules_to_test
-        if pylint.found()
-            test('pylint ' + module[0], pylint, args: ['--rcfile=' + rcfile, module[1]], env: stas_test_env)
-        endif
-        if pyflakes.found()
-            test('pyflakes ' + module[0], pyflakes, args: [module[1]], env: stas_test_env)
-        endif
-    endforeach
+    modules_to_test = [stafd, stafctl, stacd, stacctl, stasadm]
+
+    if pylint.found()
+        test('pylint *.py', pylint, args: ['--rcfile=' + rcfile] + modules_to_test, env: stas_test_env)
+    endif
+    if pyflakes.found()
+        test('pyflakes *.py', pyflakes, args: modules_to_test, env: stas_test_env)
+    endif
 else
     warning('Install the libnvme Python package to run the tests.')
 endif
