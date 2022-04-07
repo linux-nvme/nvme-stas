@@ -1,13 +1,9 @@
-%global _topdir       .build/rpm-pkg
-%global _sourcedir    .build/meson-dist
-
 Name: @PROJECT_NAME@
 Summary: NVMe STorage Appliance Services
 Version: @VERSION@
 Release: 1%{?dist}
 License: @LICENSE@
 URL:     https://github.com/linux-nvme/nvme-stas
-Source0: %{name}-%{version}.tar.xz
 
 BuildArch: noarch
 

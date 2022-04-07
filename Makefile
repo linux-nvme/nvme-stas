@@ -6,10 +6,10 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-.DEFAULT_GOAL := stas
-BUILD-DIR     := .build
-DEB-PKG-DIR   := ${BUILD-DIR}/deb-pkg
-RPM-PKG-DIR   := ${BUILD-DIR}/rpm-pkg
+.DEFAULT_GOAL     := stas
+BUILD-DIR         := .build
+DEB-PKG-DIR       := ${BUILD-DIR}/deb-pkg
+RPM-BUILDROOT-DIR := ${BUILD-DIR}/rpmbuild
 
 ${BUILD-DIR}:
 	BUILD_DIR=${BUILD-DIR} ./configure
@@ -45,7 +45,8 @@ loc-full:
 	@cloc --by-file --exclude-dir=${BUILD-DIR},Documentation,test,utils,debian,obj-x86_64-linux-gnu,.github .
 
 
-# THE FOLLOWING TARGETS ARE EXPERIMENTAL:
+################################################################################
+# Debian (*.deb)
 # Use "DEB_BUILD_OPTIONS=nocheck make debian" to skip unit testing.
 .PHONY: deb
 deb: ${BUILD-DIR}
@@ -59,6 +60,16 @@ deb: ${BUILD-DIR}
 	@echo "======================================================="
 	@echo "Debian packages located in: ${DEB-PKG-DIR}/"
 
+
+################################################################################
+# RedHat (*.rpm)
+${BUILD-DIR}/nvme-stas.spec: ${BUILD-DIR} nvme-stas.spec.in
+	meson --reconfigure ${BUILD-DIR}
+
+${RPM-BUILDROOT-DIR}: ${BUILD-DIR}/nvme-stas.spec
+	rpmbuild -ba $< --build-in-place --clean --nocheck --define "_topdir $(abspath ${BUILD-DIR}/rpmbuild)"
+	@echo "======================================================="
+	@echo "RPM packages located in: ${RPM-BUILDROOT-DIR}/"
+
 .PHONY: rpm
-rpm: dist
-	rpmbuild -ba ${BUILD-DIR}/nvme-stas.spec
+rpm: ${RPM-BUILDROOT-DIR}
