@@ -14,15 +14,30 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Start containers
+      - name: Install requirements
+        # make sure nvme-cli installed (we need it for /etc/nvme/hostnqn and /etc/nvme/hostid)
+        run: sudo apt-get install -y nvme-cli
+
+      - name: Load Kernel drivers
+        run: sudo modprobe -v nvme-fabrics
+
+      - name: Fix D-BUS
+        run: |
+          sed 's/@STAFD_DBUS_NAME@/org.nvmexpress.staf/g' etc/dbus-1/system.d/org.nvmexpress.staf.in.conf | sudo tee /usr/share/dbus-1/system.d/org.nvmexpress.staf.conf
+          sed 's/@STACD_DBUS_NAME@/org.nvmexpress.stac/g' etc/dbus-1/system.d/org.nvmexpress.stac.in.conf | sudo tee /usr/share/dbus-1/system.d/org.nvmexpress.stac.conf
+          sudo systemctl reload dbus.service
+
+      - name: Build & Start containers
         run: docker-compose -f "docker-compose.yml" up --detach --build
 
       - name: Run tests
         run: |
-          docker-compose ps || true
-          docker-compose exec stafd stafctl ls || true
-          docker-compose exec stacd stacctl ls || true
-          docker-compose logs || true
+          docker-compose ps
+          docker-compose exec -T stafd stafctl ls
+          docker-compose exec -T stafd stafctl status
+          docker-compose exec -T stacd stacctl ls
+          docker-compose exec -T stacd stacctl status
+          docker-compose logs
 
       - name: Logs
         if: failure()
