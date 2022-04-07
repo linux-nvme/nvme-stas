@@ -32,13 +32,9 @@ ifneq ("$(wildcard ${BUILD-DIR})","")
 	rm -rf ${BUILD-DIR}
 endif
 
-.PHONY: install test
-install test: ${BUILD-DIR}
-	cd ${BUILD-DIR} && meson $@
-
-.PHONY: dist
-dist: ${BUILD-DIR}
-	cd ${BUILD-DIR} && meson $@
+.PHONY: install test dist
+install test dist: ${BUILD-DIR}
+	meson $@ -C ${BUILD-DIR}
 
 .PHONY: loc
 loc:
