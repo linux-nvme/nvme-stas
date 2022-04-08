@@ -1,5 +1,6 @@
 .build
-obj-x86_64-linux-gnu
+obj-x86_64-linux-gnu   # DEBs Artifacts
+redhat-linux-build     # RPMs Artifacts
 __pycache__
 
 subprojects/*
