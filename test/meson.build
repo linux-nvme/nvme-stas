@@ -40,7 +40,12 @@ if modules_to_lint.length() != 0
     endif
 endif
 
-foreach module: modules_to_test
-    fname = fs.name('@0@'.format(module))
-    test('Unit test ' + fname, python3, args: module, env: test_env)
+things_to_test = [
+    ['Test Configuration', 'test-config.py'],
+    ['Test KernelVersion', 'test-version.py'],
+]
+foreach thing: things_to_test
+    msg = thing[0]
+    script = join_paths(meson.current_source_dir(), thing[1])
+    test(msg, python3, args: script, env: test_env)
 endforeach
