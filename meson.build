@@ -126,14 +126,12 @@ install_subdir(
 )
 
 #===============================================================================
-# Make a list of modules to lint and/or test
+# Make a list of modules to lint
 if libnvme_dep.found()
     modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
-    modules_to_test = []
 else
     warning('Install the libnvme Python package to run the tests.')
     modules_to_lint = []
-    modules_to_test = []
 endif
 
 #===============================================================================

@@ -35,13 +35,12 @@ python3.install_sources(
 )
 
 #===============================================================================
-# Make a list of modules to lint and/or test
+# Make a list of modules to lint
 skip = ['__init__.py', 'defs.py', 'glibudev.py']
 foreach file: files_to_install
     fname = fs.name('@0@'.format(file))
     if fname not in skip
         modules_to_lint += file
-        modules_to_test += file
     endif
 endforeach
 
