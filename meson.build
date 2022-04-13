@@ -145,7 +145,7 @@ configure_file(
 subdir('staslib')
 subdir('etc/dbus-1/system.d')
 subdir('usr/lib/systemd/system')
-subdir('man')
+subdir('doc')
 subdir('test')
 
 if meson.version().version_compare('>=0.57.0')
