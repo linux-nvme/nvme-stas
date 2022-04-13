@@ -19,45 +19,57 @@ from argparse import ArgumentParser
 VERSION = 1.0
 DEFAULT_CONFIG_FILE = './nvmet.conf'
 
-class Fore():
-    RED   = '\033[31m'
+
+class Fore:
+    RED = '\033[31m'
     GREEN = '\033[32m'
 
-class Style():
+
+class Style:
     RESET_ALL = '\033[0m'
 
 
-def _runcmd(cmd:list, quiet=False):
-    if not quiet: print(' '.join(cmd))
-    if args.dry_run: return
+def _runcmd(cmd: list, quiet=False):
+    if not quiet:
+        print(' '.join(cmd))
+    if args.dry_run:
+        return
     subprocess.run(cmd)
 
-def _mkdir(dname:str):
+
+def _mkdir(dname: str):
     print(f'mkdir -p "{dname}"')
-    if args.dry_run: return
+    if args.dry_run:
+        return
     pathlib.Path(dname).mkdir(parents=True, exist_ok=True)
 
-def _echo(value, fname:str):
+
+def _echo(value, fname: str):
     print(f'echo -n "{value}" > "{fname}"')
-    if args.dry_run: return
+    if args.dry_run:
+        return
     with open(fname, 'w') as f:
         f.write(str(value))
 
-def _symlink(port:str, subsysnqn:str):
+
+def _symlink(port: str, subsysnqn: str):
     print(f'$( cd "/sys/kernel/config/nvmet/ports/{port}/subsystems" && ln -s "../../../subsystems/{subsysnqn}" "{subsysnqn}" )')
-    if args.dry_run: return
+    if args.dry_run:
+        return
     target = os.path.join('/sys/kernel/config/nvmet/subsystems', subsysnqn)
-    link   = pathlib.Path(os.path.join('/sys/kernel/config/nvmet/ports', port, 'subsystems', subsysnqn))
+    link = pathlib.Path(os.path.join('/sys/kernel/config/nvmet/ports', port, 'subsystems', subsysnqn))
     link.symlink_to(target)
 
-def _create_subsystem(subsysnqn:str) -> str:
+
+def _create_subsystem(subsysnqn: str) -> str:
     print(f'###{Fore.GREEN} Create subsystem: {subsysnqn}{Style.RESET_ALL}')
     dname = os.path.join('/sys/kernel/config/nvmet/subsystems/', subsysnqn)
     _mkdir(dname)
     _echo(1, os.path.join(dname, 'attr_allow_any_host'))
     return dname
 
-def _create_namespace(subsysnqn:str, id:str, node:str) -> str:
+
+def _create_namespace(subsysnqn: str, id: str, node: str) -> str:
     print(f'###{Fore.GREEN} Add namespace: {id}{Style.RESET_ALL}')
     dname = os.path.join('/sys/kernel/config/nvmet/subsystems/', subsysnqn, 'namespaces', id)
     _mkdir(dname)
@@ -65,32 +77,35 @@ def _create_namespace(subsysnqn:str, id:str, node:str) -> str:
     _echo(1, os.path.join(dname, 'enable'))
     return dname
 
-def _create_port(port:str, traddr:str, trsvcid:str, trtype:str, adrfam:str):
-    ''' @param port: This is a nvmet port and not a tcp port.
-    '''
+
+def _create_port(port: str, traddr: str, trsvcid: str, trtype: str, adrfam: str):
+    '''@param port: This is a nvmet port and not a tcp port.'''
     print(f'###{Fore.GREEN} Create port: {port} -> {traddr}:{trsvcid}{Style.RESET_ALL}')
     dname = os.path.join('/sys/kernel/config/nvmet/ports', port)
     _mkdir(dname)
-    _echo(traddr,  os.path.join(dname, 'addr_traddr'))
+    _echo(traddr, os.path.join(dname, 'addr_traddr'))
     _echo(trsvcid, os.path.join(dname, 'addr_trsvcid'))
-    _echo(trtype,  os.path.join(dname, 'addr_trtype'))
-    _echo(adrfam,  os.path.join(dname, 'addr_adrfam'))
+    _echo(trtype, os.path.join(dname, 'addr_trtype'))
+    _echo(adrfam, os.path.join(dname, 'addr_adrfam'))
 
-def _map_subsystems_to_ports(subsystems:list):
+
+def _map_subsystems_to_ports(subsystems: list):
     print(f'###{Fore.GREEN} Map subsystems to ports{Style.RESET_ALL}')
     for subsystem in subsystems:
         subsysnqn, port = subsystem.get('subsysnqn'), str(subsystem.get('port'))
         if None not in (subsysnqn, port):
             _symlink(port, subsysnqn)
 
-def _read_config(fname:str) -> dict:
+
+def _read_config(fname: str) -> dict:
     try:
         with open(fname) as f:
             return eval(f.read())
     except Exception as e:
         sys.exit(f'Error reading config file. {e}')
 
-def _read_attr_from_file(fname:str) -> str:
+
+def _read_attr_from_file(fname: str) -> str:
     try:
         with open(fname, 'r') as f:
             return f.read().strip('\n')
@@ -99,6 +114,7 @@ def _read_attr_from_file(fname:str) -> str:
 
 
 ################################################################################
+
 
 def create(args):
     # Need to be root to run this script
@@ -123,7 +139,7 @@ def create(args):
 
     # Extract the list of transport types found in the
     # config file and load the corresponding kernel module.
-    trtypes = { port.get('trtype') for port in ports if port.get('trtype') is not None }
+    trtypes = {port.get('trtype') for port in ports if port.get('trtype') is not None}
     for trtype in trtypes:
         _runcmd(['/usr/sbin/modprobe', f'nvmet-{trtype}'])
 
@@ -149,6 +165,7 @@ def create(args):
     _map_subsystems_to_ports(subsystems)
 
     print('')
+
 
 def clean(args):
     # Need to be root to run this script
@@ -176,8 +193,9 @@ def clean(args):
     _runcmd(['/usr/sbin/modprobe', '--remove', 'nvmet-fc'])
     _runcmd(['/usr/sbin/modprobe', '--remove', 'null_blk'])
 
+
 def link(args):
-    port      = str(args.port)
+    port = str(args.port)
     subsysnqn = str(args.subnqn)
     if not args.dry_run:
         if os.geteuid() != 0:
@@ -192,9 +210,9 @@ def link(args):
 
 
 def unlink(args):
-    port      = str(args.port)
+    port = str(args.port)
     subsysnqn = str(args.subnqn)
-    symlink   = os.path.join('/sys/kernel/config/nvmet/ports', port, 'subsystems', subsysnqn)
+    symlink = os.path.join('/sys/kernel/config/nvmet/ports', port, 'subsystems', subsysnqn)
     if not args.dry_run:
         if os.geteuid() != 0:
             # Need to be root to run this script
@@ -225,9 +243,9 @@ def ls(args):
         subsysnqn = subsystem_path.parts[-1]
         namespaces_path = pathlib.Path(os.path.join('/sys/kernel/config/nvmet/subsystems', subsysnqn, 'namespaces'))
         subsystems[subsysnqn] = {
-            'port':       None,
-            'subsysnqn':  subsysnqn,
-            'namespaces': sorted([ int(namespace_path.parts[-1]) for namespace_path in namespaces_path.glob('*') ]),
+            'port': None,
+            'subsysnqn': subsysnqn,
+            'namespaces': sorted([int(namespace_path.parts[-1]) for namespace_path in namespaces_path.glob('*')]),
         }
 
     # Find the port that each subsystem is mapped to
@@ -247,6 +265,7 @@ def ls(args):
         print(pprint.pformat(output, width=70, sort_dicts=False))
 
     print('')
+
 
 ################################################################################
 
@@ -269,14 +288,14 @@ prsr.set_defaults(func=ls)
 
 prsr = subparser.add_parser('link', help='Map a subsystem to a port')
 prsr.add_argument('-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False)
-prsr.add_argument('-p', '--port', action ='store', type=int, help='nvmet port', required=True)
-prsr.add_argument('-s', '--subnqn', action ='store', type=str, help='nvmet subsystem NQN', required=True, metavar='NQN')
+prsr.add_argument('-p', '--port', action='store', type=int, help='nvmet port', required=True)
+prsr.add_argument('-s', '--subnqn', action='store', type=str, help='nvmet subsystem NQN', required=True, metavar='NQN')
 prsr.set_defaults(func=link)
 
 prsr = subparser.add_parser('unlink', help='Unmap a subsystem from a port')
 prsr.add_argument('-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False)
-prsr.add_argument('-p', '--port', action ='store', type=int, help='nvmet port', required=True)
-prsr.add_argument('-s', '--subnqn', action ='store', type=str, help='nvmet subsystem NQN', required=True, metavar='NQN')
+prsr.add_argument('-p', '--port', action='store', type=int, help='nvmet port', required=True)
+prsr.add_argument('-s', '--subnqn', action='store', type=str, help='nvmet subsystem NQN', required=True, metavar='NQN')
 prsr.set_defaults(func=unlink)
 
 
@@ -290,9 +309,10 @@ prsr.set_defaults(func=unlink)
 # auto-completion. Ref: https://pypi.python.org/pypi/argcomplete#global-completion
 try:
     import argcomplete
+
     argcomplete.autocomplete(parser)
 except ModuleNotFoundError:
-    #auto-complete is not necessary for the operation of this script. Just nice to have
+    # auto-complete is not necessary for the operation of this script. Just nice to have
     pass
 
 args = parser.parse_args()
