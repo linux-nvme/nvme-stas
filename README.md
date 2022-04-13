@@ -2,6 +2,7 @@
 
 ![Build](https://github.com/linux-nvme/nvme-stas/actions/workflows/meson-test.yml/badge.svg)
 ![GitHub](https://img.shields.io/github/license/linux-nvme/nvme-stas)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 What does nvme-stas provide?
 
