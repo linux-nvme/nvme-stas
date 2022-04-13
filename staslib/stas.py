@@ -25,25 +25,26 @@ from gi.repository import Gio, GLib, GObject
 from libnvme import nvme
 from staslib.version import KernelVersion
 from staslib import defs
+
 try:
     from pyudev.glib import MonitorObserver
 except (ModuleNotFoundError, AttributeError):
-    from staslib.glibudev import MonitorObserver # pylint: disable=relative-beyond-top-level,ungrouped-imports
+    from staslib.glibudev import MonitorObserver  # pylint: disable=relative-beyond-top-level,ungrouped-imports
 
 
-DC_KATO_DEFAULT = 30 # seconds
+DC_KATO_DEFAULT = 30  # seconds
 
-#*******************************************************************************
+# ******************************************************************************
 def check_if_allowed_to_continue():
-    ''' @brief Let's perform some basic checks before going too far. There are
-               a few pre-requisites that need to be met before this program
-               is allowed to proceed:
+    '''@brief Let's perform some basic checks before going too far. There are
+           a few pre-requisites that need to be met before this program
+           is allowed to proceed:
 
-                 1) The program needs to have root privileges
-                 2) The nvme-tcp kernel module must be loaded
+             1) The program needs to have root privileges
+             2) The nvme-tcp kernel module must be loaded
 
-        @return This function will only return if all conditions listed above
-                are met. Otherwise the program exits.
+    @return This function will only return if all conditions listed above
+            are met. Otherwise the program exits.
     '''
     # 1) Check root privileges
     if os.geteuid() != 0:
@@ -54,25 +55,30 @@ def check_if_allowed_to_continue():
         # There's no point going any further if the kernel module hasn't been loaded
         sys.exit('Fatal error: missing nvme-tcp kernel module')
 
-#*******************************************************************************
-LOG = None # Singleton
-def get_logger(syslog:bool, identifier:str):
-    ''' @brief Configure the logging system. The logging system can be
-               configured to print to the syslog (journal) or stdout.
 
-        @param syslog: If True print to syslog (journal),
-                       Otherwise print to stdout.
+# ******************************************************************************
+LOG = None  # Singleton
+
+
+def get_logger(syslog: bool, identifier: str):
+    '''@brief Configure the logging system. The logging system can be
+           configured to print to the syslog (journal) or stdout.
+
+    @param syslog: If True print to syslog (journal),
+                   Otherwise print to stdout.
     '''
     if syslog:
         try:
             # Try journal logger first
-            import systemd.journal # pylint: disable=redefined-outer-name,import-outside-toplevel
+            import systemd.journal  # pylint: disable=redefined-outer-name,import-outside-toplevel
+
             handler = systemd.journal.JournalHandler(SYSLOG_IDENTIFIER=identifier)
         except ModuleNotFoundError:
             # Go back to standard syslog handler
-            import logging.handlers # pylint: disable=import-outside-toplevel
+            import logging.handlers  # pylint: disable=import-outside-toplevel
+
             handler = logging.handlers.SysLogHandler(address="/dev/log")
-            handler.setFormatter(logging.Formatter('{}: %(message)s'.format(identifier))) # pylint: disable=consider-using-f-string
+            handler.setFormatter(logging.Formatter('{}: %(message)s'.format(identifier)))  # pylint: disable=consider-using-f-string
 
         level = LG.INFO
     else:
@@ -80,56 +86,64 @@ def get_logger(syslog:bool, identifier:str):
         handler = LG.StreamHandler(stream=sys.stdout)
         level = LG.DEBUG
 
-    global LOG     # pylint: disable=global-statement
+    global LOG  # pylint: disable=global-statement
     LOG = LG.getLogger(__name__)
     LOG.setLevel(level)
     LOG.addHandler(handler)
     LOG.propagate = False
     return LOG
 
+
 def log_level() -> str:
-    ''' @brief return current log level
-    '''
+    '''@brief return current log level'''
     return str(LG.getLevelName(LOG.getEffectiveLevel()))
 
-#*******************************************************************************
-TRON = False # Singleton
-def trace_control(tron:bool):
-    ''' @brief Allows changing debug level in real time. Setting tron to True
-               enables full tracing.
+
+# ******************************************************************************
+TRON = False  # Singleton
+
+
+def trace_control(tron: bool):
+    '''@brief Allows changing debug level in real time. Setting tron to True
+    enables full tracing.
     '''
-    global TRON # pylint: disable=global-statement
+    global TRON  # pylint: disable=global-statement
     TRON = tron
     LOG.setLevel(LG.DEBUG if TRON else LG.INFO)
 
-#*******************************************************************************
-TOKEN_RE  = re.compile(r'\s*;\s*')
+
+# ******************************************************************************
+TOKEN_RE = re.compile(r'\s*;\s*')
 OPTION_RE = re.compile(r'\s*=\s*')
+
+
 def parse_controller(controller):
-    ''' @brief Parse a "controller" entry. Controller entries are strings
-               composed of several configuration parameters delimited by
-               semi-colons. Each configuration parameter is specified as a
-               "key=value" pair.
-        @return A dictionary of key-value pairs.
+    '''@brief Parse a "controller" entry. Controller entries are strings
+           composed of several configuration parameters delimited by
+           semi-colons. Each configuration parameter is specified as a
+           "key=value" pair.
+    @return A dictionary of key-value pairs.
     '''
     options = dict()
-    tokens  = TOKEN_RE.split(controller)
+    tokens = TOKEN_RE.split(controller)
     for token in tokens:
         if token:
             try:
-                option,val = OPTION_RE.split(token)
+                option, val = OPTION_RE.split(token)
                 options[option] = val
             except ValueError:
                 pass
 
     return options
 
-#*******************************************************************************
+
+# ******************************************************************************
 class OrderedMultisetDict(dict):
-    ''' This class is used to change the behavior of configparser.ConfigParser
-        and allow multiple configuration parameters with the same key. The
-        result is a list of values.
+    '''This class is used to change the behavior of configparser.ConfigParser
+    and allow multiple configuration parameters with the same key. The
+    result is a list of values.
     '''
+
     def __setitem__(self, key, value):
         if key in self and isinstance(value, list):
             self[key].extend(value)
@@ -144,9 +158,10 @@ class OrderedMultisetDict(dict):
 
         return value
 
+
 class Configuration:
-    ''' Read and cache configuration file.
-    '''
+    '''Read and cache configuration file.'''
+
     def __init__(self, conf_file):
         self._defaults = {
             ('Global', 'tron'): 'false',
@@ -164,80 +179,73 @@ class Configuration:
         self.reload()
 
     def reload(self):
-        ''' @brief Reload the configuration file.
-        '''
+        '''@brief Reload the configuration file.'''
         self._config = self.read_conf_file()
 
     @property
-    def conf_file(self): # pylint: disable=missing-function-docstring
+    def conf_file(self):  # pylint: disable=missing-function-docstring
         return self._conf_file
 
     @property
     def tron(self):
-        ''' @brief return the "tron" config parameter
-        '''
+        '''@brief return the "tron" config parameter'''
         return self.__get_bool('Global', 'tron')
 
     @property
     def hdr_digest(self):
-        ''' @brief return the "hdr-digest" config parameter
-        '''
+        '''@brief return the "hdr-digest" config parameter'''
         return self.__get_bool('Global', 'hdr-digest')
 
     @property
     def data_digest(self):
-        ''' @brief return the "data-digest" config parameter
-        '''
+        '''@brief return the "data-digest" config parameter'''
         return self.__get_bool('Global', 'data-digest')
 
     @property
     def persistent_connections(self):
-        ''' @brief return the "persistent-connections" config parameter
-        '''
+        '''@brief return the "persistent-connections" config parameter'''
         return self.__get_bool('Global', 'persistent-connections')
 
     @property
     def ignore_iface(self):
-        ''' @brief return the "ignore-iface" config parameter
-        '''
+        '''@brief return the "ignore-iface" config parameter'''
         return self.__get_bool('Global', 'ignore-iface')
 
     @property
     def ip_family(self):
-        ''' @brief return the "ip-family" config parameter.
-            @rtype tuple
+        '''@brief return the "ip-family" config parameter.
+        @rtype tuple
         '''
         family = self.__get_value('Global', 'ip-family')[0]
 
         if family == 'ipv4':
-            return (4, )
+            return (4,)
         if family == 'ipv6':
-            return (6, )
+            return (6,)
 
         return (4, 6)
 
     @property
     def kato(self):
-        ''' @brief return the "kato" config parameter
-        '''
+        '''@brief return the "kato" config parameter'''
         kato = self.__get_value('Global', 'kato')[0]
         return None if kato is None else int(kato)
 
     def get_controllers(self):
-        ''' @brief Return the list of controllers in the config file.
-                   Each controller is in the form of a dictionary as follows.
-                   Note that some of the keys are optional.
-                   {
-                       'transport':   [TRANSPORT],
-                       'traddr':      [TRADDR],
-                       'trsvcid':     [TRSVCID],
-                       'host-traddr': [TRADDR],
-                       'host-iface':  [IFACE],
-                       'subsysnqn':   [NQN],
-                   }
+        '''@brief Return the list of controllers in the config file.
+        Each controller is in the form of a dictionary as follows.
+        Note that some of the keys are optional.
+        {
+            'transport':   [TRANSPORT],
+            'traddr':      [TRADDR],
+            'trsvcid':     [TRSVCID],
+            'host-traddr': [TRADDR],
+            'host-iface':  [IFACE],
+            'subsysnqn':   [NQN],
+        }
         '''
         controller_list = self.__get_value('Controllers', 'controller')
-        controllers = [ parse_controller(controller) for controller in controller_list ]
+        controllers = [parse_controller(controller) for controller in controller_list]
         for controller in controllers:
             try:
                 # replace 'nqn' key by 'subsysnqn', if present.
@@ -247,21 +255,21 @@ class Configuration:
         return controllers
 
     def get_blacklist(self):
-        ''' @brief Return the list of blacklisted controllers in the config file.
-                   Each blacklisted controller is in the form of a dictionary
-                   as follows. All the keys are optional.
-                   {
-                       'transport':  [TRANSPORT],
-                       'traddr':     [TRADDR],
-                       'trsvcid':    [TRSVCID],
-                       'host-iface': [IFACE],
-                       'subsysnqn':  [NQN],
-                   }
+        '''@brief Return the list of blacklisted controllers in the config file.
+        Each blacklisted controller is in the form of a dictionary
+        as follows. All the keys are optional.
+        {
+            'transport':  [TRANSPORT],
+            'traddr':     [TRADDR],
+            'trsvcid':    [TRSVCID],
+            'host-iface': [IFACE],
+            'subsysnqn':  [NQN],
+        }
         '''
         controller_list = self.__get_value('Controllers', 'blacklist')
-        blacklist = [ parse_controller(controller) for controller in controller_list ]
+        blacklist = [parse_controller(controller) for controller in controller_list]
         for controller in blacklist:
-            controller.pop('host-traddr', None) # remove host-traddr
+            controller.pop('host-traddr', None)  # remove host-traddr
             try:
                 # replace 'nqn' key by 'subsysnqn', if present.
                 controller['subsysnqn'] = controller.pop('nqn')
@@ -270,16 +278,14 @@ class Configuration:
         return blacklist
 
     def get_stypes(self):
-        ''' @brief Get the DNS-SD/mDNS service types.
-        '''
+        '''@brief Get the DNS-SD/mDNS service types.'''
         return ['_nvme-disc._tcp'] if self.zeroconf_enabled() else list()
 
-    def zeroconf_enabled(self): # pylint: disable=missing-function-docstring
+    def zeroconf_enabled(self):  # pylint: disable=missing-function-docstring
         return self.__get_value('Service Discovery', 'zeroconf')[0] == 'enabled'
 
     def read_conf_file(self):
-        ''' @brief Read the configuration file if the file exists.
-        '''
+        '''@brief Read the configuration file if the file exists.'''
         config = configparser.ConfigParser(default_section=None, allow_no_value=True, delimiters=('='),
                                            interpolation=None, strict=False, dict_type=OrderedMultisetDict)
         if os.path.isfile(self._conf_file):
@@ -298,38 +304,41 @@ class Configuration:
                 value = [value]
         return value if value is not None else list()
 
-CNF = None # Singleton
-def get_configuration(conf_file:str):  # pylint: disable=missing-function-docstring
-    global CNF                         # pylint: disable=global-statement
+
+CNF = None  # Singleton
+
+
+def get_configuration(conf_file: str):  # pylint: disable=missing-function-docstring
+    global CNF  # pylint: disable=global-statement
     CNF = Configuration(conf_file)
     return CNF
 
-#*******************************************************************************
+
+# ******************************************************************************
 class SysConfiguration:
-    ''' Read and cache the host configuration file.
-    '''
-    def __init__(self, conf_file:str):
+    '''Read and cache the host configuration file.'''
+
+    def __init__(self, conf_file: str):
         self._conf_file = conf_file
         self.reload()
 
     def reload(self):
-        ''' @brief Reload the configuration file.
-        '''
+        '''@brief Reload the configuration file.'''
         self._config = self.read_conf_file()
 
-    def as_dict(self): # pylint: disable=missing-function-docstring
+    def as_dict(self):  # pylint: disable=missing-function-docstring
         return {
             'hostnqn': self.hostnqn,
-            'hostid':  self.hostid,
+            'hostid': self.hostid,
             'symname': self.hostsymname,
         }
 
     @property
     def hostnqn(self):
-        ''' @brief return the host NQN
-            @return: Host NQN
-            @raise: Host NQN is mandatory. The program will terminate if a
-                    Host NQN cannot be determined.
+        '''@brief return the host NQN
+        @return: Host NQN
+        @raise: Host NQN is mandatory. The program will terminate if a
+                Host NQN cannot be determined.
         '''
         try:
             value = self.__get_value('Host', 'nqn', '/etc/nvme/hostnqn')
@@ -343,10 +352,10 @@ class SysConfiguration:
 
     @property
     def hostid(self):
-        ''' @brief return the host ID
-            @return: Host ID
-            @raise: Host ID is mandatory. The program will terminate if a
-                    Host ID cannot be determined.
+        '''@brief return the host ID
+        @return: Host ID
+        @raise: Host ID is mandatory. The program will terminate if a
+                Host ID cannot be determined.
         '''
         try:
             value = self.__get_value('Host', 'id', '/etc/nvme/hostid')
@@ -357,8 +366,8 @@ class SysConfiguration:
 
     @property
     def hostsymname(self):
-        ''' @brief return the host symbolic name (or None)
-            @return: symbolic name or None
+        '''@brief return the host symbolic name (or None)
+        @return: symbolic name or None
         '''
         try:
             value = self.__get_value('Host', 'symname')
@@ -369,8 +378,7 @@ class SysConfiguration:
         return value
 
     def read_conf_file(self):
-        ''' @brief Read the configuration file if the file exists.
-        '''
+        '''@brief Read the configuration file if the file exists.'''
         config = configparser.ConfigParser(default_section=None, allow_no_value=True, delimiters=('='),
                                            interpolation=None, strict=False)
         if os.path.isfile(self._conf_file):
@@ -378,24 +386,24 @@ class SysConfiguration:
         return config
 
     def __get_value(self, section, option, default_file=None):
-        ''' @brief A configuration file consists of sections, each led by a
-                   [section] header, followed by key/value entries separated
-                   by a equal sign (=). This method retrieves the value
-                   associated with the key @option from the section @section.
-                   If the value starts with the string "file://", then the value
-                   will be retrieved from that file.
+        '''@brief A configuration file consists of sections, each led by a
+               [section] header, followed by key/value entries separated
+               by a equal sign (=). This method retrieves the value
+               associated with the key @option from the section @section.
+               If the value starts with the string "file://", then the value
+               will be retrieved from that file.
 
-            @param section:      Configuration section
-            @param option:       The key to look for
-            @param default_file: A file that contains the default value
+        @param section:      Configuration section
+        @param option:       The key to look for
+        @param default_file: A file that contains the default value
 
-            @return: On success, the value associated with the key. On failure,
-                     this method will return None is a default_file is not
-                     specified, or will raise an exception if a file is not
-                     found.
+        @return: On success, the value associated with the key. On failure,
+                 this method will return None is a default_file is not
+                 specified, or will raise an exception if a file is not
+                 found.
 
-            @raise: This method will raise the FileNotFoundError exception if
-                    the value retrieved is a file that does not exist.
+        @raise: This method will raise the FileNotFoundError exception if
+                the value retrieved is a file that does not exist.
         '''
         try:
             value = self._config.get(section=section, option=option)
@@ -407,24 +415,29 @@ class SysConfiguration:
                 return None
             file = default_file
 
-        with open(file) as f: # pylint: disable=unspecified-encoding
+        with open(file) as f:  # pylint: disable=unspecified-encoding
             return f.readline().split()[0]
 
+
 __SYS_CNF = None
-def get_sysconf():   # pylint: disable=missing-function-docstring
-    global __SYS_CNF # pylint: disable=global-statement
+
+
+def get_sysconf():  # pylint: disable=missing-function-docstring
+    global __SYS_CNF  # pylint: disable=global-statement
     if __SYS_CNF is None:
-        __SYS_CNF = SysConfiguration('/etc/stas/sys.conf') # Singleton
+        __SYS_CNF = SysConfiguration('/etc/stas/sys.conf')  # Singleton
     return __SYS_CNF
 
 
-#*******************************************************************************
+# ******************************************************************************
 KERNEL_VERSION = KernelVersion(platform.release())
 
-class NvmeOptions():
-    ''' Object used to read and cache contents of file /dev/nvme-fabrics.
-        Note that this file was not readable prior to Linux 5.16.
+
+class NvmeOptions:
+    '''Object used to read and cache contents of file /dev/nvme-fabrics.
+    Note that this file was not readable prior to Linux 5.16.
     '''
+
     def __init__(self):
         # Supported options can be determined by looking at the kernel version
         # or by reading '/dev/nvme-fabrics'. The ability to read the options
@@ -433,7 +446,7 @@ class NvmeOptions():
         # version meets the minimum version for that option, then we don't
         # even need to read '/dev/nvme-fabrics'.
         self._supported_options = {
-            'discovery':  KERNEL_VERSION >= defs.KERNEL_TP8013_MIN_VERSION,
+            'discovery': KERNEL_VERSION >= defs.KERNEL_TP8013_MIN_VERSION,
             'host_iface': KERNEL_VERSION >= defs.KERNEL_IFACE_MIN_VERSION,
         }
 
@@ -441,11 +454,11 @@ class NvmeOptions():
         # read from '/dev/nvme-fabrics'. This method allows us to determine that
         # an older kernel actually supports a specific option because it was
         # backported to that kernel.
-        if not all(self._supported_options.values()): # At least one option is False.
+        if not all(self._supported_options.values()):  # At least one option is False.
             try:
                 with open('/dev/nvme-fabrics') as f:  # pylint: disable=unspecified-encoding
-                    options = [ option.split('=')[0].strip() for option in f.readlines()[0].rstrip('\n').split(',') ]
-            except PermissionError: # Must be root to read this file
+                    options = [option.split('=')[0].strip() for option in f.readlines()[0].rstrip('\n').split(',')]
+            except PermissionError:  # Must be root to read this file
                 raise
             except OSError:
                 LOG.warning('Cannot determine which NVMe options the kernel supports')
@@ -459,42 +472,45 @@ class NvmeOptions():
 
     @property
     def discovery_supp(self):
-        ''' This option adds support for TP8013 '''
+        '''This option adds support for TP8013'''
         return self._supported_options['discovery']
 
     @property
     def host_iface_supp(self):
-        ''' This option allows forcing connections to go over
-            a specific interface regardless of the routing tables.
+        '''This option allows forcing connections to go over
+        a specific interface regardless of the routing tables.
         '''
         return self._supported_options['host_iface']
 
+
 __NVME_OPTIONS = None
-def get_nvme_options():   # pylint: disable=missing-function-docstring
-    global __NVME_OPTIONS # pylint: disable=global-statement
+
+
+def get_nvme_options():  # pylint: disable=missing-function-docstring
+    global __NVME_OPTIONS  # pylint: disable=global-statement
     if __NVME_OPTIONS is None:
         __NVME_OPTIONS = NvmeOptions()
     return __NVME_OPTIONS
 
-#*******************************************************************************
+
+# ******************************************************************************
 class GTimer:
-    ''' @brief Convenience class to wrap GLib timers
-    '''
-    def __init__(self, interval_sec:float=0, user_cback=lambda: GLib.SOURCE_REMOVE, *user_data, priority=GLib.PRIORITY_DEFAULT): # pylint: disable=keyword-arg-before-vararg
-        self._source       = None
+    '''@brief Convenience class to wrap GLib timers'''
+
+    def __init__(self, interval_sec: float = 0, user_cback=lambda: GLib.SOURCE_REMOVE, *user_data, priority=GLib.PRIORITY_DEFAULT):  # pylint: disable=keyword-arg-before-vararg
+        self._source = None
         self._interval_sec = float(interval_sec)
-        self._user_cback   = user_cback
-        self._user_data    = user_data
-        self._priority     = priority if priority is not None else GLib.PRIORITY_DEFAULT
+        self._user_cback = user_cback
+        self._user_data = user_data
+        self._priority = priority if priority is not None else GLib.PRIORITY_DEFAULT
 
     def _release_resources(self):
         self.stop()
         self._user_cback = None
-        self._user_data  = None
+        self._user_data = None
 
     def kill(self):
-        ''' @brief Used to release all resources associated with a timer.
-        '''
+        '''@brief Used to release all resources associated with a timer.'''
         self._release_resources()
 
     def __str__(self):
@@ -510,78 +526,73 @@ class GTimer:
         return retval
 
     def stop(self):
-        ''' @brief Stop timer
-        '''
+        '''@brief Stop timer'''
         if self._source is not None:
             self._source.destroy()
             self._source = None
 
-    def start(self, new_interval_sec:float=-1.0):
-        ''' @brief Start (or restart) timer
-        '''
+    def start(self, new_interval_sec: float = -1.0):
+        '''@brief Start (or restart) timer'''
         if new_interval_sec >= 0:
             self._interval_sec = float(new_interval_sec)
 
         if self._source is not None:
-            self._source.set_ready_time(self._source.get_time() + (self._interval_sec * 1000000)) # ready time is in micro-seconds (monotonic time)
+            self._source.set_ready_time(self._source.get_time() + (self._interval_sec * 1000000))  # ready time is in micro-seconds (monotonic time)
         else:
             if self._interval_sec.is_integer():
-                self._source = GLib.timeout_source_new_seconds(int(self._interval_sec)) # seconds resolution
+                self._source = GLib.timeout_source_new_seconds(int(self._interval_sec))  # seconds resolution
             else:
-                self._source = GLib.timeout_source_new(self._interval_sec * 1000.0)     # mili-seconds resolution
+                self._source = GLib.timeout_source_new(self._interval_sec * 1000.0)  # mili-seconds resolution
 
             self._source.set_priority(self._priority)
             self._source.set_callback(self._callback)
             self._source.attach()
 
     def clear(self):
-        ''' @brief Make timer expire now. The callback function
-                   will be invoked immediately by the main loop.
+        '''@brief Make timer expire now. The callback function
+        will be invoked immediately by the main loop.
         '''
         if self._source is not None:
-            self._source.set_ready_time(0) # Expire now!
+            self._source.set_ready_time(0)  # Expire now!
 
     def set_callback(self, user_cback, *user_data):
-        ''' @brief set the callback function to invoke when timer expires
-        '''
+        '''@brief set the callback function to invoke when timer expires'''
         self._user_cback = user_cback
-        self._user_data  = user_data
+        self._user_data = user_data
 
-    def set_timeout(self, new_interval_sec:float):
-        ''' @brief set the timer's duration
-        '''
+    def set_timeout(self, new_interval_sec: float):
+        '''@brief set the timer's duration'''
         if new_interval_sec >= 0:
             self._interval_sec = float(new_interval_sec)
 
     def get_timeout(self):
-        ''' @brief get the timer's duration
-        '''
+        '''@brief get the timer's duration'''
         return self._interval_sec
 
     def time_remaining(self) -> float:
-        ''' @brief Get how much time remains on a timer before it fires.
-        '''
+        '''@brief Get how much time remains on a timer before it fires.'''
         if self._source is not None:
-            delta_us = self._source.get_ready_time() - self._source.get_time() # monotonic time in micro-seconds
+            delta_us = self._source.get_ready_time() - self._source.get_time()  # monotonic time in micro-seconds
             if delta_us > 0:
                 return delta_us / 1000000.0
 
         return 0
 
-#*******************************************************************************
+
+# ******************************************************************************
 class Udev:
-    ''' @brief Udev event monitor. Provide a way to register for udev events.
-    '''
+    '''@brief Udev event monitor. Provide a way to register for udev events.'''
+
     def __init__(self):
         self._registry = dict()
-        self._context  = pyudev.Context()
-        self._monitor  = pyudev.Monitor.from_netlink(self._context)
+        self._context = pyudev.Context()
+        self._monitor = pyudev.Monitor.from_netlink(self._context)
         self._monitor.filter_by(subsystem='nvme')
         self._observer = MonitorObserver(self._monitor)
-        self._sig_id   = self._observer.connect('device-event', self._device_event)
+        self._sig_id = self._observer.connect('device-event', self._device_event)
         self._monitor.start()
 
-        atexit.register(self._release_resources) # Make sure resources are released on exit
+        atexit.register(self._release_resources)  # Make sure resources are released on exit
 
     def _release_resources(self):
         atexit.unregister(self._release_resources)
@@ -594,13 +605,13 @@ class Udev:
             self._monitor.remove_filter()
             self._monitor = None
 
-        self._context  = None
+        self._context = None
         self._registry = None
 
     def get_nvme_device(self, sys_name):
-        ''' @brief Get the udev device object associated with an nvme device.
-            @param sys_name: The device system name (e.g. 'nvme1')
-            @return A pyudev.device._device.Device object
+        '''@brief Get the udev device object associated with an nvme device.
+        @param sys_name: The device system name (e.g. 'nvme1')
+        @return A pyudev.device._device.Device object
         '''
         device_node = os.path.join('/dev', sys_name)
         try:
@@ -609,27 +620,25 @@ class Udev:
             LOG.error("Udev.get_nvme_device() - Error: %s", ex)
             return None
 
-    def register_for_events(self, sys_name:str, user_cback):
-        ''' @brief Register a callback function to be called when udev events
-                   are received for a specific nvme device.
-            @param sys_name: The device system name (e.g. 'nvme1')
+    def register_for_events(self, sys_name: str, user_cback):
+        '''@brief Register a callback function to be called when udev events
+               are received for a specific nvme device.
+        @param sys_name: The device system name (e.g. 'nvme1')
         '''
         if sys_name:
             self._registry[sys_name] = user_cback
 
     def unregister_for_events(self, user_cback):
-        ''' @brief The opposite of register_for_events()
-        '''
+        '''@brief The opposite of register_for_events()'''
         entries = list(self._registry.items())
         for sys_name, _user_cback in entries:
             if user_cback == _user_cback:
                 self._registry.pop(sys_name, None)
                 break
 
-    def get_attributes(self, sys_name:str, attr_ids) -> dict:
-        ''' @brief Get all the attributes associated with device @sys_name
-        '''
-        attrs = { attr_id: '' for attr_id in attr_ids }
+    def get_attributes(self, sys_name: str, attr_ids) -> dict:
+        '''@brief Get all the attributes associated with device @sys_name'''
+        attrs = {attr_id: '' for attr_id in attr_ids}
         if sys_name:
             udev = self.get_nvme_device(sys_name)
             if udev is not None:
@@ -637,15 +646,15 @@ class Udev:
                     try:
                         value = udev.attributes.asstring(attr_id).strip()
                         attrs[attr_id] = '' if value == '(efault)' else value
-                    except Exception: # pylint: disable=broad-except
+                    except Exception:  # pylint: disable=broad-except
                         pass
 
         return attrs
 
     def find_nvme_dc_device(self, tid):
-        ''' @brief  Find the nvme device associated with the specified
-                    Discovery Controller.
-            @return The device if a match is found, None otherwise.
+        '''@brief  Find the nvme device associated with the specified
+                Discovery Controller.
+        @return The device if a match is found, None otherwise.
         '''
         for device in self._context.list_devices(subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport):
             # Note: Prior to 5.18 linux didn't expose the cntrltype through
@@ -667,9 +676,9 @@ class Udev:
         return None
 
     def find_nvme_ioc_device(self, tid):
-        ''' @brief  Find the nvme device associated with the specified
-                    I/O Controller.
-            @return The device if a match is found, None otherwise.
+        '''@brief  Find the nvme device associated with the specified
+                I/O Controller.
+        @return The device if a match is found, None otherwise.
         '''
         for device in self._context.list_devices(subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport):
             # Note: Prior to 5.18 linux didn't expose the cntrltype through
@@ -704,7 +713,7 @@ class Udev:
     def _get_attribute(device, attr_id, default=''):
         try:
             attr = device.attributes.asstring(attr_id).strip()
-        except Exception: # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             attr = default
 
         return '' if attr.lower() == 'none' else attr
@@ -721,12 +730,12 @@ class Udev:
         }
         return TransportId(cid)
 
-UDEV = Udev() # Singleton
 
-#*******************************************************************************
+UDEV = Udev()  # Singleton
+
+# ******************************************************************************
 def cid_from_dlpe(dlpe, host_traddr, host_iface):
-    ''' @brief Take a Discovery Log Page Entry and return a Controller ID as a dict.
-    '''
+    '''@brief Take a Discovery Log Page Entry and return a Controller ID as a dict.'''
     return {
         'transport':   dlpe['trtype'],
         'traddr':      dlpe['traddr'],
@@ -736,30 +745,30 @@ def cid_from_dlpe(dlpe, host_traddr, host_iface):
         'subsysnqn':   dlpe['subnqn'],
     }
 
-#*******************************************************************************
+
+# ******************************************************************************
 def blacklisted(blacklisted_ctrl_list, controller):
-    ''' @brief Check if @controller is black-listed.
-    '''
+    '''@brief Check if @controller is black-listed.'''
     for blacklisted_ctrl in blacklisted_ctrl_list:
-        test_results = [ val == controller.get(key, None) for key, val in blacklisted_ctrl.items() ]
+        test_results = [val == controller.get(key, None) for key, val in blacklisted_ctrl.items()]
         if all(test_results):
             return True
     return False
 
-#*******************************************************************************
-def remove_blacklisted(controllers:list):
-    ''' @brief Remove black-listed controllers from the list of controllers.
-    '''
+
+# ******************************************************************************
+def remove_blacklisted(controllers: list):
+    '''@brief Remove black-listed controllers from the list of controllers.'''
     blacklisted_ctrl_list = CNF.get_blacklist()
     if blacklisted_ctrl_list:
         LOG.debug('remove_blacklisted()               - blacklisted_ctrl_list = %s', blacklisted_ctrl_list)
-        controllers = [ controller for controller in controllers if not blacklisted(blacklisted_ctrl_list, controller) ]
+        controllers = [controller for controller in controllers if not blacklisted(blacklisted_ctrl_list, controller)]
     return controllers
 
-#*******************************************************************************
-def remove_invalid_addresses(controllers:list):
-    ''' @brief Remove controllers with invalid addresses from the list of controllers.
-    '''
+
+# ******************************************************************************
+def remove_invalid_addresses(controllers: list):
+    '''@brief Remove controllers with invalid addresses from the list of controllers.'''
     valid_controllers = list()
     for controller in controllers:
         # First, let's make sure that traddr is
@@ -780,25 +789,25 @@ def remove_invalid_addresses(controllers:list):
 
     return valid_controllers
 
-#*******************************************************************************
+
+# ******************************************************************************
 class TransportId:
     # pylint: disable=too-many-instance-attributes
-    ''' Transport Identifier
-    '''
+    '''Transport Identifier'''
     RDMA_IP_PORT = '4420'
     DISC_IP_PORT = '8009'
 
-    def __init__(self, cid:dict):
-        ''' @param cid: Controller Identifier. A dictionary with the following
-                        contents.
-                        {
-                            'transport':   str, # [mandatory]
-                            'traddr':      str, # [mandatory]
-                            'subsysnqn':   str, # [mandatory]
-                            'trsvcid':     str, # [optional]
-                            'host-traddr': str, # [optional]
-                            'host-iface':  str, # [optional]
-                        }
+    def __init__(self, cid: dict):
+        '''@param cid: Controller Identifier. A dictionary with the following
+        contents.
+        {
+            'transport':   str, # [mandatory]
+            'traddr':      str, # [mandatory]
+            'subsysnqn':   str, # [mandatory]
+            'trsvcid':     str, # [optional]
+            'host-traddr': str, # [optional]
+            'host-iface':  str, # [optional]
+        }
         '''
         self._transport   = cid.get('transport')
         self._traddr      = cid.get('traddr')
@@ -812,23 +821,23 @@ class TransportId:
         self._id = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})' # pylint: disable=line-too-long
 
     @property
-    def key(self):          # pylint: disable=missing-function-docstring
+    def key(self):  # pylint: disable=missing-function-docstring
         return self._key
 
     @property
-    def hash(self):         # pylint: disable=missing-function-docstring
+    def hash(self):  # pylint: disable=missing-function-docstring
         return self._hash
 
     @property
-    def transport(self):    # pylint: disable=missing-function-docstring
+    def transport(self):  # pylint: disable=missing-function-docstring
         return self._transport
 
     @property
-    def traddr(self):       # pylint: disable=missing-function-docstring
+    def traddr(self):  # pylint: disable=missing-function-docstring
         return self._traddr
 
     @property
-    def trsvcid(self):      # pylint: disable=missing-function-docstring
+    def trsvcid(self):  # pylint: disable=missing-function-docstring
         return self._trsvcid
 
     @property
@@ -836,14 +845,14 @@ class TransportId:
         return self._host_traddr
 
     @property
-    def host_iface(self):   # pylint: disable=missing-function-docstring
+    def host_iface(self):  # pylint: disable=missing-function-docstring
         return self._host_iface
 
     @property
-    def subsysnqn(self):    # pylint: disable=missing-function-docstring
+    def subsysnqn(self):  # pylint: disable=missing-function-docstring
         return self._subsysnqn
 
-    def as_dict(self):      # pylint: disable=missing-function-docstring
+    def as_dict(self):  # pylint: disable=missing-function-docstring
         return {
             'transport': self.transport,
             'traddr': self.traddr,
@@ -868,23 +877,24 @@ class TransportId:
     def __hash__(self):
         return self.hash
 
-#*******************************************************************************
+
+# ******************************************************************************
 class NameResolver:
     # pylint: disable=too-few-public-methods
-    ''' @brief DNS resolver to convert host names to IP addresses.
-    '''
+    '''@brief DNS resolver to convert host names to IP addresses.'''
+
     def __init__(self):
         self._resolver = Gio.Resolver.get_default()
 
-    def resolve_ctrl_async(self, cancellable, controllers:dict, callback):
-        ''' @brief The traddr fields may specify a hostname instead of an IP
-                   address. We need to resolve all the host names to addresses.
-                   Resolving hostnames may take a while as a DNS server may need
-                   to be contacted. For that reason, we're using async APIs with
-                   callbacks to resolve all the hostnames.
+    def resolve_ctrl_async(self, cancellable, controllers: dict, callback):
+        '''@brief The traddr fields may specify a hostname instead of an IP
+        address. We need to resolve all the host names to addresses.
+        Resolving hostnames may take a while as a DNS server may need
+        to be contacted. For that reason, we're using async APIs with
+        callbacks to resolve all the hostnames.
 
-                   The callback @callback will be called once all hostnames have
-                   been resolved.
+        The callback @callback will be called once all hostnames have
+        been resolved.
         '''
         pending_resolution_count = 0
 
@@ -920,58 +930,59 @@ class NameResolver:
                     pending_resolution_count += 1
                     self._resolver.lookup_by_name_async(hostname, cancellable, addr_resolved, indx)
 
-        if pending_resolution_count == 0: # No names are pending asynchronous resolution
+        if pending_resolution_count == 0:  # No names are pending asynchronous resolution
             callback(controllers)
 
 
-#*******************************************************************************
+# ******************************************************************************
 class AsyncCaller(GObject.Object):
-    ''' @brief This class allows running methods asynchronously in a thread.
-    '''
+    '''@brief This class allows running methods asynchronously in a thread.'''
+
     def __init__(self, user_function, *user_args):
-        ''' @param user_function: function to run inside a thread
-            @param user_args: arguments passed to @user_function
+        '''@param user_function: function to run inside a thread
+        @param user_args: arguments passed to @user_function
         '''
         super().__init__()
         self._user_function = user_function
-        self._user_args     = user_args
+        self._user_args = user_args
 
     def communicate(self, cancellable, cb_function, *cb_args):
-        ''' @param cancellable: A Gio.Cancellable object that can be used to
-                                cancel an in-flight async command.
-            @param cb_function: User callback function to call when the async
-                                command has completed.  The callback function
-                                will be passed these arguments:
+        '''@param cancellable: A Gio.Cancellable object that can be used to
+                            cancel an in-flight async command.
+        @param cb_function: User callback function to call when the async
+                            command has completed.  The callback function
+                            will be passed these arguments:
 
-                                    (async_caller_obj, result, *cb_args)
+                                (async_caller_obj, result, *cb_args)
 
-                                Where:
-                                    async_caller_obj: This AsyncCaller object instance
-                                    result: A GObject.Object instance that contains the result
-                                    cb_args: The cb_args arguments passed to communicate()
+                            Where:
+                                async_caller_obj: This AsyncCaller object instance
+                                result: A GObject.Object instance that contains the result
+                                cb_args: The cb_args arguments passed to communicate()
 
-            @param cb_args: User arguments to pass to @cb_function
+        @param cb_args: User arguments to pass to @cb_function
         '''
-        def in_thread_exec(task, self, task_data, cancellable): # pylint: disable=unused-argument
+
+        def in_thread_exec(task, self, task_data, cancellable):  # pylint: disable=unused-argument
             if task.return_error_if_cancelled():
-                return # Bail out if task has been cancelled
+                return  # Bail out if task has been cancelled
 
             try:
                 value = GObject.Object()
                 value.result = self._user_function(*self._user_args)
                 task.return_value(value)
-            except Exception as ex: # pylint: disable=broad-except
+            except Exception as ex:  # pylint: disable=broad-except
                 task.return_error(GLib.Error(repr(ex)))
 
         task = Gio.Task.new(self, cancellable, cb_function, *cb_args)
         task.set_return_on_cancel(False)
         task.run_in_thread(in_thread_exec)
 
-    def communicate_finish(self, result): # pylint: disable=no-self-use
-        ''' @brief Use this function in your callback (see @cb_function) to
-                   extract data from the result object.
+    def communicate_finish(self, result):  # pylint: disable=no-self-use
+        '''@brief Use this function in your callback (see @cb_function) to
+               extract data from the result object.
 
-            @return A tuple: (success, data, errmsg)
+        @return A tuple: (success, data, errmsg)
         '''
         try:
             success, value = result.propagate_value()
@@ -979,16 +990,18 @@ class AsyncCaller(GObject.Object):
         except GLib.Error as err:
             return False, None, err
 
-#*******************************************************************************
-class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
-    ''' Object used to manage an asynchronous GLib operation. The operation
-        can be cancelled or retried.
+
+# ******************************************************************************
+class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
+    '''Object used to manage an asynchronous GLib operation. The operation
+    can be cancelled or retried.
     '''
+
     def __init__(self, on_success_callback, on_failure_callback, operation, *op_args):
-        ''' @param on_success_callback: Callback method invoked when @operation completes successfully
-            @param on_failure_callback: Callback method invoked when @operation fails
-            @param operation: Operation (i.e. a function) to execute asynchronously
-            @param op_args: Arguments passed to operation
+        '''@param on_success_callback: Callback method invoked when @operation completes successfully
+        @param on_failure_callback: Callback method invoked when @operation fails
+        @param operation: Operation (i.e. a function) to execute asynchronously
+        @param op_args: Arguments passed to operation
         '''
         self._cancellable = Gio.Cancellable()
         self._operation   = operation
@@ -1017,7 +1030,7 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
     def __str__(self):
         return str(self.as_dict())
 
-    def as_dict(self): # pylint: disable=missing-function-docstring
+    def as_dict(self):  # pylint: disable=missing-function-docstring
         info = {
             'fail count': self._fail_cnt,
         }
@@ -1031,28 +1044,26 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
         return info
 
     def cancel(self):
-        ''' @brief cancel async operation
-        '''
+        '''@brief cancel async operation'''
         if not self._cancellable.is_cancelled():
             self._cancellable.cancel()
 
     def kill(self):
-        ''' @brief kill and clean up this object
-        '''
+        '''@brief kill and clean up this object'''
         self._release_resources()
 
     def run_async(self, *args):
-        ''' @brief
-                Method used to initiate an asynchronous operation with the
-                Controller. When the operation completes (or fails) the
-                callback method @_on_operation_complete() will be invoked.
+        '''@brief
+        Method used to initiate an asynchronous operation with the
+        Controller. When the operation completes (or fails) the
+        callback method @_on_operation_complete() will be invoked.
         '''
         async_caller = AsyncCaller(self._operation, *self._op_args)
         async_caller.communicate(self._cancellable, self._on_operation_complete, *args)
 
     def retry(self, interval_sec, *args):
-        ''' @brief Tell this object that the async operation is to be retried
-                   in @interval_sec seconds.
+        '''@brief Tell this object that the async operation is to be retried
+        in @interval_sec seconds.
 
         '''
         if self._retry_tmr is None:
@@ -1061,20 +1072,20 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
         self._retry_tmr.start(interval_sec)
 
     def _on_retry_timeout(self, *args):
-        ''' @brief
-                When an operation fails, the application has the option to
-                retry at a later time by calling the retry() method. The
-                retry() method starts a timer at the end of which the operation
-                will be executed again. This is the method that is called when
-                the timer expires.
+        '''@brief
+        When an operation fails, the application has the option to
+        retry at a later time by calling the retry() method. The
+        retry() method starts a timer at the end of which the operation
+        will be executed again. This is the method that is called when
+        the timer expires.
         '''
         self.run_async(*args)
         return GLib.SOURCE_REMOVE
 
     def _on_operation_complete(self, async_caller, result, *args):
-        ''' @brief
-                This callback method is invoked when the operation with the
-                Controller has completed (be it successful or not).
+        '''@brief
+        This callback method is invoked when the operation with the
+        Controller has completed (be it successful or not).
         '''
         success, data, err = async_caller.communicate_finish(result)
 
@@ -1093,11 +1104,12 @@ class AsyncOperationWithRetry: # pylint: disable=too-many-instance-attributes
             self._fail_cb(self, err, self._fail_cnt, *args)
 
 
-#*******************************************************************************
-class Controller: # pylint: disable=too-many-instance-attributes
-    ''' @brief Base class used to manage the connection to a controller.
-    '''
+# ******************************************************************************
+class Controller:  # pylint: disable=too-many-instance-attributes
+    '''@brief Base class used to manage the connection to a controller.'''
+
     CONNECT_RETRY_PERIOD_SEC = 60
+
     def __init__(self, root, host, tid:TransportId, discovery_ctrl=False):
         self._root              = root
         self._host              = host
@@ -1127,16 +1139,16 @@ class Controller: # pylint: disable=too-many-instance-attributes
 
         self._kill_ops()
 
-        self._tid               = None
-        self._ctrl              = None
-        self._device            = None
+        self._tid = None
+        self._ctrl = None
+        self._device = None
         self._retry_connect_tmr = None
 
     def _alive(self):
-        ''' There may be race condition where a queued event gets processed
-            after the object is no longer configured (i.e. alive). This method
-            can be used by callback functions to make sure the object is still
-            alive before processing further.
+        '''There may be race condition where a queued event gets processed
+        after the object is no longer configured (i.e. alive). This method
+        can be used by callback functions to make sure the object is still
+        alive before processing further.
         '''
         return not self._cancellable.is_cancelled()
 
@@ -1165,15 +1177,15 @@ class Controller: # pylint: disable=too-many-instance-attributes
             LOG.debug('Controller._on_udev_notification() - %s | %s - Received event on dead object. udev %s: %s',
                       self.id, self.device, udev.action, udev.sys_name)
 
-    def _on_aen(self, udev, aen:int):
+    def _on_aen(self, udev, aen: int):
         pass
 
     def _on_nvme_event(self, udev, nvme_event):
         pass
 
-    def _on_udev_remove(self, udev): # pylint: disable=unused-argument
+    def _on_udev_remove(self, udev):  # pylint: disable=unused-argument
         UDEV.unregister_for_events(self._on_udev_notification)
-        self._kill_ops() # Kill all pending operations
+        self._kill_ops()  # Kill all pending operations
         self._ctrl = None
 
     def _find_existing_connection(self):
@@ -1228,10 +1240,10 @@ class Controller: # pylint: disable=too-many-instance-attributes
 
         self._connect_op.run_async()
 
-    #--------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
     def _on_connect_success(self, op_obj, data):
-        ''' @brief Function called when we successfully connect to the
-                   Controller.
+        '''@brief Function called when we successfully connect to the
+        Controller.
         '''
         op_obj.kill()
         self._connect_op = None
@@ -1246,41 +1258,38 @@ class Controller: # pylint: disable=too-many-instance-attributes
             LOG.debug('Controller._on_connect_success()   - %s | %s Received event on dead object. data=%s',
                       self.id, self.device, data)
 
-    def _on_connect_fail(self, op_obj, err, fail_cnt): # pylint: disable=unused-argument
-        ''' @brief Function called when we fail to connect to the Controller.
-        '''
+    def _on_connect_fail(self, op_obj, err, fail_cnt):  # pylint: disable=unused-argument
+        '''@brief Function called when we fail to connect to the Controller.'''
         op_obj.kill()
         if self._alive():
             LOG.debug('Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
                       self.id, err, self._retry_connect_tmr.get_timeout())
-            if self._connect_attempts == 1: # Throttle the logs. Only print the first time we fail to connect
+            if self._connect_attempts == 1:  # Throttle the logs. Only print the first time we fail to connect
                 LOG.error('%s Failed to connect to controller. %s', self.id, err)
             self._retry_connect_tmr.start()
         else:
             LOG.debug('Controller._on_connect_fail()      - %s Received event on dead object. %s', self.id, err)
 
     @property
-    def id(self) -> str:        # pylint: disable=missing-function-docstring
+    def id(self) -> str:  # pylint: disable=missing-function-docstring
         return str(self.tid)
 
     @property
-    def tid(self):              # pylint: disable=missing-function-docstring
+    def tid(self):  # pylint: disable=missing-function-docstring
         return self._tid
 
     @property
-    def device(self) -> str:    # pylint: disable=missing-function-docstring
+    def device(self) -> str:  # pylint: disable=missing-function-docstring
         return self._device if self._device else ''
 
     def controller_id_dict(self) -> dict:
-        ''' @brief return the controller ID as a dict.
-        '''
+        '''@brief return the controller ID as a dict.'''
         cid = self.tid.as_dict()
         cid['device'] = self.device
         return cid
 
     def details(self) -> dict:
-        ''' @brief return detailed debug info about this controller
-        '''
+        '''@brief return detailed debug info about this controller'''
         details = self.controller_id_dict()
         details.update(UDEV.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial')))
         details['connect attempts'] = str(self._connect_attempts)
@@ -1288,16 +1297,14 @@ class Controller: # pylint: disable=too-many-instance-attributes
         return details
 
     def info(self) -> dict:
-        ''' @brief Get the controller info for this object
-        '''
+        '''@brief Get the controller info for this object'''
         info = self.details()
         if self._connect_op:
             info['connect operation'] = self._connect_op.as_dict()
         return info
 
     def cancel(self):
-        ''' @brief Used to cancel pending operations.
-        '''
+        '''@brief Used to cancel pending operations.'''
         if not self._cancellable.is_cancelled():
             LOG.debug('Controller.cancel()                - %s', self.id)
             self._cancellable.cancel()
@@ -1306,23 +1313,22 @@ class Controller: # pylint: disable=too-many-instance-attributes
             self._connect_op.cancel()
 
     def disconnect(self, disconnected_cb):
-        ''' @brief initiate a disconnect request with the controller
-        '''
+        '''@brief initiate a disconnect request with the controller'''
         LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
         self._kill_ops()
         # Defer callback to the next main loop's idle period.
         GLib.idle_add(disconnected_cb, self.tid)
 
     def kill(self):
-        ''' @brief Used to release all resources associated with this object.
-        '''
+        '''@brief Used to release all resources associated with this object.'''
         LOG.debug('Controller.kill()                  - %s', self.id)
         self._release_resources()
 
-#*******************************************************************************
+
+# ******************************************************************************
 class Service:
-    ''' @brief Base class used to manage a STorage Appliance Service
-    '''
+    '''@brief Base class used to manage a STorage Appliance Service'''
+
     def __init__(self, reload_hdlr):
         self._loop         = GLib.MainLoop()
         self._cancellable  = Gio.Cancellable()
@@ -1333,8 +1339,8 @@ class Service:
         self._sysbus       = dasbus.connection.SystemMessageBus()
 
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, self._stop_hdlr)  # CTRL-C
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr) # systemctl stop stafd
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGHUP, reload_hdlr)      # systemctl reload stafd
+        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr)  # systemctl stop stafd
+        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGHUP, reload_hdlr)  # systemctl reload stafd
 
         nvme_options = get_nvme_options()
         if not nvme_options.host_iface_supp or not nvme_options.discovery_supp:
@@ -1354,46 +1360,42 @@ class Service:
         self._sysbus.disconnect()
 
         self._cfg_soak_tmr = None
-        self._resolver     = None
-        self._sysbus       = None
+        self._resolver = None
+        self._sysbus = None
 
-    def _config_dbus(self, iface_obj, bus_name:str, obj_name:str):
+    def _config_dbus(self, iface_obj, bus_name: str, obj_name: str):
         self._dbus_iface = iface_obj
         self._sysbus.publish_object(obj_name, iface_obj)
         self._sysbus.register_service(bus_name)
 
     def run(self):
-        ''' @brief Start the main loop execution
-        '''
+        '''@brief Start the main loop execution'''
         try:
             self._loop.run()
-        except Exception as ex: # pylint: disable=broad-except
+        except Exception as ex:  # pylint: disable=broad-except
             LOG.critical('exception: %s', ex)
 
         self._loop = None
 
     def info(self) -> dict:
-        ''' @brief Get the status info for this object (used for debug)
-        '''
+        '''@brief Get the status info for this object (used for debug)'''
         nvme_options = get_nvme_options()
         sys_cnf = get_sysconf()
         return {
             'config soak timer': str(self._cfg_soak_tmr),
             'kernel support': {
-                'TP8013':     nvme_options.discovery_supp,
+                'TP8013': nvme_options.discovery_supp,
                 'host_iface': nvme_options.host_iface_supp,
             },
             'system config': sys_cnf.as_dict(),
         }
 
     def get_controllers(self):
-        ''' @brief return the list of controller objects
-        '''
+        '''@brief return the list of controller objects'''
         return self._controllers.values()
 
-    def get_controller(self, transport:str, traddr:str, trsvcid:str, host_traddr:str, host_iface:str, subsysnqn:str): # pylint: disable=too-many-arguments
-        ''' @brief get the specified controller object from the list of controllers
-        '''
+    def get_controller(self, transport: str, traddr: str, trsvcid: str, host_traddr: str, host_iface: str, subsysnqn: str):  # pylint: disable=too-many-arguments
+        '''@brief get the specified controller object from the list of controllers'''
         cid = {
             'transport': transport,
             'traddr': traddr,
@@ -1405,8 +1407,7 @@ class Service:
         return self._controllers.get(TransportId(cid))
 
     def remove_controller(self, tid, device):
-        ''' @brief remove the specified controller object from the list of controllers
-        '''
+        '''@brief remove the specified controller object from the list of controllers'''
         LOG.debug('Service.remove_controller()        - %s %s', tid, device)
         controller = self._controllers.pop(tid, None)
         if controller is not None:
@@ -1426,7 +1427,7 @@ class Service:
     def _stop_hdlr(self):
         systemd.daemon.notify('STOPPING=1')
 
-        self._cancel() # Cancel pending operations
+        self._cancel()  # Cancel pending operations
 
         if len(self._controllers) == 0:
             GLib.idle_add(self._exit)
@@ -1459,8 +1460,7 @@ class Service:
         return GLib.SOURCE_REMOVE
 
     def _config_ctrls(self):
-        ''' @brief Start controllers configuration.
-        '''
+        '''@brief Start controllers configuration.'''
         # The configuration file may contain controllers and/or blacklist
         # elements with traddr specified as hostname instead of IP address.
         # Because of this, we need to remove those blacklisted elements before

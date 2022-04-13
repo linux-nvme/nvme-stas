@@ -16,19 +16,20 @@
 
 import re
 
-class KernelVersion():
-    ''' Code loosely lifted from distutils's LooseVersion
-    '''
+
+class KernelVersion:
+    '''Code loosely lifted from distutils's LooseVersion'''
+
     component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
 
-    def __init__(self, string:str):
+    def __init__(self, string: str):
         self.string = string
         self.version = self.__parse(string)
 
-    def __str__ (self):
+    def __str__(self):
         return self.string
 
-    def __repr__ (self):
+    def __repr__(self):
         return f'KernelVersion ("{self}")'
 
     def __eq__(self, other):

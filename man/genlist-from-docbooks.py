@@ -5,6 +5,8 @@ from lxml import etree
 exclude_list = list(glob.glob('standard-*.xml'))
 
 PARSER = etree.XMLParser(remove_blank_text=True)
+
+
 def extract_data(fname):
     et = etree.parse(fname, PARSER)
 
@@ -20,6 +22,7 @@ def extract_data(fname):
                 deps.add(dep)
 
     return manvolnum, list(deps)
+
 
 output = list()
 file_list = glob.glob('*.xml')

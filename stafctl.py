@@ -17,26 +17,27 @@ import dasbus.error
 from dasbus.connection import SystemMessageBus
 from staslib import defs
 
-def tron(args):               # pylint: disable=unused-argument
-    ''' @brief Trace ON
-    '''
+
+def tron(args):  # pylint: disable=unused-argument
+    '''@brief Trace ON'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
-    iface.tron = True         # pylint: disable=assigning-non-slot
+    iface.tron = True  # pylint: disable=assigning-non-slot
 
-def troff(args):              # pylint: disable=unused-argument
-    ''' @brief Trace OFF
-    '''
+
+def troff(args):  # pylint: disable=unused-argument
+    '''@brief Trace OFF'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
-    iface.tron = False        # pylint: disable=assigning-non-slot
+    iface.tron = False  # pylint: disable=assigning-non-slot
 
-def _extract_cid(ctrl):       # pylint: disable=missing-function-docstring
+
+def _extract_cid(ctrl):  # pylint: disable=missing-function-docstring
     return ctrl['transport'], ctrl['traddr'], ctrl['trsvcid'], ctrl['host-traddr'], ctrl['host-iface'], ctrl['subsysnqn']
 
-def status(args):             # pylint: disable=unused-argument
-    ''' @brief retrieve stafd's status information
-    '''
+
+def status(args):  # pylint: disable=unused-argument
+    '''@brief retrieve stafd's status information'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
     info = json.loads(iface.process_info())
@@ -48,30 +49,32 @@ def status(args):             # pylint: disable=unused-argument
 
     print(pprint.pformat(info, width=120))
 
+
 def ls(args):
-    ''' @brief list the discovery controller's that stafd is
-               connected (or trying to connect) to.
+    '''@brief list the discovery controller's that stafd is
+    connected (or trying to connect) to.
     '''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
-    info  = iface.list_controllers(args.detailed)
+    info = iface.list_controllers(args.detailed)
     print(pprint.pformat(info, width=120))
 
+
 def dlp(args):
-    ''' @brief retrieve a controller's discovery log pages from stafd
-    '''
+    '''@brief retrieve a controller's discovery log pages from stafd'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
     info = iface.get_log_pages(args.transport, args.traddr, args.trsvcid, args.host_traddr, args.host_iface, args.nqn)
     print(pprint.pformat(info, width=120))
 
+
 def adlp(args):
-    ''' @brief retrieve all of the controller's discovery log pages from stafd
-    '''
+    '''@brief retrieve all of the controller's discovery log pages from stafd'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
     info = json.loads(iface.get_all_log_pages(args.detailed))
     print(pprint.pformat(info, width=120))
+
 
 PARSER = ArgumentParser(description=f'{defs.STAF_DESCRIPTION} ({defs.STAF_ACRONYM})')
 PARSER.add_argument(
@@ -97,7 +100,7 @@ PRSR.add_argument(
     '-d', '--detailed',
     action='store_true',
     help='Print detailed info (default: "%(default)s")',
-    default=False
+    default=False,
 )
 PRSR.set_defaults(func=ls)
 
@@ -108,42 +111,42 @@ PRSR.add_argument(
     action='store',
     help='NVMe-over-Fabrics fabric type (default: "%(default)s")',
     choices=['tcp', 'rdma', 'fc', 'loop'],
-    default='tcp'
+    default='tcp',
 )
 PRSR.add_argument(
     '-a', '--traddr',
     metavar='<traddr>',
     action='store',
     help='Discovery Controller\'s network address',
-    required=True
+    required=True,
 )
 PRSR.add_argument(
     '-s', '--trsvcid',
     metavar='<trsvcid>',
     action='store',
     help='Transport service id (for IP addressing, e.g. tcp, rdma, this field is the port number)',
-    required=True
+    required=True,
 )
 PRSR.add_argument(
     '-w', '--host-traddr',
     metavar='<traddr>',
     action='store',
     help='Network address used on the host to connect to the Controller (default: "%(default)s")',
-    default=''
+    default='',
 )
 PRSR.add_argument(
     '-f', '--host-iface',
     metavar='<iface>',
     action='store',
     help='This field specifies the network interface used on the host to connect to the Controller (default: "%(default)s")',
-    default=''
+    default='',
 )
 PRSR.add_argument(
     '-n', '--nqn',
     metavar='<nqn>',
     action='store',
     help='This field specifies the discovery controller\'s NQN. When not specified this option defaults to "%(default)s"',
-    default='nqn.2014-08.org.nvmexpress.discovery'
+    default='nqn.2014-08.org.nvmexpress.discovery',
 )
 PRSR.set_defaults(func=dlp)
 
@@ -152,7 +155,7 @@ PRSR.add_argument(
     '-d', '--detailed',
     action='store_true',
     help='Print detailed info (default: "%(default)s")',
-    default=False
+    default=False,
 )
 PRSR.set_defaults(func=adlp)
 
