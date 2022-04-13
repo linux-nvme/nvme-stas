@@ -20,6 +20,7 @@ PYTHON_SEARCH_PATHS = [
 test_env = environment({'MALLOC_PERTURB_': '0'})
 test_env.prepend('PYTHONPATH', ':'.join(PYTHON_SEARCH_PATHS))
 
+# pylint and pyflakes
 if modules_to_lint.length() != 0
     pylint = find_program('pylint', required: false)
     pyflakes = find_program('pyflakes3', required: false)
@@ -40,6 +41,8 @@ if modules_to_lint.length() != 0
     endif
 endif
 
+
+# Unit tests
 things_to_test = [
     ['Test Configuration', 'test-config.py'],
     ['Test KernelVersion', 'test-version.py'],
@@ -49,3 +52,16 @@ foreach thing: things_to_test
     script = join_paths(meson.current_source_dir(), thing[1])
     test(msg, python3, args: script, env: test_env)
 endforeach
+
+# Make sure code complies with minimum Python version requirement.
+tools = [
+    join_paths(meson.current_source_dir(), '../man'),
+    join_paths(meson.current_source_dir(), '../utils'),
+]
+vermin = find_program('vermin', required: false)
+if vermin.found()
+    if modules_to_lint.length() != 0
+        test('vermin code', vermin, args: ['--config-file', join_paths(meson.current_source_dir(), 'vermin.conf')] + modules_to_lint, env: test_env)
+    endif
+    test('vermin tools', vermin, args: ['--config-file', join_paths(meson.current_source_dir(), 'vermin-tools.conf')] + tools, env: test_env)
+endif
