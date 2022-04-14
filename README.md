@@ -5,6 +5,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github tag](https://badgen.net/github/tag/linux-nvme/nvme-stas)](https://github.com/linux-nvme/nvme-stas/tags/)
 [![GitHub commits](https://img.shields.io/github/commits-since/linux-nvme/nvme-stas/latest.svg)](https://GitHub.com/linux-nvme/nvme-stas/commit/)
+[![Read the Docs](https://img.shields.io/readthedocs/nvme-stas)](https://nvme-stas.readthedocs.io/en/latest/)
 
 What does nvme-stas provide?
 
