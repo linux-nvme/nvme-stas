@@ -15,7 +15,7 @@ if want_man or want_html
 
     if xsltproc.found()
         manpage_style = 'http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl'
-        if run_command(xsltproc, '--nonet', manpage_style).returncode() != 0
+        if run_command(xsltproc, '--nonet', manpage_style, check: false).returncode() != 0
             error('Manpage style sheet cannot be found (package docbook-xsl missing)')
         endif
     endif
@@ -25,7 +25,7 @@ if want_man or want_html
     # docbooks = [ ['file1', 'manvolnum-from-file1.xml', 'file1.xml'],
     #              ['file2', 'manvolnum-from-file2.xml', 'file2.xml'], ... ]
     docbooks = []
-    rr = run_command(docbklst)
+    rr = run_command(docbklst, check: false)
     output = rr.stdout().strip()
     if output != ''
         foreach item : output.split(';')

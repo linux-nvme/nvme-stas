@@ -54,7 +54,7 @@ if check_pymodules
         py_modules_reqd += [['lxml', 'Install python3-lxml (deb/rpm)']]
     endif
     foreach p : py_modules_reqd
-        if run_command(python3, '-c', 'import @0@'.format(p[0])).returncode() != 0
+        if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
             error('Required python3 module "@0@" not found. @1@'.format(p[0], p[1]))
         endif
     endforeach
