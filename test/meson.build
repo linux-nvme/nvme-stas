@@ -26,7 +26,7 @@ if modules_to_lint.length() != 0
     pyflakes = find_program('pyflakes3', required: false)
     if not pyflakes.found()
         temp = find_program('pyflakes', required: false)
-        if temp.found() and run_command(temp, '--version').stdout().contains('Python 3')
+        if temp.found() and run_command(temp, '--version', check: false).stdout().contains('Python 3')
             pyflakes = temp
         endif
     endif
