@@ -1,0 +1,42 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>org.nvmexpress.stac.debug</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><style>
+    a.headerlink {
+      color: #c60f0f;
+      font-size: 0.8em;
+      padding: 0 4px 0 4px;
+      text-decoration: none;
+      visibility: hidden;
+    }
+
+    a.headerlink:hover {
+      background-color: #c60f0f;
+      color: white;
+    }
+
+    h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
+      visibility: visible;
+    }
+  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="gdbus-org.nvmexpress.stac.debug"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>org.nvmexpress.stac.debug</p></div><div class="refsynopsisdiv"><h2>Methods</h2><pre class="synopsis"><a class="link" href="#gdbus-method-org-nvmexpress-stac-debug.process_info" title="The process_info() method">process_info</a>    (OUT s info_json);
+<a class="link" href="#gdbus-method-org-nvmexpress-stac-debug.controller_info" title="The controller_info() method">controller_info</a> (IN  s transport,
+                 IN  s traddr,
+                 IN  s trsvcid,
+                 IN  s host_traddr,
+                 IN  s host_iface,
+                 IN  s subsysnqn,
+                 OUT s info_json);
+</pre></div><div class="refsect1"><a name="idm45397037735104"></a><h2>Properties</h2><pre class="synopsis"><a class="link" href="#gdbus-property-org-nvmexpress-stac-debug.tron" title='The "tron" property'>tron</a>       readwrite  b
+<a class="link" href="#gdbus-property-org-nvmexpress-stac-debug.log_level" title='The "log_level" property'>log_level</a>  readable   s
+</pre></div><div class="refsect1"><a name="gdbus-interface-org-nvmexpress-stac-debug"></a><h2>Description</h2><p></p></div><div class="refsect1"><a name="gdbus-methods-org.nvmexpress.stac.debug"></a><h2>Method Details</h2><div class="refsect2"><a name="gdbus-method-org-nvmexpress-stac-debug.process_info"></a><h3>The process_info() method</h3><a class="indexterm" name="idm45397037798544"></a><pre class="programlisting">
+process_info (OUT s info_json);
+</pre><p></p><div class="variablelist"><dl class="variablelist"><dt><span class="term">"<code class="literal">OUT s <em class="parameter"><code>info_json</code></em></code>":</span></dt><dd><p></p></dd></dl></div></div><div class="refsect2"><a name="gdbus-method-org-nvmexpress-stac-debug.controller_info"></a><h3>The controller_info() method</h3><a class="indexterm" name="idm45397037913392"></a><pre class="programlisting">
+controller_info (IN  s transport,
+                 IN  s traddr,
+                 IN  s trsvcid,
+                 IN  s host_traddr,
+                 IN  s host_iface,
+                 IN  s subsysnqn,
+                 OUT s info_json);
+</pre><p></p><div class="variablelist"><dl class="variablelist"><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>transport</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>traddr</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>trsvcid</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>host_traddr</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>host_iface</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>subsysnqn</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">OUT s <em class="parameter"><code>info_json</code></em></code>":</span></dt><dd><p></p></dd></dl></div></div></div><div class="refsect1"><a name="gdbus-properties-org.nvmexpress.stac.debug"></a><h2>Property Details</h2><div class="refsect2"><a name="gdbus-property-org-nvmexpress-stac-debug.tron"></a><h3>The "tron" property</h3><a class="indexterm" name="idm45397033229360"></a><pre class="programlisting">
+tron  readwrite  b
+</pre><p></p></div><div class="refsect2"><a name="gdbus-property-org-nvmexpress-stac-debug.log_level"></a><h3>The "log_level" property</h3><a class="indexterm" name="idm45397033225744"></a><pre class="programlisting">
+log_level  readable   s
+</pre><p></p></div></div></div></body></html>
