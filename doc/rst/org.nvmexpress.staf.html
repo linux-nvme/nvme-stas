@@ -1,0 +1,58 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>org.nvmexpress.staf</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><style>
+    a.headerlink {
+      color: #c60f0f;
+      font-size: 0.8em;
+      padding: 0 4px 0 4px;
+      text-decoration: none;
+      visibility: hidden;
+    }
+
+    a.headerlink:hover {
+      background-color: #c60f0f;
+      color: white;
+    }
+
+    h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
+      visibility: visible;
+    }
+  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="gdbus-org.nvmexpress.staf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>org.nvmexpress.staf</p></div><div class="refsynopsisdiv"><h2>Methods</h2><pre class="synopsis"><a class="link" href="#gdbus-method-org-nvmexpress-staf.list_controllers" title="The list_controllers() method">list_controllers</a>  (IN  b      detailed,
+                   OUT aa{ss} controller_list);
+<a class="link" href="#gdbus-method-org-nvmexpress-staf.get_log_pages" title="The get_log_pages() method">get_log_pages</a>     (IN  s      transport,
+                   IN  s      traddr,
+                   IN  s      trsvcid,
+                   IN  s      host_traddr,
+                   IN  s      host_iface,
+                   IN  s      subsysnqn,
+                   OUT aa{ss} log_pages);
+<a class="link" href="#gdbus-method-org-nvmexpress-staf.get_all_log_pages" title="The get_all_log_pages() method">get_all_log_pages</a> (IN  b      detailed,
+                   OUT s      log_pages_json);
+</pre></div><div class="refsect1"><a name="idm45682982476384"></a><h2>Signals</h2><pre class="synopsis"><a class="link" href="#gdbus-signal-org-nvmexpress-staf.log_pages_changed" title='The "log_pages_changed" signal'>log_pages_changed</a> (s transport,
+                   s traddr,
+                   s trsvcid,
+                   s host_traddr,
+                   s host_iface,
+                   s subsysnqn,
+                   s device);
+</pre></div><div class="refsect1"><a name="gdbus-interface-org-nvmexpress-staf"></a><h2>Description</h2><p></p></div><div class="refsect1"><a name="gdbus-methods-org.nvmexpress.staf"></a><h2>Method Details</h2><div class="refsect2"><a name="gdbus-method-org-nvmexpress-staf.list_controllers"></a><h3>The list_controllers() method</h3><a class="indexterm" name="idm45682982540688"></a><pre class="programlisting">
+list_controllers (IN  b      detailed,
+                  OUT aa{ss} controller_list);
+</pre><p></p><div class="variablelist"><dl class="variablelist"><dt><span class="term">"<code class="literal">IN b <em class="parameter"><code>detailed</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">OUT aa{ss} <em class="parameter"><code>controller_list</code></em></code>":</span></dt><dd><p></p></dd></dl></div></div><div class="refsect2"><a name="gdbus-method-org-nvmexpress-staf.get_log_pages"></a><h3>The get_log_pages() method</h3><a class="indexterm" name="idm45682982653136"></a><pre class="programlisting">
+get_log_pages (IN  s      transport,
+               IN  s      traddr,
+               IN  s      trsvcid,
+               IN  s      host_traddr,
+               IN  s      host_iface,
+               IN  s      subsysnqn,
+               OUT aa{ss} log_pages);
+</pre><p></p><div class="variablelist"><dl class="variablelist"><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>transport</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>traddr</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>trsvcid</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>host_traddr</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>host_iface</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">IN s <em class="parameter"><code>subsysnqn</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">OUT aa{ss} <em class="parameter"><code>log_pages</code></em></code>":</span></dt><dd><p></p></dd></dl></div></div><div class="refsect2"><a name="gdbus-method-org-nvmexpress-staf.get_all_log_pages"></a><h3>The get_all_log_pages() method</h3><a class="indexterm" name="idm45682977970384"></a><pre class="programlisting">
+get_all_log_pages (IN  b detailed,
+                   OUT s log_pages_json);
+</pre><p></p><div class="variablelist"><dl class="variablelist"><dt><span class="term">"<code class="literal">IN b <em class="parameter"><code>detailed</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">OUT s <em class="parameter"><code>log_pages_json</code></em></code>":</span></dt><dd><p></p></dd></dl></div></div></div><div class="refsect1"><a name="gdbus-signals-org.nvmexpress.staf"></a><h2>Signal Details</h2><div class="refsect2"><a name="gdbus-signal-org-nvmexpress-staf.log_pages_changed"></a><h3>The "log_pages_changed" signal</h3><a class="indexterm" name="idm45682977959856"></a><pre class="programlisting">
+log_pages_changed (s transport,
+                   s traddr,
+                   s trsvcid,
+                   s host_traddr,
+                   s host_iface,
+                   s subsysnqn,
+                   s device);
+</pre><p></p><div class="variablelist"><dl class="variablelist"><dt><span class="term">"<code class="literal">s <em class="parameter"><code>transport</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">s <em class="parameter"><code>traddr</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">s <em class="parameter"><code>trsvcid</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">s <em class="parameter"><code>host_traddr</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">s <em class="parameter"><code>host_iface</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">s <em class="parameter"><code>subsysnqn</code></em></code>":</span></dt><dd><p></p></dd><dt><span class="term">"<code class="literal">s <em class="parameter"><code>device</code></em></code>":</span></dt><dd><p></p></dd></dl></div></div></div></div></body></html>
