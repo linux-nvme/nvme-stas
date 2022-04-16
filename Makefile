@@ -38,11 +38,11 @@ install test dist: ${BUILD-DIR}
 
 .PHONY: loc
 loc:
-	@cloc --by-file --exclude-dir=${BUILD-DIR},Documentation,test,utils,debian,obj-x86_64-linux-gnu,.github --exclude-lang=Markdown,"NAnt script",XML,"Bourne Again Shell",make,"Bourne Shell",Meson,YAML,XSLT .
+	@cloc --by-file --exclude-dir=${BUILD-DIR},doc,test,utils,debian,obj-x86_64-linux-gnu,.github --exclude-lang=Markdown,"NAnt script",XML,"Bourne Again Shell",make,"Bourne Shell",Meson,YAML,XSLT .
 
 .PHONY: loc-full
 loc-full:
-	@cloc --by-file --exclude-dir=${BUILD-DIR},Documentation,test,utils,debian,obj-x86_64-linux-gnu,.github .
+	@cloc --by-file --exclude-dir=${BUILD-DIR},doc,test,utils,debian,obj-x86_64-linux-gnu,.github .
 
 
 ################################################################################
