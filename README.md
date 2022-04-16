@@ -34,7 +34,7 @@ STAS is composed of two services, STAF and STAC, running on the Host computer.
 - Set up the I/O controller connections.
 - Provide a D-Bus interface where 3rd party applications can retrieve data about the I/O controller connections.
 
-![Definition](./Documentation/images/STAF-STAC-libnvme.png)
+![Definition](./doc/images/STAF-STAC-libnvme.png)
 
 ## Design
 
