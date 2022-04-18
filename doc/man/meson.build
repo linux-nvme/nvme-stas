@@ -9,8 +9,8 @@
 
 if want_man or want_html
     xsltproc = find_program('xsltproc')
-    dbus2doc = find_program('man/dbus-idl-to-docbooks.py')
-    docbklst = find_program('man/genlist-from-docbooks.py')
+    dbus2doc = find_program('dbus-idl-to-docbooks.py')
+    docbklst = find_program('genlist-from-docbooks.py')
     dbusgen  = find_program('gdbus-codegen')
 
     if xsltproc.found()
@@ -25,7 +25,7 @@ if want_man or want_html
     # docbooks = [ ['file1', 'manvolnum-from-file1.xml', 'file1.xml'],
     #              ['file2', 'manvolnum-from-file2.xml', 'file2.xml'], ... ]
     docbooks = []
-    rr = run_command(docbklst, check: false)
+    rr = run_command(docbklst, check: true)
     output = rr.stdout().strip()
     if output != ''
         foreach item : output.split(';')
@@ -77,8 +77,8 @@ if want_man or want_html
       '-o', '@OUTPUT@',
     ]
 
-    man_xsl  = files('man/man.xsl')
-    html_xsl = files('man/html.xsl')
+    man_xsl  = files('man.xsl')
+    html_xsl = files('html.xsl')
 
     foreach tuple: docbooks
         stem = tuple[0]
