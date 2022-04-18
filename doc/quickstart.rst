@@ -2,4 +2,5 @@
 Quickstart
 ==========
 
-tbd
+.. raw:: html
+   :file: rst/nvme-stas.html
