@@ -1,0 +1,120 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>stacctl</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><style>
+    a.headerlink {
+      color: #c60f0f;
+      font-size: 0.8em;
+      padding: 0 4px 0 4px;
+      text-decoration: none;
+      visibility: hidden;
+    }
+
+    a.headerlink:hover {
+      background-color: #c60f0f;
+      color: white;
+    }
+
+    h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
+      visibility: visible;
+    }
+  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stacctl"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacctl — STorage Appliance Connector (STAC) utility program</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stacctl</code>  [OPTIONS...] {COMMAND} [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm45224607649312"></a><h2>Description</h2><p>
+            <span class="command"><strong>stacctl</strong></span> is a tool that can be used to communicate
+            with the <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span> daemon to retrieve
+            operational data.
+        </p></div><div class="refsect1"><a name="idm45224607692448"></a><h2>Commands</h2><p>The following commands are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="tron"></a><span class="term"><span class="command"><strong>tron</strong></span></span></dt><dd><p>Trace ON. Enable code tracing, which is to say that lots of
+                debug information will be printed to the syslog
+                (e.g. systemd-journal).</p></dd><dt><a name="troff"></a><span class="term"><span class="command"><strong>troff</strong></span></span></dt><dd><p>Trace OFF. Disable code tracing.</p></dd><dt><a name="status"></a><span class="term"><span class="command"><strong>status</strong></span></span></dt><dd><p>Show runtime status information.</p></dd><dt><span class="term"><span class="command"><strong>ls</strong></span></span></dt><dd><p>
+                        Show the list of I/O controllers. This will list
+                        all the I/O controllers configured in
+                        <span class="citerefentry"><span class="refentrytitle">stacd.conf</span>(5)</span> as well as those discovered by the
+                        <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span> daemon.
+                    </p></dd></dl></div></div><div class="refsect1"><a name="idm45224607828896"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
+    </p></dd><dt><a name="version"></a><span class="term"><code class="option">--version</code></span></dt><dd><p><a name="version-text"></a>Print the version string and exit.</p></dd><dt><a name="detailed"></a><span class="term"><code class="option">-d</code>, </span><span class="term"><code class="option">--detailed</code></span></dt><dd><p>Print additional details.</p></dd></dl></div></div><div class="refsect1"><a name="idm45224607824992"></a><h2>Exit status</h2><p>
+            On success, 0 is returned; otherwise, a non-zero failure code is
+            returned.
+        </p></div><div class="refsect1"><a name="idm45224607823680"></a><h2>Examples</h2><div class="example"><a name="idm45224607823008"></a><p class="title"><b>Example 1. List I/O controllers</b></p><div class="example-contents"><pre class="programlisting">$ stacctl ls --detailed
+[{'connect attempts': 0,
+  'device': 'nvme1',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'model': 'Linux',
+  'retry connect timer': '60.0s [off]',
+  'serial': '8d22fa96da912fb13f5a',
+  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aedead',
+  'traddr': '::1',
+  'transport': 'tcp',
+  'trsvcid': '8009'},
+ {'connect attempts': 0,
+  'device': 'nvme2',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'model': 'Linux',
+  'retry connect timer': '60.0s [off]',
+  'serial': 'a9987ae2fd173d100fd0',
+  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aebeef',
+  'traddr': '::1',
+  'transport': 'tcp',
+  'trsvcid': '8009'},
+ {'connect attempts': 0,
+  'device': 'nvme3',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'model': 'Linux',
+  'retry connect timer': '60.0s [off]',
+  'serial': '13e122f1a8122bed5a8d',
+  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
+  'traddr': '::1',
+  'transport': 'tcp',
+  'trsvcid': '8009'}]</pre></div></div><br class="example-break"><div class="example"><a name="idm45224607818576"></a><p class="title"><b>Example 2. Disable tracing</b></p><div class="example-contents"><pre class="programlisting">$ stacctl troff</pre></div></div><br class="example-break"><div class="example"><a name="idm45224607817088"></a><p class="title"><b>Example 3. 
+                Show <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span> operational status.
+            </b></p><div class="example-contents"><pre class="programlisting">$ stacctl status
+{'config soak timer': '1.5s [off]',
+ 'controllers': [{'connect attempts': 0,
+                  'device': 'nvme1',
+                  'host-iface': '',
+                  'host-traddr': '',
+                  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+                  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+                  'model': 'Linux',
+                  'retry connect timer': '60.0s [off]',
+                  'serial': '8d22fa96da912fb13f5a',
+                  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aedead',
+                  'traddr': '::1',
+                  'transport': 'tcp',
+                  'trsvcid': '8009'},
+                 {'connect attempts': 0,
+                  'device': 'nvme2',
+                  'host-iface': '',
+                  'host-traddr': '',
+                  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+                  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+                  'model': 'Linux',
+                  'retry connect timer': '60.0s [off]',
+                  'serial': 'a9987ae2fd173d100fd0',
+                  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aebeef',
+                  'traddr': '::1',
+                  'transport': 'tcp',
+                  'trsvcid': '8009'},
+                 {'connect attempts': 0,
+                  'device': 'nvme3',
+                  'host-iface': '',
+                  'host-traddr': '',
+                  'hostid': '3e518ec3-72ec-46a5-a603-2510e3140e29',
+                  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+                  'model': 'Linux',
+                  'retry connect timer': '60.0s [off]',
+                  'serial': '13e122f1a8122bed5a8d',
+                  'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
+                  'traddr': '::1',
+                  'transport': 'tcp',
+                  'trsvcid': '8009'}],
+ 'log-level': 'DEBUG',
+ 'tron': True}</pre></div></div><br class="example-break"></div><div class="refsect1"><a name="idm45224607814528"></a><h2>See Also</h2><p>
+            <span class="citerefentry"><span class="refentrytitle">stacd.conf</span>(5)</span>,
+            <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
+            <span class="citerefentry"></span>
+        </p></div></div></body></html>
