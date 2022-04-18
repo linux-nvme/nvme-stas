@@ -46,6 +46,9 @@ endif
 things_to_test = [
     ['Test Configuration', 'test-config.py'],
     ['Test KernelVersion', 'test-version.py'],
+    ['Test NvmeOptions',   'test-nvme_options.py'],
+    ['Test Udev',          'test-udev.py'],
+    ['Test TransportId',   'test-transport_id.py'],
 ]
 foreach thing: things_to_test
     msg = thing[0]
