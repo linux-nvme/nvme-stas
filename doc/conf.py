@@ -8,7 +8,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'nvme-stas'
-copyright = '2020, Martin Belanger'
+copyright = 'Copyright (c) 2022, Dell Inc. or its subsidiaries.  All rights reserved.'
 author = 'Martin Belanger <martin.belanger@dell.com>'
 master_doc = 'index'
 
