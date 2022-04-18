@@ -1,0 +1,95 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>nvme-stas</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><style>
+    a.headerlink {
+      color: #c60f0f;
+      font-size: 0.8em;
+      padding: 0 4px 0 4px;
+      text-decoration: none;
+      visibility: hidden;
+    }
+
+    a.headerlink:hover {
+      background-color: #c60f0f;
+      color: white;
+    }
+
+    h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
+      visibility: visible;
+    }
+  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="nvme-stas"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>nvme-stas — NVMe over Fabrics STorage Appliance Services</p></div><div class="refsect1"><a name="idm46417209258432"></a><h2>Introduction</h2><p>
+        This page describes the services provided by the <code class="code">nvme-stas</code> package.
+    </p><p>
+        <code class="code">nvme-stas</code> is composed of two services, <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
+        and <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>,
+        running on a host computer (the NVMe Host).
+    </p><div class="refsect2"><a name="idm46417209254352"></a><h3>STorage Appliance Finder (<code class="code">stafd</code>)</h3><p>
+            The tasks performed by <code class="code">stafd</code> include:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: opencircle; "><li class="listitem" style="list-style-type: circle"><p>
+                    Register for mDNS service type <em class="parameter"><code>_nvme-disc._tcp</code></em>
+                    with Avahi, the service discovery daemon. This allows <code class="code">stafd</code>
+                    to automatically locate Central or Direct Discovery
+                    Controllers (CDC, DDC) with zero-configuration networking
+                    (zeroconf). <code class="code">stafd</code> also allows users to manually enter CDCs
+                    and DDCs in a configuration file
+                    (<code class="filename">/etc/stas/stafd.conf</code>) when users
+                    prefer not to enable mDNS-based zeroconf.
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    Connect to discovered or configured CDCs or DDCs.
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    Retrieve the list of NVMe subsystem IO Controllers or
+                    Discovery Controller referrals from the Discovery Log Page 
+                    using the NVMe command "Get Log Page".
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    Maintain a cache of the discovery log pages.
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    Provide a D-Bus API where other applications can interact
+                    with <code class="code">stafd</code>. This API can be used, for example, to retrieve
+                    the list of cached discovery log pages.
+                </p></li></ul></div></div><div class="refsect2"><a name="idm46417209290608"></a><h3>STorage Appliance Connector (<code class="code">stacd</code>)</h3><p>
+            The tasks performed by <code class="code">stacd</code> include:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: opencircle; "><li class="listitem" style="list-style-type: circle"><p>
+                    Read the list of storage subsystems (i.e., discovery log pages)
+                    from <code class="code">stafd</code> over the D-Bus API.
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    Similar to <code class="code">stafd</code>, <code class="code">stacd</code> can also read a list of storage
+                    subsystems to connect to from a configuration
+                    file: (<code class="filename">/etc/stas/stacd.conf</code>).
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    Set up the I/O controller connections to each storage subsystem.
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    Provide a D-Bus API where other applications can interact
+                    with <code class="code">stacd</code>. For example, an application could retrieve the
+                    list of I/O controllers that <code class="code">stacd</code> connected to.
+                </p></li></ul></div></div><div class="refsect2"><a name="idm46417209426064"></a><h3>System configuration</h3><p>
+            A host must be provided with a Host NQN and a Host ID. <code class="code">nvme-stas</code>
+            will not run without these two mandatory configuration parameters.
+            To follow in the footsteps of <code class="code">nvme-cli</code> and <code class="code">libnvme</code>,
+            <code class="code">nvme-stas</code> will use the same Host NQN and ID that
+            <code class="code">nvme-cli</code> and <code class="code">libnvme</code> use by default.
+            In other words, <code class="code">nvme-stas</code> will read the Host NQN and ID
+            from these two files by default:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: opencircle; "><li class="listitem" style="list-style-type: circle"><p>
+                    <code class="filename">/etc/nvme/hostnqn</code>
+                </p></li><li class="listitem" style="list-style-type: circle"><p>
+                    <code class="filename">/etc/nvme/hostid</code>
+                </p></li></ul></div><p>
+            Using the same configuration files will ensure consistency between
+            <code class="code">nvme-stas</code>, <code class="code">nvme-cli</code>, and <code class="code">libnvme</code>.
+            On the other hand, <code class="code">nvme-stas</code> can operate with a
+            different Host NQN and/or ID. In that case, one can specify them
+            in <code class="filename">/etc/stas/sys.conf</code>.
+        </p>
+            A new optional configuration parameters introduced in TP8010, the
+            Host Symbolic Name, can also be specified in <code class="filename">/etc/stas/sys.conf</code>.
+            The documentation for <code class="filename">/etc/stas/sys.conf</code>
+            can be found <code class="filename">/etc/stas/sys.conf.doc</code>.
+        <p>
+        </p></div></div><div class="refsect1"><a name="idm46417209400352"></a><h2>See Also</h2><p>
+        <span class="citerefentry"><span class="refentrytitle">stacctl</span>(1)</span>,
+        <span class="citerefentry"><span class="refentrytitle">stacd.conf</span>(5)</span>,
+        <span class="citerefentry"><span class="refentrytitle">stacd.service</span>(8)</span>,
+        <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>,
+        <span class="citerefentry"><span class="refentrytitle">stafctl</span>(1)</span>,
+        <span class="citerefentry"><span class="refentrytitle">stafd.conf</span>(5)</span>,
+        <span class="citerefentry"><span class="refentrytitle">stafd.service</span>(8)</span>,
+        <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>,
+    </p></div></div></body></html>
