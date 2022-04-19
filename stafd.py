@@ -69,9 +69,25 @@ DBUS_IDL = '''
 
 
 def parse_args(conf_file: str):  # pylint: disable=missing-function-docstring
-    parser = ArgumentParser(description=f'{defs.STAF_DESCRIPTION} ({defs.STAF_ACRONYM}). Must be root to run this program.')
-    parser.add_argument('-f', '--conf-file', action='store', help='Configuration file (default: %(default)s)', default=conf_file, type=str, metavar='FILE')
-    parser.add_argument('-s', '--syslog', action='store_true', help='Send messages to syslog instead of stdout. Use this when running %(prog)s as a daemon. (default: %(default)s)', default=False)
+    parser = ArgumentParser(
+        description=f'{defs.STAF_DESCRIPTION} ({defs.STAF_ACRONYM}). Must be root to run this program.'
+    )
+    parser.add_argument(
+        '-f',
+        '--conf-file',
+        action='store',
+        help='Configuration file (default: %(default)s)',
+        default=conf_file,
+        type=str,
+        metavar='FILE',
+    )
+    parser.add_argument(
+        '-s',
+        '--syslog',
+        action='store_true',
+        help='Send messages to syslog instead of stdout. Use this when running %(prog)s as a daemon. (default: %(default)s)',
+        default=False,
+    )
     parser.add_argument('--tron', action='store_true', help='Trace ON. (default: %(default)s)', default=False)
     parser.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
     parser.add_argument('--idl', action='store', help='Print D-Bus IDL, then exit', type=str, metavar='FILE')
@@ -109,8 +125,9 @@ import systemd.daemon
 from libnvme import nvme
 from gi.repository import GLib
 
-DLP_CHANGED = ((nvme.NVME_LOG_LID_DISCOVER << 16) |
-               (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE) # 0x70f002
+DLP_CHANGED = (
+    (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
+)  # 0x70f002
 
 LOG = stas.get_logger(ARGS.syslog, defs.STAFD_PROCNAME)
 CNF = stas.get_configuration(ARGS.conf_file)
@@ -232,7 +249,12 @@ class Dc(stas.Controller):
 
         if self._alive():
             if self._ctrl.is_registration_supported():
-                self._register_op = stas.AsyncOperationWithRetry(self._on_registration_success, self._on_registration_fail, self._ctrl.registration_ctlr, nvme.NVMF_DIM_TAS_REGISTER)
+                self._register_op = stas.AsyncOperationWithRetry(
+                    self._on_registration_success,
+                    self._on_registration_fail,
+                    self._ctrl.registration_ctlr,
+                    nvme.NVMF_DIM_TAS_REGISTER,
+                )
                 self._register_op.run_async()
             else:
                 self._get_log_op = stas.AsyncOperationWithRetry(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
@@ -260,12 +282,23 @@ class Dc(stas.Controller):
         for details.
         '''
         if self._alive():
-            LOG.debug('Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec', self.id, self.device, err, Dc.REGISTRATION_RETRY_RERIOD_SEC)
+            LOG.debug(
+                'Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec',
+                self.id,
+                self.device,
+                err,
+                Dc.REGISTRATION_RETRY_RERIOD_SEC,
+            )
             if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
                 LOG.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
             # op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
         else:
-            LOG.debug('Dc._on_registration_fail()         - %s | %s Received event on dead object. %s', self.id, self.device, err)
+            LOG.debug(
+                'Dc._on_registration_fail()         - %s | %s Received event on dead object. %s',
+                self.id,
+                self.device,
+                err,
+            )
             op_obj.kill()
 
     # --------------------------------------------------------------------------
@@ -279,16 +312,38 @@ class Dc(stas.Controller):
             # return invalid addresses ("0.0.0.0", "::", or ""). Those need to be
             # filtered out.
             referrals_before = self.referrals()
-            self._log_pages = [{k: str(v) for k, v in dictionary.items()} for dictionary in data if dictionary.get('traddr') not in ('0.0.0.0', '::', '')] if data else list()
-            LOG.info('%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages))
+            self._log_pages = (
+                [
+                    {k: str(v) for k, v in dictionary.items()}
+                    for dictionary in data
+                    if dictionary.get('traddr') not in ('0.0.0.0', '::', '')
+                ]
+                if data
+                else list()
+            )
+            LOG.info(
+                '%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages)
+            )
             referrals_after = self.referrals()
             STAF.log_pages_changed(self, self.device)
             if referrals_after != referrals_before:
-                LOG.debug('Dc._on_get_log_success()           - %s | %s Referrals before = %s', self.id, self.device, referrals_before)
-                LOG.debug('Dc._on_get_log_success()           - %s | %s Referrals after  = %s', self.id, self.device, referrals_after)
+                LOG.debug(
+                    'Dc._on_get_log_success()           - %s | %s Referrals before = %s',
+                    self.id,
+                    self.device,
+                    referrals_before,
+                )
+                LOG.debug(
+                    'Dc._on_get_log_success()           - %s | %s Referrals after  = %s',
+                    self.id,
+                    self.device,
+                    referrals_after,
+                )
                 STAF.referrals_changed()
         else:
-            LOG.debug('Dc._on_get_log_success()           - %s | %s Received event on dead object.', self.id, self.device)
+            LOG.debug(
+                'Dc._on_get_log_success()           - %s | %s Received event on dead object.', self.id, self.device
+            )
 
     def _on_get_log_fail(self, op_obj, err, fail_cnt):
         '''@brief Function called when we fail to retrieve the log pages
@@ -296,12 +351,23 @@ class Dc(stas.Controller):
         for details.
         '''
         if self._alive():
-            LOG.debug('Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec', self.id, self.device, err, Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
+            LOG.debug(
+                'Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec',
+                self.id,
+                self.device,
+                err,
+                Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC,
+            )
             if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
                 LOG.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
             op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
         else:
-            LOG.debug('Dc._on_get_log_fail()              - %s | %s Received event on dead object. %s', self.id, self.device, err)
+            LOG.debug(
+                'Dc._on_get_log_fail()              - %s | %s Received event on dead object. %s',
+                self.id,
+                self.device,
+                err,
+            )
             op_obj.kill()
 
 
@@ -319,7 +385,16 @@ class Staf(stas.Service):
         __dbus_xml__ = DBUS_IDL
 
         @dasbus.server.interface.dbus_signal
-        def log_pages_changed(self, transport: str, traddr: str, trsvcid: str, host_traddr: str, host_iface: str, subsysnqn: str, device: str):  # pylint: disable=too-many-arguments
+        def log_pages_changed(  # pylint: disable=too-many-arguments
+            self,
+            transport: str,
+            traddr: str,
+            trsvcid: str,
+            host_traddr: str,
+            host_iface: str,
+            subsysnqn: str,
+            device: str,
+        ):
             '''@brief Signal sent when log pages have changed.'''
 
         @property
@@ -362,13 +437,20 @@ class Staf(stas.Service):
             '''@brief D-Bus method used to retrieve the discovery log pages from all controllers'''
             log_pages = list()
             for controller in STAF.get_controllers():
-                log_pages.append({'discovery-controller': controller.details() if detailed else controller.controller_id_dict(),
-                                  'log-pages': controller.log_pages()})
+                log_pages.append(
+                    {
+                        'discovery-controller': controller.details() if detailed else controller.controller_id_dict(),
+                        'log-pages': controller.log_pages(),
+                    }
+                )
             return json.dumps(log_pages)
 
         def list_controllers(self, detailed) -> str:  # pylint: disable=no-self-use
             '''@brief Return the list of discovery controller IDs'''
-            return [controller.details() if detailed else controller.controller_id_dict() for controller in STAF.get_controllers()]
+            return [
+                controller.details() if detailed else controller.controller_id_dict()
+                for controller in STAF.get_controllers()
+            ]
 
     # ==========================================================================
     def __init__(self):
@@ -418,7 +500,13 @@ class Staf(stas.Service):
         other applications that the cached log pages have changed.
         '''
         self._dbus_iface.log_pages_changed.emit(
-            controller.tid.transport, controller.tid.traddr, controller.tid.trsvcid, controller.tid.host_traddr, controller.tid.host_iface, controller.tid.subsysnqn, device
+            controller.tid.transport,
+            controller.tid.traddr,
+            controller.tid.trsvcid,
+            controller.tid.host_traddr,
+            controller.tid.host_iface,
+            controller.tid.subsysnqn,
+            device,
         )
 
     def referrals_changed(self):
@@ -429,15 +517,21 @@ class Staf(stas.Service):
         self._cfg_soak_tmr.start()
 
     def _referrals(self) -> list:
-        return [ stas.cid_from_dlpe(dlpe, controller.tid.host_traddr, controller.tid.host_iface)
-                 for controller in self.get_controllers() for dlpe in controller.referrals() ]
+        return [
+            stas.cid_from_dlpe(dlpe, controller.tid.host_traddr, controller.tid.host_iface)
+            for controller in self.get_controllers()
+            for dlpe in controller.referrals()
+        ]
 
     def _config_ctrls_finish(self, configured_ctrl_list):
         '''@brief Finish discovery controllers configuration after
         hostnames (if any) have been resolved.
         '''
-        configured_ctrl_list = [ ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict
-                                   and ctrl_dict.setdefault('subsysnqn', 'nqn.2014-08.org.nvmexpress.discovery') ]
+        configured_ctrl_list = [
+            ctrl_dict
+            for ctrl_dict in configured_ctrl_list
+            if 'traddr' in ctrl_dict and ctrl_dict.setdefault('subsysnqn', 'nqn.2014-08.org.nvmexpress.discovery')
+        ]
 
         discovered_ctrl_list = self._avahi.get_controllers()
         referral_ctrl_list = self._referrals()

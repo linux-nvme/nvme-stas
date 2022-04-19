@@ -78,7 +78,9 @@ def get_logger(syslog: bool, identifier: str):
             import logging.handlers  # pylint: disable=import-outside-toplevel
 
             handler = logging.handlers.SysLogHandler(address="/dev/log")
-            handler.setFormatter(logging.Formatter('{}: %(message)s'.format(identifier)))  # pylint: disable=consider-using-f-string
+            handler.setFormatter(
+                logging.Formatter('{}: %(message)s'.format(identifier))  # pylint: disable=consider-using-f-string
+            )
 
         level = LG.INFO
     else:
@@ -286,8 +288,14 @@ class Configuration:
 
     def read_conf_file(self):
         '''@brief Read the configuration file if the file exists.'''
-        config = configparser.ConfigParser(default_section=None, allow_no_value=True, delimiters=('='),
-                                           interpolation=None, strict=False, dict_type=OrderedMultisetDict)
+        config = configparser.ConfigParser(
+            default_section=None,
+            allow_no_value=True,
+            delimiters=('='),
+            interpolation=None,
+            strict=False,
+            dict_type=OrderedMultisetDict,
+        )
         if os.path.isfile(self._conf_file):
             config.read(self._conf_file)
         return config
@@ -379,8 +387,9 @@ class SysConfiguration:
 
     def read_conf_file(self):
         '''@brief Read the configuration file if the file exists.'''
-        config = configparser.ConfigParser(default_section=None, allow_no_value=True, delimiters=('='),
-                                           interpolation=None, strict=False)
+        config = configparser.ConfigParser(
+            default_section=None, allow_no_value=True, delimiters=('='), interpolation=None, strict=False
+        )
         if os.path.isfile(self._conf_file):
             config.read(self._conf_file)
         return config
@@ -497,7 +506,9 @@ def get_nvme_options():  # pylint: disable=missing-function-docstring
 class GTimer:
     '''@brief Convenience class to wrap GLib timers'''
 
-    def __init__(self, interval_sec: float = 0, user_cback=lambda: GLib.SOURCE_REMOVE, *user_data, priority=GLib.PRIORITY_DEFAULT):  # pylint: disable=keyword-arg-before-vararg
+    def __init__(
+        self, interval_sec: float = 0, user_cback=lambda: GLib.SOURCE_REMOVE, *user_data, priority=GLib.PRIORITY_DEFAULT
+    ):  # pylint: disable=keyword-arg-before-vararg
         self._source = None
         self._interval_sec = float(interval_sec)
         self._user_cback = user_cback
@@ -537,7 +548,9 @@ class GTimer:
             self._interval_sec = float(new_interval_sec)
 
         if self._source is not None:
-            self._source.set_ready_time(self._source.get_time() + (self._interval_sec * 1000000))  # ready time is in micro-seconds (monotonic time)
+            self._source.set_ready_time(
+                self._source.get_time() + (self._interval_sec * 1000000)
+            )  # ready time is in micro-seconds (monotonic time)
         else:
             if self._interval_sec.is_integer():
                 self._source = GLib.timeout_source_new_seconds(int(self._interval_sec))  # seconds resolution
@@ -656,7 +669,9 @@ class Udev:
                 Discovery Controller.
         @return The device if a match is found, None otherwise.
         '''
-        for device in self._context.list_devices(subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport):
+        for device in self._context.list_devices(
+            subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
+        ):
             # Note: Prior to 5.18 linux didn't expose the cntrltype through
             # the sysfs. So, this may return None on older kernels.
             cntrltype = device.attributes.get('cntrltype')
@@ -680,7 +695,9 @@ class Udev:
                 I/O Controller.
         @return The device if a match is found, None otherwise.
         '''
-        for device in self._context.list_devices(subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport):
+        for device in self._context.list_devices(
+            subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
+        ):
             # Note: Prior to 5.18 linux didn't expose the cntrltype through
             # the sysfs. So, this may return None on older kernels.
             cntrltype = device.attributes.get('cntrltype')
@@ -781,8 +798,7 @@ def remove_invalid_addresses(controllers: list):
             continue
 
         if ip.version not in CNF.ip_family:
-            LOG.debug('%s ignored because IPv%s is disabled in %s',
-                      TransportId(controller), ip.version, CNF.conf_file)
+            LOG.debug('%s ignored because IPv%s is disabled in %s', TransportId(controller), ip.version, CNF.conf_file)
             continue
 
         valid_controllers.append(controller)
@@ -809,16 +825,20 @@ class TransportId:
             'host-iface':  str, # [optional]
         }
         '''
-        self._transport   = cid.get('transport')
-        self._traddr      = cid.get('traddr')
-        trsvcid = cid.get('trsvcid')
-        self._trsvcid     = trsvcid if trsvcid else (TransportId.RDMA_IP_PORT if self._transport == 'rdma' else TransportId.DISC_IP_PORT) # pylint: disable=used-before-assignment
+        self._transport = cid.get('transport')
+        self._traddr    = cid.get('traddr')
+        trsvcid         = cid.get('trsvcid')
+        self._trsvcid = (
+            trsvcid
+            if trsvcid
+            else (TransportId.RDMA_IP_PORT if self._transport == 'rdma' else TransportId.DISC_IP_PORT)
+        )  # pylint: disable=used-before-assignment
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface  = '' if CNF.ignore_iface else cid.get('host-iface', '')
         self._subsysnqn   = cid.get('subsysnqn')
         self._key         = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._host_iface, self._subsysnqn)
         self._hash        = hash(self._key)
-        self._id = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})' # pylint: disable=line-too-long
+        self._id          = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'  # pylint: disable=line-too-long
 
     @property
     def key(self):  # pylint: disable=missing-function-docstring
@@ -1110,7 +1130,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
 
     CONNECT_RETRY_PERIOD_SEC = 60
 
-    def __init__(self, root, host, tid:TransportId, discovery_ctrl=False):
+    def __init__(self, root, host, tid: TransportId, discovery_ctrl=False):
         self._root              = root
         self._host              = host
         self._tid               = tid
@@ -1171,11 +1191,20 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 LOG.info('%s | %s - Received "remove" event', self.id, udev.sys_name)
                 self._on_udev_remove(udev)
             else:
-                LOG.debug('Controller._on_udev_notification() - %s | %s - Received "%s" notification.',
-                          self.id, udev.sys_name, udev.action)
+                LOG.debug(
+                    'Controller._on_udev_notification() - %s | %s - Received "%s" notification.',
+                    self.id,
+                    udev.sys_name,
+                    udev.action,
+                )
         else:
-            LOG.debug('Controller._on_udev_notification() - %s | %s - Received event on dead object. udev %s: %s',
-                      self.id, self.device, udev.action, udev.sys_name)
+            LOG.debug(
+                'Controller._on_udev_notification() - %s | %s - Received event on dead object. udev %s: %s',
+                self.id,
+                self.device,
+                udev.action,
+                udev.sys_name,
+            )
 
     def _on_aen(self, udev, aen: int):
         pass
@@ -1198,15 +1227,20 @@ class Controller:  # pylint: disable=too-many-instance-attributes
     def _try_to_connect(self):
         self._connect_attempts += 1
 
-        host_iface = self.tid.host_iface if (self.tid.host_iface and
-                                             not CNF.ignore_iface and
-                                             get_nvme_options().host_iface_supp) else None
-        self._ctrl = nvme.ctrl(self._root, subsysnqn=self.tid.subsysnqn,
-                               transport=self.tid.transport,
-                               traddr=self.tid.traddr,
-                               trsvcid=self.tid.trsvcid,
-                               host_traddr=self.tid.host_traddr if self.tid.host_traddr else None,
-                               host_iface=host_iface)
+        host_iface = (
+            self.tid.host_iface
+            if (self.tid.host_iface and not CNF.ignore_iface and get_nvme_options().host_iface_supp)
+            else None
+        )
+        self._ctrl = nvme.ctrl(
+            self._root,
+            subsysnqn=self.tid.subsysnqn,
+            transport=self.tid.transport,
+            traddr=self.tid.traddr,
+            trsvcid=self.tid.trsvcid,
+            host_traddr=self.tid.host_traddr if self.tid.host_traddr else None,
+            host_iface=host_iface,
+        )
         self._ctrl.discovery_ctrl_set(self._discovery_ctrl)
 
         # Audit existing nvme devices. If we find a match, then
@@ -1215,9 +1249,12 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         if udev is not None:
             # A device already exists.
             self._device = udev.sys_name
-            LOG.debug('Controller._try_to_connect()       - %s Found existing control device: %s', self.id, udev.sys_name)
-            self._connect_op = AsyncOperationWithRetry(self._on_connect_success, self._on_connect_fail,
-                                                       self._ctrl.init, self._host, int(udev.sys_number))
+            LOG.debug(
+                'Controller._try_to_connect()       - %s Found existing control device: %s', self.id, udev.sys_name
+            )
+            self._connect_op = AsyncOperationWithRetry(
+                self._on_connect_success, self._on_connect_fail, self._ctrl.init, self._host, int(udev.sys_number)
+            )
         else:
             self._device = None
             cfg = { 'hdr_digest':  CNF.hdr_digest,
@@ -1235,8 +1272,9 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 cfg['keep_alive_tmo'] = DC_KATO_DEFAULT
 
             LOG.debug('Controller._try_to_connect()       - %s Connecting to nvme control with cfg=%s', self.id, cfg)
-            self._connect_op = AsyncOperationWithRetry(self._on_connect_success, self._on_connect_fail,
-                                                       self._ctrl.connect, self._host, cfg)
+            self._connect_op = AsyncOperationWithRetry(
+                self._on_connect_success, self._on_connect_fail, self._ctrl.connect, self._host, cfg
+            )
 
         self._connect_op.run_async()
 
@@ -1255,15 +1293,23 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             self._connect_attempts = 0
             UDEV.register_for_events(self.device, self._on_udev_notification)
         else:
-            LOG.debug('Controller._on_connect_success()   - %s | %s Received event on dead object. data=%s',
-                      self.id, self.device, data)
+            LOG.debug(
+                'Controller._on_connect_success()   - %s | %s Received event on dead object. data=%s',
+                self.id,
+                self.device,
+                data,
+            )
 
     def _on_connect_fail(self, op_obj, err, fail_cnt):  # pylint: disable=unused-argument
         '''@brief Function called when we fail to connect to the Controller.'''
         op_obj.kill()
         if self._alive():
-            LOG.debug('Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
-                      self.id, err, self._retry_connect_tmr.get_timeout())
+            LOG.debug(
+                'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
+                self.id,
+                err,
+                self._retry_connect_tmr.get_timeout(),
+            )
             if self._connect_attempts == 1:  # Throttle the logs. Only print the first time we fail to connect
                 LOG.error('%s Failed to connect to controller. %s', self.id, err)
             self._retry_connect_tmr.start()
@@ -1344,7 +1390,9 @@ class Service:
 
         nvme_options = get_nvme_options()
         if not nvme_options.host_iface_supp or not nvme_options.discovery_supp:
-            LOG.warning('Kernel does not appear to support all the options needed to run this program. Consider updating to a later kernel version.')
+            LOG.warning(
+                'Kernel does not appear to support all the options needed to run this program. Consider updating to a later kernel version.'
+            )
 
     def _release_resources(self):
         LOG.debug('Service._release_resources()')
@@ -1394,7 +1442,9 @@ class Service:
         '''@brief return the list of controller objects'''
         return self._controllers.values()
 
-    def get_controller(self, transport: str, traddr: str, trsvcid: str, host_traddr: str, host_iface: str, subsysnqn: str):  # pylint: disable=too-many-arguments
+    def get_controller(
+        self, transport: str, traddr: str, trsvcid: str, host_traddr: str, host_iface: str, subsysnqn: str
+    ):  # pylint: disable=too-many-arguments
         '''@brief get the specified controller object from the list of controllers'''
         cid = {
             'transport': transport,

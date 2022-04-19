@@ -33,7 +33,14 @@ def troff(args):  # pylint: disable=unused-argument
 
 
 def _extract_cid(ctrl):  # pylint: disable=missing-function-docstring
-    return ctrl['transport'], ctrl['traddr'], ctrl['trsvcid'], ctrl['host-traddr'], ctrl['host-iface'], ctrl['subsysnqn']
+    return (
+        ctrl['transport'],
+        ctrl['traddr'],
+        ctrl['trsvcid'],
+        ctrl['host-traddr'],
+        ctrl['host-iface'],
+        ctrl['subsysnqn'],
+    )
 
 
 def status(args):  # pylint: disable=unused-argument
@@ -44,7 +51,9 @@ def status(args):  # pylint: disable=unused-argument
     info['controllers'] = iface.list_controllers(True)
     for controller in info['controllers']:
         transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn = _extract_cid(controller)
-        controller.update(json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)))
+        controller.update(
+            json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn))
+        )
 
     print(pprint.pformat(info, width=120))
 
@@ -74,7 +83,9 @@ PRSR = SUBPARSER.add_parser('status', help=f'Show runtime status information abo
 PRSR.set_defaults(func=status)
 
 PRSR = SUBPARSER.add_parser('ls', help='List I/O controllers')
-PRSR.add_argument('-d', '--detailed', action='store_true', help='Print detailed info (default: "%(default)s")', default=False)
+PRSR.add_argument(
+    '-d', '--detailed', action='store_true', help='Print detailed info (default: "%(default)s")', default=False
+)
 PRSR.set_defaults(func=ls)
 
 ARGS = PARSER.parse_args()

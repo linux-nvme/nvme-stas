@@ -11,7 +11,7 @@ if __name__ == '__main__':
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.is_root = os.geteuid() == 0
-            if self.is_root: # Only root can access /dev/nvme-fabrics
+            if self.is_root:  # Only root can access /dev/nvme-fabrics
                 stas.get_logger(False, 'Test')
                 self.nvme_options = stas.get_nvme_options()
             else:
@@ -26,6 +26,5 @@ if __name__ == '__main__':
             '''Test host_iface_supp'''
             if self.nvme_options:
                 self.assertEqual(type(self.nvme_options.host_iface_supp), bool)
-
 
     unittest.main()

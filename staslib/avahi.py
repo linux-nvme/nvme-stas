@@ -75,7 +75,9 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         PROTO_UNSPEC: 'uspecified'
     }
 
-    result_flags_as_string = lambda flags: '+'.join((value for flag, value in Avahi.result_flags.items() if (flags & flag) != 0))
+    result_flags_as_string = lambda flags: '+'.join(
+        (value for flag, value in Avahi.result_flags.items() if (flags & flag) != 0)
+    )
     protocol_as_string = lambda proto: Avahi.protos.get(proto, 'unknown')
 
     # ==========================================================================
@@ -100,11 +102,33 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         # any Browser or Resolver is created to avoid race conditions and
         # missed events.
         self._subscriptions = [
-            self._sysbus.connection.signal_subscribe(Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_BROWSER,  'ItemNew',    None, None, 0, self._service_discovered),
-            self._sysbus.connection.signal_subscribe(Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_BROWSER,  'ItemRemove', None, None, 0, self._service_removed),
-            self._sysbus.connection.signal_subscribe(Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_BROWSER,  'Failure',    None, None, 0, self._failure_handler),
-            self._sysbus.connection.signal_subscribe(Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_RESOLVER, 'Found',      None, None, 0, self._service_identified),
-            self._sysbus.connection.signal_subscribe(Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_RESOLVER, 'Failure',    None, None, 0, self._failure_handler),
+            self._sysbus.connection.signal_subscribe(
+                Avahi.DBUS_NAME,
+                Avahi.DBUS_INTERFACE_SERVICE_BROWSER,
+                'ItemNew',
+                None,
+                None,
+                0,
+                self._service_discovered,
+            ),
+            self._sysbus.connection.signal_subscribe(
+                Avahi.DBUS_NAME,
+                Avahi.DBUS_INTERFACE_SERVICE_BROWSER,
+                'ItemRemove',
+                None,
+                None,
+                0,
+                self._service_removed,
+            ),
+            self._sysbus.connection.signal_subscribe(
+                Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_BROWSER, 'Failure', None, None, 0, self._failure_handler
+            ),
+            self._sysbus.connection.signal_subscribe(
+                Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_RESOLVER, 'Found', None, None, 0, self._service_identified
+            ),
+            self._sysbus.connection.signal_subscribe(
+                Avahi.DBUS_NAME, Avahi.DBUS_INTERFACE_SERVICE_RESOLVER, 'Failure', None, None, 0, self._failure_handler
+            ),
         ]
 
         self._avahi = self._sysbus.get_proxy(Avahi.DBUS_NAME, '/')
@@ -143,7 +167,9 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         services = dict()
         for service, obj in self._services.items():
             interface, protocol, name, stype, domain = service
-            key = '({}, {}, {}.{}, {})'.format(socket.if_indextoname(interface), Avahi.protos.get(protocol, 'unknown'), name, domain, stype)  # pylint: disable=consider-using-f-string
+            key = '({}, {}, {}.{}, {})'.format(  # pylint: disable=consider-using-f-string
+                socket.if_indextoname(interface), Avahi.protos.get(protocol, 'unknown'), name, domain, stype
+            )
             services[key] = obj.get('data', {})
 
         info = {
@@ -260,7 +286,9 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
         for stype in stypes_to_add:
             try:
-                obj_path = self._avahi.ServiceBrowserNew(Avahi.IF_UNSPEC, Avahi.PROTO_UNSPEC, stype, 'local', Avahi.LOOKUP_USE_MULTICAST)
+                obj_path = self._avahi.ServiceBrowserNew(
+                    Avahi.IF_UNSPEC, Avahi.PROTO_UNSPEC, stype, 'local', Avahi.LOOKUP_USE_MULTICAST
+                )
                 self._service_browsers[stype] = self._sysbus.get_proxy(Avahi.DBUS_NAME, obj_path)
             except dasbus.error.DBusError as ex:
                 self._logger.debug('Avahi._configure_browsers()        - Failed to contact avahi-daemon. %s', ex)
@@ -269,7 +297,16 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
         return True
 
-    def _service_discovered(self, _connection, _sender_name: str, _object_path: str, _interface_name: str, _signal_name: str, args: typing.Tuple[int, int, str, str, str, int], *_user_data):
+    def _service_discovered(
+        self,
+        _connection,
+        _sender_name: str,
+        _object_path: str,
+        _interface_name: str,
+        _signal_name: str,
+        args: typing.Tuple[int, int, str, str, str, int],
+        *_user_data
+    ):
         (interface, protocol, name, stype, domain, flags) = args
         self._logger.debug(
             'Avahi._service_discovered()        - interface=%s (%s), protocol=%s, stype=%s, domain=%s, flags=%s %-14s name=%s',
@@ -286,7 +323,9 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         service = (interface, protocol, name, stype, domain)
         if service not in self._services:
             try:
-                obj_path = self._avahi.ServiceResolverNew(interface, protocol, name, stype, domain, Avahi.PROTO_UNSPEC, Avahi.LOOKUP_USE_MULTICAST)
+                obj_path = self._avahi.ServiceResolverNew(
+                    interface, protocol, name, stype, domain, Avahi.PROTO_UNSPEC, Avahi.LOOKUP_USE_MULTICAST
+                )
                 self._services[service] = {
                     'resolver': self._sysbus.get_proxy(Avahi.DBUS_NAME, obj_path),
                     'data': {},
@@ -294,7 +333,16 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
             except dasbus.error.DBusError as ex:
                 self._logger.warning('Failed to create resolver: "%s", "%s", "%s". %s', interface, name, stype, ex)
 
-    def _service_removed(self, _connection, _sender_name: str, _object_path: str, _interface_name: str, _signal_name: str, args: typing.Tuple[int, int, str, str, str, int], *_user_data):
+    def _service_removed(
+        self,
+        _connection,
+        _sender_name: str,
+        _object_path: str,
+        _interface_name: str,
+        _signal_name: str,
+        args: typing.Tuple[int, int, str, str, str, int],
+        *_user_data
+    ):
         (interface, protocol, name, stype, domain, flags) = args
         self._logger.debug(
             'Avahi._service_removed()           - interface=%s (%s), protocol=%s, stype=%s, domain=%s, flags=%s %-14s name=%s',
@@ -319,8 +367,16 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
         self._change_cb()
 
-    def _service_identified(self, _connection, _sender_name:str, _object_path:str, _interface_name:str,
-                           _signal_name:str, args:typing.Tuple[int, int, str, str, str, str, int, str, int, list, int], *_user_data):
+    def _service_identified(
+        self,
+        _connection,
+        _sender_name: str,
+        _object_path: str,
+        _interface_name: str,
+        _signal_name: str,
+        args: typing.Tuple[int, int, str, str, str, str, int, str, int, list, int],
+        *_user_data
+    ):
         (interface, protocol, name, stype, domain, host, aprotocol, address, port, txt, flags) = args
         txt = txt2dict(txt)
         self._logger.debug(
@@ -347,12 +403,22 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                 'traddr':     address,
                 'trsvcid':    str(port),
                 'host-iface': socket.if_indextoname(interface),
-                'subsysnqn':  txt.get('NQN', 'nqn.2014-08.org.nvmexpress.discovery') if stas.get_nvme_options().discovery_supp else 'nqn.2014-08.org.nvmexpress.discovery',
+                'subsysnqn':  txt.get('NQN', 'nqn.2014-08.org.nvmexpress.discovery')
+                              if stas.get_nvme_options().discovery_supp
+                              else 'nqn.2014-08.org.nvmexpress.discovery',
             }
         self._change_cb()
 
-    def _failure_handler(self, _connection, _sender_name:str, _object_path:str, interface_name:str,
-                         _signal_name:str, args:typing.Tuple[str], *_user_data):
+    def _failure_handler(
+        self,
+        _connection,
+        _sender_name: str,
+        _object_path: str,
+        interface_name: str,
+        _signal_name: str,
+        args: typing.Tuple[str],
+        *_user_data
+    ):
         (error,) = args
         if 'ServiceResolver' not in interface_name or 'TimeoutError' not in error:  # ServiceResolver may fire a timeout event after being Free'd(). This seems to be normal.
             self._logger.error('Avahi._failure_handler()    - name=%s, error=%s', interface_name, error)

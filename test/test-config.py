@@ -55,7 +55,6 @@ if __name__ == '__main__':
 
             self.assertTrue(cnf.zeroconf_enabled())
 
-
     class StasSysConfUnitTest(unittest.TestCase):
         '''Sys config unit tests'''
 

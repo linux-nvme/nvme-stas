@@ -34,14 +34,15 @@
 """
 
 
-from __future__ import (print_function, division, unicode_literals,
-                        absolute_import)
+from __future__ import print_function, division, unicode_literals, absolute_import
 
 from gi.repository import GLib as glib
 from gi.repository import GObject as gobject
 
-class _ObserverMixin: # pylint: disable=too-few-public-methods
+
+class _ObserverMixin:  # pylint: disable=too-few-public-methods
     """Mixin to provide observer behavior to the old and the new API."""
+
     def _setup_observer(self, monitor):
         self.monitor = monitor
         self.event_source = None
@@ -62,12 +63,11 @@ class _ObserverMixin: # pylint: disable=too-few-public-methods
     @enabled.setter
     def enabled(self, value):
         if value and self.event_source is None:
-            self.event_source = glib.io_add_watch(
-                self.monitor, glib.IO_IN, self._process_udev_event)
+            self.event_source = glib.io_add_watch(self.monitor, glib.IO_IN, self._process_udev_event)
         elif not value and self.event_source is not None:
             glib.source_remove(self.event_source)
 
-    def _process_udev_event(self, source, condition): # pylint: disable=unused-argument
+    def _process_udev_event(self, source, condition):  # pylint: disable=unused-argument
         if condition == glib.IO_IN:
             device = self.monitor.poll(timeout=0)
             if device is not None:
@@ -78,7 +78,7 @@ class _ObserverMixin: # pylint: disable=too-few-public-methods
         self.emit('device-event', device)
 
 
-class MonitorObserver(gobject.GObject, _ObserverMixin): # pylint: disable=too-few-public-methods
+class MonitorObserver(gobject.GObject, _ObserverMixin):  # pylint: disable=too-few-public-methods
     """
     An observer for device events integrating into the :mod:`glib` mainloop.
 
@@ -106,8 +106,7 @@ class MonitorObserver(gobject.GObject, _ObserverMixin): # pylint: disable=too-fe
         # python versions.  We could also remove the "unicode_literals" import,
         # but I don't want to make exceptions to the standard set of future
         # imports used throughout pyudev for the sake of consistency.
-        str('device-event'): (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
-                              (gobject.TYPE_PYOBJECT,)),
+        str('device-event'): (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
     }
 
     def __init__(self, monitor):
