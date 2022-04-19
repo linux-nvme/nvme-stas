@@ -32,9 +32,13 @@ ifneq ("$(wildcard ${BUILD-DIR})","")
 	rm -rf ${BUILD-DIR}
 endif
 
-.PHONY: install test dist
-install test dist: ${BUILD-DIR}
+.PHONY: install dist
+install dist: ${BUILD-DIR}
 	meson $@ -C ${BUILD-DIR}
+
+.PHONY: test
+test: ${BUILD-DIR}
+	meson $@ -C ${BUILD-DIR} --suite nvme-stas
 
 .PHONY: loc
 loc:
