@@ -9,9 +9,30 @@ from lxml import etree
 
 def parse_args():
     parser = ArgumentParser(description='Extract D-Bus IDL from executable and genarate DocBook documentation.')
-    parser.add_argument('--executable', action='store', help='Executable from which to get the IDL (must provide an --idl option)', required=True, type=str, metavar='FILE')
-    parser.add_argument('--output-directory', action='store', help='Output directory where DocBook files will be saved', required=True, type=str, metavar='DIR')
-    parser.add_argument('--tmp', action='store', help='Temporary directory for intermediate files', required=True, type=str, metavar='DIR')
+    parser.add_argument(
+        '--executable',
+        action='store',
+        help='Executable from which to get the IDL (must provide an --idl option)',
+        required=True,
+        type=str,
+        metavar='FILE',
+    )
+    parser.add_argument(
+        '--output-directory',
+        action='store',
+        help='Output directory where DocBook files will be saved',
+        required=True,
+        type=str,
+        metavar='DIR',
+    )
+    parser.add_argument(
+        '--tmp',
+        action='store',
+        help='Temporary directory for intermediate files',
+        required=True,
+        type=str,
+        metavar='DIR',
+    )
     return parser.parse_args()
 
 

@@ -53,7 +53,9 @@ def _echo(value, fname: str):
 
 
 def _symlink(port: str, subsysnqn: str):
-    print(f'$( cd "/sys/kernel/config/nvmet/ports/{port}/subsystems" && ln -s "../../../subsystems/{subsysnqn}" "{subsysnqn}" )')
+    print(
+        f'$( cd "/sys/kernel/config/nvmet/ports/{port}/subsystems" && ln -s "../../../subsystems/{subsysnqn}" "{subsysnqn}" )'
+    )
     if args.dry_run:
         return
     target = os.path.join('/sys/kernel/config/nvmet/subsystems', subsysnqn)
@@ -145,21 +147,35 @@ def create(args):
 
     for port in ports:
         print('')
-        id, traddr, trsvcid, trtype, adrfam = str(port.get('id')), port.get('traddr'), port.get('trsvcid'), port.get('trtype'), port.get('adrfam')
+        id, traddr, trsvcid, trtype, adrfam = (
+            str(port.get('id')),
+            port.get('traddr'),
+            port.get('trsvcid'),
+            port.get('trtype'),
+            port.get('adrfam'),
+        )
         if None not in (id, traddr, trsvcid, trtype, adrfam):
             _create_port(id, traddr, trsvcid, trtype, adrfam)
         else:
-            print(f'{Fore.RED}### Config file "{args.conf_file}" error in "ports" section: id={id}, traddr={traddr}, trsvcid={trsvcid}, trtype={trtype}, adrfam={adrfam}{Style.RESET_ALL}')
+            print(
+                f'{Fore.RED}### Config file "{args.conf_file}" error in "ports" section: id={id}, traddr={traddr}, trsvcid={trsvcid}, trtype={trtype}, adrfam={adrfam}{Style.RESET_ALL}'
+            )
 
     for subsystem in subsystems:
         print('')
-        subsysnqn, port, namespaces = subsystem.get('subsysnqn'), str(subsystem.get('port')), subsystem.get('namespaces')
+        subsysnqn, port, namespaces = (
+            subsystem.get('subsysnqn'),
+            str(subsystem.get('port')),
+            subsystem.get('namespaces'),
+        )
         if None not in (subsysnqn, port, namespaces):
             _create_subsystem(subsysnqn)
             for id in namespaces:
                 _create_namespace(subsysnqn, str(id), dev_node)
         else:
-            print(f'{Fore.RED}### Config file "{args.conf_file}" error in "subsystems" section: subsysnqn={subsysnqn}, port={port}, namespaces={namespaces}{Style.RESET_ALL}')
+            print(
+                f'{Fore.RED}### Config file "{args.conf_file}" error in "subsystems" section: subsysnqn={subsysnqn}, port={port}, namespaces={namespaces}{Style.RESET_ALL}'
+            )
 
     print('')
     _map_subsystems_to_ports(subsystems)
@@ -275,25 +291,41 @@ parser.add_argument('-v', '--version', action='store_true', help='Print version,
 subparser = parser.add_subparsers(title='Commands', description='valid commands')
 
 prsr = subparser.add_parser('create', help='Create nvme targets')
-prsr.add_argument('-f', '--conf-file', action='store', help='Configuration file (default: %(default)s)', default=DEFAULT_CONFIG_FILE, type=str, metavar='FILE')
-prsr.add_argument('-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False)
+prsr.add_argument(
+    '-f',
+    '--conf-file',
+    action='store',
+    help='Configuration file (default: %(default)s)',
+    default=DEFAULT_CONFIG_FILE,
+    type=str,
+    metavar='FILE',
+)
+prsr.add_argument(
+    '-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False
+)
 prsr.set_defaults(func=create)
 
 prsr = subparser.add_parser('clean', help='Remove all previously created nvme targets')
-prsr.add_argument('-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False)
+prsr.add_argument(
+    '-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False
+)
 prsr.set_defaults(func=clean)
 
 prsr = subparser.add_parser('ls', help='List ports and subsystems')
 prsr.set_defaults(func=ls)
 
 prsr = subparser.add_parser('link', help='Map a subsystem to a port')
-prsr.add_argument('-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False)
+prsr.add_argument(
+    '-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False
+)
 prsr.add_argument('-p', '--port', action='store', type=int, help='nvmet port', required=True)
 prsr.add_argument('-s', '--subnqn', action='store', type=str, help='nvmet subsystem NQN', required=True, metavar='NQN')
 prsr.set_defaults(func=link)
 
 prsr = subparser.add_parser('unlink', help='Unmap a subsystem from a port')
-prsr.add_argument('-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False)
+prsr.add_argument(
+    '-d', '--dry-run', action='store_true', help='Just print what would be done. (default: %(default)s)', default=False
+)
 prsr.add_argument('-p', '--port', action='store', type=int, help='nvmet port', required=True)
 prsr.add_argument('-s', '--subnqn', action='store', type=str, help='nvmet subsystem NQN', required=True, metavar='NQN')
 prsr.set_defaults(func=unlink)

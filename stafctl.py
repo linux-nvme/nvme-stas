@@ -33,7 +33,14 @@ def troff(args):  # pylint: disable=unused-argument
 
 
 def _extract_cid(ctrl):  # pylint: disable=missing-function-docstring
-    return ctrl['transport'], ctrl['traddr'], ctrl['trsvcid'], ctrl['host-traddr'], ctrl['host-iface'], ctrl['subsysnqn']
+    return (
+        ctrl['transport'],
+        ctrl['traddr'],
+        ctrl['trsvcid'],
+        ctrl['host-traddr'],
+        ctrl['host-iface'],
+        ctrl['subsysnqn'],
+    )
 
 
 def status(args):  # pylint: disable=unused-argument
@@ -45,7 +52,9 @@ def status(args):  # pylint: disable=unused-argument
     for controller in info['controllers']:
         transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn = _extract_cid(controller)
         controller['log_pages'] = iface.get_log_pages(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
-        controller.update(json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)))
+        controller.update(
+            json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn))
+        )
 
     print(pprint.pformat(info, width=120))
 
@@ -77,12 +86,7 @@ def adlp(args):
 
 
 PARSER = ArgumentParser(description=f'{defs.STAF_DESCRIPTION} ({defs.STAF_ACRONYM})')
-PARSER.add_argument(
-    '-v', '--version',
-    action='store_true',
-    help='Print version, then exit',
-    default=False
-)
+PARSER.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
 
 SUBPARSER = PARSER.add_subparsers(title='Commands')
 
@@ -97,7 +101,8 @@ PRSR.set_defaults(func=status)
 
 PRSR = SUBPARSER.add_parser('ls', help='List discovery controllers')
 PRSR.add_argument(
-    '-d', '--detailed',
+    '-d',
+    '--detailed',
     action='store_true',
     help='Print detailed info (default: "%(default)s")',
     default=False,
@@ -106,7 +111,8 @@ PRSR.set_defaults(func=ls)
 
 PRSR = SUBPARSER.add_parser('dlp', help='Show discovery log pages')
 PRSR.add_argument(
-    '-t', '--transport',
+    '-t',
+    '--transport',
     metavar='<trtype>',
     action='store',
     help='NVMe-over-Fabrics fabric type (default: "%(default)s")',
@@ -114,35 +120,40 @@ PRSR.add_argument(
     default='tcp',
 )
 PRSR.add_argument(
-    '-a', '--traddr',
+    '-a',
+    '--traddr',
     metavar='<traddr>',
     action='store',
     help='Discovery Controller\'s network address',
     required=True,
 )
 PRSR.add_argument(
-    '-s', '--trsvcid',
+    '-s',
+    '--trsvcid',
     metavar='<trsvcid>',
     action='store',
     help='Transport service id (for IP addressing, e.g. tcp, rdma, this field is the port number)',
     required=True,
 )
 PRSR.add_argument(
-    '-w', '--host-traddr',
+    '-w',
+    '--host-traddr',
     metavar='<traddr>',
     action='store',
     help='Network address used on the host to connect to the Controller (default: "%(default)s")',
     default='',
 )
 PRSR.add_argument(
-    '-f', '--host-iface',
+    '-f',
+    '--host-iface',
     metavar='<iface>',
     action='store',
     help='This field specifies the network interface used on the host to connect to the Controller (default: "%(default)s")',
     default='',
 )
 PRSR.add_argument(
-    '-n', '--nqn',
+    '-n',
+    '--nqn',
     metavar='<nqn>',
     action='store',
     help='This field specifies the discovery controller\'s NQN. When not specified this option defaults to "%(default)s"',
@@ -152,7 +163,8 @@ PRSR.set_defaults(func=dlp)
 
 PRSR = SUBPARSER.add_parser('adlp', help='Show all discovery log pages')
 PRSR.add_argument(
-    '-d', '--detailed',
+    '-d',
+    '--detailed',
     action='store_true',
     help='Print detailed info (default: "%(default)s")',
     default=False,

@@ -47,9 +47,25 @@ DBUS_IDL = '''
 
 
 def parse_args(conf_file: str):  # pylint: disable=missing-function-docstring
-    parser = ArgumentParser(description=f'{defs.STAC_DESCRIPTION} ({defs.STAC_ACRONYM}). Must be root to run this program.')
-    parser.add_argument('-f', '--conf-file', action='store', help='Configuration file (default: %(default)s)', default=conf_file, type=str, metavar='FILE')
-    parser.add_argument('-s', '--syslog', action='store_true', help='Send messages to syslog instead of stdout. Use this when running %(prog)s as a daemon. (default: %(default)s)', default=False)
+    parser = ArgumentParser(
+        description=f'{defs.STAC_DESCRIPTION} ({defs.STAC_ACRONYM}). Must be root to run this program.'
+    )
+    parser.add_argument(
+        '-f',
+        '--conf-file',
+        action='store',
+        help='Configuration file (default: %(default)s)',
+        default=conf_file,
+        type=str,
+        metavar='FILE',
+    )
+    parser.add_argument(
+        '-s',
+        '--syslog',
+        action='store_true',
+        help='Send messages to syslog instead of stdout. Use this when running %(prog)s as a daemon. (default: %(default)s)',
+        default=False,
+    )
     parser.add_argument('--tron', action='store_true', help='Trace ON. (default: %(default)s)', default=False)
     parser.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
     parser.add_argument('--idl', action='store', help='Print D-Bus IDL, then exit', type=str, metavar='FILE')
@@ -171,7 +187,10 @@ class Stac(stas.Service):
 
         def list_controllers(self, detailed) -> str:  # pylint: disable=no-self-use
             '''@brief Return the list of I/O controller IDs'''
-            return [controller.details() if detailed else controller.controller_id_dict() for controller in STAC.get_controllers()]
+            return [
+                controller.details() if detailed else controller.controller_id_dict()
+                for controller in STAC.get_controllers()
+            ]
 
     # ==========================================================================
     def __init__(self):
@@ -219,7 +238,9 @@ class Stac(stas.Service):
         return GLib.SOURCE_CONTINUE
 
     def _config_ctrls_finish(self, configured_ctrl_list):
-        configured_ctrl_list = [ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict and 'subsysnqn' in ctrl_dict]
+        configured_ctrl_list = [
+            ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict and 'subsysnqn' in ctrl_dict
+        ]
         LOG.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
 
         discovered_ctrl_list = list()

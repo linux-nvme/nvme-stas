@@ -6,6 +6,7 @@ if __name__ == '__main__':
 
     class Test(unittest.TestCase):
         '''Unit test for class TransportId'''
+
         TRANSPORT    = 'tcp'
         TRADDR       = '10.10.10.10'
         OTHER_TRADDR = '1.1.1.1'

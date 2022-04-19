@@ -32,9 +32,13 @@ ifneq ("$(wildcard ${BUILD-DIR})","")
 	rm -rf ${BUILD-DIR}
 endif
 
-.PHONY: install dist
-install dist: ${BUILD-DIR}
+.PHONY: install
+install: ${BUILD-DIR}
 	meson $@ -C ${BUILD-DIR}
+
+.PHONY: dist
+dist: ${BUILD-DIR}
+	meson $@ -C ${BUILD-DIR} --formats gztar
 
 .PHONY: test
 test: ${BUILD-DIR}
