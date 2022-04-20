@@ -30,7 +30,7 @@ endforeach
 files_to_install = copied_files + configured_files
 python3.install_sources(
     files_to_install,
-    pure: false,
+    pure: true,
     subdir: 'staslib',
 )
 
