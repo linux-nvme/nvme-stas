@@ -98,6 +98,7 @@ stas.check_if_allowed_to_continue()
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 import json
+import pathlib
 import systemd.daemon
 import dasbus.error
 import dasbus.client.observer
@@ -113,6 +114,24 @@ SYS_CNF = stas.get_sysconf()  # Singleton
 NVME_ROOT = nvme.root()  # Singleton
 NVME_ROOT.log_level("debug" if (ARGS.tron or CNF.tron) else "err")
 NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname)  # Singleton
+
+UDEV_RULE_SUPPRESS = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
+def udev_rule_ctrl(enable):
+    '''@brief We add an empty udev rule to /run/udev/rules.d to suppress
+    nvme-cli's udev rule that is used to tell udevd to automatically
+    connect to I/O controller. This is to avoid race conditions between
+    stacd and udevd. This is configurable. See "udev-rule" in stacd.conf
+    for details.
+    '''
+    if enable:
+        try:
+            UDEV_RULE_SUPPRESS.unlink()
+        except FileNotFoundError:
+            pass
+    else:
+        if not UDEV_RULE_SUPPRESS.exists():
+            pathlib.Path('/run/udev/rules.d').mkdir(parents=True, exist_ok=True)
+            UDEV_RULE_SUPPRESS.symlink_to('/dev/null')
 
 
 def set_loglevel(tron):  # pylint: disable=missing-function-docstring
@@ -215,8 +234,14 @@ class Stac(stas.Service):
         self._staf_watcher.service_unavailable.connect(self._disconnect_from_staf)
         self._staf_watcher.connect_once_available()
 
+        # Suppress udev rule to auto-connect when AEN is received.
+        udev_rule_ctrl(CNF.udev_rule_enabled)
+
     def _release_resources(self):
         LOG.debug('Stac._release_resources()')
+
+        udev_rule_ctrl(True)
+
         self._disconnect_from_staf(self._staf_watcher)
         if self._staf_watcher is not None:
             self._staf_watcher.disconnect()
