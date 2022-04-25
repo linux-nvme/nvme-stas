@@ -173,6 +173,7 @@ class Configuration:
             ('Global', 'kato'): None,
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'udev-rule'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'blacklist'): list(),
@@ -226,6 +227,11 @@ class Configuration:
             return (6,)
 
         return (4, 6)
+
+    @property
+    def udev_rule_enabled(self):
+        '''@brief return the "udev-rule" config parameter'''
+        return self.__get_value('Global', 'udev-rule')[0] == 'enabled'
 
     @property
     def kato(self):
@@ -1129,6 +1135,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
     '''@brief Base class used to manage the connection to a controller.'''
 
     CONNECT_RETRY_PERIOD_SEC = 60
+    FAST_CONNECT_RETRY_PERIOD_SEC = 3
 
     def __init__(self, root, host, tid: TransportId, discovery_ctrl=False):
         self._root              = root
@@ -1304,17 +1311,38 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         '''@brief Function called when we fail to connect to the Controller.'''
         op_obj.kill()
         if self._alive():
+            if self._connect_attempts == 1:
+                # Do a fast re-try on the first failure.
+                # A race condition between "nvme connect-all" and "stacd" can result
+                # in a failed connection message even when the connection is successful.
+                # More precisely, nvme-cli's "connect-all" command relies on udev rules
+                # to trigger a "nvme connect" command when an AEN indicates that the
+                # Discovery Log Page Entries (DPLE) have changed. And since stacd also
+                # reacts to AENs to set up I/O controller connections, we end up having
+                # both stacd and udevd trying to connect to the same I/O controllers at
+                # the same time. This is perfectly fine, except that we may get a bogus
+                # failed to connect error. By doing a fast re-try, stacd can quickly
+                # verify that the connection was actually successful.
+                self._retry_connect_tmr.set_timeout(Controller.FAST_CONNECT_RETRY_PERIOD_SEC)
+            elif self._connect_attempts == 2:
+                # If the fast connect re-try fails, then we can print a message to
+                # indicate the failure, and start a slow re-try period.
+                self._retry_connect_tmr.set_timeout(Controller.CONNECT_RETRY_PERIOD_SEC)
+                LOG.error('%s Failed to connect to controller. %s', self.id, getattr(err, 'message', err))
+
             LOG.debug(
                 'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
                 self.id,
                 err,
                 self._retry_connect_tmr.get_timeout(),
             )
-            if self._connect_attempts == 1:  # Throttle the logs. Only print the first time we fail to connect
-                LOG.error('%s Failed to connect to controller. %s', self.id, err)
             self._retry_connect_tmr.start()
         else:
-            LOG.debug('Controller._on_connect_fail()      - %s Received event on dead object. %s', self.id, err)
+            LOG.debug(
+                'Controller._on_connect_fail()      - %s Received event on dead object. %s',
+                self.id,
+                getattr(err, 'message', err),
+            )
 
     @property
     def id(self) -> str:  # pylint: disable=missing-function-docstring
