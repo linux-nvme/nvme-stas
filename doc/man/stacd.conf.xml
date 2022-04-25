@@ -155,6 +155,72 @@
                         </para>
                     </listitem>
                 </varlistentry>
+
+                <varlistentry>
+                    <term><varname>udev-rule=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes a string argument <literal>enabled</literal> or
+                            <literal>disabled</literal>. This option determines
+                            whether nvme-cli's udev rule will be executed
+                            or ignored.
+                        </para>
+
+                        <para>
+                            A udev rule gets intalled with <code>nvme-cli</code>
+                            that tells the udev daemon (<code>udevd</code>) to look
+                            for Asychronous Event Notifications (AEN) indicating
+                            a change of discovery log page entries (DPLE). The
+                            udev rule is installed as: <filename>/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules</filename>
+                        </para>
+
+                        <para>
+                            When an AEN is detected, <code>udevd</code> simply
+                            instructs <code>systemd</code> to start a one-shot
+                            service that will retrieve the changed DPLEs and
+                            connect to all the I/O Contollers (IOC) listed in
+                            the DPLEs. This is basically the same as perfoming
+                            <code>nvme-cli</code>'s "<code>connect-all</code>"
+                            command.
+                        </para>
+
+                        <para>
+                            Unfortunately, <code>stafd</code> and <code>stacd</code>
+                            also perform the same operations when an AEN is received.
+                            This results in a race condition between <code>udevd</code>
+                            and <code>stafd</code>/<code>stacd</code>.
+                        </para>
+
+                        <para>
+                            This is not really a problem. <code>stafd</code> and
+                            <code>stacd</code> are designed to handle this type
+                            of race condition and will conclude, eventually, that
+                            the connections succeeded. The only downside is that
+                            there may be error messages printed to the syslog
+                            when the race condition happens. These messages are
+                            printed by the kernel because two processes are trying
+                            to connect to the same IOC at the same time. One of
+                            them will be rejected by the kernel, but the other
+                            will succeed.
+                        </para>
+
+                        <para>
+                            The <code>udev-rule</code> option allows a user to
+                            disable nvme-cli's udev rule so that <code>udevd</code> will
+                            not take action on received AENs. Instead, only
+                            <code>stafd</code>/<code>stacd</code> will be allowed
+                            to react to AENs and set up IOC connections.
+                        </para>
+
+                        <para>
+                            Defaults to <literal>enabled</literal>, which means
+                            that <code>udevd</code> and <code>stafd</code>/<code>stacd</code>
+                            will react to AENs. It also means that the race condition
+                            will happen by default and error messages will be
+                            printed to the syslog.
+                        </para>
+                    </listitem>
+                </varlistentry>
             </variablelist>
         </refsect2>
 
