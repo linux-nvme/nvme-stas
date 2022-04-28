@@ -17,8 +17,10 @@ PYTHON_SEARCH_PATHS = [
     join_paths(TEST_DIR_ROOT, 'subprojects', 'libnvme')
 ]
 
+PYTHONPATH = ':'.join(PYTHON_SEARCH_PATHS)
+
 test_env = environment({'MALLOC_PERTURB_': '0'})
-test_env.prepend('PYTHONPATH', ':'.join(PYTHON_SEARCH_PATHS))
+test_env.prepend('PYTHONPATH', PYTHONPATH)
 
 # pylint and pyflakes
 if modules_to_lint.length() != 0

@@ -52,6 +52,11 @@ loc:
 loc-full:
 	@cloc --by-file --exclude-dir=${BUILD-DIR},doc,test,utils,debian,obj-x86_64-linux-gnu,.github .
 
+# Coverage requirements:
+#   pip install coverage
+.PHONY: coverage
+coverage: stas
+	cd ${BUILD-DIR} && ./coverage.sh
 
 ################################################################################
 # Debian (*.deb)

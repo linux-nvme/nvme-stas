@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+PRIMARY_GRP=$( id -ng )
+PRIMARY_USR=$( id -nu )
+PYTHON_PATH=.:./subprojects/libnvme
+
+sd_stop() {
+    unit="$1"-cov.service
+    sudo systemctl stop "${unit}" >/dev/null 2>&1 || true
+    sudo systemctl reset-failed "${unit}" >/dev/null 2>&1 || true
+}
+
+sd_start() {
+    app="$1"
+    dbus="$2"
+    conf="$3"
+    unit="${app}"-cov.service
+
+    if [ -z "${conf}" ]; then
+        cmd="${app}"
+    else
+        cmd="${app} -f ${conf}"
+    fi
+
+    printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start ${app}" "\0033"
+
+    sd_stop "${app}" # make sure it's not running already
+    sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --setenv=PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ${cmd}
+}
+
+if [ ! -d coverage ]; then
+    mkdir coverage
+fi
+
+################################################################################
+# Start nvme target simulator
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start nvmet" "\0033"
+sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf
+
+################################################################################
+# Load nvme kernel module
+sudo /usr/sbin/modprobe nvme-tcp
+
+################################################################################
+# Create a dummy config file for @STAFD_PROCNAME@
+@STAFD_PROCNAME@_conf=$(mktemp /tmp/@STAFD_PROCNAME@.conf.XXXXXX)
+cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+[Global]
+tron=false
+kato=10
+persistent-connections=false
+
+[Controllers]
+controller=transport=tcp;traddr=localhost
+EOF
+
+################################################################################
+# Start @STAFD_PROCNAME@ and @STACD_PROCNAME@
+sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${@STAFD_PROCNAME@_conf}"
+sd_start "@STACD_PROCNAME@" "@STACD_DBUS_NAME@" ""
+sleep 2
+
+################################################################################
+# Stimulate D-Bus activity
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ tron" "\0033"
+sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ tron
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ troff" "\0033"
+sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ troff
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ ls" "\0033"
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls -d
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ adlp" "\0033"
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ adlp -d
+
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ tron" "\0033"
+sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ tron
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ status" "\0033"
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ status
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ troff" "\0033"
+sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ troff
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d
+
+################################################################################
+# Stimulate AENs activity by removing/restoring namespaces
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Remove namespace: klingons" "\0033"
+sudo ../utils/nvmet/nvmet.py unlink -p 1 -s klingons
+sleep 2
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d
+
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Restore namespace: klingons" "\0033"
+sudo ../utils/nvmet/nvmet.py link -p 1 -s klingons
+sleep 2
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d
+
+################################################################################
+# Stop everything and collect coverage stats
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop @STAFD_PROCNAME@ and @STACD_PROCNAME@" "\0033"
+sd_stop "@STAFD_PROCNAME@"
+sd_stop "@STACD_PROCNAME@"
+
+################################################################################
+# Change ownership of files that were created as root
+sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage
+sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" staslib/__pycache__
+sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/libnvme/libnvme/__pycache__
+
+################################################################################
+# Stop nvme target simulator
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop nvmet" "\0033"
+sudo ../utils/nvmet/nvmet.py clean
+
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Collect all coverage data" "\0033"
+coverage combine --rcfile=.coveragerc
+
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Generating coverage report" "\0033"
+coverage report -i --rcfile=.coveragerc
+
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Generating coverage report (HTML)" "\0033"
+coverage html -i --rcfile=.coveragerc
+
