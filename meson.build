@@ -68,17 +68,21 @@ conf.set('VERSION', meson.project_version())
 conf.set('LICENSE', meson.project_license()[0])
 conf.set('KERNEL_IFACE_MIN_VERSION', '5.14')
 conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
+conf.set('BUILD_DIR', meson.current_build_dir())
 
 foreach component : [ ['staf', 'STorage Appliance Finder'],
                       ['stac', 'STorage Appliance Connector'] ]
     COMPONENT   = component[0].to_upper()
     daemon_name = component[0] + 'd'
+    ctl_name    = component[0] + 'ctl'
     DAEMON_NAME = daemon_name.to_upper()
     conf.set(DAEMON_NAME + '_CONFIG_FILE', join_paths(cnfdir, daemon_name + '.conf'))
     conf.set(DAEMON_NAME + '_DBUS_NAME', 'org.nvmexpress.' + component[0])
     conf.set(DAEMON_NAME + '_DBUS_PATH', '/org/nvmexpress/' + component[0])
     conf.set(DAEMON_NAME + '_EXECUTABLE', join_paths(sbindir, daemon_name))
+    conf.set(DAEMON_NAME + '_CTL', join_paths(bindir, ctl_name))
     conf.set(DAEMON_NAME + '_PROCNAME', daemon_name)
+    conf.set(DAEMON_NAME + '_CTLNAME', ctl_name)
     conf.set(COMPONENT + '_ACRONYM', COMPONENT)
     conf.set(COMPONENT + '_DESCRIPTION', component[1])
 endforeach
@@ -135,11 +139,13 @@ else
 endif
 
 #===============================================================================
-configure_file(
-    input:         'nvme-stas.spec.in',
-    output:        'nvme-stas.spec',
-    configuration: conf,
-)
+foreach component : [ 'nvme-stas.spec', '.coveragerc', 'coverage.sh', ]
+    configure_file(
+        input:         component + '.in',
+        output:        component,
+        configuration: conf,
+    )
+endforeach
 
 #===============================================================================
 subdir('staslib')
