@@ -4,16 +4,23 @@ data_file = coverage/@PROJECT_NAME@
 parallel=True
 
 [report]
-omit = /usr/*
+omit =
+	/usr/*
+	*/test/test-*.py
 
 # Regexes for lines to exclude from consideration
 exclude_lines =
-    # Have to re-enable the standard pragma
-    pragma: no cover
+	# Have to re-enable the standard pragma
+	pragma: no cover
 
-    # Don't complain if non-runnable code isn't run:
-    if 0:
-    if __name__ == .__main__.:
+	# Don't complain if tests don't hit defensive assertion code:
+	raise AssertionError
+	raise NotImplementedError
+	raise RuntimeError
+
+	# Don't complain if non-runnable code isn't run:
+	if 0:
+	if __name__ == .__main__.:
 
 skip_empty = True
 
