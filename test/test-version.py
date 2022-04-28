@@ -9,6 +9,12 @@ if __name__ == '__main__':
 
         version = KernelVersion('5.8.0-63-generic')
 
+        def test_str(self):
+            self.assertIsInstance(str(self.version), str)
+
+        def test_repr(self):
+            self.assertIsInstance(repr(self.version), str)
+
         def test_eq(self):
             '''Test equality'''
             self.assertEqual(self.version, '5.8.0-63')
