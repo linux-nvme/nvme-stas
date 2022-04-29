@@ -34,6 +34,7 @@ if __name__ == '__main__':
         def test_config(self):
             '''Check we can read the temporary configuration file'''
             cnf = stas.get_configuration(StasProcessConfUnitTest.FNAME)
+            self.assertEqual(cnf.conf_file, StasProcessConfUnitTest.FNAME)
             self.assertTrue(cnf.tron)
             self.assertFalse(cnf.hdr_digest)
             self.assertFalse(cnf.data_digest)

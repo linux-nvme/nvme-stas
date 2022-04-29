@@ -489,6 +489,7 @@ class Staf(stas.Service):
         systemd.daemon.notify('RELOADING=1')
         CNF.reload()
         set_loglevel(CNF.tron)
+        self._avahi.kick_start() # Make sure Avahi is running
         self._avahi.config_stypes(CNF.get_stypes())
         self._cfg_soak_tmr.start()
         systemd.daemon.notify('READY=1')

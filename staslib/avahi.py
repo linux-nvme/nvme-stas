@@ -212,6 +212,12 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         if not success:
             self._kick_avahi_tmr.start()
 
+    def kick_start(self):
+        '''@brief We use this to kick start the Avahi
+        daemon (i.e. socket activation).
+        '''
+        self._kick_avahi_tmr.clear()
+
     def _disconnect(self):
         self._logger.debug('Avahi._disconnect()')
         for service in self._services.values():
