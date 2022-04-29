@@ -23,6 +23,7 @@ def tron(args):  # pylint: disable=unused-argument
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
     iface.tron = True  # pylint: disable=assigning-non-slot
+    print(f'tron = {iface.tron}')  # Read value back from stafd and print
 
 
 def troff(args):  # pylint: disable=unused-argument
@@ -30,6 +31,7 @@ def troff(args):  # pylint: disable=unused-argument
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
     iface.tron = False  # pylint: disable=assigning-non-slot
+    print(f'tron = {iface.tron}')  # Read value back from stafd and print
 
 
 def _extract_cid(ctrl):  # pylint: disable=missing-function-docstring

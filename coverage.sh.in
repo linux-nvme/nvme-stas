@@ -1,12 +1,32 @@
 #!/usr/bin/env bash
+
+# COVERAGE CURRENTLY ACHIEVED BY THIS SCRIPT:
+# THIS WAS RUN ON FEDORA 35
+
+#Name                                  Stmts   Miss  Cover
+#---------------------------------------------------------
+#stacctl                                  54      3    94%
+#stacd                                   158      6    96%
+#stafctl                                  76      3    96%
+#stafd                                   239     39    84%
+#staslib/avahi.py                        185     28    85%
+#staslib/defs.py                          21      0   100%
+#staslib/glibudev.py                      32      3    91%
+#staslib/stas.py                         791     80    90%
+#staslib/version.py                       34      0   100%
+#subprojects/libnvme/libnvme/nvme.py    1428     61    96%
+#---------------------------------------------------------
+#TOTAL                                  3018    223    93%
+
+
 PRIMARY_GRP=$( id -ng )
 PRIMARY_USR=$( id -nu )
 PYTHON_PATH=.:./subprojects/libnvme
 
 sd_stop() {
     unit="$1"-cov.service
-    sudo systemctl stop "${unit}" >/dev/null 2>&1 || true
-    sudo systemctl reset-failed "${unit}" >/dev/null 2>&1 || true
+    sudo systemctl stop "${unit}" >/dev/null 2>&1
+    sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
 }
 
 sd_start() {
@@ -52,14 +72,6 @@ cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
-
-[Controllers]
-controller=transport=tcp;traddr=localhost
-controller=transport=tcp;traddr=1.1.1.1
-controller=transport=tcp;traddr=555.555.555.555
-controller=transport=tcp;traddr=abracadabra
-blacklist=transport=tcp;traddr=1.1.1.1
-blacklist=transport=tcp;traddr=1000.1000.1000.1000
 EOF
 
 ################################################################################
@@ -72,11 +84,69 @@ kato=10
 udev-rule=disabled
 EOF
 
+sudo systemctl stop avahi-daemon.service
+sudo systemctl stop avahi-daemon.socket
+sudo systemctl mask avahi-daemon.service
+sudo systemctl mask avahi-daemon.socket
+sleep 1
+
 ################################################################################
 # Start @STAFD_PROCNAME@ and @STACD_PROCNAME@
 sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${@STAFD_PROCNAME@_conf}"
 sd_start "@STACD_PROCNAME@" "@STACD_DBUS_NAME@" "${@STACD_PROCNAME@_conf}"
-sleep 5
+sleep 3
+
+printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
+
+reload_cfg "@STAFD_PROCNAME@"
+sleep 1
+
+sudo systemctl unmask avahi-daemon.socket
+sudo systemctl unmask avahi-daemon.service
+sudo systemctl start avahi-daemon.socket
+sudo systemctl start avahi-daemon.service
+sleep 2
+
+cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+[Global]
+tron=true
+persistent-connections=false
+
+[Service Discovery]
+zeroconf=disabled
+EOF
+reload_cfg "@STAFD_PROCNAME@"
+sleep 1
+
+cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+[Global]
+tron=true
+persistent-connections=false
+
+[Controllers]
+controller=transport=tcp;traddr=localhost
+controller=transport=tcp;traddr=1.1.1.1
+controller=transport=tcp;traddr=2.2.2.2
+controller=transport=tcp;traddr=555.555.555.555
+controller=transport=tcp;traddr=abracadabra
+blacklist=transport=tcp;traddr=1.1.1.1
+blacklist=transport=tcp;traddr=1000.1000.1000.1000
+EOF
+reload_cfg "@STAFD_PROCNAME@"
+sleep 3
+
+printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
+
+################################################################################
+# Fake mDNS packets from a CDC
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start Avahi publisher" "\0033"
+AVAHI_PUBLISHER=mdns_publisher.service
+sudo systemctl stop ${AVAHI_PUBLISHER} >/dev/null 2>&1
+sudo systemctl reset-failed ${AVAHI_PUBLISHER} >/dev/null 2>&1
+sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
+sleep 1
 
 ################################################################################
 # Start nvme target simulator
@@ -109,15 +179,15 @@ sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ blah
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ troff" "\0033"
 sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ troff
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ tron" "\0033"
 sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ tron
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ ls" "\0033"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls -d
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls -d   >/dev/null 2>&1
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ adlp" "\0033"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ adlp -d
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ adlp -d >/dev/null 2>&1
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ dlp" "\0033"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ dlp -t tcp -a ::1 -s 8009
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ dlp -t tcp -a ::1 -s 8009 >/dev/null 2>&1
 
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ --version" "\0033"
 sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ --version
@@ -126,60 +196,83 @@ sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ blah
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ troff" "\0033"
 sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ troff
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ status" "\0033"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ status
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ status >/dev/null 2>&1
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ tron" "\0033"
 sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ tron
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
 
 ################################################################################
 # Stimulate AENs activity by removing/restoring namespaces
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Remove namespace: klingons" "\0033"
 sudo ../utils/nvmet/nvmet.py unlink -p 1 -s klingons
-sleep 3
+sleep 2
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
 
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Restore namespace: klingons" "\0033"
 sudo ../utils/nvmet/nvmet.py link -p 1 -s klingons
-sleep 3
+sleep 2
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
 
+################################################################################
+# Stop Avahi Publisher
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop Avahi publisher" "\0033"
+sudo systemctl stop ${AVAHI_PUBLISHER}
+sleep 1
+
+################################################################################
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Restart Avahi publisher" "\0033"
+sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
+sleep 2
 
 ################################################################################
 # Make config changes for @STAFD_PROCNAME@
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Empty configuration for @STAFD_PROCNAME@" "\0033"
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Empty configuration and disable zeroconf for @STAFD_PROCNAME@" "\0033"
 cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
+
+[Service Discovery]
+zeroconf=disabled
 EOF
-
 reload_cfg "@STAFD_PROCNAME@"
-sleep 3
+sleep 1
 
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Add single controller (::1) for @STAFD_PROCNAME@" "\0033"
+################################################################################
+# Make more config changes for @STAFD_PROCNAME@
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Add single controller (::1) and re-enable zeroconf for @STAFD_PROCNAME@" "\0033"
 cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
+
 [Controllers]
 controller=transport=tcp;traddr=::1;trsvcid=8009
 EOF
-
 reload_cfg "@STAFD_PROCNAME@"
-sleep 3
+sleep 2
 
+################################################################################
+# Stop Avahi Publisher
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop Avahi publisher" "\0033"
+sudo systemctl stop ${AVAHI_PUBLISHER}
+sleep 2
+
+################################################################################
+# Remove one of the NVMe device's
+printf "\n%b[1;36m%s%b[0m\n" "\0033" "Remove (disconnect) nvme1" "\0033"
 sudo nvme disconnect -d nvme1
-sleep 3
+sleep 2
 
 ################################################################################
 # Stop everything and collect coverage stats
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop @STAFD_PROCNAME@ and @STACD_PROCNAME@" "\0033"
 sd_stop "@STAFD_PROCNAME@"
 sd_stop "@STACD_PROCNAME@"
-sleep 3
+sleep 1
 
 ################################################################################
 # Change ownership of files that were created as root
