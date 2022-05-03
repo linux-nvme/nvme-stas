@@ -10,10 +10,12 @@ if __name__ == '__main__':
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            stas.get_logger(False, 'Test')
 
         def test_get_device(self):
             dev = stas.UDEV.get_nvme_device('null')
             self.assertEqual(dev.device_node, '/dev/null')
+
+        def test_get_bad_device(self):
+            self.assertIsNone(stas.UDEV.get_nvme_device('bozo'))
 
     unittest.main()

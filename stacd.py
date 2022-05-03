@@ -99,6 +99,7 @@ stas.check_if_allowed_to_continue()
 # pylint: disable=wrong-import-order
 import json
 import pathlib
+import logging
 import systemd.daemon
 import dasbus.error
 import dasbus.client.observer
@@ -106,16 +107,18 @@ import dasbus.client.proxy
 from libnvme import nvme
 from gi.repository import GLib
 
-LOG = stas.get_logger(ARGS.syslog, defs.STACD_PROCNAME)
-CNF = stas.get_configuration(ARGS.conf_file)
-stas.trace_control(ARGS.tron or CNF.tron)
+stas.LOG.addHandler(stas.get_log_handler(ARGS.syslog, defs.STACD_PROCNAME))
+stas.LOG.setLevel(logging.INFO if ARGS.syslog else logging.DEBUG)
+stas.CNF.conf_file = ARGS.conf_file
+stas.trace_control(ARGS.tron or stas.CNF.tron)
 
-SYS_CNF = stas.get_sysconf()  # Singleton
 NVME_ROOT = nvme.root()  # Singleton
-NVME_ROOT.log_level("debug" if (ARGS.tron or CNF.tron) else "err")
-NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname)  # Singleton
+NVME_ROOT.log_level("debug" if (ARGS.tron or stas.CNF.tron) else "err")
+NVME_HOST = nvme.host(NVME_ROOT, stas.SYS_CNF.hostnqn, stas.SYS_CNF.hostid, stas.SYS_CNF.hostsymname)  # Singleton
 
 UDEV_RULE_SUPPRESS = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
+
+
 def udev_rule_ctrl(enable):
     '''@brief We add an empty udev rule to /run/udev/rules.d to suppress
     nvme-cli's udev rule that is used to tell udevd to automatically
@@ -199,7 +202,9 @@ class Stac(stas.Service):
             info.update(STAC.info())
             return json.dumps(info)
 
-        def controller_info(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn) -> str:  # pylint: disable=too-many-arguments,no-self-use
+        def controller_info(  # pylint: disable=too-many-arguments,no-self-use
+            self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn
+        ) -> str:
             '''@brief D-Bus method used to return information about a controller'''
             controller = STAC.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
             return json.dumps(controller.info()) if controller else '{}'
@@ -235,10 +240,10 @@ class Stac(stas.Service):
         self._staf_watcher.connect_once_available()
 
         # Suppress udev rule to auto-connect when AEN is received.
-        udev_rule_ctrl(CNF.udev_rule_enabled)
+        udev_rule_ctrl(stas.CNF.udev_rule_enabled)
 
     def _release_resources(self):
-        LOG.debug('Stac._release_resources()')
+        stas.LOG.debug('Stac._release_resources()')
 
         udev_rule_ctrl(True)
 
@@ -256,8 +261,8 @@ class Stac(stas.Service):
         signal, which can be sent with "systemctl reload stacd".
         '''
         systemd.daemon.notify('RELOADING=1')
-        CNF.reload()
-        set_loglevel(CNF.tron)
+        stas.CNF.reload()
+        set_loglevel(stas.CNF.tron)
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
@@ -266,7 +271,7 @@ class Stac(stas.Service):
         configured_ctrl_list = [
             ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict and 'subsysnqn' in ctrl_dict
         ]
-        LOG.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
+        stas.LOG.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
 
         discovered_ctrl_list = list()
         if self._staf:
@@ -276,7 +281,7 @@ class Stac(stas.Service):
                 for dlpe in staf_data['log-pages']:
                     if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
                         discovered_ctrl_list.append(stas.cid_from_dlpe(dlpe, host_traddr, host_iface))
-        LOG.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
+        stas.LOG.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
 
         controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
@@ -286,8 +291,8 @@ class Stac(stas.Service):
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_rm = cur_controller_ids - new_controller_ids
 
-        LOG.debug('Stac._config_ctrls_finish()        - controllers_to_add = %s', list(controllers_to_add))
-        LOG.debug('Stac._config_ctrls_finish()        - controllers_to_rm  = %s', list(controllers_to_rm))
+        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_add = %s', list(controllers_to_add))
+        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_rm  = %s', list(controllers_to_rm))
 
         for tid in controllers_to_rm:
             controller = self._controllers.pop(tid, None)
@@ -306,9 +311,9 @@ class Stac(stas.Service):
 
             # Make sure timer is set back to its normal value.
             self._cfg_soak_tmr.set_timeout(Stac.CONF_STABILITY_SOAK_TIME_SEC)
-            LOG.debug('Stac._connect_to_staf()            - Connected to staf')
+            stas.LOG.debug('Stac._connect_to_staf()            - Connected to staf')
         except dasbus.error.DBusError:
-            LOG.error('Failed to connect to staf')
+            stas.LOG.error('Failed to connect to staf')
 
     def _disconnect_from_staf(self, _):
         if self._staf:
@@ -322,10 +327,12 @@ class Stac(stas.Service):
         # before triggering a stacd re-config. We do this by momentarily
         # increasing the config soak timer to a longer period.
         self._cfg_soak_tmr.set_timeout(Stac.CONF_STABILITY_LONG_SOAK_TIME_SEC)
-        LOG.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
+        stas.LOG.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
 
-    def _log_pages_changed(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn, device):  # pylint: disable=too-many-arguments
-        LOG.debug(
+    def _log_pages_changed(  # pylint: disable=too-many-arguments
+        self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn, device
+    ):
+        stas.LOG.debug(
             'Stac._log_pages_changed()          - transport=%s, traddr=%s, trsvcid=%s, host_traddr=%s, host_iface=%s, subsysnqn=%s, device=%s',
             transport,
             traddr,
@@ -343,6 +350,6 @@ STAC = Stac()
 STAC.run()
 
 STAC = None
-CNF = None
-LOG = None
 ARGS = None
+stas.clean()
+logging.shutdown()
