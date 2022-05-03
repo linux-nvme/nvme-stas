@@ -17,7 +17,6 @@ if __name__ == '__main__':
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.cnf = stas.get_configuration('/dev/null')
             self.cid = {
                 'transport':   Test.TRANSPORT,
                 'traddr':      Test.TRADDR,

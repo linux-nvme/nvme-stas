@@ -6,14 +6,13 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-''' Library for staf/stac
-'''
+'''Library for staf/stac'''
+
 import os
 import re
 import sys
 import signal
-import atexit
-import logging as LG
+import logging
 import configparser
 import platform
 import ipaddress
@@ -57,16 +56,11 @@ def check_if_allowed_to_continue():
 
 
 # ******************************************************************************
-LOG = None  # Singleton
+LOG = logging.getLogger(__name__)  # Singleton
+LOG.propagate = False
 
-
-def get_logger(syslog: bool, identifier: str):
-    '''@brief Configure the logging system. The logging system can be
-           configured to print to the syslog (journal) or stdout.
-
-    @param syslog: If True print to syslog (journal),
-                   Otherwise print to stdout.
-    '''
+def get_log_handler(syslog: bool, identifier: str):
+    '''Instantiate and return a log handler'''
     if syslog:
         try:
             # Try journal logger first
@@ -75,30 +69,22 @@ def get_logger(syslog: bool, identifier: str):
             handler = systemd.journal.JournalHandler(SYSLOG_IDENTIFIER=identifier)
         except ModuleNotFoundError:
             # Go back to standard syslog handler
-            import logging.handlers  # pylint: disable=import-outside-toplevel
+            from logging.handlers import SysLogHandler  # pylint: disable=import-outside-toplevel
 
-            handler = logging.handlers.SysLogHandler(address="/dev/log")
+            handler = SysLogHandler(address="/dev/log")
             handler.setFormatter(
                 logging.Formatter('{}: %(message)s'.format(identifier))  # pylint: disable=consider-using-f-string
             )
-
-        level = LG.INFO
     else:
         # Log to stdout
-        handler = LG.StreamHandler(stream=sys.stdout)
-        level = LG.DEBUG
+        handler = logging.StreamHandler(stream=sys.stdout)
 
-    global LOG  # pylint: disable=global-statement
-    LOG = LG.getLogger(__name__)
-    LOG.setLevel(level)
-    LOG.addHandler(handler)
-    LOG.propagate = False
-    return LOG
+    return handler
 
 
 def log_level() -> str:
     '''@brief return current log level'''
-    return str(LG.getLevelName(LOG.getEffectiveLevel()))
+    return str(logging.getLevelName(LOG.getEffectiveLevel()))
 
 
 # ******************************************************************************
@@ -111,7 +97,7 @@ def trace_control(tron: bool):
     '''
     global TRON  # pylint: disable=global-statement
     TRON = tron
-    LOG.setLevel(LG.DEBUG if TRON else LG.INFO)
+    LOG.setLevel(logging.DEBUG if TRON else logging.INFO)
 
 
 # ******************************************************************************
@@ -164,7 +150,7 @@ class OrderedMultisetDict(dict):
 class Configuration:
     '''Read and cache configuration file.'''
 
-    def __init__(self, conf_file):
+    def __init__(self, conf_file='/dev/null'):
         self._defaults = {
             ('Global', 'tron'): 'false',
             ('Global', 'persistent-connections'): 'true',
@@ -188,6 +174,11 @@ class Configuration:
     @property
     def conf_file(self):  # pylint: disable=missing-function-docstring
         return self._conf_file
+
+    @conf_file.setter
+    def conf_file(self, fname):  # pylint: disable=missing-function-docstring
+        self._conf_file = fname
+        self.reload()
 
     @property
     def tron(self):
@@ -302,7 +293,7 @@ class Configuration:
             strict=False,
             dict_type=OrderedMultisetDict,
         )
-        if os.path.isfile(self._conf_file):
+        if self._conf_file and os.path.isfile(self._conf_file):
             config.read(self._conf_file)
         return config
 
@@ -319,26 +310,29 @@ class Configuration:
         return value if value is not None else list()
 
 
-CNF = None  # Singleton
-
-
-def get_configuration(conf_file: str):  # pylint: disable=missing-function-docstring
-    global CNF  # pylint: disable=global-statement
-    CNF = Configuration(conf_file)
-    return CNF
+CNF = Configuration()  # Singleton
 
 
 # ******************************************************************************
 class SysConfiguration:
     '''Read and cache the host configuration file.'''
 
-    def __init__(self, conf_file: str):
+    def __init__(self, conf_file='/dev/null'):
         self._conf_file = conf_file
         self.reload()
 
     def reload(self):
         '''@brief Reload the configuration file.'''
         self._config = self.read_conf_file()
+
+    @property
+    def conf_file(self):  # pylint: disable=missing-function-docstring
+        return self._conf_file
+
+    @conf_file.setter
+    def conf_file(self, fname):  # pylint: disable=missing-function-docstring
+        self._conf_file = fname
+        self.reload()
 
     def as_dict(self):  # pylint: disable=missing-function-docstring
         return {
@@ -434,26 +428,26 @@ class SysConfiguration:
             return f.readline().split()[0]
 
 
-__SYS_CNF = None
-
-
-def get_sysconf():  # pylint: disable=missing-function-docstring
-    global __SYS_CNF  # pylint: disable=global-statement
-    if __SYS_CNF is None:
-        __SYS_CNF = SysConfiguration('/etc/stas/sys.conf')  # Singleton
-    return __SYS_CNF
+SYS_CNF = SysConfiguration('/etc/stas/sys.conf')  # Singleton
 
 
 # ******************************************************************************
 KERNEL_VERSION = KernelVersion(platform.release())
 
 
-class NvmeOptions:
+class NvmeOptions:  # Singleton
     '''Object used to read and cache contents of file /dev/nvme-fabrics.
     Note that this file was not readable prior to Linux 5.16.
     '''
+    __instance = None
+    __initialized = False
 
     def __init__(self):
+        if self.__initialized:  # Singleton - only init once
+            return
+
+        self.__initialized = True
+
         # Supported options can be determined by looking at the kernel version
         # or by reading '/dev/nvme-fabrics'. The ability to read the options
         # from '/dev/nvme-fabrics' was only introduced in kernel 5.17, but may
@@ -482,6 +476,13 @@ class NvmeOptions:
                     if not supported:
                         self._supported_options[option] = option in options
 
+    def __new__(cls):
+        '''This is used to make this class a singleton'''
+        if cls.__instance is None:
+            cls.__instance = super(NvmeOptions, cls).__new__(cls)
+
+        return cls.__instance
+
     def __str__(self):
         return f'supported options: {self._supported_options}'
 
@@ -496,16 +497,6 @@ class NvmeOptions:
         a specific interface regardless of the routing tables.
         '''
         return self._supported_options['host_iface']
-
-
-__NVME_OPTIONS = None
-
-
-def get_nvme_options():  # pylint: disable=missing-function-docstring
-    global __NVME_OPTIONS  # pylint: disable=global-statement
-    if __NVME_OPTIONS is None:
-        __NVME_OPTIONS = NvmeOptions()
-    return __NVME_OPTIONS
 
 
 # ******************************************************************************
@@ -611,10 +602,7 @@ class Udev:
         self._sig_id = self._observer.connect('device-event', self._device_event)
         self._monitor.start()
 
-        atexit.register(self._release_resources)  # Make sure resources are released on exit
-
     def _release_resources(self):
-        atexit.unregister(self._release_resources)
         if self._sig_id is not None:
             self._observer.disconnect(self._sig_id)
             self._sig_id = None
@@ -626,6 +614,10 @@ class Udev:
 
         self._context = None
         self._registry = None
+
+    def clean(self):
+        '''Clean up all resources'''
+        self._release_resources()
 
     def get_nvme_device(self, sys_name):
         '''@brief Get the udev device object associated with an nvme device.
@@ -755,6 +747,7 @@ class Udev:
 
 
 UDEV = Udev()  # Singleton
+
 
 # ******************************************************************************
 def cid_from_dlpe(dlpe, host_traddr, host_iface):
@@ -1236,7 +1229,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
 
         host_iface = (
             self.tid.host_iface
-            if (self.tid.host_iface and not CNF.ignore_iface and get_nvme_options().host_iface_supp)
+            if (self.tid.host_iface and not CNF.ignore_iface and NvmeOptions().host_iface_supp)
             else None
         )
         self._ctrl = nvme.ctrl(
@@ -1416,7 +1409,7 @@ class Service:
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr)  # systemctl stop stafd
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGHUP, reload_hdlr)  # systemctl reload stafd
 
-        nvme_options = get_nvme_options()
+        nvme_options = NvmeOptions()
         if not nvme_options.host_iface_supp or not nvme_options.discovery_supp:
             LOG.warning(
                 'Kernel does not appear to support all the options needed to run this program. Consider updating to a later kernel version.'
@@ -1455,15 +1448,14 @@ class Service:
 
     def info(self) -> dict:
         '''@brief Get the status info for this object (used for debug)'''
-        nvme_options = get_nvme_options()
-        sys_cnf = get_sysconf()
+        nvme_options = NvmeOptions()
         return {
             'config soak timer': str(self._cfg_soak_tmr),
             'kernel support': {
                 'TP8013': nvme_options.discovery_supp,
                 'host_iface': nvme_options.host_iface_supp,
             },
-            'system config': sys_cnf.as_dict(),
+            'system config': SYS_CNF.as_dict(),
         }
 
     def get_controllers(self):
@@ -1550,3 +1542,12 @@ class Service:
 
     def _config_ctrls_finish(self, configured_ctrl_list):
         raise NotImplementedError()
+
+
+def clean():
+    '''Clean up all resources (especially singletons)'''
+
+    global UDEV  # pylint: disable=global-statement
+    if UDEV:
+        UDEV.clean()
+        UDEV = None

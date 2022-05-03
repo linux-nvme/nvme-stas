@@ -120,6 +120,7 @@ stas.check_if_allowed_to_continue()
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 import json
+import logging
 import dasbus.server.interface
 import systemd.daemon
 from libnvme import nvme
@@ -129,14 +130,14 @@ DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
 
-LOG = stas.get_logger(ARGS.syslog, defs.STAFD_PROCNAME)
-CNF = stas.get_configuration(ARGS.conf_file)
-stas.trace_control(ARGS.tron or CNF.tron)
+stas.LOG.addHandler(stas.get_log_handler(ARGS.syslog, defs.STAFD_PROCNAME))
+stas.LOG.setLevel(logging.INFO if ARGS.syslog else logging.DEBUG)
+stas.CNF.conf_file = ARGS.conf_file
+stas.trace_control(ARGS.tron or stas.CNF.tron)
 
-SYS_CNF = stas.get_sysconf()  # Singleton
 NVME_ROOT = nvme.root()  # Singleton
-NVME_ROOT.log_level("debug" if (ARGS.tron or CNF.tron) else "err")
-NVME_HOST = nvme.host(NVME_ROOT, SYS_CNF.hostnqn, SYS_CNF.hostid, SYS_CNF.hostsymname)  # Singleton
+NVME_ROOT.log_level("debug" if (ARGS.tron or stas.CNF.tron) else "err")
+NVME_HOST = nvme.host(NVME_ROOT, stas.SYS_CNF.hostnqn, stas.SYS_CNF.hostid, stas.SYS_CNF.hostsymname)  # Singleton
 
 
 def set_loglevel(tron):  # pylint: disable=missing-function-docstring
@@ -162,7 +163,7 @@ class Dc(stas.Controller):
         self._log_pages = list()  # Log pages cache
 
     def _release_resources(self):
-        LOG.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
+        stas.LOG.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
         super()._release_resources()
         self._log_pages = list()
 
@@ -193,23 +194,25 @@ class Dc(stas.Controller):
             self._register_op.cancel()
 
     def disconnect(self, disconnected_cb):
-        LOG.debug('Dc.disconnect()                    - %s | %s', self.id, self.device)
+        stas.LOG.debug('Dc.disconnect()                    - %s | %s', self.id, self.device)
         self._kill_ops()
-        if self._ctrl and self._ctrl.connected() and not CNF.persistent_connections:
-            LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
-            op = stas.AsyncOperationWithRetry(self._on_disconnected_success, self._on_disconnected_fail, self._ctrl.disconnect)
+        if self._ctrl and self._ctrl.connected() and not stas.CNF.persistent_connections:
+            stas.LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
+            op = stas.AsyncOperationWithRetry(
+                self._on_disconnected_success, self._on_disconnected_fail, self._ctrl.disconnect
+            )
             op.run_async(disconnected_cb)
         else:
             # Defer callback to the next main loop's idle period.
             GLib.idle_add(disconnected_cb, self.tid)
 
     def _on_disconnected_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
-        LOG.debug('Dc._on_disconnected_success()      - %s | %s', self.id, self.device)
+        stas.LOG.debug('Dc._on_disconnected_success()      - %s | %s', self.id, self.device)
         op_obj.kill()
         disconnected_cb(self.tid)
 
     def _on_disconnected_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
-        LOG.debug('Dc._on_disconnected_fail()         - %s | %s: %s', self.id, self.device, err)
+        stas.LOG.debug('Dc._on_disconnected_fail()         - %s | %s: %s', self.id, self.device, err)
         op_obj.kill()
         disconnected_cb(self.tid)
 
@@ -257,7 +260,9 @@ class Dc(stas.Controller):
                 )
                 self._register_op.run_async()
             else:
-                self._get_log_op = stas.AsyncOperationWithRetry(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
+                self._get_log_op = stas.AsyncOperationWithRetry(
+                    self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
+                )
                 self._get_log_op.run_async()
 
     # --------------------------------------------------------------------------
@@ -268,13 +273,17 @@ class Dc(stas.Controller):
         '''
         if self._alive():
             if data is not None:
-                LOG.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
+                stas.LOG.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
             else:
-                LOG.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
-            self._get_log_op = stas.AsyncOperationWithRetry(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
+                stas.LOG.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
+            self._get_log_op = stas.AsyncOperationWithRetry(
+                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
+            )
             self._get_log_op.run_async()
         else:
-            LOG.debug('Dc._on_registration_success()      - %s | %s Received event on dead object.', self.id, self.device)
+            stas.LOG.debug(
+                'Dc._on_registration_success()      - %s | %s Received event on dead object.', self.id, self.device
+            )
 
     def _on_registration_fail(self, op_obj, err, fail_cnt):
         '''@brief Function called when we fail to register with the
@@ -282,7 +291,7 @@ class Dc(stas.Controller):
         for details.
         '''
         if self._alive():
-            LOG.debug(
+            stas.LOG.debug(
                 'Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec',
                 self.id,
                 self.device,
@@ -290,10 +299,10 @@ class Dc(stas.Controller):
                 Dc.REGISTRATION_RETRY_RERIOD_SEC,
             )
             if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
-                LOG.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
+                stas.LOG.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
             # op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
         else:
-            LOG.debug(
+            stas.LOG.debug(
                 'Dc._on_registration_fail()         - %s | %s Received event on dead object. %s',
                 self.id,
                 self.device,
@@ -321,19 +330,19 @@ class Dc(stas.Controller):
                 if data
                 else list()
             )
-            LOG.info(
+            stas.LOG.info(
                 '%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages)
             )
             referrals_after = self.referrals()
             STAF.log_pages_changed(self, self.device)
             if referrals_after != referrals_before:
-                LOG.debug(
+                stas.LOG.debug(
                     'Dc._on_get_log_success()           - %s | %s Referrals before = %s',
                     self.id,
                     self.device,
                     referrals_before,
                 )
-                LOG.debug(
+                stas.LOG.debug(
                     'Dc._on_get_log_success()           - %s | %s Referrals after  = %s',
                     self.id,
                     self.device,
@@ -341,7 +350,7 @@ class Dc(stas.Controller):
                 )
                 STAF.referrals_changed()
         else:
-            LOG.debug(
+            stas.LOG.debug(
                 'Dc._on_get_log_success()           - %s | %s Received event on dead object.', self.id, self.device
             )
 
@@ -351,7 +360,7 @@ class Dc(stas.Controller):
         for details.
         '''
         if self._alive():
-            LOG.debug(
+            stas.LOG.debug(
                 'Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec',
                 self.id,
                 self.device,
@@ -359,10 +368,10 @@ class Dc(stas.Controller):
                 Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC,
             )
             if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
-                LOG.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
+                stas.LOG.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
             op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
         else:
-            LOG.debug(
+            stas.LOG.debug(
                 'Dc._on_get_log_fail()              - %s | %s Received event on dead object. %s',
                 self.id,
                 self.device,
@@ -423,12 +432,16 @@ class Staf(stas.Service):
             info.update(STAF.info())
             return json.dumps(info)
 
-        def controller_info(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn) -> str:  # pylint: disable=no-self-use,too-many-arguments
+        def controller_info(  # pylint: disable=no-self-use,too-many-arguments
+            self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn
+        ) -> str:
             '''@brief D-Bus method used to return information about a controller'''
             controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
             return json.dumps(controller.info()) if controller else '{}'
 
-        def get_log_pages(self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn) -> str:  # pylint: disable=no-self-use,too-many-arguments
+        def get_log_pages(  # pylint: disable=no-self-use,too-many-arguments
+            self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn
+        ) -> str:
             '''@brief D-Bus method used to retrieve the discovery log pages from one controller'''
             controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
             return controller.log_pages() if controller else '[]'
@@ -455,8 +468,8 @@ class Staf(stas.Service):
     # ==========================================================================
     def __init__(self):
         super().__init__(self._reload_hdlr)
-        self._avahi = avahi.Avahi(LOG, self._sysbus, self._avahi_change)
-        self._avahi.config_stypes(CNF.get_stypes())
+        self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
+        self._avahi.config_stypes(stas.CNF.get_stypes())
 
         # We don't want to apply configuration changes to nvme-cli right away.
         # Often, multiple changes will occur in a short amount of time (sub-second).
@@ -477,7 +490,7 @@ class Staf(stas.Service):
         return info
 
     def _release_resources(self):
-        LOG.debug('Staf._release_resources()')
+        stas.LOG.debug('Staf._release_resources()')
         super()._release_resources()
         self._avahi.kill()
         self._avahi = None
@@ -487,10 +500,10 @@ class Staf(stas.Service):
         signal, which can be sent with "systemctl reload stafd".
         '''
         systemd.daemon.notify('RELOADING=1')
-        CNF.reload()
-        set_loglevel(CNF.tron)
-        self._avahi.kick_start() # Make sure Avahi is running
-        self._avahi.config_stypes(CNF.get_stypes())
+        stas.CNF.reload()
+        set_loglevel(stas.CNF.tron)
+        self._avahi.kick_start()  # Make sure Avahi is running
+        self._avahi.config_stypes(stas.CNF.get_stypes())
         self._cfg_soak_tmr.start()
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
@@ -514,7 +527,7 @@ class Staf(stas.Service):
         '''@brief Function invoked when a controller's cached referrals
         have changed.
         '''
-        LOG.debug('Staf.referrals_changed()')
+        stas.LOG.debug('Staf.referrals_changed()')
         self._cfg_soak_tmr.start()
 
     def _referrals(self) -> list:
@@ -536,9 +549,9 @@ class Staf(stas.Service):
 
         discovered_ctrl_list = self._avahi.get_controllers()
         referral_ctrl_list = self._referrals()
-        LOG.debug('Staf._config_ctrls_finish()        - configured_ctrl_list  = %s', configured_ctrl_list)
-        LOG.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list  = %s', discovered_ctrl_list)
-        LOG.debug('Staf._config_ctrls_finish()        - referral_ctrl_list    = %s', referral_ctrl_list)
+        stas.LOG.debug('Staf._config_ctrls_finish()        - configured_ctrl_list  = %s', configured_ctrl_list)
+        stas.LOG.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list  = %s', discovered_ctrl_list)
+        stas.LOG.debug('Staf._config_ctrls_finish()        - referral_ctrl_list    = %s', referral_ctrl_list)
 
         controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
@@ -548,8 +561,8 @@ class Staf(stas.Service):
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_rm = cur_controller_ids - new_controller_ids
 
-        LOG.debug('Staf._config_ctrls_finish()        - controllers_to_add    = %s', list(controllers_to_add))
-        LOG.debug('Staf._config_ctrls_finish()        - controllers_to_rm     = %s', list(controllers_to_rm))
+        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_add    = %s', list(controllers_to_add))
+        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_rm     = %s', list(controllers_to_rm))
 
         for tid in controllers_to_rm:
             controller = self._controllers.pop(tid, None)
@@ -568,6 +581,6 @@ STAF = Staf()
 STAF.run()
 
 STAF = None
-CNF = None
-LOG = None
 ARGS = None
+stas.clean()
+logging.shutdown()
