@@ -3,20 +3,19 @@
 # COVERAGE CURRENTLY ACHIEVED BY THIS SCRIPT:
 # THIS WAS RUN ON FEDORA 35
 
-#Name                                  Stmts   Miss  Cover
-#---------------------------------------------------------
-#stacctl                                  54      3    94%
-#stacd                                   158      6    96%
-#stafctl                                  76      3    96%
-#stafd                                   239     39    84%
-#staslib/avahi.py                        185     28    85%
-#staslib/defs.py                          21      0   100%
-#staslib/glibudev.py                      32      3    91%
-#staslib/stas.py                         791     80    90%
-#staslib/version.py                       34      0   100%
-#subprojects/libnvme/libnvme/nvme.py    1428     61    96%
-#---------------------------------------------------------
-#TOTAL                                  3018    223    93%
+#Name                  Stmts   Miss  Cover
+#-----------------------------------------
+#stacctl                  55      3    95%
+#stacd                   160      6    96%
+#stafctl                  77      3    96%
+#stafd                   241     39    84%
+#staslib/avahi.py        185     28    85%
+#staslib/defs.py          21      0   100%
+#staslib/glibudev.py      32      3    91%
+#staslib/stas.py         791     76    90%
+#staslib/version.py       34      0   100%
+#-----------------------------------------
+#TOTAL                  1596    158    90%
 
 
 PRIMARY_GRP=$( id -ng )
@@ -67,17 +66,18 @@ sudo nvme disconnect-all
 
 ################################################################################
 # Create a dummy config file for @STAFD_PROCNAME@
-@STAFD_PROCNAME@_conf=$(mktemp /tmp/@STAFD_PROCNAME@.conf.XXXXXX)
-cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+stafd_conf_fname=$(mktemp /tmp/@STAFD_PROCNAME@.conf.XXXXXX)
+cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
+ip-family=ipv6
 EOF
 
 ################################################################################
 # Create a dummy config file for @STACD_PROCNAME@
-@STACD_PROCNAME@_conf=$(mktemp /tmp/@STACD_PROCNAME@.conf.XXXXXX)
-cat > "${@STACD_PROCNAME@_conf}" <<'EOF'
+stacd_conf_fname=$(mktemp /tmp/@STACD_PROCNAME@.conf.XXXXXX)
+cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 kato=10
@@ -92,8 +92,8 @@ sleep 1
 
 ################################################################################
 # Start @STAFD_PROCNAME@ and @STACD_PROCNAME@
-sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${@STAFD_PROCNAME@_conf}"
-sd_start "@STACD_PROCNAME@" "@STACD_DBUS_NAME@" "${@STACD_PROCNAME@_conf}"
+sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
+sd_start "@STACD_PROCNAME@" "@STACD_DBUS_NAME@" "${stacd_conf_fname}"
 sleep 3
 
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
@@ -108,7 +108,7 @@ sudo systemctl start avahi-daemon.socket
 sudo systemctl start avahi-daemon.service
 sleep 2
 
-cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
@@ -119,10 +119,11 @@ EOF
 reload_cfg "@STAFD_PROCNAME@"
 sleep 1
 
-cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
+ip-family=ipv4
 
 [Controllers]
 controller=transport=tcp;traddr=localhost
@@ -230,7 +231,7 @@ sleep 2
 ################################################################################
 # Make config changes for @STAFD_PROCNAME@
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Empty configuration and disable zeroconf for @STAFD_PROCNAME@" "\0033"
-cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
@@ -244,7 +245,7 @@ sleep 1
 ################################################################################
 # Make more config changes for @STAFD_PROCNAME@
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Add single controller (::1) and re-enable zeroconf for @STAFD_PROCNAME@" "\0033"
-cat > "${@STAFD_PROCNAME@_conf}" <<'EOF'
+cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
@@ -276,14 +277,14 @@ sleep 1
 
 ################################################################################
 # Change ownership of files that were created as root
-sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage
-sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" staslib/__pycache__
-sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/libnvme/libnvme/__pycache__
+sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage  >/dev/null 2>&1
+sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" staslib/__pycache__  >/dev/null 2>&1
+sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/libnvme/libnvme/__pycache__  >/dev/null 2>&1
 
 sudo nvme disconnect-all
 
-rm "${@STAFD_PROCNAME@_conf}"
-rm "${@STACD_PROCNAME@_conf}"
+rm "${stafd_conf_fname}"
+rm "${stacd_conf_fname}"
 
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-udev.py
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py

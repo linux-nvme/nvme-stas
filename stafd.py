@@ -270,7 +270,7 @@ class Dc(stas.Controller):
             if data is not None:
                 LOG.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
             else:
-                LOG.debug('Dc._on_registration_success()      - %s | %s %s', self.id, self.device, data if data else 'success')
+                LOG.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
             self._get_log_op = stas.AsyncOperationWithRetry(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
             self._get_log_op.run_async()
         else:
