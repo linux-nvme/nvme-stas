@@ -118,6 +118,16 @@ The configuration file is named `/etc/stas/stafd.conf`. This file contains confi
 
 **`stafd`** can automatically find and set up connections to Discovery Controllers. To do this, **`stafd`** registers with the [Avahi](https://www.avahi.org/), the mDNS/DNS-SD (Service Discovery) daemon. Discovery Controllers that advertise themselves with service type `_nvme-disc._tcp` will be recognized by Avahi, which will inform **`stafd`**.
 
+### Not receiving mDNS packets?
+
+If **`stafd`** is not detecting any discovery controllers through Avahi, it could simply be that the mDNS packets are being suppressed by your firewall. If you know for a fact that the discovery controllers are advertizing themselves with mDNS packets, make sure that the Avahi daemon is receiving them as follows:
+
+```bash
+avahi-browse -r _nvme-disc._tcp
+```
+
+If you're not seeing anything, then check whether your firewall allows mDNS packets.
+
 ### Why is Avahi failing to discover services on some interfaces?
 
 Linux limits the number of multicast group memberships that a host can belong to. The default is 20. For Avahi to monitor mDNS (multicast DNS) packets on all interfaces, the host computer must be able to register one multicast group per interface. This can be physical or logical interfaces. For example, configuring 10 VLANs on a physical interface increases the total number of interfaces by 10. If the total number of interfaces is greater than the limit of 20, then Avahi won't be able to monitor all interfaces.
