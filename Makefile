@@ -33,15 +33,19 @@ ifneq ("$(wildcard ${BUILD-DIR})","")
 endif
 
 .PHONY: install
-install: ${BUILD-DIR}
-	meson $@ -C ${BUILD-DIR}
+install: stas
+	sudo meson $@ -C ${BUILD-DIR}
+
+.PHONY: uninstall
+uninstall: ${BUILD-DIR}
+	sudo ninja -C ${BUILD-DIR} uninstall
 
 .PHONY: dist
-dist: ${BUILD-DIR}
+dist: stas
 	meson $@ -C ${BUILD-DIR} --formats gztar
 
 .PHONY: test
-test: ${BUILD-DIR}
+test: stas
 	meson $@ -C ${BUILD-DIR} --suite nvme-stas
 
 .PHONY: loc
