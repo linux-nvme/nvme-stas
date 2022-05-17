@@ -193,29 +193,6 @@ class Dc(stas.Controller):
         if self._register_op:
             self._register_op.cancel()
 
-    def disconnect(self, disconnected_cb):
-        stas.LOG.debug('Dc.disconnect()                    - %s | %s', self.id, self.device)
-        self._kill_ops()
-        if self._ctrl and self._ctrl.connected() and not stas.CNF.persistent_connections:
-            stas.LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
-            op = stas.AsyncOperationWithRetry(
-                self._on_disconnected_success, self._on_disconnected_fail, self._ctrl.disconnect
-            )
-            op.run_async(disconnected_cb)
-        else:
-            # Defer callback to the next main loop's idle period.
-            GLib.idle_add(disconnected_cb, self.tid)
-
-    def _on_disconnected_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
-        stas.LOG.debug('Dc._on_disconnected_success()      - %s | %s', self.id, self.device)
-        op_obj.kill()
-        disconnected_cb(self.tid)
-
-    def _on_disconnected_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
-        stas.LOG.debug('Dc._on_disconnected_fail()         - %s | %s: %s', self.id, self.device, err)
-        op_obj.kill()
-        disconnected_cb(self.tid)
-
     def log_pages(self) -> list:
         '''@brief Get the cached log pages for this object'''
         return self._log_pages
@@ -495,6 +472,12 @@ class Staf(stas.Service):
         self._avahi.kill()
         self._avahi = None
 
+    def _keep_connections_on_exit(self):
+        '''@brief Determine whether connections should remain when the
+        process exits.
+        '''
+        return stas.CNF.persistent_connections
+
     def _reload_hdlr(self):
         '''@brief Reload configuration file. This is triggered by the SIGHUP
         signal, which can be sent with "systemctl reload stafd".
@@ -567,7 +550,7 @@ class Staf(stas.Service):
         for tid in controllers_to_rm:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.kill()
+                controller.disconnect(self._on_ctrl_disconnected, stas.CNF.persistent_connections)
 
         for tid in controllers_to_add:
             self._controllers[tid] = Dc(tid)

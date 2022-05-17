@@ -160,6 +160,7 @@ class Configuration:
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
             ('Global', 'udev-rule'): 'enabled',
+            ('Global', 'sticky-connections'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'blacklist'): list(),
@@ -223,6 +224,11 @@ class Configuration:
     def udev_rule_enabled(self):
         '''@brief return the "udev-rule" config parameter'''
         return self.__get_value('Global', 'udev-rule')[0] == 'enabled'
+
+    @property
+    def sticky_connections(self):
+        '''@brief return the "sticky-connections" config parameter'''
+        return self.__get_value('Global', 'sticky-connections')[0] == 'enabled'
 
     @property
     def kato(self):
@@ -1379,18 +1385,37 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         if self._connect_op:
             self._connect_op.cancel()
 
-    def disconnect(self, disconnected_cb):
-        '''@brief initiate a disconnect request with the controller'''
-        LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
-        self._kill_ops()
-        # Defer callback to the next main loop's idle period.
-        GLib.idle_add(disconnected_cb, self.tid)
-
     def kill(self):
         '''@brief Used to release all resources associated with this object.'''
         LOG.debug('Controller.kill()                  - %s', self.id)
         self._release_resources()
 
+    def disconnect(self, disconnected_cb, keep_connection):
+        '''@brief Issue an asynchronous disconnect command to a Controller.
+        Once the async command has completed, the callback 'disconnected_cb'
+        will be invoked. If a controller is already disconnected, then the
+        callback will be added to the main loop's next idle slot to be executed
+        ASAP.
+        '''
+        LOG.debug('Controller.disconnect()            - %s | %s', self.id, self.device)
+        self._kill_ops()
+        if self._ctrl and self._ctrl.connected() and not keep_connection:
+            LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
+            op = AsyncOperationWithRetry(self._on_disconn_success, self._on_disconn_fail, self._ctrl.disconnect)
+            op.run_async(disconnected_cb)
+        else:
+            # Defer callback to the next main loop's idle period.
+            GLib.idle_add(disconnected_cb, self.tid)
+
+    def _on_disconn_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
+        LOG.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
+        op_obj.kill()
+        disconnected_cb(self.tid)
+
+    def _on_disconn_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
+        LOG.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
+        op_obj.kill()
+        disconnected_cb(self.tid)
 
 # ******************************************************************************
 class Service:
@@ -1494,6 +1519,15 @@ class Service:
         for controller in self._controllers.values():
             controller.cancel()
 
+    def _keep_connections_on_exit(self):
+        '''@brief Determine whether connections should remain when the
+        process exits.
+
+        NOTE) This is the base class method used to define the interface.
+        It must be overloaded by a child class.
+        '''
+        raise NotImplementedError()
+
     def _stop_hdlr(self):
         systemd.daemon.notify('STOPPING=1')
 
@@ -1503,9 +1537,10 @@ class Service:
             GLib.idle_add(self._exit)
         else:
             # Tell all controller objects to disconnect
+            keep_connections = self._keep_connections_on_exit()
             controllers = self._controllers.values()
             for controller in controllers:
-                controller.disconnect(self._on_ctrl_disconnected)
+                controller.disconnect(self._on_ctrl_disconnected, keep_connections)
 
         return GLib.SOURCE_REMOVE
 
@@ -1541,6 +1576,19 @@ class Service:
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
     def _config_ctrls_finish(self, configured_ctrl_list):
+        '''@brief Finish controllers configuration after hostnames (if any)
+        have been resolved.
+
+        Configuring controllers must be done asynchronously in 2 steps.
+        In the first step, host names get resolved to find their IP addresses.
+        Name resolution can take a while, especially when an external name
+        resolution server is used. Once that step completed, the callback
+        method _config_ctrls_finish() (i.e. this method), gets invoked to
+        complete the controller configuration.
+
+        NOTE) This is the base class method used to define the interface.
+        It must be overloaded by a child class.
+        '''
         raise NotImplementedError()
 
 

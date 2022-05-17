@@ -221,6 +221,76 @@
                         </para>
                     </listitem>
                 </varlistentry>
+
+                <varlistentry>
+                    <term><varname>sticky-connections=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes a string argument <literal>enabled</literal> or
+                            <literal>disabled</literal>. This option determines
+                            whether connections to I/O controllers will be
+                            maintained after Discovery Log Page Entry (DLPE)
+                            removal.
+                        </para>
+
+                        <para>
+                            Zoning configuration is performed at Discovery
+                            Controllers (DC). A zone is used to specify the list
+                            of I/O controllers that a host is allowed to access.
+                            The zone contains a list of hosts and the I/O controllers
+                            that these hosts can access. Users can add or
+                            remove I/O controllers and/or hosts from zones.
+                        </para>
+
+                        <para>
+                            DCs notify hosts of zoning configuration changes by
+                            sending Asynchronous Event Notifications (AEN)
+                            indicating a "Change of Discovery Log Page (DLP)".
+                            The host uses these AENs as a trigger to retrieve the
+                            new list of DLPEs (i.e. I/O controllers) by issuing a
+                            Get DLP command. This happens in real time, which
+                            means that a host that was previously connected
+                            to an I/O controller may suddenly be told that it is
+                            no longer allowed to connect to that I/O controller
+                            and should disconnect from it.
+                        </para>
+
+                        <para>
+                            The parameter <code>sticky-connections</code>
+                            determines how <code>stacd</code> reacts to the
+                            removal of an I/O controller DLPE. In other
+                            words, whether it should immediately disconnect
+                            from I/O controllers when the DPLE is removed,
+                            or whether it should maintain the connection.
+                        </para>
+
+                        <para>
+                            Note that <code>nvme-stas</code> was modeled after
+                            <code>nvme-cli</code>. <code>nvme-cli</code> maintains
+                            I/O controller connections by default (i.e. connections
+                            are sticky). That's why <code>nvme-stas</code> also
+                            maintains I/O controller connections by default.
+                        </para>
+
+                        <para>
+                            With <code>sticky-connections=enabled</code>, the default,
+                            <code>stacd</code> does not disconnect from I/O
+                            controllers when a DPLE is removed. Instead, users
+                            can issue the <code>nvme-cli</code> command
+                            "<code>nvme disconnect</code>" to disconnect (or wait
+                            until the next system reboot at which time all
+                            connections will be removed).
+                        </para>
+
+                        <para>
+                            With <code>sticky-connections=disabled</code>,
+                            <code>stacd</code> immediately disconnects from
+                            a previously connected I/O controller if the response
+                            to a Get DLP command no longer contains a DLPE
+                            matching that I/O controller.
+                        </para>
+                    </listitem>
+                </varlistentry>
             </variablelist>
         </refsect2>
 
