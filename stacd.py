@@ -256,6 +256,12 @@ class Stac(stas.Service):
         self._staf = None
         self._staf_watcher = None
 
+    def _keep_connections_on_exit(self):
+        '''@brief Determine whether connections should remain when the
+        process exits.
+        '''
+        return True
+
     def _reload_hdlr(self):
         '''@brief Reload configuration file. This is triggered by the SIGHUP
         signal, which can be sent with "systemctl reload stacd".
@@ -264,6 +270,7 @@ class Stac(stas.Service):
         stas.CNF.reload()
         set_loglevel(stas.CNF.tron)
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
+        udev_rule_ctrl(stas.CNF.udev_rule_enabled)
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
 
@@ -297,7 +304,7 @@ class Stac(stas.Service):
         for tid in controllers_to_rm:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.kill()
+                controller.disconnect(self._on_ctrl_disconnected, stas.CNF.sticky_connections)
 
         for tid in controllers_to_add:
             self._controllers[tid] = Ioc(tid)
