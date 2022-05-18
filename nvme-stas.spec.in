@@ -93,5 +93,6 @@ stafd (STorage Appliance Finder) and stacd (STorage Appliance Connector).
 %{_mandir}/man8/sta*.8*
 
 %changelog
+* Wed May 18 2022 Martin Belanger <martin.belanger@dell.com> - Release 1.1
 * Thu Mar 24 2022 Martin Belanger <martin.belanger@dell.com> - Release 1.0-rc4
 -
