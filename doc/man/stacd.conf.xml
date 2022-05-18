@@ -62,7 +62,7 @@
             <filename>stacd.conf</filename> is a plain text file divided into
             sections, with configuration entries in the style
             <replaceable>key</replaceable>=<replaceable>value</replaceable>.
-            Whitespace immediately before or after the <literal>=</literal> is
+            A space immediately before or after the <literal>=</literal> is
             ignored. Empty lines and lines starting with <literal>#</literal>
             are ignored, which may be used for commenting.
         </para>
@@ -167,10 +167,10 @@
                         </para>
 
                         <para>
-                            A udev rule gets intalled with <code>nvme-cli</code>
+                            A udev rule gets installed with <code>nvme-cli</code>
                             that tells the udev daemon (<code>udevd</code>) to look
-                            for Asychronous Event Notifications (AEN) indicating
-                            a change of discovery log page entries (DPLE). The
+                            for Asynchronous Event Notifications (AEN) indicating
+                            a change of Discovery Log Page Entries (DPLE). The
                             udev rule is installed as: <filename>/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules</filename>
                         </para>
 
@@ -178,8 +178,8 @@
                             When an AEN is detected, <code>udevd</code> simply
                             instructs <code>systemd</code> to start a one-shot
                             service that will retrieve the changed DPLEs and
-                            connect to all the I/O Contollers (IOC) listed in
-                            the DPLEs. This is basically the same as perfoming
+                            connect to all the I/O Controllers (IOC) listed in
+                            the DPLEs. This is basically the same as performing
                             <code>nvme-cli</code>'s "<code>connect-all</code>"
                             command.
                         </para>
@@ -207,7 +207,7 @@
                         <para>
                             The <code>udev-rule</code> option allows a user to
                             disable nvme-cli's udev rule so that <code>udevd</code> will
-                            not take action on received AENs. Instead, only
+                            not act on received AENs. Instead, only
                             <code>stafd</code>/<code>stacd</code> will be allowed
                             to react to AENs and set up IOC connections.
                         </para>

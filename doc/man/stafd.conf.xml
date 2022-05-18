@@ -63,7 +63,7 @@
             <filename>stafd.conf</filename> is a plain text file divided into
             sections, with configuration entries in the style
             <replaceable>key</replaceable>=<replaceable>value</replaceable>.
-            Whitespace immediately before or after the <literal>=</literal> is
+            A space immediately before or after the <literal>=</literal> is
             ignored. Empty lines and lines starting with <literal>#</literal>
             are ignored, which may be used for commenting.
         </para>
