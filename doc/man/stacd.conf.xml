@@ -265,29 +265,28 @@
                         </para>
 
                         <para>
-                            Note that <code>nvme-stas</code> was modeled after
-                            <code>nvme-cli</code>. <code>nvme-cli</code> maintains
-                            I/O controller connections by default (i.e. connections
-                            are sticky). That's why <code>nvme-stas</code> also
-                            maintains I/O controller connections by default.
+                            With <code>sticky-connections=disabled</code>, the default,
+                            <code>stacd</code> immediately disconnects from
+                            a previously connected I/O controller if the response
+                            to a Get DLP command no longer contains a DLPE
+                            matching that I/O controller. Ongoing I/O transactions
+                            will be terminated immediately as well. There is no
+                            way to tell what happens to the data being exchanged
+                            when such an abrupt termination happens. If a host
+                            was in the middle of writing to a storage subsystem,
+                            there is a good chance that incomplete and
+                            potentially corrupt data will be left on the remote
+                            storage.
                         </para>
 
                         <para>
-                            With <code>sticky-connections=enabled</code>, the default,
+                            With <code>sticky-connections=enabled</code>,
                             <code>stacd</code> does not disconnect from I/O
                             controllers when a DPLE is removed. Instead, users
                             can issue the <code>nvme-cli</code> command
                             "<code>nvme disconnect</code>" to disconnect (or wait
                             until the next system reboot at which time all
                             connections will be removed).
-                        </para>
-
-                        <para>
-                            With <code>sticky-connections=disabled</code>,
-                            <code>stacd</code> immediately disconnects from
-                            a previously connected I/O controller if the response
-                            to a Get DLP command no longer contains a DLPE
-                            matching that I/O controller.
                         </para>
                     </listitem>
                 </varlistentry>
