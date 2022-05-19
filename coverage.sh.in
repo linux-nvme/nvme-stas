@@ -82,7 +82,7 @@ cat > "${stacd_conf_fname}" <<'EOF'
 tron=true
 kato=10
 udev-rule=disabled
-sticky-connections=disabled
+sticky-connections=enabled
 EOF
 
 sudo systemctl stop avahi-daemon.service

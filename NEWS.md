@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.1.1
+
+Make `sticky-connections-disabled` 
+
+by default
+
 ## Changes with release 1.1
 
 - Add `udev-rule` configuration parameter to `stacd.conf`.

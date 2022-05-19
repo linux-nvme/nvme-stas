@@ -41,7 +41,7 @@ if __name__ == '__main__':
             self.assertFalse(cnf.data_digest)
             self.assertTrue(cnf.persistent_connections)
             self.assertTrue(cnf.udev_rule_enabled)
-            self.assertTrue(cnf.sticky_connections)
+            self.assertFalse(cnf.sticky_connections)
             self.assertFalse(cnf.ignore_iface)
             self.assertIn(6, cnf.ip_family)
             self.assertNotIn(4, cnf.ip_family)
