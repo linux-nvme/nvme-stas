@@ -353,10 +353,11 @@ class Stac(stas.Service):
 
 
 # ******************************************************************************
-STAC = Stac()
-STAC.run()
+if __name__ == '__main__':
+    STAC = Stac()
+    STAC.run()
 
-STAC = None
-ARGS = None
-stas.clean()
-logging.shutdown()
+    STAC = None
+    ARGS = None
+    stas.clean()
+    logging.shutdown()

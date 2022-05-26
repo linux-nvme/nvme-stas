@@ -560,10 +560,11 @@ class Staf(stas.Service):
 
 
 # ******************************************************************************
-STAF = Staf()
-STAF.run()
+if __name__ == '__main__':
+    STAF = Staf()
+    STAF.run()
 
-STAF = None
-ARGS = None
-stas.clean()
-logging.shutdown()
+    STAF = None
+    ARGS = None
+    stas.clean()
+    logging.shutdown()
