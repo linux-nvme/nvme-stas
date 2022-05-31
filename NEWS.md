@@ -1,10 +1,12 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.1.2
+
+stacd: Bug fix. Check that self._cfg_soak_tmr is not None before dereferencing it.
+
 ## Changes with release 1.1.1
 
-Make `sticky-connections-disabled` 
-
-by default
+Make `sticky-connections-disabled` by default
 
 ## Changes with release 1.1
 
