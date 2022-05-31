@@ -322,7 +322,7 @@ class Stac(stas.Service):
         except dasbus.error.DBusError:
             stas.LOG.error('Failed to connect to staf')
 
-    def _destroy_staf_comlink(self, watcher):
+    def _destroy_staf_comlink(self, watcher):  # pylint: disable=unused-argument
         if self._staf:
             self._staf.log_pages_changed.disconnect(self._log_pages_changed)
             dasbus.client.proxy.disconnect_proxy(self._staf)
