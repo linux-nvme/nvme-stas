@@ -46,16 +46,32 @@ endif
 
 # Unit tests
 things_to_test = [
-    ['Test Configuration', 'test-config.py'],
-    ['Test KernelVersion', 'test-version.py'],
-    ['Test NvmeOptions',   'test-nvme_options.py'],
-    ['Test Udev',          'test-udev.py'],
-    ['Test TransportId',   'test-transport_id.py'],
+    ['Test Configuration', 'test-config.py',       []],
+    ['Test KernelVersion', 'test-version.py',      []],
+    ['Test NvmeOptions',   'test-nvme_options.py', ['pyfakefs']],
+    ['Test Udev',          'test-udev.py',         []],
+    ['Test TransportId',   'test-transport_id.py', []],
 ]
+
 foreach thing: things_to_test
     msg = thing[0]
-    script = join_paths(meson.current_source_dir(), thing[1])
-    test(msg, python3, args: script, env: test_env)
+
+    # Check whether all dependencies can be found
+    deps_found = true
+    deps = thing[2]
+    foreach dep : deps
+        if run_command(python3, '-c', 'import @0@'.format(dep), check: false).returncode() != 0
+            deps_found = false
+            warning('"@0@" requires python module "@1@"'.format(msg, dep))
+            break
+        endif
+    endforeach
+
+    # Run the test if all dependencies are available
+    if deps_found
+        script = join_paths(meson.current_source_dir(), thing[1])
+        test(msg, python3, args: script, env: test_env)
+    endif
 endforeach
 
 # Make sure code complies with minimum Python version requirement.
