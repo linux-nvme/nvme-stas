@@ -247,7 +247,7 @@ class Stac(stas.Service):
 
         udev_rule_ctrl(True)
 
-        self._disconnect_from_staf(self._staf_watcher)
+        self._destroy_staf_comlink(self._staf_watcher)
         if self._staf_watcher is not None:
             self._staf_watcher.disconnect()
 
@@ -322,18 +322,24 @@ class Stac(stas.Service):
         except dasbus.error.DBusError:
             stas.LOG.error('Failed to connect to staf')
 
-    def _disconnect_from_staf(self, _):
+    def _destroy_staf_comlink(self, watcher):
         if self._staf:
             self._staf.log_pages_changed.disconnect(self._log_pages_changed)
             dasbus.client.proxy.disconnect_proxy(self._staf)
             self._staf = None
+
+    def _disconnect_from_staf(self, watcher):
+        self._destroy_staf_comlink(watcher)
+
         # When we lose connectivity with stafd, the most logical explanation
         # is that stafd restarted. In that case, it may take some time for stafd
         # to re-populate its log pages cache. So let's give stafd plenty of time
         # to update its log pages cache and send log pages change notifications
         # before triggering a stacd re-config. We do this by momentarily
         # increasing the config soak timer to a longer period.
-        self._cfg_soak_tmr.set_timeout(Stac.CONF_STABILITY_LONG_SOAK_TIME_SEC)
+        if self._cfg_soak_tmr:
+            self._cfg_soak_tmr.set_timeout(Stac.CONF_STABILITY_LONG_SOAK_TIME_SEC)
+
         stas.LOG.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
 
     def _log_pages_changed(  # pylint: disable=too-many-arguments
