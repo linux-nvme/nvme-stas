@@ -2,31 +2,63 @@
 import os
 import unittest
 from staslib import stas
+from pyfakefs.fake_filesystem_unittest import TestCase
 
-if __name__ == '__main__':
 
-    class Test(unittest.TestCase):
-        '''Unit tests for class NvmeOptions'''
+class Test(TestCase):
+    """Unit tests for class NvmeOptions"""
 
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.is_root = os.geteuid() == 0
-            if self.is_root:  # Only root can access /dev/nvme-fabrics
-                self.nvme_options = stas.NvmeOptions()
-            else:
-                self.nvme_options = None
+    def setUp(self):
+        self.setUpPyfakefs()
 
-        def test_discovery_supp(self):
-            '''Test discovery_supp'''
-            if self.nvme_options:
-                self.assertEqual(type(self.nvme_options.discovery_supp), bool)
+    def tearDown(self):
+        # No longer need self.tearDownPyfakefs()
+        pass
 
-        def test_host_iface_supp(self):
-            '''Test host_iface_supp'''
-            if self.nvme_options:
-                self.assertEqual(type(self.nvme_options.host_iface_supp), bool)
+    def test_fabrics_doesnt_exist(self):
+        self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
+        with self.assertLogs(logger=stas.LOG) as captured:
+            nvme_options = stas.NvmeOptions()
+            self.assertFalse(nvme_options.discovery_supp)
+            self.assertFalse(nvme_options.host_iface_supp)
+            self.assertEqual(str(nvme_options), "supported options: {'discovery': False, 'host_iface': False}")
+            nvme_options.destroy()
+        self.assertEqual(len(captured.records), 1)
+        self.assertEqual(captured.records[0].getMessage(), "Cannot determine which NVMe options the kernel supports")
 
-        def test_str(self):
-            self.assertIsInstance(str(self.nvme_options), str)
+    def test_fabrics_empty_file(self):
+        self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
+        # TODO: this is a bug
+        # self.fs.create_file("/dev/nvme-fabrics")
+        # self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
+        nvme_options = stas.NvmeOptions()
+        self.assertFalse(nvme_options.discovery_supp)
+        self.assertFalse(nvme_options.host_iface_supp)
+        self.assertEqual(str(nvme_options), "supported options: {'discovery': False, 'host_iface': False}")
+        nvme_options.destroy()
 
+    def test_fabrics_wrong_file(self):
+        self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
+        self.fs.create_file("/dev/nvme-fabrics", contents="blah")
+        self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
+        nvme_options = stas.NvmeOptions()
+        self.assertFalse(nvme_options.discovery_supp)
+        self.assertFalse(nvme_options.host_iface_supp)
+        self.assertEqual(str(nvme_options), "supported options: {'discovery': False, 'host_iface': False}")
+        nvme_options.destroy()
+
+    def test_fabrics_correct_file(self):
+        self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
+        self.fs.create_file(
+            "/dev/nvme-fabrics", contents="host_iface=eth0,discovery=nqn.2014-08.org.nvmexpress.discovery"
+        )
+        self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
+        nvme_options = stas.NvmeOptions()
+        self.assertTrue(nvme_options.discovery_supp)
+        self.assertTrue(nvme_options.host_iface_supp)
+        self.assertEqual(str(nvme_options), "supported options: {'discovery': True, 'host_iface': True}")
+        nvme_options.destroy()
+
+
+if __name__ == "__main__":
     unittest.main()

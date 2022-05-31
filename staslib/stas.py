@@ -489,6 +489,12 @@ class NvmeOptions:  # Singleton
 
         return cls.__instance
 
+    @classmethod
+    def destroy(cls):
+        '''This is used to destroy this singleton class'''
+        cls.__instance = None
+        cls.__initialized = False
+
     def __str__(self):
         return f'supported options: {self._supported_options}'
 

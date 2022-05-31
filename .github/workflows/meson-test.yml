@@ -21,6 +21,7 @@ jobs:
           python3 -m pip install --upgrade pip wheel
           python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
           python3 -m pip install --upgrade vermin
+          python3 -m pip install --upgrade pyfakefs
 
       - uses: BSFishy/meson-build@v1.0.3
         with:
