@@ -17,7 +17,7 @@ import dasbus.connection
 import dasbus.client.proxy
 import dasbus.client.observer
 from gi.repository import GLib
-from staslib import stas
+from staslib import stas, defs
 
 
 def txt2dict(txt: list):
@@ -408,9 +408,9 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                 'traddr':     address,
                 'trsvcid':    str(port),
                 'host-iface': socket.if_indextoname(interface),
-                'subsysnqn':  txt.get('NQN', 'nqn.2014-08.org.nvmexpress.discovery')
+                'subsysnqn':  txt.get('NQN', defs.WELL_KNOWN_DISC_NQN)
                               if stas.NvmeOptions().discovery_supp
-                              else 'nqn.2014-08.org.nvmexpress.discovery',
+                              else defs.WELL_KNOWN_DISC_NQN,
             }
         self._change_cb()
 

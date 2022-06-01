@@ -527,7 +527,7 @@ class Staf(stas.Service):
         configured_ctrl_list = [
             ctrl_dict
             for ctrl_dict in configured_ctrl_list
-            if 'traddr' in ctrl_dict and ctrl_dict.setdefault('subsysnqn', 'nqn.2014-08.org.nvmexpress.discovery')
+            if 'traddr' in ctrl_dict and ctrl_dict.setdefault('subsysnqn', defs.WELL_KNOWN_DISC_NQN)
         ]
 
         discovered_ctrl_list = self._avahi.get_controllers()

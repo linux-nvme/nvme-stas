@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas
+from staslib import stas, defs
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -50,7 +50,7 @@ class Test(TestCase):
     def test_fabrics_correct_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
         self.fs.create_file(
-            "/dev/nvme-fabrics", contents="host_iface=eth0,discovery=nqn.2014-08.org.nvmexpress.discovery"
+            "/dev/nvme-fabrics", contents=f"host_iface=eth0,discovery={defs.WELL_KNOWN_DISC_NQN}"
         )
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         nvme_options = stas.NvmeOptions()
