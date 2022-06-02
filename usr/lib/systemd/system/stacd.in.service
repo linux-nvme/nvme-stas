@@ -6,6 +6,7 @@
 #
 [Unit]
 Description=@STAC_DESCRIPTION@ (@STAC_ACRONYM@)
+Documentation=man:@STACD_PROCNAME@.service(8) man:@STACD_PROCNAME@(8)
 After=modprobe@nvme_tcp.service network.target
 Wants=modprobe@nvme_tcp.service network.target
 
