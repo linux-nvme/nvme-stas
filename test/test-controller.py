@@ -8,22 +8,25 @@ from pyfakefs.fake_filesystem_unittest import TestCase
 class Test(TestCase):
     '''Unit tests for class Controller'''
 
-    NVME_ROOT = nvme.root()
-    NVME_HOST = nvme.host(NVME_ROOT, stas.SYS_CNF.hostnqn, stas.SYS_CNF.hostid, stas.SYS_CNF.hostsymname)
-    NVME_TID = {
-        'transport':   'tcp',
-        'traddr':      '10.10.10.10',
-        'subsysnqn':   'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
-        'trsvcid':     '8009',
-        'host-traddr': '1.2.3.4',
-        'host-iface':  'wlp0s20f3',
-    }
-
     def setUp(self):
         self.setUpPyfakefs()
 
+        self.fs.create_file('/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n')
+        self.fs.create_file('/etc/nvme/hostid',  contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1,transport=%s,traddr=%s,trsvcid=%s,nqn=%s,queue_size=%d,nr_io_queues=%d,reconnect_delay=%d,ctrl_loss_tmo=%d,keep_alive_tmo=%d,hostnqn=%s,host_traddr=%s,host_iface=%s,hostid=%s,duplicate_connect,disable_sqflow,hdr_digest,data_digest,nr_write_queues=%d,nr_poll_queues=%d,tos=%d,fast_io_fail_tmo=%d,discovery,dhchap_secret=%s,dhchap_ctrl_secret=%s\n')
+
+        self.NVME_ROOT = nvme.root()
+        self.NVME_HOST = nvme.host(self.NVME_ROOT, stas.SYS_CNF.hostnqn, stas.SYS_CNF.hostid, stas.SYS_CNF.hostsymname)
+        self.NVME_TID = {
+            'transport':   'tcp',
+            'traddr':      '10.10.10.10',
+            'subsysnqn':   'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
+            'trsvcid':     '8009',
+            'host-traddr': '1.2.3.4',
+            'host-iface':  'wlp0s20f3',
+        }
+
     def test_get_device(self):
-        self.fs.create_file("/dev/nvme-fabrics", contents="blah")
         ctrl = stas.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=stas.TransportId(self.NVME_TID))
         self.assertEqual(ctrl._connect_attempts, 0)
         self.assertRaises(NotImplementedError, ctrl._try_to_connect)

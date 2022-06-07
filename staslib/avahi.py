@@ -75,10 +75,15 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         PROTO_UNSPEC: 'uspecified'
     }
 
-    result_flags_as_string = lambda flags: '+'.join(
-        (value for flag, value in Avahi.result_flags.items() if (flags & flag) != 0)
-    )
-    protocol_as_string = lambda proto: Avahi.protos.get(proto, 'unknown')
+    @classmethod
+    def result_flags_as_string(cls, flags):
+        '''Convert flags to human-readable string'''
+        return '+'.join((value for flag, value in Avahi.result_flags.items() if (flags & flag) != 0))
+
+    @classmethod
+    def protocol_as_string(cls, proto):
+        '''Convert protocol codes to human-readable strings'''
+        return Avahi.protos.get(proto, 'unknown')
 
     # ==========================================================================
     def __init__(self, sysbus, change_cb):

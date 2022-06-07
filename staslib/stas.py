@@ -359,10 +359,10 @@ class SysConfiguration:
         try:
             value = self.__get_value('Host', 'nqn', '/etc/nvme/hostnqn')
         except FileNotFoundError as ex:
-            sys.exit('Error reading mandatory Host NQN (see stasadm --help): %s', ex)
+            sys.exit(f'Error reading mandatory Host NQN (see stasadm --help): {ex}')
 
         if not value.startswith('nqn.'):
-            sys.exit('Error Host NQN "%s" should start with "nqn."', value)
+            sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
 
         return value
 
@@ -376,7 +376,7 @@ class SysConfiguration:
         try:
             value = self.__get_value('Host', 'id', '/etc/nvme/hostid')
         except FileNotFoundError as ex:
-            sys.exit('Error reading mandatory Host ID (see stasadm --help): %s', ex)
+            sys.exit(f'Error reading mandatory Host ID (see stasadm --help): {ex}')
 
         return value
 
