@@ -120,11 +120,13 @@ stas.check_if_allowed_to_continue()
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 import json
+import pickle
 import logging
 import dasbus.server.interface
 import systemd.daemon
 from libnvme import nvme
 from gi.repository import GLib
+
 
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
@@ -156,11 +158,11 @@ class Dc(stas.Controller):
     GET_LOG_PAGE_RETRY_RERIOD_SEC = 20
     REGISTRATION_RETRY_RERIOD_SEC = 10
 
-    def __init__(self, tid: stas.TransportId):
+    def __init__(self, tid: stas.TransportId, log_pages=None):
         super().__init__(NVME_ROOT, NVME_HOST, tid, discovery_ctrl=True)
         self._register_op = None
         self._get_log_op = None
-        self._log_pages = list()  # Log pages cache
+        self._log_pages = log_pages if log_pages else list()  # Log pages cache
 
     def _release_resources(self):
         stas.LOG.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
@@ -445,6 +447,7 @@ class Staf(stas.Service):
     # ==========================================================================
     def __init__(self):
         super().__init__(self._reload_hdlr)
+
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
         self._avahi.config_stypes(stas.CNF.get_stypes())
 
@@ -471,6 +474,28 @@ class Staf(stas.Service):
         super()._release_resources()
         self._avahi.kill()
         self._avahi = None
+
+        self._lkc_file = None
+
+    def _load_last_known_config(self):
+        try:
+            with open(self._lkc_file, 'rb') as file:
+                config = pickle.load(file)
+        except FileNotFoundError as ex:
+            stas.LOG.debug('Staf._load_last_known_config()     - %s: %s', self._lkc_file, ex)
+            config = dict()
+
+        stas.LOG.debug('Staf._load_last_known_config()     - config=%s', config)
+        return {tid: Dc(tid, log_pages) for tid, log_pages in config.items()}
+
+    def _dump_last_known_config(self, controllers):
+        try:
+            with open(self._lkc_file, 'wb') as file:
+                config = {tid: dc.log_pages() for tid, dc in controllers.items()}
+                stas.LOG.debug('Staf._dump_last_known_config()     - config=%s', config)
+                pickle.dump(config, file)
+        except FileNotFoundError as ex:
+            stas.LOG.error('Unable to save last known config to %s: %s', self._lkc_file, ex)
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
@@ -542,12 +567,12 @@ class Staf(stas.Service):
         new_controller_ids = {stas.TransportId(controller) for controller in controllers}
         cur_controller_ids = set(self._controllers.keys())
         controllers_to_add = new_controller_ids - cur_controller_ids
-        controllers_to_rm = cur_controller_ids - new_controller_ids
+        controllers_to_del = cur_controller_ids - new_controller_ids
 
         stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_add    = %s', list(controllers_to_add))
-        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_rm     = %s', list(controllers_to_rm))
+        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_del    = %s', list(controllers_to_del))
 
-        for tid in controllers_to_rm:
+        for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
                 controller.disconnect(self._on_ctrl_disconnected, stas.CNF.persistent_connections)

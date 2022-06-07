@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import signal
+import hashlib
 import logging
 import configparser
 import platform
@@ -58,6 +59,7 @@ def check_if_allowed_to_continue():
 # ******************************************************************************
 LOG = logging.getLogger(__name__)  # Singleton
 LOG.propagate = False
+
 
 def get_log_handler(syslog: bool, identifier: str):
     '''Instantiate and return a log handler'''
@@ -445,6 +447,7 @@ class NvmeOptions:  # Singleton
     '''Object used to read and cache contents of file /dev/nvme-fabrics.
     Note that this file was not readable prior to Linux 5.16.
     '''
+
     __instance = None
     __initialized = False
 
@@ -606,7 +609,8 @@ class Udev:
     '''@brief Udev event monitor. Provide a way to register for udev events.'''
 
     def __init__(self):
-        self._registry = dict()
+        self._device_event_registry = dict()
+        self._action_event_registry = dict()
         self._context = pyudev.Context()
         self._monitor = pyudev.Monitor.from_netlink(self._context)
         self._monitor.filter_by(subsystem='nvme')
@@ -625,7 +629,8 @@ class Udev:
             self._monitor = None
 
         self._context = None
-        self._registry = None
+        self._device_event_registry = None
+        self._action_event_registry = None
 
     def clean(self):
         '''Clean up all resources'''
@@ -643,20 +648,38 @@ class Udev:
             LOG.error("Udev.get_nvme_device() - Error: %s", ex)
             return None
 
-    def register_for_events(self, sys_name: str, user_cback):
+    def get_registered_action_cback(self, action: str):
+        '''@brief Return the callback function registered for a specific action.
+        @param action: one of 'add', 'remove', 'change'.
+        '''
+        return self._action_event_registry.get(action, None)
+
+    def register_for_action_events(self, action: str, user_cback):
         '''@brief Register a callback function to be called when udev events
-               are received for a specific nvme device.
+        for a specific action are received.
+        @param action: one of 'add', 'remove', 'change'.
+        '''
+        if action and action not in self._action_event_registry:
+            self._action_event_registry[action] = user_cback
+
+    def unregister_for_action_events(self, action: str):
+        '''@brief The opposite of register_for_action_events()'''
+        self._action_event_registry.pop(action, None)
+
+    def register_for_device_events(self, sys_name: str, user_cback):
+        '''@brief Register a callback function to be called when udev events
+        are received for a specific nvme device.
         @param sys_name: The device system name (e.g. 'nvme1')
         '''
         if sys_name:
-            self._registry[sys_name] = user_cback
+            self._device_event_registry[sys_name] = user_cback
 
-    def unregister_for_events(self, user_cback):
-        '''@brief The opposite of register_for_events()'''
-        entries = list(self._registry.items())
+    def unregister_for_device_events(self, user_cback):
+        '''@brief The opposite of register_for_device_events()'''
+        entries = list(self._device_event_registry.items())
         for sys_name, _user_cback in entries:
             if user_cback == _user_cback:
-                self._registry.pop(sys_name, None)
+                self._device_event_registry.pop(sys_name, None)
                 break
 
     def get_attributes(self, sys_name: str, attr_ids) -> dict:
@@ -674,6 +697,42 @@ class Udev:
 
         return attrs
 
+    @staticmethod
+    def is_dc_device(device):
+        '''@brief check whether device refers to a Discovery Controller'''
+        # Note: Prior to 5.18 linux didn't expose the cntrltype through
+        # the sysfs. So, this may return None on older kernels.
+        cntrltype = device.attributes.get('cntrltype')
+        if cntrltype is not None and cntrltype.decode() != 'discovery':
+            return False
+
+        # Imply Discovery controller based on the absence of children.
+        # Discovery Controllers have no children devices
+        if len(list(device.children)) != 0:
+            return False
+
+        return True
+
+    @staticmethod
+    def is_ioc_device(device):
+        '''@brief check whether device refers to an I/O Controller'''
+        # Note: Prior to 5.18 linux didn't expose the cntrltype through
+        # the sysfs. So, this may return None on older kernels.
+        cntrltype = device.attributes.get('cntrltype')
+        if cntrltype is not None and cntrltype.decode() != 'io':
+            return False
+
+        subsysnqn = device.attributes.get('subsysnqn')
+        if subsysnqn is not None and subsysnqn.decode() == defs.WELL_KNOWN_DISC_NQN:
+            return False
+
+        # Imply I/O controller based on the presence of children.
+        # I/O Controllers have children devices
+        if len(list(device.children)) == 0:
+            return False
+
+        return True
+
     def find_nvme_dc_device(self, tid):
         '''@brief  Find the nvme device associated with the specified
                 Discovery Controller.
@@ -682,18 +741,10 @@ class Udev:
         for device in self._context.list_devices(
             subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
         ):
-            # Note: Prior to 5.18 linux didn't expose the cntrltype through
-            # the sysfs. So, this may return None on older kernels.
-            cntrltype = device.attributes.get('cntrltype')
-            if cntrltype is not None and cntrltype.decode() != 'discovery':
+            if not self.is_dc_device(device):
                 continue
 
-            # Imply Discovery controller based on the absence of children.
-            # Discovery Controllers have no children devices
-            if len(list(device.children)) != 0:
-                continue
-
-            if self._get_tid(device) != tid:
+            if self.get_tid(device) != tid:
                 continue
 
             return device
@@ -708,26 +759,35 @@ class Udev:
         for device in self._context.list_devices(
             subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
         ):
-            # Note: Prior to 5.18 linux didn't expose the cntrltype through
-            # the sysfs. So, this may return None on older kernels.
-            cntrltype = device.attributes.get('cntrltype')
-            if cntrltype is not None and cntrltype.decode() != 'io':
+            if not self.is_ioc_device(device):
                 continue
 
-            # Imply I/O controller based on the presence of children.
-            # I/O Controllers have children devices
-            if len(list(device.children)) == 0:
-                continue
-
-            if self._get_tid(device) != tid:
+            if self.get_tid(device) != tid:
                 continue
 
             return device
 
         return None
 
+    def get_nvme_ioc_tids(self):
+        '''@brief  Find all the I/O controller nvme devices in the system.
+        @return A list of pyudev.device._device.Device objects
+        '''
+        tids = []
+        for device in self._context.list_devices(subsystem='nvme'):
+            if not self.is_ioc_device(device):
+                continue
+
+            tids.append(self.get_tid(device))
+
+        return tids
+
     def _device_event(self, _observer, device):
-        user_cback = self._registry.get(device.sys_name, None)
+        user_cback = self._action_event_registry.get(device.action, None)
+        if user_cback is not None:
+            user_cback(device)
+
+        user_cback = self._device_event_registry.get(device.sys_name, None)
         if user_cback is not None:
             user_cback(device)
 
@@ -746,7 +806,8 @@ class Udev:
         return '' if attr.lower() == 'none' else attr
 
     @staticmethod
-    def _get_tid(device):
+    def get_tid(device):
+        '''@brief return the Transport ID associated with a udev device'''
         cid = {
             'transport':   Udev._get_property(device, 'NVME_TRTYPE'),
             'traddr':      Udev._get_property(device, 'NVME_TRADDR'),
@@ -848,8 +909,8 @@ class TransportId:
         self._host_iface  = '' if CNF.ignore_iface else cid.get('host-iface', '')
         self._subsysnqn   = cid.get('subsysnqn')
         self._key         = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._host_iface, self._subsysnqn)
-        self._hash        = hash(self._key)
         self._id          = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'  # pylint: disable=line-too-long
+        self._hash        = int.from_bytes(hashlib.md5(self._id.encode()).digest(), 'big')  # We need a consistent hash between restarts
 
     @property
     def key(self):  # pylint: disable=missing-function-docstring
@@ -1162,7 +1223,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
 
         device = self.device
         if device:
-            UDEV.unregister_for_events(self._on_udev_notification)
+            UDEV.unregister_for_device_events(self._on_udev_notification)
 
         self._retry_connect_tmr.kill()
 
@@ -1225,7 +1286,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         pass
 
     def _on_udev_remove(self, udev):  # pylint: disable=unused-argument
-        UDEV.unregister_for_events(self._on_udev_notification)
+        UDEV.unregister_for_device_events(self._on_udev_notification)
         self._kill_ops()  # Kill all pending operations
         self._ctrl = None
 
@@ -1303,7 +1364,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 self._device = self._ctrl.name
             LOG.info('%s | %s - Connection established!', self.id, self.device)
             self._connect_attempts = 0
-            UDEV.register_for_events(self.device, self._on_udev_notification)
+            UDEV.register_for_device_events(self.device, self._on_udev_notification)
         else:
             LOG.debug(
                 'Controller._on_connect_success()   - %s | %s Received event on dead object. data=%s',
@@ -1423,15 +1484,17 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         op_obj.kill()
         disconnected_cb(self.tid)
 
+
 # ******************************************************************************
-class Service:
+class Service:  # pylint: disable=too-many-instance-attributes
     '''@brief Base class used to manage a STorage Appliance Service'''
 
     def __init__(self, reload_hdlr):
+        self._lkc_file     = os.path.join(os.environ.get('RUNTIME_DIRECTORY'), 'last-known-config.pickle')
         self._loop         = GLib.MainLoop()
         self._cancellable  = Gio.Cancellable()
         self._resolver     = NameResolver()
-        self._controllers  = dict()
+        self._controllers  = self._load_last_known_config()
         self._dbus_iface   = None
         self._cfg_soak_tmr = None
         self._sysbus       = dasbus.connection.SystemMessageBus()
@@ -1481,6 +1544,7 @@ class Service:
         '''@brief Get the status info for this object (used for debug)'''
         nvme_options = NvmeOptions()
         return {
+            'last known config file': self._lkc_file,
             'config soak timer': str(self._cfg_soak_tmr),
             'kernel support': {
                 'TP8013': nvme_options.discovery_supp,
@@ -1539,6 +1603,8 @@ class Service:
 
         self._cancel()  # Cancel pending operations
 
+        self._dump_last_known_config(self._controllers)
+
         if len(self._controllers) == 0:
             GLib.idle_add(self._exit)
         else:
@@ -1578,6 +1644,7 @@ class Service:
         # running name resolution. And we will need to remove blacklisted
         # elements after name resolution is complete (i.e. in the calback
         # function _config_ctrls_finish)
+        LOG.debug('Service._config_ctrls()')
         configured_controllers = remove_blacklisted(CNF.get_controllers())
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
@@ -1597,6 +1664,12 @@ class Service:
         '''
         raise NotImplementedError()
 
+    def _load_last_known_config(self):
+        raise NotImplementedError()
+
+    def _dump_last_known_config(self, controllers):
+        raise NotImplementedError()
+
 
 def clean():
     '''Clean up all resources (especially singletons)'''
@@ -1605,3 +1678,5 @@ def clean():
     if UDEV:
         UDEV.clean()
         UDEV = None
+
+    NvmeOptions.destroy()
