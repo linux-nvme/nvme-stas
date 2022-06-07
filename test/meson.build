@@ -49,6 +49,7 @@ things_to_test = [
     ['Test Configuration', 'test-config.py',       []],
     ['Test KernelVersion', 'test-version.py',      []],
     ['Test NvmeOptions',   'test-nvme_options.py', ['pyfakefs']],
+    ['Test Controller',    'test-controller.py',   ['pyfakefs']],
     ['Test Udev',          'test-udev.py',         []],
     ['Test TransportId',   'test-transport_id.py', []],
 ]
