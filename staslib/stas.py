@@ -472,7 +472,7 @@ class NvmeOptions:  # Singleton
         if not all(self._supported_options.values()):  # At least one option is False.
             try:
                 with open('/dev/nvme-fabrics') as f:  # pylint: disable=unspecified-encoding
-                    options = [option.split('=')[0].strip() for option in f.readlines()[0].rstrip('\n').split(',')]
+                    options = [option.split('=')[0].strip() for option in f.readline().rstrip('\n').split(',')]
             except PermissionError:  # Must be root to read this file
                 raise
             except OSError:
