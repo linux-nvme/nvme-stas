@@ -29,8 +29,8 @@ class Test(TestCase):
     def test_fabrics_empty_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
         # TODO: this is a bug
-        # self.fs.create_file("/dev/nvme-fabrics")
-        # self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
+        self.fs.create_file("/dev/nvme-fabrics")
+        self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         nvme_options = stas.NvmeOptions()
         self.assertFalse(nvme_options.discovery_supp)
         self.assertFalse(nvme_options.host_iface_supp)
