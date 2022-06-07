@@ -21,12 +21,14 @@ services:
   stafd:
     <<: *default-stas
     environment:
+      RUNTIME_DIRECTORY: /run/stafd
       XDG_CACHE_HOME: /var/cache/stafd
       PYTHONUNBUFFERED: 1
     command: -u /usr/sbin/stafd
   stacd:
     <<: *default-stas
     environment:
+      RUNTIME_DIRECTORY: /run/stacd
       XDG_CACHE_HOME: /var/cache/stacd
       PYTHONUNBUFFERED: 1
     command: -u /usr/sbin/stacd
