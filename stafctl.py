@@ -159,7 +159,7 @@ PRSR.add_argument(
     metavar='<nqn>',
     action='store',
     help='This field specifies the discovery controller\'s NQN. When not specified this option defaults to "%(default)s"',
-    default='nqn.2014-08.org.nvmexpress.discovery',
+    default=defs.WELL_KNOWN_DISC_NQN,
 )
 PRSR.set_defaults(func=dlp)
 

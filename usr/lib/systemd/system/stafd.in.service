@@ -9,6 +9,7 @@
 # is present, stafd should start after it for proper process sequencing.
 [Unit]
 Description=@STAF_DESCRIPTION@ (@STAF_ACRONYM@)
+Documentation=man:@STAFD_PROCNAME@.service(8) man:@STAFD_PROCNAME@(8)
 After=modprobe@nvme_tcp.service network.target avahi-daemon.service
 Wants=modprobe@nvme_tcp.service network.target
 
@@ -30,6 +31,7 @@ ExecReload=/bin/kill -HUP $MAINPID
 # Cache directory: /var/cache/@STAFD_PROCNAME@
 RuntimeDirectory=@STAFD_PROCNAME@
 CacheDirectory=@STAFD_PROCNAME@
+RuntimeDirectoryPreserve=yes
 
 [Install]
 WantedBy=multi-user.target

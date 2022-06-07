@@ -229,6 +229,8 @@ class Stac(stas.Service):
         self._cfg_soak_tmr = stas.GTimer(Stac.CONF_STABILITY_SOAK_TIME_SEC, self._on_config_ctrls)
         self._cfg_soak_tmr.start()
 
+        self._config_connections_audit()
+
         # Create the D-Bus instance.
         self._config_dbus(Stac.Dbus(), defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
 
@@ -247,6 +249,8 @@ class Stac(stas.Service):
 
         udev_rule_ctrl(True)
 
+        stas.UDEV.unregister_for_action_events('add')
+
         self._destroy_staf_comlink(self._staf_watcher)
         if self._staf_watcher is not None:
             self._staf_watcher.disconnect()
@@ -255,6 +259,46 @@ class Stac(stas.Service):
 
         self._staf = None
         self._staf_watcher = None
+
+    def _audit_connections(self, tids):
+        '''A host should only connect to I/O controllers that have been zoned
+        for that host or a manual "controller" entry exists in stcd.conf.
+        A host should disconnect from an I/O controller when that I/O controller
+        is removed from the zone or a manual "controller" entry is removed from
+        stacd.conf. stacd will audit connections if "sticky-connections=disabled".
+        stacd will delete any connection that is not supposed to exist.
+        '''
+        stas.LOG.debug('Stac._audit_connections()          - tids = %s', tids)
+        num_controllers = len(self._controllers)
+        for tid in tids:
+            if tid not in self._controllers:
+                self._controllers[tid] = Ioc(tid)
+
+        if num_controllers != len(self._controllers):
+            self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
+
+    def _on_add_event(self, udev):
+        '''@brief This function is called when a "add" event is received from
+        the kernel for an NVMe device. This is used to trigger an audit and make
+        sure that the connection to an I/O controller is allowed.
+        '''
+        if stas.UDEV.is_ioc_device(udev):
+            stas.LOG.info('%s - Received "add" event', udev.sys_name)
+            tid = stas.UDEV.get_tid(udev)
+            stas.LOG.debug('Stac._on_add_event()               - tid=%s', tid)
+            self._audit_connections([tid])
+
+    def _config_connections_audit(self):
+        '''This function checks the "sticky_connections" parameter to determine
+        whether audits should be performed. Audits are enabled when
+        "sticky_connections" is disabled.
+        '''
+        if not stas.CNF.sticky_connections:
+            if stas.UDEV.get_registered_action_cback('add') is None:
+                stas.UDEV.register_for_action_events('add', self._on_add_event)
+                self._audit_connections(stas.UDEV.get_nvme_ioc_tids())
+        else:
+            stas.UDEV.unregister_for_action_events('add')
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
@@ -269,6 +313,7 @@ class Stac(stas.Service):
         systemd.daemon.notify('RELOADING=1')
         stas.CNF.reload()
         set_loglevel(stas.CNF.tron)
+        self._config_connections_audit()
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
         udev_rule_ctrl(stas.CNF.udev_rule_enabled)
         systemd.daemon.notify('READY=1')
@@ -296,12 +341,12 @@ class Stac(stas.Service):
         new_controller_ids = {stas.TransportId(controller) for controller in controllers}
         cur_controller_ids = set(self._controllers.keys())
         controllers_to_add = new_controller_ids - cur_controller_ids
-        controllers_to_rm = cur_controller_ids - new_controller_ids
+        controllers_to_del = cur_controller_ids - new_controller_ids
 
         stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_add = %s', list(controllers_to_add))
-        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_rm  = %s', list(controllers_to_rm))
+        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_del = %s', list(controllers_to_del))
 
-        for tid in controllers_to_rm:
+        for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
                 controller.disconnect(self._on_ctrl_disconnected, stas.CNF.sticky_connections)
@@ -356,6 +401,12 @@ class Stac(stas.Service):
             device,
         )
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
+
+    def _load_last_known_config(self):
+        pass
+
+    def _dump_last_known_config(self, controllers):
+        pass
 
 
 # ******************************************************************************
