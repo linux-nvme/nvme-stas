@@ -403,7 +403,7 @@ class Stac(stas.Service):
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
 
     def _load_last_known_config(self):
-        pass
+        return dict()
 
     def _dump_last_known_config(self, controllers):
         pass
