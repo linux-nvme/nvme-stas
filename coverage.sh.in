@@ -43,7 +43,7 @@ sd_start() {
     printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start ${app}" "\0033"
 
     sd_stop "${app}" # make sure it's not running already
-    sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --setenv=PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ${cmd}
+    sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=/tmp coverage run --rcfile=.coveragerc ${cmd}
 }
 
 reload_cfg() {
