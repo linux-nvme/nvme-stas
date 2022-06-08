@@ -1471,18 +1471,29 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             op = AsyncOperationWithRetry(self._on_disconn_success, self._on_disconn_fail, self._ctrl.disconnect)
             op.run_async(disconnected_cb)
         else:
-            # Defer callback to the next main loop's idle period.
+            # Defer callback to the next main loop's idle period. The callback
+            # cannot be called directly as the current Controller object is in the
+            # process of being disconnected and the callback will in fact delete
+            # the object. This would invariably lead to unpredictable outcome.
             GLib.idle_add(disconnected_cb, self.tid)
 
     def _on_disconn_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
         LOG.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
         op_obj.kill()
-        disconnected_cb(self.tid)
+        # Defer callback to the next main loop's idle period. The callback
+        # cannot be called directly as the current Controller object is in the
+        # process of being disconnected and the callback will in fact delete
+        # the object. This would invariably lead to unpredictable outcome.
+        GLib.idle_add(disconnected_cb, self.tid)
 
     def _on_disconn_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
         LOG.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
         op_obj.kill()
-        disconnected_cb(self.tid)
+        # Defer callback to the next main loop's idle period. The callback
+        # cannot be called directly as the current Controller object is in the
+        # process of being disconnected and the callback will in fact delete
+        # the object. This would invariably lead to unpredictable outcome.
+        GLib.idle_add(disconnected_cb, self.tid)
 
 
 # ******************************************************************************
