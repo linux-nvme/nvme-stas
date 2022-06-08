@@ -2,21 +2,13 @@
 
 ## Changes with release 1.1.3
 
-stacd: Add I/O controller connection audits. Audits are enabled when
-the configuration parameter "sticky-connections" is disabled.
+**stacd**: Add I/O controller connection audits. Audits are enabled when the configuration parameter "`sticky-connections`" is disabled.
 
-stafd: Preserve and Reload last known configuration on restarts. This is for
-warm restarts of the stafd daemon. This does not apply to system reboots (cold
-restarts). This is needed to avoid deleting I/O controller (IOC) connections by
-mistake when restarting stafd. It prevents momentarily losing previously
-acquired Discovery Log Page Entries (DLPE). Since stacd relies on acquired DLPEs
-to determine which connection should be created or deleted, it's important that
-the list of DLPEs survives a stafd restart. Eventually, the list will get
-refreshed as stafd reconnects with all the Discovery Controllers (DC) and
-updates its DLPE cache. And as the cache gets refreshed, stacd will be able
-to determine which connections should remain and which one should ge deleted.
+**stafd**: Preserve and Reload last known configuration on restarts. This is for warm restarts of the `stafd` daemon. This does not apply to system reboots (cold restarts). This is needed to avoid deleting I/O controller (IOC) connections by mistake when restarting `stafd`. It prevents momentarily losing previously acquired Discovery Log Page Entries (DLPE). Since `stacd` relies on acquired DLPEs to determine which connection should be created or deleted, it's important that the list of DLPEs survives a `stafd` restart. Eventually, after `stafd` has restarted and reconnected to all Discovery Controllers (DC), the list will get refreshed and the DLPE cache will get updated. And as the cache gets updated, `stacd` will be able to determine which connections should remain and which one should get deleted.
 
-## Changes with release 1.1.2
+**`stafd`/`stacd`**: Fixed crash caused by `stafd`/`stacd` calling the wrong callback function during the normal disconnect of a controller. There are two callback functions that can be called after a controller is disconnected, but one of them must only be called on a final disconnect just before the process (`stafd` or `stacd`) exits. The wrong callback was being called on a normal disconnect, which led the process to think it was shutting down.
+
+## ~~Changes with release 1.1.2~~ DO NOT USE. SEE 1.1.3 INSTEAD.
 
 stacd: Bug fix. Check that self._cfg_soak_tmr is not None before dereferencing it.
 
