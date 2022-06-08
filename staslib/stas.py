@@ -909,8 +909,8 @@ class TransportId:
         self._host_iface  = '' if CNF.ignore_iface else cid.get('host-iface', '')
         self._subsysnqn   = cid.get('subsysnqn')
         self._key         = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._host_iface, self._subsysnqn)
+        self._hash        = int.from_bytes(hashlib.md5(''.join(self._key).encode('utf-8')).digest(), 'big')  # We need a consistent hash between restarts
         self._id          = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'  # pylint: disable=line-too-long
-        self._hash        = int.from_bytes(hashlib.md5(self._id.encode()).digest(), 'big')  # We need a consistent hash between restarts
 
     @property
     def key(self):  # pylint: disable=missing-function-docstring
@@ -1475,7 +1475,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             # cannot be called directly as the current Controller object is in the
             # process of being disconnected and the callback will in fact delete
             # the object. This would invariably lead to unpredictable outcome.
-            GLib.idle_add(disconnected_cb, self.tid)
+            GLib.idle_add(disconnected_cb, self.tid, self.device)
 
     def _on_disconn_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
         LOG.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
@@ -1484,7 +1484,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         # cannot be called directly as the current Controller object is in the
         # process of being disconnected and the callback will in fact delete
         # the object. This would invariably lead to unpredictable outcome.
-        GLib.idle_add(disconnected_cb, self.tid)
+        GLib.idle_add(disconnected_cb, self.tid, self.device)
 
     def _on_disconn_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
         LOG.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
@@ -1493,7 +1493,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         # cannot be called directly as the current Controller object is in the
         # process of being disconnected and the callback will in fact delete
         # the object. This would invariably lead to unpredictable outcome.
-        GLib.idle_add(disconnected_cb, self.tid)
+        GLib.idle_add(disconnected_cb, self.tid, self.device)
 
 
 # ******************************************************************************
@@ -1584,8 +1584,15 @@ class Service:  # pylint: disable=too-many-instance-attributes
 
     def remove_controller(self, tid, device):
         '''@brief remove the specified controller object from the list of controllers'''
-        LOG.debug('Service.remove_controller()        - %s %s', tid, device)
         controller = self._controllers.pop(tid, None)
+
+        LOG.debug(
+            'Service.remove_controller()        - %s %s: %s',
+            tid,
+            device,
+            'controller already removed' if controller is None else 'controller is being removed',
+        )
+
         if controller is not None:
             controller.kill()
 
@@ -1623,12 +1630,16 @@ class Service:  # pylint: disable=too-many-instance-attributes
             keep_connections = self._keep_connections_on_exit()
             controllers = self._controllers.values()
             for controller in controllers:
-                controller.disconnect(self._on_ctrl_disconnected, keep_connections)
+                controller.disconnect(self._on_final_disconnect, keep_connections)
 
         return GLib.SOURCE_REMOVE
 
-    def _on_ctrl_disconnected(self, tid):
-        LOG.debug('Service._on_ctrl_disconnected()    - %s', tid)
+    def _on_final_disconnect(self, tid, device):
+        '''Callback invoked after a controller is disconnected.
+        THIS IS USED DURING PROCESS SHUTDOWN TO WAIT FOR ALL CONTROLLERS TO BE
+        DISCONNECTED BEFORE EXITING THE PROGRAM. ONLY CALL ON SHUTDOWN!
+        '''
+        LOG.debug('Service._on_final_disconnect()     - %s %s', tid, device)
         controller = self._controllers.pop(tid, None)
         if controller is not None:
             controller.kill()

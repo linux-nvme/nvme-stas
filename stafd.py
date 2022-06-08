@@ -575,7 +575,7 @@ class Staf(stas.Service):
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self._on_ctrl_disconnected, stas.CNF.persistent_connections)
+                controller.disconnect(self.remove_controller, stas.CNF.persistent_connections)
 
         for tid in controllers_to_add:
             self._controllers[tid] = Dc(tid)
