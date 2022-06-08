@@ -30,3 +30,12 @@ jobs:
           setup-options: -Dman=true -Dhtml=true
           options: --print-errorlogs --suite nvme-stas
 
+      - name: Generate coverage report
+        run: |
+          python3 -m pip install pytest
+          python3 -m pip install pytest-cov
+          PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages/ pytest --cov=./staslib --cov-report=xml test/test-[^nvme]*.py
+
+      - uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: false
