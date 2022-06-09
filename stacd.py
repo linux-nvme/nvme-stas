@@ -209,7 +209,7 @@ class Stac(stas.Service):
             controller = STAC.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
             return json.dumps(controller.info()) if controller else '{}'
 
-        def list_controllers(self, detailed) -> str:  # pylint: disable=no-self-use
+        def list_controllers(self, detailed) -> list:  # pylint: disable=no-self-use
             '''@brief Return the list of I/O controller IDs'''
             return [
                 controller.details() if detailed else controller.controller_id_dict()

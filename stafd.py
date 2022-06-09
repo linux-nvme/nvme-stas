@@ -215,9 +215,8 @@ class Dc(stas.Controller):
 
     def _on_udev_remove(self, udev):
         super()._on_udev_remove(udev)
-
-        # Defer attempt to connect to the next main loop's idle period.
-        GLib.idle_add(self._try_to_connect)
+        if self._try_to_connect_deferred:
+            self._try_to_connect_deferred.schedule()
 
     def _find_existing_connection(self):
         return stas.UDEV.find_nvme_dc_device(self.tid)
@@ -420,10 +419,10 @@ class Staf(stas.Service):
 
         def get_log_pages(  # pylint: disable=no-self-use,too-many-arguments
             self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn
-        ) -> str:
+        ) -> list:
             '''@brief D-Bus method used to retrieve the discovery log pages from one controller'''
             controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
-            return controller.log_pages() if controller else '[]'
+            return controller.log_pages() if controller else list()
 
         def get_all_log_pages(self, detailed) -> str:  # pylint: disable=no-self-use
             '''@brief D-Bus method used to retrieve the discovery log pages from all controllers'''
@@ -437,7 +436,7 @@ class Staf(stas.Service):
                 )
             return json.dumps(log_pages)
 
-        def list_controllers(self, detailed) -> str:  # pylint: disable=no-self-use
+        def list_controllers(self, detailed) -> list:  # pylint: disable=no-self-use
             '''@brief Return the list of discovery controller IDs'''
             return [
                 controller.details() if detailed else controller.controller_id_dict()
