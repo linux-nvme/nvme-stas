@@ -619,16 +619,16 @@ class Udev:
         self._monitor.start()
 
     def _release_resources(self):
-        if self._sig_id is not None:
+        if self._observer  and self._sig_id is not None:
             self._observer.disconnect(self._sig_id)
-            self._sig_id = None
-        self._observer = None
 
         if self._monitor is not None:
             self._monitor.remove_filter()
-            self._monitor = None
 
+        self._sig_id = None
+        self._monitor = None
         self._context = None
+        self._observer = None
         self._device_event_registry = None
         self._action_event_registry = None
 
@@ -1105,19 +1105,20 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         self._fail_cnt    = 0
 
     def _release_resources(self):
-        if not self._cancellable.is_cancelled():
+        if self._cancellable and not self._cancellable.is_cancelled():
             self._cancellable.cancel()
 
         if self._retry_tmr is not None:
             self._retry_tmr.kill()
 
-        self._operation  = None
-        self._op_args    = None
-        self._success_cb = None
-        self._fail_cb    = None
-        self._retry_tmr  = None
-        self._errmsg     = None
-        self._fail_cnt   = None
+        self._operation   = None
+        self._op_args     = None
+        self._success_cb  = None
+        self._fail_cb     = None
+        self._retry_tmr   = None
+        self._errmsg      = None
+        self._fail_cnt    = None
+        self._cancellable = None
 
     def __str__(self):
         return str(self.as_dict())
@@ -1137,7 +1138,7 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
 
     def cancel(self):
         '''@brief cancel async operation'''
-        if not self._cancellable.is_cancelled():
+        if self._cancellable and not self._cancellable.is_cancelled():
             self._cancellable.cancel()
 
     def kill(self):
@@ -1225,9 +1226,10 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         if device:
             UDEV.unregister_for_device_events(self._on_udev_notification)
 
-        self._retry_connect_tmr.kill()
+        if self._retry_connect_tmr is not None:
+            self._retry_connect_tmr.kill()
 
-        if not self._cancellable.is_cancelled():
+        if self._cancellable and not self._cancellable.is_cancelled():
             self._cancellable.cancel()
 
         self._kill_ops()
@@ -1236,6 +1238,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         self._ctrl = None
         self._device = None
         self._retry_connect_tmr = None
+        self._cancellable = None
 
     def _alive(self):
         '''There may be race condition where a queued event gets processed
@@ -1243,7 +1246,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         can be used by callback functions to make sure the object is still
         alive before processing further.
         '''
-        return not self._cancellable.is_cancelled()
+        return self._cancellable and not self._cancellable.is_cancelled()
 
     def _kill_ops(self):
         if self._connect_op:
@@ -1523,7 +1526,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
     def _release_resources(self):
         LOG.debug('Service._release_resources()')
 
-        if not self._cancellable.is_cancelled():
+        if self._cancellable and not self._cancellable.is_cancelled():
             self._cancellable.cancel()
 
         if self._cfg_soak_tmr is not None:
@@ -1534,7 +1537,9 @@ class Service:  # pylint: disable=too-many-instance-attributes
         self._sysbus.disconnect()
 
         self._cfg_soak_tmr = None
+        self._cancellable = None
         self._resolver = None
+        self._lkc_file = None
         self._sysbus = None
 
     def _config_dbus(self, iface_obj, bus_name: str, obj_name: str):
@@ -1582,11 +1587,28 @@ class Service:  # pylint: disable=too-many-instance-attributes
         }
         return self._controllers.get(TransportId(cid))
 
+    def _remove_ctrl_from_dict(self, controller):
+        tid_to_pop = controller.tid
+        if not tid_to_pop:
+            # Being paranoid. This should not happen, but let's say the
+            # controller object has been purged, but it is somehow still
+            # listed in self._controllers.
+            for tid, ctrl in self._controllers.items():
+                if ctrl is controller:
+                    tid_to_pop = tid
+                    break
+
+        if tid_to_pop:
+            LOG.debug('Service._remove_ctrl_from_dict()   - %s | %s', tid_to_pop, controller.device)
+            self._controllers.pop(tid_to_pop, None)
+        else:
+            LOG.debug('Service._remove_ctrl_from_dict()   - already removed')
+
     def remove_controller(self, controller):
         '''@brief remove the specified controller object from the list of controllers'''
-        LOG.debug('Service.remove_controller()        - %s | %s', controller.tid, controller.device)
+        LOG.debug('Service.remove_controller()')
+        self._remove_ctrl_from_dict(controller)
 
-        self._controllers.pop(controller.tid, None)
         controller.kill()
 
         if self._cfg_soak_tmr:
@@ -1632,8 +1654,9 @@ class Service:  # pylint: disable=too-many-instance-attributes
         THIS IS USED DURING PROCESS SHUTDOWN TO WAIT FOR ALL CONTROLLERS TO BE
         DISCONNECTED BEFORE EXITING THE PROGRAM. ONLY CALL ON SHUTDOWN!
         '''
-        LOG.debug('Service._on_final_disconnect()     - %s | %s', controller.tid, controller.device)
-        self._controllers.pop(controller.tid, None)
+        LOG.debug('Service._on_final_disconnect()')
+        self._remove_ctrl_from_dict(controller)
+
         controller.kill()
 
         # When all controllers have disconnected, we can finish the clean up
