@@ -557,9 +557,9 @@ class Staf(stas.Service):
 
         discovered_ctrl_list = self._avahi.get_controllers()
         referral_ctrl_list = self._referrals()
-        stas.LOG.debug('Staf._config_ctrls_finish()        - configured_ctrl_list  = %s', configured_ctrl_list)
-        stas.LOG.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list  = %s', discovered_ctrl_list)
-        stas.LOG.debug('Staf._config_ctrls_finish()        - referral_ctrl_list    = %s', referral_ctrl_list)
+        stas.LOG.debug('Staf._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
+        stas.LOG.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
+        stas.LOG.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
 
         controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
@@ -569,8 +569,8 @@ class Staf(stas.Service):
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_del = cur_controller_ids - new_controller_ids
 
-        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_add    = %s', list(controllers_to_add))
-        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_del    = %s', list(controllers_to_del))
+        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
+        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)

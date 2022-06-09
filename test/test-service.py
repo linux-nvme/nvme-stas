@@ -20,12 +20,11 @@ class Test(TestCase):
         # FIXME: this is hack, fix it later
         stas.Service._load_last_known_config = lambda x : dict()
         # start the test
-        ctrl = stas.Service(reload_hdlr=lambda x : x)
-        self.assertRaises(NotImplementedError, ctrl._keep_connections_on_exit)
-        #self.assertRaises(NotImplementedError, ctrl._dump_last_known_config)
-        #self.assertEqual(ctrl.get_controllers(), dict())
-        self.assertEqual(ctrl.get_controller(transport='tcp', traddr='10.10.10.10', trsvcid='8009', host_traddr='1.2.3.4', host_iface='wlp0s20f3', subsysnqn='nqn.1988-11.com.dell:SFSS:2:20220208134025e8'), None)
-        self.assertEqual(ctrl.remove_controller(tid=0, device=0), None)
+        service = stas.Service(reload_hdlr=lambda x : x)
+        self.assertRaises(NotImplementedError, service._keep_connections_on_exit)
+        #self.assertRaises(NotImplementedError, service._dump_last_known_config)
+        #self.assertEqual(service.get_controllers(), dict())
+        self.assertIsNone(service.get_controller(transport='tcp', traddr='10.10.10.10', trsvcid='8009', host_traddr='1.2.3.4', host_iface='wlp0s20f3', subsysnqn='nqn.1988-11.com.dell:SFSS:2:20220208134025e8'))
 
 if __name__ == '__main__':
     unittest.main()

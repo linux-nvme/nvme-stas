@@ -283,9 +283,8 @@ class Stac(stas.Service):
         sure that the connection to an I/O controller is allowed.
         '''
         if stas.UDEV.is_ioc_device(udev):
-            stas.LOG.info('%s - Received "add" event', udev.sys_name)
             tid = stas.UDEV.get_tid(udev)
-            stas.LOG.debug('Stac._on_add_event()               - tid=%s', tid)
+            stas.LOG.debug('Stac._on_add_event()               - tid=%s | %s', tid, udev.sys_name)
             self._audit_connections([tid])
 
     def _config_connections_audit(self):
@@ -343,8 +342,8 @@ class Stac(stas.Service):
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_del = cur_controller_ids - new_controller_ids
 
-        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_add = %s', list(controllers_to_add))
-        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_del = %s', list(controllers_to_del))
+        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
+        stas.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
