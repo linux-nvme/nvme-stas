@@ -501,6 +501,10 @@ class NvmeOptions:  # Singleton
     def __str__(self):
         return f'supported options: {self._supported_options}'
 
+    def get(self):
+        '''get the supported options as a dict'''
+        return self._supported_options
+
     @property
     def discovery_supp(self):
         '''This option adds support for TP8013'''

@@ -19,9 +19,8 @@ class Test(TestCase):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
         with self.assertLogs(logger=stas.LOG) as captured:
             nvme_options = stas.NvmeOptions()
-            self.assertFalse(nvme_options.discovery_supp)
-            self.assertFalse(nvme_options.host_iface_supp)
-            self.assertEqual(str(nvme_options), "supported options: {'discovery': False, 'host_iface': False}")
+            self.assertIsInstance(nvme_options.discovery_supp, bool)
+            self.assertIsInstance(nvme_options.host_iface_supp, bool)
             nvme_options.destroy()
         self.assertEqual(len(captured.records), 1)
         self.assertEqual(captured.records[0].getMessage(), "Cannot determine which NVMe options the kernel supports")
@@ -32,9 +31,8 @@ class Test(TestCase):
         self.fs.create_file("/dev/nvme-fabrics")
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         nvme_options = stas.NvmeOptions()
-        self.assertFalse(nvme_options.discovery_supp)
-        self.assertFalse(nvme_options.host_iface_supp)
-        self.assertEqual(str(nvme_options), "supported options: {'discovery': False, 'host_iface': False}")
+        self.assertIsInstance(nvme_options.discovery_supp, bool)
+        self.assertIsInstance(nvme_options.host_iface_supp, bool)
         nvme_options.destroy()
 
     def test_fabrics_wrong_file(self):
@@ -42,9 +40,8 @@ class Test(TestCase):
         self.fs.create_file("/dev/nvme-fabrics", contents="blah")
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         nvme_options = stas.NvmeOptions()
-        self.assertFalse(nvme_options.discovery_supp)
-        self.assertFalse(nvme_options.host_iface_supp)
-        self.assertEqual(str(nvme_options), "supported options: {'discovery': False, 'host_iface': False}")
+        self.assertIsInstance(nvme_options.discovery_supp, bool)
+        self.assertIsInstance(nvme_options.host_iface_supp, bool)
         nvme_options.destroy()
 
     def test_fabrics_correct_file(self):
@@ -54,7 +51,7 @@ class Test(TestCase):
         nvme_options = stas.NvmeOptions()
         self.assertTrue(nvme_options.discovery_supp)
         self.assertTrue(nvme_options.host_iface_supp)
-        self.assertEqual(str(nvme_options), "supported options: {'discovery': True, 'host_iface': True}")
+        self.assertEqual(nvme_options.get(), {'discovery': True, 'host_iface': True})
         nvme_options.destroy()
 
 
