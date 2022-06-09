@@ -472,10 +472,9 @@ class Staf(stas.Service):
     def _release_resources(self):
         stas.LOG.debug('Staf._release_resources()')
         super()._release_resources()
-        self._avahi.kill()
-        self._avahi = None
-
-        self._lkc_file = None
+        if self._avahi:
+            self._avahi.kill()
+            self._avahi = None
 
     def _load_last_known_config(self):
         try:
