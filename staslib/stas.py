@@ -1475,7 +1475,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             # cannot be called directly as the current Controller object is in the
             # process of being disconnected and the callback will in fact delete
             # the object. This would invariably lead to unpredictable outcome.
-            GLib.idle_add(disconnected_cb, self.tid, self.device)
+            GLib.idle_add(disconnected_cb, self)
 
     def _on_disconn_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
         LOG.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
@@ -1484,7 +1484,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         # cannot be called directly as the current Controller object is in the
         # process of being disconnected and the callback will in fact delete
         # the object. This would invariably lead to unpredictable outcome.
-        GLib.idle_add(disconnected_cb, self.tid, self.device)
+        GLib.idle_add(disconnected_cb, self)
 
     def _on_disconn_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
         LOG.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
@@ -1493,7 +1493,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         # cannot be called directly as the current Controller object is in the
         # process of being disconnected and the callback will in fact delete
         # the object. This would invariably lead to unpredictable outcome.
-        GLib.idle_add(disconnected_cb, self.tid, self.device)
+        GLib.idle_add(disconnected_cb, self)
 
 
 # ******************************************************************************
@@ -1582,19 +1582,12 @@ class Service:  # pylint: disable=too-many-instance-attributes
         }
         return self._controllers.get(TransportId(cid))
 
-    def remove_controller(self, tid, device):
+    def remove_controller(self, controller):
         '''@brief remove the specified controller object from the list of controllers'''
-        controller = self._controllers.pop(tid, None)
+        LOG.debug('Service.remove_controller()        - %s | %s', controller.tid, controller.device)
 
-        LOG.debug(
-            'Service.remove_controller()        - %s %s: %s',
-            tid,
-            device,
-            'controller already removed' if controller is None else 'controller is being removed',
-        )
-
-        if controller is not None:
-            controller.kill()
+        self._controllers.pop(controller.tid, None)
+        controller.kill()
 
         if self._cfg_soak_tmr:
             self._cfg_soak_tmr.start()
@@ -1634,15 +1627,14 @@ class Service:  # pylint: disable=too-many-instance-attributes
 
         return GLib.SOURCE_REMOVE
 
-    def _on_final_disconnect(self, tid, device):
+    def _on_final_disconnect(self, controller):
         '''Callback invoked after a controller is disconnected.
         THIS IS USED DURING PROCESS SHUTDOWN TO WAIT FOR ALL CONTROLLERS TO BE
         DISCONNECTED BEFORE EXITING THE PROGRAM. ONLY CALL ON SHUTDOWN!
         '''
-        LOG.debug('Service._on_final_disconnect()     - %s %s', tid, device)
-        controller = self._controllers.pop(tid, None)
-        if controller is not None:
-            controller.kill()
+        LOG.debug('Service._on_final_disconnect()     - %s | %s', controller.tid, controller.device)
+        self._controllers.pop(controller.tid, None)
+        controller.kill()
 
         # When all controllers have disconnected, we can finish the clean up
         if len(self._controllers) == 0:
