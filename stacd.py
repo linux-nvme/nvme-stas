@@ -156,7 +156,7 @@ class Ioc(stas.Controller):
         super()._on_udev_remove(udev)
 
         # Defer removal of this object to the next main loop's idle period.
-        GLib.idle_add(STAC.remove_controller, self.tid, udev.sys_name)
+        GLib.idle_add(STAC.remove_controller, self)
 
     def _find_existing_connection(self):
         return stas.UDEV.find_nvme_ioc_device(self.tid)
