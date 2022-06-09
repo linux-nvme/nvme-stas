@@ -482,20 +482,19 @@ class Staf(stas.Service):
             with open(self._lkc_file, 'rb') as file:
                 config = pickle.load(file)
         except FileNotFoundError as ex:
-            stas.LOG.debug('Staf._load_last_known_config()     - %s: %s', self._lkc_file, ex)
-            config = dict()
+            return dict()
 
-        stas.LOG.debug('Staf._load_last_known_config()     - config=%s', config)
+        stas.LOG.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
         return {tid: Dc(tid, log_pages) for tid, log_pages in config.items()}
 
     def _dump_last_known_config(self, controllers):
         try:
             with open(self._lkc_file, 'wb') as file:
                 config = {tid: dc.log_pages() for tid, dc in controllers.items()}
-                stas.LOG.debug('Staf._dump_last_known_config()     - config=%s', config)
+                stas.LOG.debug('Staf._dump_last_known_config()     - DC count = %s', len(config))
                 pickle.dump(config, file)
         except FileNotFoundError as ex:
-            stas.LOG.error('Unable to save last known config to %s: %s', self._lkc_file, ex)
+            stas.LOG.error('Unable to save last known config: %s', ex)
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
