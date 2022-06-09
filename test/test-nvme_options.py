@@ -49,9 +49,7 @@ class Test(TestCase):
 
     def test_fabrics_correct_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
-        self.fs.create_file(
-            "/dev/nvme-fabrics", contents=f"host_iface=eth0,discovery={defs.WELL_KNOWN_DISC_NQN}"
-        )
+        self.fs.create_file('/dev/nvme-fabrics', contents='host_iface=%s,discovery\n')
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         nvme_options = stas.NvmeOptions()
         self.assertTrue(nvme_options.discovery_supp)

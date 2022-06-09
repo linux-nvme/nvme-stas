@@ -70,6 +70,7 @@ stafd_conf_fname=$(mktemp /tmp/@STAFD_PROCNAME@.conf.XXXXXX)
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
+kato=10
 persistent-connections=false
 ip-family=ipv6
 EOF
@@ -118,6 +119,7 @@ persistent-connections=false
 zeroconf=disabled
 EOF
 reload_cfg "@STAFD_PROCNAME@"
+
 sleep 1
 
 cat > "${stafd_conf_fname}" <<'EOF'
@@ -136,6 +138,15 @@ blacklist=transport=tcp;traddr=1.1.1.1
 blacklist=transport=tcp;traddr=1000.1000.1000.1000
 EOF
 reload_cfg "@STAFD_PROCNAME@"
+
+cat > "${stacd_conf_fname}" <<'EOF'
+[Global]
+tron=true
+udev-rule=disabled
+sticky-connections=disabled
+EOF
+reload_cfg "@STACD_PROCNAME@"
+
 sleep 3
 
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"

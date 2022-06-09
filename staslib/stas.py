@@ -619,7 +619,7 @@ class Udev:
         self._monitor.start()
 
     def _release_resources(self):
-        if self._observer  and self._sig_id is not None:
+        if self._observer and self._sig_id is not None:
             self._observer.disconnect(self._sig_id)
 
         if self._monitor is not None:
@@ -1198,6 +1198,34 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
 
 
 # ******************************************************************************
+class Deferred:
+    '''Implement a deferred function call. A deferred is a function that gets
+    added to the main loop to be executed during the next idle slot.'''
+
+    def __init__(self, func, *user_data):
+        self._source = None
+        self._func = func
+        self._user_data = user_data
+
+    def schedule(self):
+        '''Schedule the function to be called by the main loop. If the
+        function  is already scheduled, then do nothing'''
+        if not self.is_scheduled():
+            srce_id = GLib.idle_add(self._func, *self._user_data)
+            self._source = GLib.main_context_default().find_source_by_id(srce_id)
+
+    def is_scheduled(self):
+        '''Check if deferred is currently schedules to run'''
+        return self._source and not self._source.is_destroyed()
+
+    def cancel(self):
+        '''Remove deferred from main loop'''
+        if self.is_scheduled():
+            self._source.destroy()
+        self._source = None
+
+
+# ******************************************************************************
 class Controller:  # pylint: disable=too-many-instance-attributes
     '''@brief Base class used to manage the connection to a controller.'''
 
@@ -1215,12 +1243,16 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         self._device            = None
         self._ctrl              = None
         self._discovery_ctrl    = discovery_ctrl
-
-        # Defer attempt to connect to the next main loop's idle period.
-        GLib.idle_add(self._try_to_connect)
+        self._try_to_connect_deferred = Deferred(self._try_to_connect)
+        self._try_to_connect_deferred.schedule()
 
     def _release_resources(self):
         LOG.debug('Controller._release_resources()    - %s', self.id)
+
+        # Remove pending deferred from main loop
+        if self._try_to_connect_deferred:
+            self._try_to_connect_deferred.cancel()
+        self._try_to_connect_deferred = None
 
         device = self.device
         if device:
@@ -1297,10 +1329,16 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         raise NotImplementedError()
 
     def _on_try_to_connect(self):
-        self._try_to_connect()
+        self._try_to_connect_deferred.schedule()
         return GLib.SOURCE_REMOVE
 
     def _try_to_connect(self):
+        # This is a deferred function call. Make sure
+        # the source of the deferred is still good.
+        source = GLib.main_current_source()
+        if source and source.is_destroyed():
+            return
+
         self._connect_attempts += 1
 
         host_iface = (
@@ -1448,7 +1486,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
 
     def cancel(self):
         '''@brief Used to cancel pending operations.'''
-        if not self._cancellable.is_cancelled():
+        if self._cancellable and not self._cancellable.is_cancelled():
             LOG.debug('Controller.cancel()                - %s', self.id)
             self._cancellable.cancel()
 
