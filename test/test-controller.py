@@ -34,7 +34,7 @@ class Test(TestCase):
         self.assertRaises(NotImplementedError, ctrl._find_existing_connection)
         self.assertEqual(ctrl.id, "(tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4)")
         # raise Exception(ctrl._connect_op)
-        # self.assertEqual(ctrl.tid, "(tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4)")
+        self.assertEqual(str(ctrl.tid), "(tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4)")
         self.assertEqual(ctrl.device, '')
         self.assertEqual(str(ctrl.controller_id_dict()), "{'transport': 'tcp', 'traddr': '10.10.10.10', 'trsvcid': '8009', 'host-traddr': '1.2.3.4', 'host-iface': 'wlp0s20f3', 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8', 'device': ''}")
         # self.assertEqual(ctrl.details(), "{'transport': 'tcp', 'traddr': '10.10.10.[265 chars]ff]'}")
@@ -43,6 +43,17 @@ class Test(TestCase):
         self.assertEqual(ctrl.cancel(), None)
         self.assertEqual(ctrl.kill(), None)
         # self.assertEqual(ctrl.disconnect(), 0)
+
+    def test_connect(self):
+        ctrl = stas.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=stas.TransportId(self.NVME_TID))
+        self.assertEqual(ctrl._connect_attempts, 0)
+        ctrl._find_existing_connection = lambda : None
+        with self.assertLogs(logger=stas.LOG, level='DEBUG') as captured:
+            ctrl._try_to_connect()
+        self.assertEqual(len(captured.records), 1)
+        self.assertEqual(captured.records[0].getMessage(), "Controller._try_to_connect()       - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={'hdr_digest': False, 'data_digest': False}")
+        self.assertEqual(ctrl._connect_attempts, 1)
+
 
 if __name__ == '__main__':
     unittest.main()
