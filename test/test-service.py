@@ -20,11 +20,13 @@ class Test(TestCase):
         # FIXME: this is hack, fix it later
         stas.Service._load_last_known_config = lambda x : dict()
         # start the test
-        service = stas.Service(reload_hdlr=lambda x : x)
-        self.assertRaises(NotImplementedError, service._keep_connections_on_exit)
-        #self.assertRaises(NotImplementedError, service._dump_last_known_config)
-        #self.assertEqual(service.get_controllers(), dict())
-        self.assertIsNone(service.get_controller(transport='tcp', traddr='10.10.10.10', trsvcid='8009', host_traddr='1.2.3.4', host_iface='wlp0s20f3', subsysnqn='nqn.1988-11.com.dell:SFSS:2:20220208134025e8'))
+        srv = stas.Service(reload_hdlr=lambda x : x)
+        self.assertRaises(NotImplementedError, srv._keep_connections_on_exit)
+        self.assertRaises(NotImplementedError, srv._dump_last_known_config, [])
+        self.assertRaises(NotImplementedError, srv._on_config_ctrls)
+        #self.assertEqual(srv.get_controllers(), dict())
+        self.assertEqual(srv.get_controller(transport='tcp', traddr='10.10.10.10', trsvcid='8009', host_traddr='1.2.3.4', host_iface='wlp0s20f3', subsysnqn='nqn.1988-11.com.dell:SFSS:2:20220208134025e8'), None)
+        self.assertEqual(srv.remove_controller(controller=None), None)
 
 if __name__ == '__main__':
     unittest.main()
