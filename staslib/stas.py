@@ -1607,9 +1607,10 @@ class Service:  # pylint: disable=too-many-instance-attributes
     def remove_controller(self, controller):
         '''@brief remove the specified controller object from the list of controllers'''
         LOG.debug('Service.remove_controller()')
-        self._remove_ctrl_from_dict(controller)
+        if isinstance(controller, Controller):
+            self._remove_ctrl_from_dict(controller)
 
-        controller.kill()
+            controller.kill()
 
         if self._cfg_soak_tmr:
             self._cfg_soak_tmr.start()
