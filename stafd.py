@@ -481,7 +481,7 @@ class Staf(stas.Service):
         try:
             with open(self._lkc_file, 'rb') as file:
                 config = pickle.load(file)
-        except FileNotFoundError as ex:
+        except FileNotFoundError:
             return dict()
 
         stas.LOG.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
