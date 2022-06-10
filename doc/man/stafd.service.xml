@@ -56,6 +56,10 @@
             <citerefentry>
                 <refentrytitle>stafd</refentrytitle>
                 <manvolnum>8</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>stas-config.target</refentrytitle>
+                <manvolnum>8</manvolnum>
             </citerefentry>
         </para>
     </refsect1>
