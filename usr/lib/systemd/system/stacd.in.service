@@ -7,10 +7,8 @@
 [Unit]
 Description=@STAC_DESCRIPTION@ (@STAC_ACRONYM@)
 Documentation=man:@STACD_PROCNAME@.service(8) man:@STACD_PROCNAME@(8)
-Wants=modprobe@nvme_tcp.service network.target
-After=modprobe@nvme_tcp.service network.target
-Wants=stas-config.target
-After=stas-config.target
+Wants=modprobe@nvme_tcp.service network.target stas-config.target
+After=modprobe@nvme_tcp.service network.target stas-config.target
 
 # Check that the nvme-tcp kernel module was previously
 # loaded by checking for the presence of /dev/nvme-fabrics.

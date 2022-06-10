@@ -4,11 +4,11 @@
 "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
 <!--
     SPDX-License-Identifier: Apache-2.0
-    Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+    Copyright (c) 2022, Dell Inc. or its subsidiaries.  All rights reserved.
 -->
-<refentry id="stacd.service">
+<refentry id="stas-config@.service">
     <refentryinfo>
-        <title>stacd.service</title>
+        <title>stas-config@.service</title>
         <productname>nvme-stas</productname>
         <author>
             <personname>
@@ -23,32 +23,28 @@
     </refentryinfo>
 
     <refmeta>
-        <refentrytitle>stacd.service</refentrytitle>
+        <refentrytitle>stas-config@.service</refentrytitle>
         <manvolnum>8</manvolnum>
     </refmeta>
 
     <refnamediv>
-        <refname>stacd.service</refname>
+        <refname>stas-config@.service</refname>
     </refnamediv>
 
     <refsynopsisdiv>
         <para>
-            <filename>/usr/lib/systemd/system/stacd.service</filename>
+            <filename>/usr/lib/systemd/system/stas-config@.service</filename>
         </para>
     </refsynopsisdiv>
 
     <refsect1>
         <title>Description</title>
         <para>
-            <citerefentry>
-                <refentrytitle>stacd</refentrytitle>
-                <manvolnum>8</manvolnum>
-            </citerefentry>
-            is a system service used to automatically connect to I/O controllers
-            discovered by <citerefentry>
-                              <refentrytitle>stafd</refentrytitle>
-                              <manvolnum>8</manvolnum>
-                          </citerefentry>.
+            This service is used for the automatic run-time generation of
+            NVMe configuration located in <filename>/etc/nvme</filename>
+            (e.g. <filename>/etc/nvme/hostnqn</filename>). This is needed by
+            <citerefentry><refentrytitle>stacd.service</refentrytitle><manvolnum>8</manvolnum></citerefentry> and
+            <citerefentry><refentrytitle>stafd.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
         </para>
     </refsect1>
 
@@ -59,15 +55,12 @@
             <citerefentry>
                 <refentrytitle>stacd</refentrytitle>
                 <manvolnum>8</manvolnum>
-            </citerefentry>,
+            </citerefentry>
             <citerefentry>
                 <refentrytitle>stafd</refentrytitle>
-                <manvolnum>8</manvolnum>
-            </citerefentry>,
-            <citerefentry>
-                <refentrytitle>stas-config.target</refentrytitle>
                 <manvolnum>8</manvolnum>
             </citerefentry>
         </para>
     </refsect1>
 </refentry>
+
