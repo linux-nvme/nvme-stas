@@ -52,6 +52,7 @@ class Test(TestCase):
         self.assertTrue(nvme_options.discovery_supp)
         self.assertTrue(nvme_options.host_iface_supp)
         self.assertEqual(nvme_options.get(), {'discovery': True, 'host_iface': True})
+        self.assertEqual(str(nvme_options), "supported options: {'discovery': True, 'host_iface': True}")
         nvme_options.destroy()
 
 

@@ -99,6 +99,3 @@ try:
     ARGS.func(ARGS)
 except dasbus.error.DBusError:
     sys.exit(f'Unable to communicate with {defs.STACD_PROCNAME} over D-Bus. Is {defs.STACD_PROCNAME} running?')
-except AttributeError:
-    PARSER.print_help()
-    sys.exit()

@@ -2,6 +2,7 @@
 [run]
 data_file = coverage/@PROJECT_NAME@
 parallel=True
+concurrency=thread
 
 [report]
 omit =
@@ -20,6 +21,7 @@ exclude_lines =
 	raise RuntimeError
 
 	# Don't complain if non-runnable code isn't run:
+	pass
 	if 0:
 	if __name__ *== *__main__ *:
 	sys\.exit\(\)
