@@ -34,7 +34,7 @@ jobs:
         run: |
           python3 -m pip install pytest
           python3 -m pip install pytest-cov
-          PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages/ pytest --cov=./staslib --cov-report=xml test/test-[^nvme]*.py
+          PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages/ pytest --cov=./staslib --cov-report=xml test/test-*.py
 
       - uses: codecov/codecov-action@v3
         with:

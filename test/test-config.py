@@ -93,6 +93,7 @@ class StasSysConfUnitTest(unittest.TestCase):
         self.assertEqual(cnf.hostnqn, StasSysConfUnitTest.NQN)
         self.assertEqual(cnf.hostid, StasSysConfUnitTest.ID)
         self.assertEqual(cnf.hostsymname, StasSysConfUnitTest.SYMNAME)
+        self.assertEqual(cnf.as_dict(), {'hostnqn': StasSysConfUnitTest.NQN, 'hostid': StasSysConfUnitTest.ID, 'symname': StasSysConfUnitTest.SYMNAME})
 
 
 if __name__ == '__main__':
