@@ -11,13 +11,27 @@ sd_service_file_dir = join_paths(prefix, 'lib', 'systemd', 'system')
 configure_file(
     input: 'stafd.in.service',
     output: 'stafd.service',
-    configuration: conf,
     install_dir: sd_service_file_dir,
+    configuration: conf,
 )
 
 configure_file(
     input: 'stacd.in.service',
     output: 'stacd.service',
-    configuration: conf,
     install_dir: sd_service_file_dir,
+    configuration: conf,
+)
+
+configure_file(
+    input: 'stas-config@.service',
+    output: 'stas-config@.service',
+    install_dir: sd_service_file_dir,
+    copy: true,
+)
+
+configure_file(
+    input: 'stas-config.in.target',
+    output: 'stas-config.target',
+    install_dir: sd_service_file_dir,
+    configuration: conf,
 )

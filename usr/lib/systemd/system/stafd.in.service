@@ -10,8 +10,10 @@
 [Unit]
 Description=@STAF_DESCRIPTION@ (@STAF_ACRONYM@)
 Documentation=man:@STAFD_PROCNAME@.service(8) man:@STAFD_PROCNAME@(8)
-After=modprobe@nvme_tcp.service network.target avahi-daemon.service
 Wants=modprobe@nvme_tcp.service network.target
+After=modprobe@nvme_tcp.service network.target avahi-daemon.service
+Wants=stas-config.target
+After=stas-config.target
 
 # Check that the nvme-tcp kernel module was previously
 # loaded by checking for the presence of /dev/nvme-fabrics.
