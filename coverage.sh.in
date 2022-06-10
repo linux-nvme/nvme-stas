@@ -299,6 +299,7 @@ rm "${stafd_conf_fname}"
 rm "${stacd_conf_fname}"
 
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-udev.py
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-avahi.py
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-gtimer.py
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-transport_id.py
