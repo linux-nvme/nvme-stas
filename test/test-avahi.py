@@ -12,7 +12,7 @@ class Test(unittest.TestCase):
         srv = avahi.Avahi(sysbus, lambda:"ok")
         self.assertEqual(srv.info(), {'avahi wake up timer': '60.0s [off]', 'service types': [], 'services': {}})
         self.assertEqual(srv.get_controllers(), [])
-        self.assertEqual(srv._on_kick_avahi(), True)
+        self.assertEqual(srv._on_kick_avahi(), False)
         with self.assertLogs(logger=stas.LOG, level='INFO') as captured:
             srv._avahi_available(None)
         self.assertEqual(len(captured.records), 1)

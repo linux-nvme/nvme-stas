@@ -3,6 +3,7 @@
 # COVERAGE CURRENTLY ACHIEVED BY THIS SCRIPT:
 # THIS WAS RUN ON FEDORA 35
 
+# Results on Fedora 35 (5/3/2022) nvme-stas v1.1
 #Name                  Stmts   Miss  Cover
 #-----------------------------------------
 #stacctl                  55      3    95%
@@ -17,6 +18,21 @@
 #-----------------------------------------
 #TOTAL                  1596    158    90%
 
+# Results on SLES 15 SP4 (6/10/2022) nvme-stas v1.1.3
+# nvme-stas connected to real CDC.
+#Name                 Stmts   Miss  Cover
+#----------------------------------------
+#stacctl                 55      3    95%
+#stacd                  192      6    97%
+#stafctl                 77      3    96%
+#stafd                  246     25    90%
+#staslib/avahi.py       186     23    88%
+#staslib/defs.py         22      0   100%
+#staslib/stas.py        864     64    93%
+#staslib/version.py      32      0   100%
+#----------------------------------------
+#TOTAL                 1674    124    93%
+
 
 PRIMARY_GRP=$( id -ng )
 PRIMARY_USR=$( id -nu )
@@ -26,6 +42,11 @@ sd_stop() {
     unit="$1"-cov.service
     sudo systemctl stop "${unit}" >/dev/null 2>&1
     sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
+}
+
+sd_restart() {
+    unit="$1"-cov.service
+    sudo systemctl restart "${unit}" >/dev/null 2>&1
 }
 
 sd_start() {
@@ -42,8 +63,12 @@ sd_start() {
 
     printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start ${app}" "\0033"
 
+    RUNTIME_DIRECTORY=/tmp/${app}
+    rm -rf ${RUNTIME_DIRECTORY}
+    mkdir ${RUNTIME_DIRECTORY}
+
     sd_stop "${app}" # make sure it's not running already
-    sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=/tmp coverage run --rcfile=.coveragerc ${cmd}
+    sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}
 }
 
 reload_cfg() {
@@ -92,6 +117,15 @@ sudo systemctl mask avahi-daemon.service
 sudo systemctl mask avahi-daemon.socket
 sleep 1
 
+
+printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status while @STAFD_PROCNAME@ is not running" "\0033"
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls >/dev/null 2>&1
+coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ invalid-command >/dev/null 2>&1
+
+printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ status while @STACD_PROCNAME@ is not running" "\0033"
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls >/dev/null 2>&1
+coverage run --rcfile=.coveragerc @STACD_CTLNAME@ invalid-command >/dev/null 2>&1
+
 ################################################################################
 # Start @STAFD_PROCNAME@ and @STACD_PROCNAME@
 sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
@@ -127,6 +161,7 @@ cat > "${stafd_conf_fname}" <<'EOF'
 tron=true
 persistent-connections=false
 ip-family=ipv4
+kato=10
 
 [Controllers]
 controller=transport=tcp;traddr=localhost
@@ -134,6 +169,9 @@ controller=transport=tcp;traddr=1.1.1.1
 controller=transport=tcp;traddr=2.2.2.2
 controller=transport=tcp;traddr=555.555.555.555
 controller=transport=tcp;traddr=abracadabra
+controller=
+controller=trsvcid
+controller=transport=rdma;traddr=!@#$
 blacklist=transport=tcp;traddr=1.1.1.1
 blacklist=transport=tcp;traddr=1000.1000.1000.1000
 EOF
@@ -146,7 +184,6 @@ udev-rule=disabled
 sticky-connections=disabled
 EOF
 reload_cfg "@STACD_PROCNAME@"
-
 sleep 3
 
 printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
@@ -278,6 +315,21 @@ sleep 2
 # Remove one of the NVMe device's
 printf "\n%b[1;36m%s%b[0m\n" "\0033" "Remove (disconnect) nvme1" "\0033"
 sudo nvme disconnect -d nvme1
+sleep 2
+
+
+################################################################################
+printf "%b[1;36m%s%b[0m\n" "\0033" "Restart @STAFD_PROCNAME@ and @STACD_PROCNAME@" "\0033"
+sd_restart "@STAFD_PROCNAME@"
+sd_restart "@STACD_PROCNAME@"
+sleep 1
+
+printf "%b[1;36m%s%b[0m\n" "\0033" "Create invalid conditions for saving/loading @STAFD_PROCNAME@'s last known config" "\0033"
+rm -rf "/tmp/@STAFD_PROCNAME@"
+sd_stop "@STAFD_PROCNAME@"
+sd_restart "@STACD_PROCNAME@"
+mkdir -p "/tmp/@STAFD_PROCNAME@"
+sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
 sleep 2
 
 ################################################################################
