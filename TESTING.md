@@ -178,7 +178,7 @@ This requires the [Python coverage package](https://coverage.readthedocs.io/en/6
 pip install coverage
 ```
 
-Note that this test cannot be run while `stafd` and `stacd` are running. Make sure to stop stafd and stacd if there are running (`systemctl stop [stafd|stacd]`) and you may also need to mask those services (`systemctl mask [stafd|stacd]`) if coverage fails to start. 
+Note that this test cannot be run while `stafd` and `stacd` are running. Make sure to stop `stafd` and `stacd` if they are running (`systemctl stop [stafd|stacd]`). You may also need to mask those services (`systemctl mask [stafd|stacd]`) if coverage fails to start. 
 
 To run the coverage test, from the root of the `nvme-stas` git repo:
 
@@ -203,6 +203,6 @@ staslib/version.py      31      0   100%
 TOTAL                 1660     94    94%
 ```
 
-Note that the Python coverage package has trouble tracking code executed in threads. And since nvme-stas uses threads, some of the code will not be accounted for (in other words, we'll never get to 100% coverage).
+Note that the Python coverage package has trouble tracking code executed in threads. And since nvme-stas uses threads, some of the code will not be accounted for (in other words, you'll never get 100% coverage).
 
 Also note, that some of the code (e.g. explicit registration per TP8010) only gets executed when connected to a CDC (not a DDC). So, depending on your environment you will most likely get different coverage result. The above test was done on a system where mDNS discovery with a CDC was available, which provides more coverage than using the `nvmet` driver alone.
