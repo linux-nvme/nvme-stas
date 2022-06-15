@@ -32,7 +32,7 @@ nvme-stas also depends on the following run-time libraries and modules. Note tha
 | libnvme                                         | 1.0         | **Mandatory** | **Mandatory** |
 | python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** |
 | python3-pyudev                                  | 0.22.0      | **Mandatory** | **Mandatory** |
-| python3-systemd                                 | 234         | **Mandatory** | **Mandatory** |
+| python3-systemd                                 | 240         | **Mandatory** | **Mandatory** |
 | python3-gi (Debian) OR python3-gobject (Fedora) | 3.36.0      | **Mandatory** | **Mandatory** |
 | nvme-tcp (kernel module)                        | 5.18 *      | **Mandatory** | **Mandatory** |
 | dbus-daemon                                     | 1.12.2      | **Mandatory** | **Mandatory** |
