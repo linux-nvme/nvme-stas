@@ -30,7 +30,7 @@ nvme-stas also depends on the following run-time libraries and modules. Note tha
 | Library                                         | Min version | stafd         | stacd         | How to determine the  currently installed version            |
 | ----------------------------------------------- | ----------- | ------------- | ------------- | ------------------------------------------------------------ |
 | libnvme                                         | 1.0         | **Mandatory** | **Mandatory** | N/A                                                          |
-| python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** | `pip list | grep dasbus`                                     |
+| python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** | pip list \| grep dasbus                                      |
 | python3-pyudev                                  | 0.22.0      | **Mandatory** | **Mandatory** | `python3 -c 'import pyudev; print(f"{pyudev.__version__}")'` |
 | python3-systemd                                 | 240         | **Mandatory** | **Mandatory** | `systemd --version`                                          |
 | python3-gi (Debian) OR python3-gobject (Fedora) | 3.36.0      | **Mandatory** | **Mandatory** | `python3 -c 'import gi; print(f"{gi.__version__}")'`         |
