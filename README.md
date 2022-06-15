@@ -157,7 +157,7 @@ A host must be provided with a Host NQN and a Host ID. `nvme-stas` will not run 
 
 Using the same configuration files will ensure consistency between `nvme-stas`, `nvme-cli`, and `libnvme`. On the other hand, `nvme-stas` can operate with a different Host NQN and/or ID. In that case, one can specify them in `/etc/stas/sys.conf`. 
 
-A new optional configuration parameters introduced in TP8010, the Host Symbolic Name, can also be specified in `/etc/stas/sys.conf`. The schema/documentation for `/etc/stas/sys.conf` can be found `/etc/stas/sys.conf.doc`.
+A new optional configuration parameters introduced in TP8010, the Host Symbolic Name, can also be specified in `/etc/stas/sys.conf`. The schema/documentation for `/etc/stas/sys.conf` can be found [`/etc/stas/sys.conf.doc`](./etc/stas/sys.conf.doc).
 
 # Build, install, unit tests
 
@@ -180,11 +180,12 @@ cd .build
 ninja
 ```
 
-To install the code:
+To install / uninstall the code:
 
 ```bash
 cd .build
 meson install
+ninja uninstall
 ```
 
 To run the unit tests:
@@ -196,8 +197,6 @@ meson test
 
 For more information about testing, please refer to: [TESTING.md](./TESTING.md)
 
-
-
 ## Alternate approach using Good-ole make
 
 Recognizing that many people are not familiar with `meson`, we're providing a second way to install the code using the more familiar `configure` script combined with a `make`.
@@ -207,15 +206,16 @@ Recognizing that many people are not familiar with `meson`, we're providing a se
 make
 ```
 
-This performs the same operations as the meson approach described above. The `configure` script simply invokes `meson .build`.
+This performs the same operations as the meson approach described above. The `configure` script is automatically invoked when running `make` by itself.
 
-| make command       | Corresponding commands using meson                           |
-| ------------------ | ------------------------------------------------------------ |
-| **`make`**         | Doesn't really do anything since there is nothing to build. However, this can be used to update the meson configuration after modifying `meson.build` files. |
-| **`make install`** | cd .build; meson install                                     |
-| **`make test`**    | cd .build; meson test                                        |
-| **`make clean`**   | Clean build artifacts, but does not remove the meson's configuration. That is, the `.build` directory is preserved. |
-| **`make purge`**   | Remove all build artifacts including the `.build` directory. If you want to build the code after running this command, you will need to first run `./configure`. |
+| make command         | Description                                                  |
+| -------------------- | :----------------------------------------------------------- |
+| **`make`**           | Invoke the `.configure` script and build the code.           |
+| **`make install`**   | Install the code. Requires root privileges (you will be asked to enter your password). |
+| **`make uninstall`** | Uninstall the code. Requires root privileges (you will be asked to enter your password). |
+| **`make test`**      | Run the unit tests                                           |
+| **`make clean`**     | Clean build artifacts, but does not remove the meson's configuration. That is, the configuration in `.build` is preserved. |
+| **`make purge`**     | Remove all build artifacts including the `.build` directory. |
 
 ## Compiling and running nvme-stas in a docker container
 
