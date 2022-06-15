@@ -194,6 +194,10 @@ cd .build
 meson test
 ```
 
+For more information about testing, please refer to: [TESTING.md](./TESTING.md)
+
+
+
 ## Alternate approach using Good-ole make
 
 Recognizing that many people are not familiar with `meson`, we're providing a second way to install the code using the more familiar `configure` script combined with a `make`.
