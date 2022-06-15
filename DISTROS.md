@@ -27,18 +27,18 @@ The next table shows different features that were added to the NVMe driver and i
 
 nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with. 
 
-| Library                                         | Min version | stafd         | stacd         |
-| ----------------------------------------------- | ----------- | ------------- | ------------- |
-| libnvme                                         | 1.0         | **Mandatory** | **Mandatory** |
-| python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** |
-| python3-pyudev                                  | 0.22.0      | **Mandatory** | **Mandatory** |
-| python3-systemd                                 | 240         | **Mandatory** | **Mandatory** |
-| python3-gi (Debian) OR python3-gobject (Fedora) | 3.36.0      | **Mandatory** | **Mandatory** |
-| nvme-tcp (kernel module)                        | 5.18 *      | **Mandatory** | **Mandatory** |
-| dbus-daemon                                     | 1.12.2      | **Mandatory** | **Mandatory** |
-| avahi-daemon                                    | 0.8         | **Mandatory** | Not required  |
+| Library                                         | Min version | stafd         | stacd         | How to determine the  currently installed version            |
+| ----------------------------------------------- | ----------- | ------------- | ------------- | ------------------------------------------------------------ |
+| libnvme                                         | 1.0         | **Mandatory** | **Mandatory** | N/A                                                          |
+| python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** | `pip list | grep dasbus`                                     |
+| python3-pyudev                                  | 0.22.0      | **Mandatory** | **Mandatory** | `python3 -c 'import pyudev; print(f"{pyudev.__version__}")'` |
+| python3-systemd                                 | 240         | **Mandatory** | **Mandatory** | `systemd --version`                                          |
+| python3-gi (Debian) OR python3-gobject (Fedora) | 3.36.0      | **Mandatory** | **Mandatory** | `python3 -c 'import gi; print(f"{gi.__version__}")'`         |
+| nvme-tcp (kernel module)                        | 5.18 *      | **Mandatory** | **Mandatory** | N/A                                                          |
+| dbus-daemon                                     | 1.12.2      | **Mandatory** | **Mandatory** | `dbus-daemon --version`                                      |
+| avahi-daemon                                    | 0.7         | **Mandatory** | Not required  | `avahi-daemon --version`                                     |
 
-* Kernel 5.18 provides full functionality. nvme-stas can work with older kernels, but with limited functionality. 
+* Kernel 5.18 provides full functionality. nvme-stas can work with older kernels, but with limited functionality, unless the kernels contain back-ported features (see Addendum for the list of kernel patches that could be back-ported to an older kernel). 
 
 ## Things to do post installation
 
