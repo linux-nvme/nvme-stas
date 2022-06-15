@@ -33,7 +33,7 @@ While testing it's a good idea to follow the journal in real time to see how `st
 $ sudo journalctl --system --full -o short-precise --follow
 ```
 
-You probably don't really need all these options, but they will give you full view of the messages with a millisecond time resolution. I personally define an alias `alias j=sudo journalctl --system --full -o short-precise'` and then I need only invoke `j -f`. Or even better, I add my user to the to the `systemd-journal` group so that I have to use `sudo` to see system-level log messages.
+You probably don't really need all these options, but they will give you full view of the messages with a millisecond time resolution. I personally define an alias `alias j='sudo journalctl --system --full -o short-precise'` and then I need only invoke `j -f`. Or even better, I add my user to the `systemd-journal` group so that I don't have to use `sudo` to see system-level log messages (Ref: [systemd-journal.service](https://www.freedesktop.org/software/systemd/man/systemd-journald.service.html#Access%20Control)).
 
 ## Test startup 
 
