@@ -704,18 +704,22 @@ class Udev:
     @staticmethod
     def is_dc_device(device):
         '''@brief check whether device refers to a Discovery Controller'''
+        subsysnqn = device.attributes.get('subsysnqn')
+        if subsysnqn is not None and subsysnqn.decode() == defs.WELL_KNOWN_DISC_NQN:
+            return True
+
         # Note: Prior to 5.18 linux didn't expose the cntrltype through
         # the sysfs. So, this may return None on older kernels.
         cntrltype = device.attributes.get('cntrltype')
-        if cntrltype is not None and cntrltype.decode() != 'discovery':
-            return False
+        if cntrltype is not None and cntrltype.decode() == 'discovery':
+            return True
 
         # Imply Discovery controller based on the absence of children.
         # Discovery Controllers have no children devices
-        if len(list(device.children)) != 0:
-            return False
+        if len(list(device.children)) == 0:
+            return True
 
-        return True
+        return False
 
     @staticmethod
     def is_ioc_device(device):
@@ -723,19 +727,19 @@ class Udev:
         # Note: Prior to 5.18 linux didn't expose the cntrltype through
         # the sysfs. So, this may return None on older kernels.
         cntrltype = device.attributes.get('cntrltype')
-        if cntrltype is not None and cntrltype.decode() != 'io':
-            return False
-
-        subsysnqn = device.attributes.get('subsysnqn')
-        if subsysnqn is not None and subsysnqn.decode() == defs.WELL_KNOWN_DISC_NQN:
-            return False
+        if cntrltype is not None and cntrltype.decode() == 'io':
+            return True
 
         # Imply I/O controller based on the presence of children.
         # I/O Controllers have children devices
-        if len(list(device.children)) == 0:
-            return False
+        if len(list(device.children)) != 0:
+            return True
 
-        return True
+        subsysnqn = device.attributes.get('subsysnqn')
+        if subsysnqn is not None and subsysnqn.decode() != defs.WELL_KNOWN_DISC_NQN:
+            return True
+
+        return False
 
     def find_nvme_dc_device(self, tid):
         '''@brief  Find the nvme device associated with the specified
@@ -864,18 +868,23 @@ def remove_invalid_addresses(controllers: list):
     '''@brief Remove controllers with invalid addresses from the list of controllers.'''
     valid_controllers = list()
     for controller in controllers:
-        # First, let's make sure that traddr is
-        # syntactically a valid IPv4 or IPv6 address.
-        traddr = controller.get('traddr')
-        try:
-            ip = ipaddress.ip_address(traddr)
-        except ValueError:
-            LOG.warning('%s IP address is not valid', TransportId(controller))
-            continue
+        if controller.get('transport') in ('tcp', 'rdma'):
+            # Let's make sure that traddr is
+            # syntactically a valid IPv4 or IPv6 address.
+            traddr = controller.get('traddr')
+            try:
+                ip = ipaddress.ip_address(traddr)
+            except ValueError:
+                LOG.warning('%s IP address is not valid', TransportId(controller))
+                continue
 
-        if ip.version not in CNF.ip_family:
-            LOG.debug('%s ignored because IPv%s is disabled in %s', TransportId(controller), ip.version, CNF.conf_file)
-            continue
+            if ip.version not in CNF.ip_family:
+                LOG.debug(
+                    '%s ignored because IPv%s is disabled in %s', TransportId(controller), ip.version, CNF.conf_file
+                )
+                continue
+
+        # At some point, need to validate FC addresses as well...
 
         valid_controllers.append(controller)
 
@@ -904,11 +913,14 @@ class TransportId:
         self._transport = cid.get('transport')
         self._traddr    = cid.get('traddr')
         trsvcid         = cid.get('trsvcid')
-        self._trsvcid = (
-            trsvcid
-            if trsvcid
-            else (TransportId.RDMA_IP_PORT if self._transport == 'rdma' else TransportId.DISC_IP_PORT)
-        )  # pylint: disable=used-before-assignment
+        if self._transport in ('tcp', 'rdma'):
+            self._trsvcid = (
+                trsvcid
+                if trsvcid
+                else (TransportId.RDMA_IP_PORT if self._transport == 'rdma' else TransportId.DISC_IP_PORT)
+            )  # pylint: disable=used-before-assignment
+        else:
+            self._trsvcid = ''
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface  = '' if CNF.ignore_iface else cid.get('host-iface', '')
         self._subsysnqn   = cid.get('subsysnqn')
@@ -1355,7 +1367,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             subsysnqn=self.tid.subsysnqn,
             transport=self.tid.transport,
             traddr=self.tid.traddr,
-            trsvcid=self.tid.trsvcid,
+            trsvcid=self.tid.trsvcid if self.tid.trsvcid else None,
             host_traddr=self.tid.host_traddr if self.tid.host_traddr else None,
             host_iface=host_iface,
         )
