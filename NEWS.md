@@ -1,5 +1,10 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.1.4
+
+- Fix issues for Fibre Channel (FC) support. 
+- Add TESTING.md
+
 ## Changes with release 1.1.3
 
 **stacd**: Add I/O controller connection audits. Audits are enabled when the configuration parameter "`sticky-connections`" is disabled.
