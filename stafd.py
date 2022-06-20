@@ -121,30 +121,22 @@ stas.check_if_allowed_to_continue()
 # pylint: disable=wrong-import-order
 import json
 import pickle
-import logging
 import dasbus.server.interface
 import systemd.daemon
 from libnvme import nvme
 from gi.repository import GLib
+from staslib import conf, log, gutil, trid, udev  # pylint: disable=ungrouped-imports
 
+log.init(ARGS.syslog)
+conf.PROCESS.conf_file = ARGS.conf_file
+stas.trace_control(ARGS.tron or conf.PROCESS.tron)
+
+NVME_HOST = nvme.host(stas.NVME_ROOT, conf.SYSTEM.hostnqn, conf.SYSTEM.hostid, conf.SYSTEM.hostsymname)  # Singleton
+UDEV = udev.Udev()
 
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
-
-stas.LOG.addHandler(stas.get_log_handler(ARGS.syslog, defs.STAFD_PROCNAME))
-stas.LOG.setLevel(logging.INFO if ARGS.syslog else logging.DEBUG)
-stas.CNF.conf_file = ARGS.conf_file
-stas.trace_control(ARGS.tron or stas.CNF.tron)
-
-NVME_ROOT = nvme.root()  # Singleton
-NVME_ROOT.log_level("debug" if (ARGS.tron or stas.CNF.tron) else "err")
-NVME_HOST = nvme.host(NVME_ROOT, stas.SYS_CNF.hostnqn, stas.SYS_CNF.hostid, stas.SYS_CNF.hostsymname)  # Singleton
-
-
-def set_loglevel(tron):  # pylint: disable=missing-function-docstring
-    stas.trace_control(tron)
-    NVME_ROOT.log_level("debug" if tron else "err")
 
 
 # ******************************************************************************
@@ -158,14 +150,14 @@ class Dc(stas.Controller):
     GET_LOG_PAGE_RETRY_RERIOD_SEC = 20
     REGISTRATION_RETRY_RERIOD_SEC = 10
 
-    def __init__(self, tid: stas.TransportId, log_pages=None):
-        super().__init__(NVME_ROOT, NVME_HOST, tid, discovery_ctrl=True)
+    def __init__(self, tid: trid.TID, log_pages=None):
+        super().__init__(stas.NVME_ROOT, NVME_HOST, tid, discovery_ctrl=True)
         self._register_op = None
         self._get_log_op = None
         self._log_pages = log_pages if log_pages else list()  # Log pages cache
 
     def _release_resources(self):
-        stas.LOG.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
+        log.LOG.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
         super()._release_resources()
         self._log_pages = list()
 
@@ -203,23 +195,23 @@ class Dc(stas.Controller):
         '''@brief Return the list of referrals'''
         return [page for page in self._log_pages if page['subtype'] == 'referral']
 
-    def _on_aen(self, udev, aen: int):
-        super()._on_aen(udev, aen)
+    def _on_aen(self, udev_obj, aen: int):
+        super()._on_aen(udev_obj, aen)
         if aen == DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
 
-    def _on_nvme_event(self, udev, nvme_event: str):
-        super()._on_nvme_event(udev, nvme_event)
+    def _on_nvme_event(self, udev_obj, nvme_event: str):
+        super()._on_nvme_event(udev_obj, nvme_event)
         if nvme_event == 'connected' and self._register_op:
             self._register_op.run_async()
 
-    def _on_udev_remove(self, udev):
-        super()._on_udev_remove(udev)
+    def _on_udev_remove(self, udev_obj):
+        super()._on_udev_remove(udev_obj)
         if self._try_to_connect_deferred:
             self._try_to_connect_deferred.schedule()
 
     def _find_existing_connection(self):
-        return stas.UDEV.find_nvme_dc_device(self.tid)
+        return UDEV.find_nvme_dc_device(self.tid)
 
     # --------------------------------------------------------------------------
     def _on_connect_success(self, op_obj, data):
@@ -230,7 +222,7 @@ class Dc(stas.Controller):
 
         if self._alive():
             if self._ctrl.is_registration_supported():
-                self._register_op = stas.AsyncOperationWithRetry(
+                self._register_op = gutil.AsyncOperationWithRetry(
                     self._on_registration_success,
                     self._on_registration_fail,
                     self._ctrl.registration_ctlr,
@@ -238,7 +230,7 @@ class Dc(stas.Controller):
                 )
                 self._register_op.run_async()
             else:
-                self._get_log_op = stas.AsyncOperationWithRetry(
+                self._get_log_op = gutil.AsyncOperationWithRetry(
                     self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
                 )
                 self._get_log_op.run_async()
@@ -251,15 +243,15 @@ class Dc(stas.Controller):
         '''
         if self._alive():
             if data is not None:
-                stas.LOG.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
+                log.LOG.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
             else:
-                stas.LOG.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
-            self._get_log_op = stas.AsyncOperationWithRetry(
+                log.LOG.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
+            self._get_log_op = gutil.AsyncOperationWithRetry(
                 self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
             )
             self._get_log_op.run_async()
         else:
-            stas.LOG.debug(
+            log.LOG.debug(
                 'Dc._on_registration_success()      - %s | %s Received event on dead object.', self.id, self.device
             )
 
@@ -269,7 +261,7 @@ class Dc(stas.Controller):
         for details.
         '''
         if self._alive():
-            stas.LOG.debug(
+            log.LOG.debug(
                 'Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec',
                 self.id,
                 self.device,
@@ -277,10 +269,10 @@ class Dc(stas.Controller):
                 Dc.REGISTRATION_RETRY_RERIOD_SEC,
             )
             if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
-                stas.LOG.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
+                log.LOG.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
             # op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
         else:
-            stas.LOG.debug(
+            log.LOG.debug(
                 'Dc._on_registration_fail()         - %s | %s Received event on dead object. %s',
                 self.id,
                 self.device,
@@ -308,19 +300,19 @@ class Dc(stas.Controller):
                 if data
                 else list()
             )
-            stas.LOG.info(
+            log.LOG.info(
                 '%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages)
             )
             referrals_after = self.referrals()
             STAF.log_pages_changed(self, self.device)
             if referrals_after != referrals_before:
-                stas.LOG.debug(
+                log.LOG.debug(
                     'Dc._on_get_log_success()           - %s | %s Referrals before = %s',
                     self.id,
                     self.device,
                     referrals_before,
                 )
-                stas.LOG.debug(
+                log.LOG.debug(
                     'Dc._on_get_log_success()           - %s | %s Referrals after  = %s',
                     self.id,
                     self.device,
@@ -328,7 +320,7 @@ class Dc(stas.Controller):
                 )
                 STAF.referrals_changed()
         else:
-            stas.LOG.debug(
+            log.LOG.debug(
                 'Dc._on_get_log_success()           - %s | %s Received event on dead object.', self.id, self.device
             )
 
@@ -338,7 +330,7 @@ class Dc(stas.Controller):
         for details.
         '''
         if self._alive():
-            stas.LOG.debug(
+            log.LOG.debug(
                 'Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec',
                 self.id,
                 self.device,
@@ -346,10 +338,10 @@ class Dc(stas.Controller):
                 Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC,
             )
             if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
-                stas.LOG.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
+                log.LOG.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
             op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
         else:
-            stas.LOG.debug(
+            log.LOG.debug(
                 'Dc._on_get_log_fail()              - %s | %s Received event on dead object. %s',
                 self.id,
                 self.device,
@@ -392,12 +384,12 @@ class Staf(stas.Service):
         @tron.setter
         def tron(self, value):  # pylint: disable=no-self-use
             '''@brief Set Trace ON property'''
-            set_loglevel(value)
+            stas.trace_control(value)
 
         @property
         def log_level(self) -> str:
             '''@brief Get Log Level property'''
-            return stas.log_level()
+            return log.level()
 
         def process_info(self) -> str:
             '''@brief Get status info (for debug)
@@ -448,7 +440,7 @@ class Staf(stas.Service):
         super().__init__(self._reload_hdlr)
 
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
-        self._avahi.config_stypes(stas.CNF.get_stypes())
+        self._avahi.config_stypes(conf.PROCESS.get_stypes())
 
         # We don't want to apply configuration changes to nvme-cli right away.
         # Often, multiple changes will occur in a short amount of time (sub-second).
@@ -456,7 +448,7 @@ class Staf(stas.Service):
         # to the system. The following timer acts as a "soak period". Changes
         # will be applied by calling self._on_config_ctrls() at the end of
         # the soak period.
-        self._cfg_soak_tmr = stas.GTimer(Staf.CONF_STABILITY_SOAK_TIME_SEC, self._on_config_ctrls)
+        self._cfg_soak_tmr = gutil.GTimer(Staf.CONF_STABILITY_SOAK_TIME_SEC, self._on_config_ctrls)
         self._cfg_soak_tmr.start()
 
         # Create the D-Bus instance.
@@ -469,7 +461,7 @@ class Staf(stas.Service):
         return info
 
     def _release_resources(self):
-        stas.LOG.debug('Staf._release_resources()')
+        log.LOG.debug('Staf._release_resources()')
         super()._release_resources()
         if self._avahi:
             self._avahi.kill()
@@ -479,36 +471,36 @@ class Staf(stas.Service):
         try:
             with open(self._lkc_file, 'rb') as file:
                 config = pickle.load(file)
-        except FileNotFoundError:
+        except (FileNotFoundError, AttributeError):
             return dict()
 
-        stas.LOG.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
+        log.LOG.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
         return {tid: Dc(tid, log_pages) for tid, log_pages in config.items()}
 
     def _dump_last_known_config(self, controllers):
         try:
             with open(self._lkc_file, 'wb') as file:
                 config = {tid: dc.log_pages() for tid, dc in controllers.items()}
-                stas.LOG.debug('Staf._dump_last_known_config()     - DC count = %s', len(config))
+                log.LOG.debug('Staf._dump_last_known_config()     - DC count = %s', len(config))
                 pickle.dump(config, file)
         except FileNotFoundError as ex:
-            stas.LOG.error('Unable to save last known config: %s', ex)
+            log.LOG.error('Unable to save last known config: %s', ex)
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
         process exits.
         '''
-        return stas.CNF.persistent_connections
+        return conf.PROCESS.persistent_connections
 
     def _reload_hdlr(self):
         '''@brief Reload configuration file. This is triggered by the SIGHUP
         signal, which can be sent with "systemctl reload stafd".
         '''
         systemd.daemon.notify('RELOADING=1')
-        stas.CNF.reload()
-        set_loglevel(stas.CNF.tron)
+        conf.PROCESS.reload()
+        stas.trace_control(conf.PROCESS.tron)
         self._avahi.kick_start()  # Make sure Avahi is running
-        self._avahi.config_stypes(stas.CNF.get_stypes())
+        self._avahi.config_stypes(conf.PROCESS.get_stypes())
         self._cfg_soak_tmr.start()
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
@@ -532,7 +524,7 @@ class Staf(stas.Service):
         '''@brief Function invoked when a controller's cached referrals
         have changed.
         '''
-        stas.LOG.debug('Staf.referrals_changed()')
+        log.LOG.debug('Staf.referrals_changed()')
         self._cfg_soak_tmr.start()
 
     def _referrals(self) -> list:
@@ -554,25 +546,25 @@ class Staf(stas.Service):
 
         discovered_ctrl_list = self._avahi.get_controllers()
         referral_ctrl_list = self._referrals()
-        stas.LOG.debug('Staf._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
-        stas.LOG.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
-        stas.LOG.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
+        log.LOG.debug('Staf._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
+        log.LOG.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
+        log.LOG.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
 
         controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
 
-        new_controller_ids = {stas.TransportId(controller) for controller in controllers}
+        new_controller_ids = {trid.TID(controller) for controller in controllers}
         cur_controller_ids = set(self._controllers.keys())
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_del = cur_controller_ids - new_controller_ids
 
-        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
-        stas.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
+        log.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
+        log.LOG.debug('Staf._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, stas.CNF.persistent_connections)
+                controller.disconnect(self.remove_controller, conf.PROCESS.persistent_connections)
 
         for tid in controllers_to_add:
             self._controllers[tid] = Dc(tid)
@@ -586,7 +578,11 @@ if __name__ == '__main__':
     STAF = Staf()
     STAF.run()
 
+    UDEV = None
     STAF = None
     ARGS = None
+
     stas.clean()
-    logging.shutdown()
+    conf.clean()
+    udev.clean()
+    log.clean()

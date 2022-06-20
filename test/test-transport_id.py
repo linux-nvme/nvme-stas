@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 import unittest
-from staslib import stas
+from staslib import trid
 
 
 class Test(unittest.TestCase):
-    '''Unit test for class TransportId'''
+    '''Unit test for class TRID'''
 
     TRANSPORT = 'tcp'
     TRADDR = '10.10.10.10'
@@ -33,8 +33,8 @@ class Test(unittest.TestCase):
             'host-iface': Test.HOST_IFACE,
         }
 
-        self.tid = stas.TransportId(self.cid)
-        self.other_tid = stas.TransportId(self.other_cid)
+        self.tid = trid.TID(self.cid)
+        self.other_tid = trid.TID(self.other_cid)
 
     def test_key(self):
         '''Check that a key exists'''
@@ -69,19 +69,19 @@ class Test(unittest.TestCase):
         self.assertEqual(self.tid.subsysnqn, Test.SUBSYSNQN)
 
     def test_as_dict(self):
-        '''Check that a TransportId can be converted back to the original Dict it was created with'''
+        '''Check that a TRID can be converted back to the original Dict it was created with'''
         self.assertDictEqual(self.tid.as_dict(), self.cid)
 
     def test_str(self):
-        '''Check that a TransportId can be represented as a string'''
+        '''Check that a TRID can be represented as a string'''
         self.assertTrue(str(self.tid).startswith(f'({Test.TRANSPORT},'))
 
     def test_eq(self):
-        '''Check that two TransportId objects can be tested for equality'''
-        self.assertEqual(self.tid, stas.TransportId(self.cid))
+        '''Check that two TRID objects can be tested for equality'''
+        self.assertEqual(self.tid, trid.TID(self.cid))
 
     def test_ne(self):
-        '''Check that two TransportId objects can be tested for non-equality'''
+        '''Check that two TID objects can be tested for non-equality'''
         self.assertNotEqual(self.tid, self.other_tid)
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas, defs
+from staslib import log, conf
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -17,8 +17,8 @@ class Test(TestCase):
 
     def test_fabrics_doesnt_exist(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
-        with self.assertLogs(logger=stas.LOG) as captured:
-            nvme_options = stas.NvmeOptions()
+        with self.assertLogs(logger=log.LOG) as captured:
+            nvme_options = conf.NvmeOptions()
             self.assertIsInstance(nvme_options.discovery_supp, bool)
             self.assertIsInstance(nvme_options.host_iface_supp, bool)
             nvme_options.destroy()
@@ -30,7 +30,7 @@ class Test(TestCase):
         # TODO: this is a bug
         self.fs.create_file("/dev/nvme-fabrics")
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
-        nvme_options = stas.NvmeOptions()
+        nvme_options = conf.NvmeOptions()
         self.assertIsInstance(nvme_options.discovery_supp, bool)
         self.assertIsInstance(nvme_options.host_iface_supp, bool)
         nvme_options.destroy()
@@ -39,7 +39,7 @@ class Test(TestCase):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
         self.fs.create_file("/dev/nvme-fabrics", contents="blah")
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
-        nvme_options = stas.NvmeOptions()
+        nvme_options = conf.NvmeOptions()
         self.assertIsInstance(nvme_options.discovery_supp, bool)
         self.assertIsInstance(nvme_options.host_iface_supp, bool)
         nvme_options.destroy()
@@ -48,7 +48,7 @@ class Test(TestCase):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
         self.fs.create_file('/dev/nvme-fabrics', contents='host_iface=%s,discovery\n')
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
-        nvme_options = stas.NvmeOptions()
+        nvme_options = conf.NvmeOptions()
         self.assertTrue(nvme_options.discovery_supp)
         self.assertTrue(nvme_options.host_iface_supp)
         self.assertEqual(nvme_options.get(), {'discovery': True, 'host_iface': True})

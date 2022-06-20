@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas
+from staslib import conf
 
 
 class StasProcessConfUnitTest(unittest.TestCase):
@@ -32,7 +32,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
 
     def test_config(self):
         '''Check we can read the temporary configuration file'''
-        cnf = stas.Configuration()
+        cnf = conf.Configuration()
         cnf.conf_file = StasProcessConfUnitTest.FNAME
         self.assertEqual(cnf.conf_file, StasProcessConfUnitTest.FNAME)
         self.assertTrue(cnf.tron)
@@ -87,7 +87,7 @@ class StasSysConfUnitTest(unittest.TestCase):
 
     def test_config(self):
         '''Check we can read the temporary configuration file'''
-        cnf = stas.SysConfiguration()
+        cnf = conf.SysConfiguration()
         cnf.conf_file = StasSysConfUnitTest.FNAME
         self.assertEqual(cnf.conf_file, StasSysConfUnitTest.FNAME)
         self.assertEqual(cnf.hostnqn, StasSysConfUnitTest.NQN)

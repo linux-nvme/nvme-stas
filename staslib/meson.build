@@ -17,7 +17,18 @@ foreach file : files_to_configure
     )
 endforeach
 
-files_to_copy = [ '__init__.py', 'avahi.py', 'glibudev.py', 'stas.py', 'version.py' ]
+files_to_copy = [
+    '__init__.py',
+    'avahi.py',
+    'conf.py',
+    'glibudev.py',
+    'gutil.py',
+    'log.py',
+    'stas.py',
+    'trid.py',
+    'udev.py',
+    'version.py'
+]
 copied_files = []
 foreach file : files_to_copy
     copied_files += configure_file(

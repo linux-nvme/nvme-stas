@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas
+from staslib import gutil
 
 
 class Test(unittest.TestCase):
     '''Unit tests for class GTimer'''
 
     def test_new_timer(self):
-        tmr = stas.GTimer(interval_sec=5)
+        tmr = gutil.GTimer(interval_sec=5)
         self.assertEqual(tmr.get_timeout(), 5)
         self.assertEqual(tmr.time_remaining(), 0)
         self.assertEqual(str(tmr), '5.0s [off]')
@@ -17,7 +17,7 @@ class Test(unittest.TestCase):
         self.assertEqual(tmr.time_remaining(), 0)
 
     def test_callback(self):
-        tmr = stas.GTimer(interval_sec=1, user_cback=lambda:"ok")
+        tmr = gutil.GTimer(interval_sec=1, user_cback=lambda:"ok")
         self.assertEqual(tmr._callback(), "ok")
         tmr.set_callback(user_cback=lambda:"notok")
         self.assertEqual(tmr._callback(), "notok")
@@ -26,7 +26,7 @@ class Test(unittest.TestCase):
         self.assertRaises(TypeError, tmr._user_cback)
 
     def test_start_timer(self):
-        tmr = stas.GTimer(interval_sec=1, user_cback=lambda:"ok")
+        tmr = gutil.GTimer(interval_sec=1, user_cback=lambda:"ok")
         self.assertEqual(str(tmr), '1.0s [off]')
         tmr.start()
         self.assertNotEqual(tmr.time_remaining(), 0)

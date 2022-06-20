@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas
+from staslib import udev
 
+UDEV = udev.Udev()
 
 class Test(unittest.TestCase):
     '''Unit tests for class Udev'''
@@ -11,11 +12,11 @@ class Test(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def test_get_device(self):
-        dev = stas.UDEV.get_nvme_device('null')
+        dev = UDEV.get_nvme_device('null')
         self.assertEqual(dev.device_node, '/dev/null')
 
     def test_get_bad_device(self):
-        self.assertIsNone(stas.UDEV.get_nvme_device('bozo'))
+        self.assertIsNone(UDEV.get_nvme_device('bozo'))
 
 
 if __name__ == '__main__':
