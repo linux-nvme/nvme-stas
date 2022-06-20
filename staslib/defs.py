@@ -8,6 +8,9 @@
 
 ''' @brief This file gets automagically configured by meson at build time.
 '''
+import os
+import sys
+import platform
 from staslib.version import KernelVersion
 
 VERSION           = '@VERSION@'
@@ -31,7 +34,10 @@ STAFD_DBUS_PATH   = '@STAFD_DBUS_PATH@'
 STAFD_EXECUTABLE  = '@STAFD_EXECUTABLE@'
 STAFD_CONFIG_FILE = '@STAFD_CONFIG_FILE@'
 
+KERNEL_VERSION = KernelVersion(platform.release())
 KERNEL_IFACE_MIN_VERSION  = KernelVersion('@KERNEL_IFACE_MIN_VERSION@')
 KERNEL_TP8013_MIN_VERSION = KernelVersion('@KERNEL_TP8013_MIN_VERSION@')
 
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
+
+PROG_NAME = os.path.basename(sys.argv[0])

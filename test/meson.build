@@ -54,7 +54,7 @@ things_to_test = [
     ['Test Udev',          'test-udev.py',         []],
     ['Test GTimer',        'test-gtimer.py',       []],
     ['Test Avahi',         'test-avahi.py',        []],
-    ['Test TransportId',   'test-transport_id.py', []],
+    ['Test TID',           'test-transport_id.py', []],
 ]
 
 foreach thing: things_to_test

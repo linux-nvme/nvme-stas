@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas, avahi
+from staslib import stas, avahi, log
 import dasbus.connection
 import subprocess
 
@@ -21,11 +21,11 @@ class Test(unittest.TestCase):
         except subprocess.CalledProcessError:
             self.assertTrue(srv._on_kick_avahi())
 
-        with self.assertLogs(logger=stas.LOG, level='INFO') as captured:
+        with self.assertLogs(logger=log.LOG, level='INFO') as captured:
             srv._avahi_available(None)
         self.assertEqual(len(captured.records), 1)
         self.assertEqual(captured.records[0].getMessage(), "avahi-daemon service available, zeroconf supported.")
-        with self.assertLogs(logger=stas.LOG, level='WARN') as captured:
+        with self.assertLogs(logger=log.LOG, level='WARN') as captured:
             srv._avahi_unavailable(None)
         self.assertEqual(len(captured.records), 1)
         self.assertEqual(captured.records[0].getMessage(), "avahi-daemon not available, zeroconf not supported.")

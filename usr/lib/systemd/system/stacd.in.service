@@ -19,8 +19,6 @@ Type=dbus
 BusName=@STACD_DBUS_NAME@
 SyslogIdentifier=@STACD_PROCNAME@
 
-Environment=XDG_CACHE_HOME=/var/cache/@STACD_PROCNAME@
-
 ExecStart=/usr/bin/python3 -u @STACD_EXECUTABLE@ --syslog
 ExecReload=/bin/kill -HUP $MAINPID
 

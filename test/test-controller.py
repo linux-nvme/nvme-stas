@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas
+from staslib import stas, log, conf, trid
 from libnvme import nvme
 from pyfakefs.fake_filesystem_unittest import TestCase
 
@@ -16,7 +16,7 @@ class Test(TestCase):
         self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1,transport=%s,traddr=%s,trsvcid=%s,nqn=%s,queue_size=%d,nr_io_queues=%d,reconnect_delay=%d,ctrl_loss_tmo=%d,keep_alive_tmo=%d,hostnqn=%s,host_traddr=%s,host_iface=%s,hostid=%s,duplicate_connect,disable_sqflow,hdr_digest,data_digest,nr_write_queues=%d,nr_poll_queues=%d,tos=%d,fast_io_fail_tmo=%d,discovery,dhchap_secret=%s,dhchap_ctrl_secret=%s\n')
 
         self.NVME_ROOT = nvme.root()
-        self.NVME_HOST = nvme.host(self.NVME_ROOT, stas.SYS_CNF.hostnqn, stas.SYS_CNF.hostid, stas.SYS_CNF.hostsymname)
+        self.NVME_HOST = nvme.host(self.NVME_ROOT, conf.SYSTEM.hostnqn, conf.SYSTEM.hostid, conf.SYSTEM.hostsymname)
         self.NVME_TID = {
             'transport':   'tcp',
             'traddr':      '10.10.10.10',
@@ -27,7 +27,7 @@ class Test(TestCase):
         }
 
     def test_get_device(self):
-        ctrl = stas.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=stas.TransportId(self.NVME_TID))
+        ctrl = stas.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=trid.TID(self.NVME_TID))
         self.assertEqual(ctrl._connect_attempts, 0)
         self.assertRaises(NotImplementedError, ctrl._try_to_connect)
         self.assertEqual(ctrl._connect_attempts, 1)
@@ -45,10 +45,10 @@ class Test(TestCase):
         # self.assertEqual(ctrl.disconnect(), 0)
 
     def test_connect(self):
-        ctrl = stas.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=stas.TransportId(self.NVME_TID))
+        ctrl = stas.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=trid.TID(self.NVME_TID))
         self.assertEqual(ctrl._connect_attempts, 0)
         ctrl._find_existing_connection = lambda : None
-        with self.assertLogs(logger=stas.LOG, level='DEBUG') as captured:
+        with self.assertLogs(logger=log.LOG, level='DEBUG') as captured:
             ctrl._try_to_connect()
         self.assertEqual(len(captured.records), 1)
         self.assertEqual(captured.records[0].getMessage(), "Controller._try_to_connect()       - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={'hdr_digest': False, 'data_digest': False}")
