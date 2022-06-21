@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import stas
+from staslib import service
 from libnvme import nvme
 from pyfakefs.fake_filesystem_unittest import TestCase
+from gi.repository import GLib
 
 class Test(TestCase):
     '''Unit tests for class Service'''
@@ -16,11 +17,16 @@ class Test(TestCase):
         self.fs.create_file('/etc/nvme/hostid',  contents='01234567-89ab-cdef-0123-456789abcdef\n')
         self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1,transport=%s,traddr=%s,trsvcid=%s,nqn=%s,queue_size=%d,nr_io_queues=%d,reconnect_delay=%d,ctrl_loss_tmo=%d,keep_alive_tmo=%d,hostnqn=%s,host_traddr=%s,host_iface=%s,hostid=%s,duplicate_connect,disable_sqflow,hdr_digest,data_digest,nr_write_queues=%d,nr_poll_queues=%d,tos=%d,fast_io_fail_tmo=%d,discovery,dhchap_secret=%s,dhchap_ctrl_secret=%s\n')
 
+        self._loop = GLib.MainLoop()
+
+    def tearDown(self):
+        self._loop.quit()
+
     def test_get_controller(self):
         # FIXME: this is hack, fix it later
-        stas.Service._load_last_known_config = lambda x : dict()
+        service.Service._load_last_known_config = lambda x : dict()
         # start the test
-        srv = stas.Service(reload_hdlr=lambda x : x)
+        srv = service.Service(reload_hdlr=lambda x : x)
         self.assertRaises(NotImplementedError, srv._keep_connections_on_exit)
         self.assertRaises(NotImplementedError, srv._dump_last_known_config, [])
         self.assertRaises(NotImplementedError, srv._on_config_ctrls)

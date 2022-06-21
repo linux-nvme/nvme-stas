@@ -63,7 +63,9 @@ class _ObserverMixin:  # pylint: disable=too-few-public-methods
     @enabled.setter
     def enabled(self, value):
         if value and self.event_source is None:
-            self.event_source = glib.io_add_watch(self.monitor, glib.IO_IN, self._process_udev_event)
+            self.event_source = glib.io_add_watch(
+                self.monitor, glib.PRIORITY_DEFAULT, glib.IO_IN, self._process_udev_event
+            )
         elif not value and self.event_source is not None:
             glib.source_remove(self.event_source)
 

@@ -105,14 +105,13 @@ import dasbus.client.observer
 import dasbus.client.proxy
 from libnvme import nvme
 from gi.repository import GLib
-from staslib import conf, log, gutil, trid, udev  # pylint: disable=ungrouped-imports
+from staslib import conf, log, gutil, trid, udev, ctrl, service  # pylint: disable=ungrouped-imports
 
 log.init(ARGS.syslog)
 conf.PROCESS.conf_file = ARGS.conf_file
 stas.trace_control(ARGS.tron or conf.PROCESS.tron)
 
 NVME_HOST = nvme.host(stas.NVME_ROOT, conf.SYSTEM.hostnqn, conf.SYSTEM.hostid, conf.SYSTEM.hostsymname)  # Singleton
-UDEV = udev.Udev()
 UDEV_RULE_SUPPRESS = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
 
 
@@ -135,7 +134,7 @@ def udev_rule_ctrl(enable):
 
 
 # ******************************************************************************
-class Ioc(stas.Controller):
+class Ioc(ctrl.Controller):
     '''@brief This object establishes a connection to one I/O Controller.'''
 
     def __init__(self, tid: trid.TID):
@@ -151,11 +150,11 @@ class Ioc(stas.Controller):
         GLib.idle_add(STAC.remove_controller, self)
 
     def _find_existing_connection(self):
-        return UDEV.find_nvme_ioc_device(self.tid)
+        return self._udev.find_nvme_ioc_device(self.tid)
 
 
 # ******************************************************************************
-class Stac(stas.Service):
+class Stac(service.Service):
     '''STorage Appliance Connector (STAC)'''
 
     CONF_STABILITY_SOAK_TIME_SEC = 1.5
@@ -241,7 +240,7 @@ class Stac(stas.Service):
 
         udev_rule_ctrl(True)
 
-        UDEV.unregister_for_action_events('add')
+        self._udev.unregister_for_action_events('add')
 
         self._destroy_staf_comlink(self._staf_watcher)
         if self._staf_watcher is not None:
@@ -274,8 +273,8 @@ class Stac(stas.Service):
         the kernel for an NVMe device. This is used to trigger an audit and make
         sure that the connection to an I/O controller is allowed.
         '''
-        if UDEV.is_ioc_device(udev_obj):
-            tid = UDEV.get_tid(udev_obj)
+        if self._udev.is_ioc_device(udev_obj):
+            tid = self._udev.get_tid(udev_obj)
             log.LOG.debug('Stac._on_add_event()               - tid=%s | %s', tid, udev_obj.sys_name)
             self._audit_connections([tid])
 
@@ -285,11 +284,11 @@ class Stac(stas.Service):
         "sticky_connections" is disabled.
         '''
         if not conf.PROCESS.sticky_connections:
-            if UDEV.get_registered_action_cback('add') is None:
-                UDEV.register_for_action_events('add', self._on_add_event)
-                self._audit_connections(UDEV.get_nvme_ioc_tids())
+            if self._udev.get_registered_action_cback('add') is None:
+                self._udev.register_for_action_events('add', self._on_add_event)
+                self._audit_connections(self._udev.get_nvme_ioc_tids())
         else:
-            UDEV.unregister_for_action_events('add')
+            self._udev.unregister_for_action_events('add')
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
@@ -405,11 +404,9 @@ if __name__ == '__main__':
     STAC = Stac()
     STAC.run()
 
-    UDEV = None
     STAC = None
     ARGS = None
 
-    stas.clean()
     conf.clean()
     udev.clean()
     log.clean()
