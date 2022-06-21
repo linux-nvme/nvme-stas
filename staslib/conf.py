@@ -269,7 +269,7 @@ class SysConfiguration:
         except FileNotFoundError as ex:
             sys.exit(f'Error reading mandatory Host NQN (see stasadm --help): {ex}')
 
-        if not value.startswith('nqn.'):
+        if value is not None and not value.startswith('nqn.'):
             sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
 
         return value
@@ -340,12 +340,11 @@ class SysConfiguration:
                 return None
             file = default_file
 
-        with open(file) as f:  # pylint: disable=unspecified-encoding
-            return f.readline().split()[0]
-
-
-PROCESS = Configuration()  # Singleton
-SYSTEM = SysConfiguration('/etc/stas/sys.conf')  # Singleton
+        try:
+            with open(file) as f:  # pylint: disable=unspecified-encoding
+                return f.readline().split()[0]
+        except IndexError:
+            return None
 
 
 # ******************************************************************************
@@ -422,6 +421,10 @@ class NvmeOptions:  # Singleton
         a specific interface regardless of the routing tables.
         '''
         return self._supported_options['host_iface']
+
+
+PROCESS = Configuration()  # Singleton
+SYSTEM = SysConfiguration('/etc/stas/sys.conf')  # Singleton
 
 
 def clean():

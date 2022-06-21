@@ -62,38 +62,100 @@ class StasProcessConfUnitTest(unittest.TestCase):
 class StasSysConfUnitTest(unittest.TestCase):
     '''Sys config unit tests'''
 
-    FNAME = '/tmp/stas-sys-config-test'
+    FNAME_1 = '/tmp/stas-sys-config-test-1'
+    FNAME_2 = '/tmp/stas-sys-config-test-2'
+    FNAME_3 = '/tmp/stas-sys-config-test-3'
+    FNAME_4 = '/tmp/stas-sys-config-test-4'
     NQN = 'nqn.2014-08.org.nvmexpress:uuid:9aae2691-b275-4b64-8bfe-5da429a2bab9'
     ID = '56529e15-0f3e-4ede-87e2-63932a4adb99'
     SYMNAME = 'Bart-Simpson'
 
+    DATA = {
+        FNAME_1: [
+            '[Host]\n',
+            f'nqn={NQN}\n',
+            f'id={ID}\n',
+            f'symname={SYMNAME}\n',
+        ],
+        FNAME_2: [
+            '[Host]\n',
+            f'nqn=file:///dev/null\n',
+        ],
+        FNAME_3: [
+            '[Host]\n',
+            f'nqn=qnq.2014-08.org.nvmexpress:uuid:9aae2691-b275-4b64-8bfe-5da429a2bab9\n',
+            f'id={ID}\n',
+        ],
+        FNAME_4: [
+            '[Host]\n',
+            f'nqn=file:///some/non/exisiting/file/!@#\n',
+            f'id=file:///some/non/exisiting/file/!@#\n',
+            f'symname=file:///some/non/exisiting/file/!@#\n',
+        ],
+    }
+
     @classmethod
     def setUpClass(cls):
         '''Create a temporary configuration file'''
-        conf = [
-            '[Host]\n',
-            f'nqn={StasSysConfUnitTest.NQN}\n',
-            f'id={StasSysConfUnitTest.ID}\n',
-            f'symname={StasSysConfUnitTest.SYMNAME}\n',
-        ]
-        with open(StasSysConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
-            f.writelines(conf)
+        for file, conf in StasSysConfUnitTest.DATA.items():
+            with open(file, 'w') as f:  #  # pylint: disable=unspecified-encoding
+                f.writelines(conf)
 
     @classmethod
     def tearDownClass(cls):
         '''Delete the temporary configuration file'''
-        if os.path.exists(StasSysConfUnitTest.FNAME):
-            os.remove(StasSysConfUnitTest.FNAME)
+        for file in StasSysConfUnitTest.DATA.keys():
+            if os.path.exists(file):
+                os.remove(file)
 
-    def test_config(self):
+    def test_config_1(self):
         '''Check we can read the temporary configuration file'''
         cnf = conf.SysConfiguration()
-        cnf.conf_file = StasSysConfUnitTest.FNAME
-        self.assertEqual(cnf.conf_file, StasSysConfUnitTest.FNAME)
+        cnf.conf_file = StasSysConfUnitTest.FNAME_1
+        self.assertEqual(cnf.conf_file, StasSysConfUnitTest.FNAME_1)
         self.assertEqual(cnf.hostnqn, StasSysConfUnitTest.NQN)
         self.assertEqual(cnf.hostid, StasSysConfUnitTest.ID)
         self.assertEqual(cnf.hostsymname, StasSysConfUnitTest.SYMNAME)
-        self.assertEqual(cnf.as_dict(), {'hostnqn': StasSysConfUnitTest.NQN, 'hostid': StasSysConfUnitTest.ID, 'symname': StasSysConfUnitTest.SYMNAME})
+        self.assertEqual(
+            cnf.as_dict(),
+            {
+                'hostnqn': StasSysConfUnitTest.NQN,
+                'hostid': StasSysConfUnitTest.ID,
+                'symname': StasSysConfUnitTest.SYMNAME,
+            },
+        )
+
+    def test_config_2(self):
+        '''Check we can read from /dev/null or missing 'id' definition'''
+        cnf = conf.SysConfiguration()
+        cnf.conf_file = StasSysConfUnitTest.FNAME_2
+        self.assertEqual(cnf.conf_file, StasSysConfUnitTest.FNAME_2)
+        self.assertIsNone(cnf.hostnqn)
+        self.assertIsNone(cnf.hostsymname)
+
+    def test_config_3(self):
+        '''Check we can read an invalid NQN string'''
+        cnf = conf.SysConfiguration()
+        cnf.conf_file = StasSysConfUnitTest.FNAME_3
+        self.assertEqual(cnf.conf_file, StasSysConfUnitTest.FNAME_3)
+        self.assertRaises(SystemExit, lambda: cnf.hostnqn)
+        self.assertEqual(cnf.hostid, StasSysConfUnitTest.ID)
+        self.assertIsNone(cnf.hostsymname)
+
+    def test_config_4(self):
+        '''Check we can read the temporary configuration file'''
+        cnf = conf.SysConfiguration()
+        cnf.conf_file = StasSysConfUnitTest.FNAME_4
+        self.assertEqual(cnf.conf_file, StasSysConfUnitTest.FNAME_4)
+        self.assertRaises(SystemExit, lambda: cnf.hostnqn)
+        self.assertRaises(SystemExit, lambda: cnf.hostid)
+        self.assertIsNone(cnf.hostsymname)
+
+    def test_config_missing_file(self):
+        '''Check what happens when conf file is missing'''
+        cnf = conf.SysConfiguration()
+        cnf.conf_file = '/just/some/ramdom/file/name'
+        self.assertIsNone(cnf.hostsymname)
 
 
 if __name__ == '__main__':

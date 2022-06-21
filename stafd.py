@@ -125,14 +125,13 @@ import dasbus.server.interface
 import systemd.daemon
 from libnvme import nvme
 from gi.repository import GLib
-from staslib import conf, log, gutil, trid, udev  # pylint: disable=ungrouped-imports
+from staslib import conf, log, gutil, trid, udev, ctrl, service  # pylint: disable=ungrouped-imports
 
 log.init(ARGS.syslog)
 conf.PROCESS.conf_file = ARGS.conf_file
 stas.trace_control(ARGS.tron or conf.PROCESS.tron)
 
 NVME_HOST = nvme.host(stas.NVME_ROOT, conf.SYSTEM.hostnqn, conf.SYSTEM.hostid, conf.SYSTEM.hostsymname)  # Singleton
-UDEV = udev.Udev()
 
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
@@ -140,7 +139,7 @@ DLP_CHANGED = (
 
 
 # ******************************************************************************
-class Dc(stas.Controller):
+class Dc(ctrl.Controller):
     '''@brief This object establishes a connection to one Discover Controller (DC).
     It retrieves the discovery log pages and caches them.
     It also monitors udev events associated with that DC and updates
@@ -211,7 +210,7 @@ class Dc(stas.Controller):
             self._try_to_connect_deferred.schedule()
 
     def _find_existing_connection(self):
-        return UDEV.find_nvme_dc_device(self.tid)
+        return self._udev.find_nvme_dc_device(self.tid)
 
     # --------------------------------------------------------------------------
     def _on_connect_success(self, op_obj, data):
@@ -351,7 +350,7 @@ class Dc(stas.Controller):
 
 
 # ******************************************************************************
-class Staf(stas.Service):
+class Staf(service.Service):
     '''STorage Appliance Finder (STAF)'''
 
     CONF_STABILITY_SOAK_TIME_SEC = 1.5
@@ -578,11 +577,9 @@ if __name__ == '__main__':
     STAF = Staf()
     STAF.run()
 
-    UDEV = None
     STAF = None
     ARGS = None
 
-    stas.clean()
     conf.clean()
     udev.clean()
     log.clean()
