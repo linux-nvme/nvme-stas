@@ -11,9 +11,10 @@
 import os
 import sys
 import ipaddress
+import logging
 
 from libnvme import nvme
-from staslib import conf, defs, log, trid
+from staslib import conf, defs, trid
 
 
 NVME_ROOT = nvme.root()  # Singleton
@@ -48,7 +49,8 @@ def trace_control(tron: bool):
     '''
     global TRON  # pylint: disable=global-statement
     TRON = tron
-    log.set_level_from_tron(TRON)
+    log = logging.getLogger()
+    log.setLevel(logging.DEBUG if TRON else logging.INFO)
     NVME_ROOT.log_level("debug" if TRON else "err")
 
 
@@ -78,9 +80,9 @@ def _blacklisted(blacklisted_ctrl_list, controller):
 # ******************************************************************************
 def remove_blacklisted(controllers: list):
     '''@brief Remove black-listed controllers from the list of controllers.'''
-    blacklisted_ctrl_list = conf.PROCESS.get_blacklist()
+    blacklisted_ctrl_list = conf.SvcConf().get_blacklist()
     if blacklisted_ctrl_list:
-        log.LOG.debug('remove_blacklisted()               - blacklisted_ctrl_list = %s', blacklisted_ctrl_list)
+        logging.debug('remove_blacklisted()               - blacklisted_ctrl_list = %s', blacklisted_ctrl_list)
         controllers = [controller for controller in controllers if not _blacklisted(blacklisted_ctrl_list, controller)]
     return controllers
 
@@ -97,15 +99,16 @@ def remove_invalid_addresses(controllers: list):
             try:
                 ip = ipaddress.ip_address(traddr)
             except ValueError:
-                log.LOG.warning('%s IP address is not valid', trid.TID(controller))
+                logging.warning('%s IP address is not valid', trid.TID(controller))
                 continue
 
-            if ip.version not in conf.PROCESS.ip_family:
-                log.LOG.debug(
+            service_conf = conf.SvcConf()
+            if ip.version not in service_conf.ip_family:
+                logging.debug(
                     '%s ignored because IPv%s is disabled in %s',
                     trid.TID(controller),
                     ip.version,
-                    conf.PROCESS.conf_file,
+                    service_conf.conf_file,
                 )
                 continue
 

@@ -11,16 +11,17 @@
 '''
 import socket
 import typing
+import logging
 import functools
 import dasbus.error
 import dasbus.connection
 import dasbus.client.proxy
 import dasbus.client.observer
 from gi.repository import GLib
-from staslib import defs, log, conf, gutil
+from staslib import defs, conf, gutil
 
 
-def txt2dict(txt: list):
+def _txt2dict(txt: list):
     '''@param txt: A list of list of integers. The integers are the ASCII value
     of printable text characters.
     '''
@@ -144,7 +145,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
     def kill(self):
         '''@brief Clean up object'''
-        log.LOG.debug('Avahi.kill()')
+        logging.debug('Avahi.kill()')
 
         self._kick_avahi_tmr.kill()
         self._kick_avahi_tmr = None
@@ -223,7 +224,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         self._kick_avahi_tmr.clear()
 
     def _disconnect(self):
-        log.LOG.debug('Avahi._disconnect()')
+        logging.debug('Avahi._disconnect()')
         for service in self._services.values():
             resolver = service.pop('resolver', None)
             if resolver is not None:
@@ -231,7 +232,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                     resolver.Free()
                     dasbus.client.proxy.disconnect_proxy(resolver)
                 except (AttributeError, dasbus.error.DBusError) as ex:
-                    log.LOG.debug('Avahi._disconnect()                - Failed to Free() resolver. %s', ex)
+                    logging.debug('Avahi._disconnect()                - Failed to Free() resolver. %s', ex)
 
         self._services = dict()
 
@@ -240,7 +241,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                 browser.Free()
                 dasbus.client.proxy.disconnect_proxy(browser)
             except (AttributeError, dasbus.error.DBusError) as ex:
-                log.LOG.debug('Avahi._disconnect()                - Failed to Free() browser. %s', ex)
+                logging.debug('Avahi._disconnect()                - Failed to Free() browser. %s', ex)
 
         self._service_browsers = dict()
 
@@ -256,14 +257,14 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
     def _avahi_available(self, _avahi_watcher):
         '''@brief Hook up DBus signal handlers for signals from stafd.'''
-        log.LOG.info('avahi-daemon service available, zeroconf supported.')
+        logging.info('avahi-daemon service available, zeroconf supported.')
         success = self._configure_browsers()
         if not success:
             self._kick_avahi_tmr.start()
 
     def _avahi_unavailable(self, _avahi_watcher):
         self._disconnect()
-        log.LOG.warning('avahi-daemon not available, zeroconf not supported.')
+        logging.warning('avahi-daemon not available, zeroconf not supported.')
         self._kick_avahi_tmr.start()
 
     def _configure_browsers(self):
@@ -271,8 +272,8 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         stypes_to_add = self._stypes - stypes_cur
         stypes_to_rm = stypes_cur - self._stypes
 
-        log.LOG.debug('Avahi._configure_browsers()        - stypes_to_rm  = %s', list(stypes_to_rm))
-        log.LOG.debug('Avahi._configure_browsers()        - stypes_to_add = %s', list(stypes_to_add))
+        logging.debug('Avahi._configure_browsers()        - stypes_to_rm  = %s', list(stypes_to_rm))
+        logging.debug('Avahi._configure_browsers()        - stypes_to_add = %s', list(stypes_to_add))
 
         for stype_to_rm in stypes_to_rm:
             browser = self._service_browsers.pop(stype_to_rm, None)
@@ -281,7 +282,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                     browser.Free()
                     dasbus.client.proxy.disconnect_proxy(browser)
                 except (AttributeError, dasbus.error.DBusError) as ex:
-                    log.LOG.debug('Avahi._configure_browsers()        - Failed to Free() browser. %s', ex)
+                    logging.debug('Avahi._configure_browsers()        - Failed to Free() browser. %s', ex)
 
             # Find the cached services corresponding to stype_to_rm and remove them
             services_to_rm = [service for service in self._services if service[3] == stype_to_rm]
@@ -292,7 +293,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                         resolver.Free()
                         dasbus.client.proxy.disconnect_proxy(resolver)
                     except (AttributeError, dasbus.error.DBusError) as ex:
-                        log.LOG.debug('Avahi._configure_browsers()        - Failed to Free() resolver. %s', ex)
+                        logging.debug('Avahi._configure_browsers()        - Failed to Free() resolver. %s', ex)
 
         for stype in stypes_to_add:
             try:
@@ -301,8 +302,8 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                 )
                 self._service_browsers[stype] = self._sysbus.get_proxy(Avahi.DBUS_NAME, obj_path)
             except dasbus.error.DBusError as ex:
-                log.LOG.debug('Avahi._configure_browsers()        - Failed to contact avahi-daemon. %s', ex)
-                log.LOG.warning('avahi-daemon not available, operating w/o mDNS discovery.')
+                logging.debug('Avahi._configure_browsers()        - Failed to contact avahi-daemon. %s', ex)
+                logging.warning('avahi-daemon not available, operating w/o mDNS discovery.')
                 return False
 
         return True
@@ -318,7 +319,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         *_user_data
     ):
         (interface, protocol, name, stype, domain, flags) = args
-        log.LOG.debug(
+        logging.debug(
             'Avahi._service_discovered()        - interface=%s (%s), protocol=%s, stype=%s, domain=%s, flags=%s %-14s name=%s',
             interface,
             socket.if_indextoname(interface),
@@ -341,7 +342,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                     'data': {},
                 }
             except dasbus.error.DBusError as ex:
-                log.LOG.warning('Failed to create resolver: "%s", "%s", "%s". %s', interface, name, stype, ex)
+                logging.warning('Failed to create resolver: "%s", "%s", "%s". %s', interface, name, stype, ex)
 
     def _service_removed(
         self,
@@ -354,7 +355,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         *_user_data
     ):
         (interface, protocol, name, stype, domain, flags) = args
-        log.LOG.debug(
+        logging.debug(
             'Avahi._service_removed()           - interface=%s (%s), protocol=%s, stype=%s, domain=%s, flags=%s %-14s name=%s',
             interface,
             socket.if_indextoname(interface),
@@ -373,7 +374,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                 resolver.Free()
                 dasbus.client.proxy.disconnect_proxy(resolver)
             except (AttributeError, dasbus.error.DBusError) as ex:
-                log.LOG.debug('Avahi._service_removed()           - Failed to Free() resolver. %s', ex)
+                logging.debug('Avahi._service_removed()           - Failed to Free() resolver. %s', ex)
 
         self._change_cb()
 
@@ -388,8 +389,8 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         *_user_data
     ):
         (interface, protocol, name, stype, domain, host, aprotocol, address, port, txt, flags) = args
-        txt = txt2dict(txt)
-        log.LOG.debug(
+        txt = _txt2dict(txt)
+        logging.debug(
             'Avahi._service_identified()        - interface=%s (%s), protocol=%s, stype=%s, domain=%s, flags=%s %-14s name=%s, host=%s, aprotocol=%s, address=%s, port=%s, txt=%s',
             interface,
             socket.if_indextoname(interface),
@@ -432,4 +433,4 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         (error,) = args
         if 'ServiceResolver' not in interface_name or 'TimeoutError' not in error:
             # ServiceResolver may fire a timeout event after being Free'd(). This seems to be normal.
-            log.LOG.error('Avahi._failure_handler()    - name=%s, error=%s', interface_name, error)
+            logging.error('Avahi._failure_handler()    - name=%s, error=%s', interface_name, error)

@@ -12,15 +12,15 @@ import sys
 import logging
 from staslib import defs
 
-LOG = logging.getLogger(__name__)  # Singleton
-LOG.propagate = False
 
-
-def get_log_handler(syslog: bool):
-    '''Instantiate and return a log handler
+def init(syslog: bool):
+    '''Init log module
     @param syslog: True to send messages to the syslog,
                    False to send messages to stdout.
     '''
+    log = logging.getLogger()
+    log.propagate = False
+
     if syslog:
         try:
             # Try journal logger first
@@ -39,28 +39,11 @@ def get_log_handler(syslog: bool):
         # Log to stdout
         handler = logging.StreamHandler(stream=sys.stdout)
 
-    return handler
+    log.addHandler(handler)
+    log.setLevel(logging.INFO if syslog else logging.DEBUG)
 
 
 def level() -> str:
     '''@brief return current log level'''
-    return str(logging.getLevelName(LOG.getEffectiveLevel()))
-
-
-def set_level_from_tron(tron: bool):
-    '''@brief Set log level based on whether Tracing is ON (TRON)'''
-    LOG.setLevel(logging.DEBUG if tron else logging.INFO)
-
-
-# ******************************************************************************
-def init(syslog: bool):
-    '''Init log module'''
-    LOG.addHandler(get_log_handler(syslog))
-    LOG.setLevel(logging.INFO if syslog else logging.DEBUG)
-
-
-def clean():
-    '''Clean up log module'''
-    global LOG  # pylint: disable=global-statement
-    LOG = None
-    logging.shutdown()
+    log = logging.getLogger()
+    return str(logging.getLevelName(log.getEffectiveLevel()))

@@ -11,8 +11,9 @@
 import re
 import os
 import sys
+import logging
 import configparser
-from staslib import log, defs
+from staslib import defs, singleton
 
 __TOKEN_RE = re.compile(r'\s*;\s*')
 __OPTION_RE = re.compile(r'\s*=\s*')
@@ -60,7 +61,7 @@ class OrderedMultisetDict(dict):
         return value
 
 
-class Configuration:
+class SvcConf(metaclass=singleton.Singleton):
     '''Read and cache configuration file.'''
 
     def __init__(self, conf_file='/dev/null'):
@@ -230,7 +231,7 @@ class Configuration:
 
 
 # ******************************************************************************
-class SysConfiguration:
+class SysConf(metaclass=singleton.Singleton):
     '''Read and cache the host configuration file.'''
 
     def __init__(self, conf_file='/dev/null'):
@@ -296,7 +297,7 @@ class SysConfiguration:
         try:
             value = self.__get_value('Host', 'symname')
         except FileNotFoundError as ex:
-            log.LOG.warning('Error reading host symbolic name (will remain undefined): %s', ex)
+            logging.warning('Error reading host symbolic name (will remain undefined): %s', ex)
             value = None
 
         return value
@@ -348,20 +349,12 @@ class SysConfiguration:
 
 
 # ******************************************************************************
-class NvmeOptions:  # Singleton
+class NvmeOptions(metaclass=singleton.Singleton):  # Singleton
     '''Object used to read and cache contents of file /dev/nvme-fabrics.
     Note that this file was not readable prior to Linux 5.16.
     '''
 
-    __instance = None
-    __initialized = False
-
     def __init__(self):
-        if self.__initialized:  # Singleton - only init once
-            return
-
-        self.__initialized = True
-
         # Supported options can be determined by looking at the kernel version
         # or by reading '/dev/nvme-fabrics'. The ability to read the options
         # from '/dev/nvme-fabrics' was only introduced in kernel 5.17, but may
@@ -384,24 +377,11 @@ class NvmeOptions:  # Singleton
             except PermissionError:  # Must be root to read this file
                 raise
             except OSError:
-                log.LOG.warning('Cannot determine which NVMe options the kernel supports')
+                logging.warning('Cannot determine which NVMe options the kernel supports')
             else:
                 for option, supported in self._supported_options.items():
                     if not supported:
                         self._supported_options[option] = option in options
-
-    def __new__(cls):
-        '''This is used to make this class a singleton'''
-        if cls.__instance is None:
-            cls.__instance = super(NvmeOptions, cls).__new__(cls)
-
-        return cls.__instance
-
-    @classmethod
-    def destroy(cls):
-        '''This is used to destroy this singleton class'''
-        cls.__instance = None
-        cls.__initialized = False
 
     def __str__(self):
         return f'supported options: {self._supported_options}'
@@ -421,15 +401,3 @@ class NvmeOptions:  # Singleton
         a specific interface regardless of the routing tables.
         '''
         return self._supported_options['host_iface']
-
-
-PROCESS = Configuration()  # Singleton
-SYSTEM = SysConfiguration('/etc/stas/sys.conf')  # Singleton
-
-
-def clean():
-    '''Clean up configuration module'''
-    global PROCESS, SYSTEM  # pylint: disable=global-statement
-    PROCESS = None
-    SYSTEM = None
-    NvmeOptions.destroy()
