@@ -312,6 +312,15 @@ class Stac(service.Service):
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
 
+    def _get_log_pages_from_stafd(self):
+        if self._staf:
+            try:
+                return json.loads(self._staf.get_all_log_pages(True))
+            except dasbus.error.DBusError:
+                pass
+
+        return list()
+
     def _config_ctrls_finish(self, configured_ctrl_list):
         configured_ctrl_list = [
             ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict and 'subsysnqn' in ctrl_dict
@@ -319,13 +328,13 @@ class Stac(service.Service):
         logging.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
 
         discovered_ctrl_list = list()
-        if self._staf:
-            for staf_data in json.loads(self._staf.get_all_log_pages(True)):
-                host_traddr = staf_data['discovery-controller']['host-traddr']
-                host_iface = staf_data['discovery-controller']['host-iface']
-                for dlpe in staf_data['log-pages']:
-                    if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
-                        discovered_ctrl_list.append(stas.cid_from_dlpe(dlpe, host_traddr, host_iface))
+        for staf_data in self._get_log_pages_from_stafd():
+            host_traddr = staf_data['discovery-controller']['host-traddr']
+            host_iface = staf_data['discovery-controller']['host-iface']
+            for dlpe in staf_data['log-pages']:
+                if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
+                    discovered_ctrl_list.append(stas.cid_from_dlpe(dlpe, host_traddr, host_iface))
+
         logging.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
 
         controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list)
