@@ -11,11 +11,12 @@ which the Staf and the Stac objects are derived.'''
 
 import os
 import signal
+import logging
 import systemd.daemon
 import dasbus.connection
 
 from gi.repository import Gio, GLib
-from staslib import conf, ctrl, defs, gutil, log, stas, trid, udev
+from staslib import conf, ctrl, defs, gutil, stas, trid, udev
 
 
 # ******************************************************************************
@@ -25,7 +26,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
     def __init__(self, reload_hdlr):
         self._lkc_file     = os.path.join(os.environ.get('RUNTIME_DIRECTORY', os.path.join('/run', defs.PROG_NAME)), 'last-known-config.pickle')
         self._loop         = GLib.MainLoop()
-        self._udev         = udev.Udev()
+        self._udev         = udev.UDEV
         self._cancellable  = Gio.Cancellable()
         self._resolver     = gutil.NameResolver()
         self._controllers  = self._load_last_known_config()
@@ -39,12 +40,12 @@ class Service:  # pylint: disable=too-many-instance-attributes
 
         nvme_options = conf.NvmeOptions()
         if not nvme_options.host_iface_supp or not nvme_options.discovery_supp:
-            log.LOG.warning(
+            logging.warning(
                 'Kernel does not appear to support all the options needed to run this program. Consider updating to a later kernel version.'
             )
 
     def _release_resources(self):
-        log.LOG.debug('Service._release_resources()')
+        logging.debug('Service._release_resources()')
 
         if self._cancellable and not self._cancellable.is_cancelled():
             self._cancellable.cancel()
@@ -73,7 +74,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
         try:
             self._loop.run()
         except Exception as ex:  # pylint: disable=broad-except
-            log.LOG.critical('exception: %s', ex)
+            logging.critical('exception: %s', ex)
 
         self._loop = None
 
@@ -87,7 +88,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
                 'TP8013': nvme_options.discovery_supp,
                 'host_iface': nvme_options.host_iface_supp,
             },
-            'system config': conf.SYSTEM.as_dict(),
+            'system config': conf.SysConf().as_dict(),
         }
 
     def get_controllers(self):
@@ -120,14 +121,14 @@ class Service:  # pylint: disable=too-many-instance-attributes
                     break
 
         if tid_to_pop:
-            log.LOG.debug('Service._remove_ctrl_from_dict()   - %s | %s', tid_to_pop, controller.device)
+            logging.debug('Service._remove_ctrl_from_dict()   - %s | %s', tid_to_pop, controller.device)
             self._controllers.pop(tid_to_pop, None)
         else:
-            log.LOG.debug('Service._remove_ctrl_from_dict()   - already removed')
+            logging.debug('Service._remove_ctrl_from_dict()   - already removed')
 
     def remove_controller(self, controller):
         '''@brief remove the specified controller object from the list of controllers'''
-        log.LOG.debug('Service.remove_controller()')
+        logging.debug('Service.remove_controller()')
         if isinstance(controller, ctrl.Controller):
             self._remove_ctrl_from_dict(controller)
 
@@ -137,7 +138,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
             self._cfg_soak_tmr.start()
 
     def _cancel(self):
-        log.LOG.debug('Service._cancel()')
+        logging.debug('Service._cancel()')
         if not self._cancellable.is_cancelled():
             self._cancellable.cancel()
 
@@ -176,7 +177,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
         THIS IS USED DURING PROCESS SHUTDOWN TO WAIT FOR ALL CONTROLLERS TO BE
         DISCONNECTED BEFORE EXITING THE PROGRAM. ONLY CALL ON SHUTDOWN!
         '''
-        log.LOG.debug('Service._on_final_disconnect()')
+        logging.debug('Service._on_final_disconnect()')
         self._remove_ctrl_from_dict(controller)
 
         controller.kill()
@@ -187,7 +188,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
             GLib.idle_add(self._exit)
 
     def _exit(self):
-        log.LOG.debug('Service._exit()')
+        logging.debug('Service._exit()')
         self._release_resources()
         self._loop.quit()
 
@@ -203,8 +204,8 @@ class Service:  # pylint: disable=too-many-instance-attributes
         # running name resolution. And we will need to remove blacklisted
         # elements after name resolution is complete (i.e. in the calback
         # function _config_ctrls_finish)
-        log.LOG.debug('Service._config_ctrls()')
-        configured_controllers = stas.remove_blacklisted(conf.PROCESS.get_controllers())
+        logging.debug('Service._config_ctrls()')
+        configured_controllers = stas.remove_blacklisted(conf.SvcConf().get_controllers())
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
     def _config_ctrls_finish(self, configured_ctrl_list):

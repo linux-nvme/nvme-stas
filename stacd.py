@@ -10,6 +10,7 @@
 ''' STorage Appliance Connector Daemon
 '''
 import sys
+import logging
 from argparse import ArgumentParser
 from staslib import defs
 
@@ -108,10 +109,12 @@ from gi.repository import GLib
 from staslib import conf, log, gutil, trid, udev, ctrl, service  # pylint: disable=ungrouped-imports
 
 log.init(ARGS.syslog)
-conf.PROCESS.conf_file = ARGS.conf_file
-stas.trace_control(ARGS.tron or conf.PROCESS.tron)
+SERVICE_CONF = conf.SvcConf()
+SERVICE_CONF.conf_file = ARGS.conf_file
+stas.trace_control(ARGS.tron or SERVICE_CONF.tron)
 
-NVME_HOST = nvme.host(stas.NVME_ROOT, conf.SYSTEM.hostnqn, conf.SYSTEM.hostid, conf.SYSTEM.hostsymname)  # Singleton
+SYSCONF = conf.SysConf()
+NVME_HOST = nvme.host(stas.NVME_ROOT, SYSCONF.hostnqn, SYSCONF.hostid, SYSCONF.hostsymname)  # Singleton
 UDEV_RULE_SUPPRESS = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
 
 
@@ -233,10 +236,10 @@ class Stac(service.Service):
         self._staf_watcher.connect_once_available()
 
         # Suppress udev rule to auto-connect when AEN is received.
-        udev_rule_ctrl(conf.PROCESS.udev_rule_enabled)
+        udev_rule_ctrl(SERVICE_CONF.udev_rule_enabled)
 
     def _release_resources(self):
-        log.LOG.debug('Stac._release_resources()')
+        logging.debug('Stac._release_resources()')
 
         udev_rule_ctrl(True)
 
@@ -259,7 +262,7 @@ class Stac(service.Service):
         stacd.conf. stacd will audit connections if "sticky-connections=disabled".
         stacd will delete any connection that is not supposed to exist.
         '''
-        log.LOG.debug('Stac._audit_connections()          - tids = %s', tids)
+        logging.debug('Stac._audit_connections()          - tids = %s', tids)
         num_controllers = len(self._controllers)
         for tid in tids:
             if tid not in self._controllers:
@@ -275,7 +278,7 @@ class Stac(service.Service):
         '''
         if self._udev.is_ioc_device(udev_obj):
             tid = self._udev.get_tid(udev_obj)
-            log.LOG.debug('Stac._on_add_event()               - tid=%s | %s', tid, udev_obj.sys_name)
+            logging.debug('Stac._on_add_event()               - tid=%s | %s', tid, udev_obj.sys_name)
             self._audit_connections([tid])
 
     def _config_connections_audit(self):
@@ -283,7 +286,7 @@ class Stac(service.Service):
         whether audits should be performed. Audits are enabled when
         "sticky_connections" is disabled.
         '''
-        if not conf.PROCESS.sticky_connections:
+        if not SERVICE_CONF.sticky_connections:
             if self._udev.get_registered_action_cback('add') is None:
                 self._udev.register_for_action_events('add', self._on_add_event)
                 self._audit_connections(self._udev.get_nvme_ioc_tids())
@@ -301,11 +304,11 @@ class Stac(service.Service):
         signal, which can be sent with "systemctl reload stacd".
         '''
         systemd.daemon.notify('RELOADING=1')
-        conf.PROCESS.reload()
-        stas.trace_control(conf.PROCESS.tron)
+        SERVICE_CONF.reload()
+        stas.trace_control(SERVICE_CONF.tron)
         self._config_connections_audit()
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
-        udev_rule_ctrl(conf.PROCESS.udev_rule_enabled)
+        udev_rule_ctrl(SERVICE_CONF.udev_rule_enabled)
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
 
@@ -313,7 +316,7 @@ class Stac(service.Service):
         configured_ctrl_list = [
             ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict and 'subsysnqn' in ctrl_dict
         ]
-        log.LOG.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
+        logging.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
 
         discovered_ctrl_list = list()
         if self._staf:
@@ -323,7 +326,7 @@ class Stac(service.Service):
                 for dlpe in staf_data['log-pages']:
                     if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
                         discovered_ctrl_list.append(stas.cid_from_dlpe(dlpe, host_traddr, host_iface))
-        log.LOG.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
+        logging.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
 
         controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
@@ -333,13 +336,13 @@ class Stac(service.Service):
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_del = cur_controller_ids - new_controller_ids
 
-        log.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
-        log.LOG.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
+        logging.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
+        logging.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, conf.PROCESS.sticky_connections)
+                controller.disconnect(self.remove_controller, SERVICE_CONF.sticky_connections)
 
         for tid in controllers_to_add:
             self._controllers[tid] = Ioc(tid)
@@ -353,9 +356,9 @@ class Stac(service.Service):
 
             # Make sure timer is set back to its normal value.
             self._cfg_soak_tmr.set_timeout(Stac.CONF_STABILITY_SOAK_TIME_SEC)
-            log.LOG.debug('Stac._connect_to_staf()            - Connected to staf')
+            logging.debug('Stac._connect_to_staf()            - Connected to staf')
         except dasbus.error.DBusError:
-            log.LOG.error('Failed to connect to staf')
+            logging.error('Failed to connect to staf')
 
     def _destroy_staf_comlink(self, watcher):  # pylint: disable=unused-argument
         if self._staf:
@@ -375,12 +378,12 @@ class Stac(service.Service):
         if self._cfg_soak_tmr:
             self._cfg_soak_tmr.set_timeout(Stac.CONF_STABILITY_LONG_SOAK_TIME_SEC)
 
-        log.LOG.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
+        logging.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
 
     def _log_pages_changed(  # pylint: disable=too-many-arguments
         self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn, device
     ):
-        log.LOG.debug(
+        logging.debug(
             'Stac._log_pages_changed()          - transport=%s, traddr=%s, trsvcid=%s, host_traddr=%s, host_iface=%s, subsysnqn=%s, device=%s',
             transport,
             traddr,
@@ -407,6 +410,6 @@ if __name__ == '__main__':
     STAC = None
     ARGS = None
 
-    conf.clean()
-    udev.clean()
-    log.clean()
+    udev.shutdown()
+
+    logging.shutdown()

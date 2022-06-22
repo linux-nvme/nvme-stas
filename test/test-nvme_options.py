@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 import os
+import logging
 import unittest
-from staslib import log, conf
+from staslib import conf
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -17,13 +18,13 @@ class Test(TestCase):
 
     def test_fabrics_doesnt_exist(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
-        with self.assertLogs(logger=log.LOG) as captured:
+        with self.assertLogs(logger=logging.getLogger()) as captured:
             nvme_options = conf.NvmeOptions()
             self.assertIsInstance(nvme_options.discovery_supp, bool)
             self.assertIsInstance(nvme_options.host_iface_supp, bool)
-            nvme_options.destroy()
         self.assertEqual(len(captured.records), 1)
         self.assertEqual(captured.records[0].getMessage(), "Cannot determine which NVMe options the kernel supports")
+        del nvme_options
 
     def test_fabrics_empty_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
@@ -33,7 +34,7 @@ class Test(TestCase):
         nvme_options = conf.NvmeOptions()
         self.assertIsInstance(nvme_options.discovery_supp, bool)
         self.assertIsInstance(nvme_options.host_iface_supp, bool)
-        nvme_options.destroy()
+        del nvme_options
 
     def test_fabrics_wrong_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
@@ -42,7 +43,7 @@ class Test(TestCase):
         nvme_options = conf.NvmeOptions()
         self.assertIsInstance(nvme_options.discovery_supp, bool)
         self.assertIsInstance(nvme_options.host_iface_supp, bool)
-        nvme_options.destroy()
+        del nvme_options
 
     def test_fabrics_correct_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
@@ -53,7 +54,7 @@ class Test(TestCase):
         self.assertTrue(nvme_options.host_iface_supp)
         self.assertEqual(nvme_options.get(), {'discovery': True, 'host_iface': True})
         self.assertEqual(str(nvme_options), "supported options: {'discovery': True, 'host_iface': True}")
-        nvme_options.destroy()
+        del nvme_options
 
 
 if __name__ == "__main__":

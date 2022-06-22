@@ -9,9 +9,10 @@
 '''This module defines the base Controller object from which the
 Dc (Discovery Controller) and Ioc (I/O Controller) objects are derived.'''
 
+import logging
 from gi.repository import Gio, GLib
 from libnvme import nvme
-from staslib import conf, log, gutil, trid, udev
+from staslib import conf, gutil, trid, udev
 
 
 DC_KATO_DEFAULT = 30  # seconds
@@ -27,7 +28,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
     def __init__(self, root, host, tid: trid.TID, discovery_ctrl=False):
         self._root              = root
         self._host              = host
-        self._udev              = udev.Udev()
+        self._udev              = udev.UDEV
         self._tid               = tid
         self._cancellable       = Gio.Cancellable()
         self._connect_op        = None
@@ -40,7 +41,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         self._try_to_connect_deferred.schedule()
 
     def _release_resources(self):
-        log.LOG.debug('Controller._release_resources()    - %s', self.id)
+        logging.debug('Controller._release_resources()    - %s', self.id)
 
         # Remove pending deferred from main loop
         if self._try_to_connect_deferred:
@@ -85,22 +86,22 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 nvme_aen = udev_obj.get("NVME_AEN")
                 nvme_event = udev_obj.get("NVME_EVENT")
                 if isinstance(nvme_aen, str):
-                    log.LOG.info('%s | %s - Received AEN: %s', self.id, udev_obj.sys_name, nvme_aen)
+                    logging.info('%s | %s - Received AEN: %s', self.id, udev_obj.sys_name, nvme_aen)
                     self._on_aen(udev_obj, int(nvme_aen, 16))
                 if isinstance(nvme_event, str):
                     self._on_nvme_event(udev_obj, nvme_event)
             elif udev_obj.action == 'remove':
-                log.LOG.info('%s | %s - Received "remove" event', self.id, udev_obj.sys_name)
+                logging.info('%s | %s - Received "remove" event', self.id, udev_obj.sys_name)
                 self._on_udev_remove(udev_obj)
             else:
-                log.LOG.debug(
+                logging.debug(
                     'Controller._on_udev_notification() - %s | %s - Received "%s" notification.',
                     self.id,
                     udev_obj.sys_name,
                     udev_obj.action,
                 )
         else:
-            log.LOG.debug(
+            logging.debug(
                 'Controller._on_udev_notification() - %s | %s - Received event on dead object. udev_obj %s: %s',
                 self.id,
                 self.device,
@@ -137,7 +138,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
 
         host_iface = (
             self.tid.host_iface
-            if (self.tid.host_iface and not conf.PROCESS.ignore_iface and conf.NvmeOptions().host_iface_supp)
+            if (self.tid.host_iface and not conf.SvcConf().ignore_iface and conf.NvmeOptions().host_iface_supp)
             else None
         )
         self._ctrl = nvme.ctrl(
@@ -157,7 +158,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         if udev_obj is not None:
             # A device already exists.
             self._device = udev_obj.sys_name
-            log.LOG.debug(
+            logging.debug(
                 'Controller._try_to_connect()       - %s Found existing control device: %s', self.id, udev_obj.sys_name
             )
             self._connect_op = gutil.AsyncOperationWithRetry(
@@ -165,10 +166,11 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             )
         else:
             self._device = None
-            cfg = { 'hdr_digest':  conf.PROCESS.hdr_digest,
-                    'data_digest': conf.PROCESS.data_digest }
-            if conf.PROCESS.kato is not None:
-                cfg['keep_alive_tmo'] = conf.PROCESS.kato
+            service_conf = conf.SvcConf()
+            cfg = { 'hdr_digest':  service_conf.hdr_digest,
+                    'data_digest': service_conf.data_digest }
+            if service_conf.kato is not None:
+                cfg['keep_alive_tmo'] = service_conf.kato
             elif self._discovery_ctrl:
                 # All the connections to Controllers (I/O and Discovery) are
                 # persistent. Persistent connections MUST configure the KATO.
@@ -179,7 +181,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 # persistent DC connections (i.e. 30 sec).
                 cfg['keep_alive_tmo'] = DC_KATO_DEFAULT
 
-            log.LOG.debug(
+            logging.debug(
                 'Controller._try_to_connect()       - %s Connecting to nvme control with cfg=%s', self.id, cfg
             )
             self._connect_op = gutil.AsyncOperationWithRetry(
@@ -199,11 +201,11 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         if self._alive():
             if not self._device:
                 self._device = self._ctrl.name
-            log.LOG.info('%s | %s - Connection established!', self.id, self.device)
+            logging.info('%s | %s - Connection established!', self.id, self.device)
             self._connect_attempts = 0
             self._udev.register_for_device_events(self.device, self._on_udev_notification)
         else:
-            log.LOG.debug(
+            logging.debug(
                 'Controller._on_connect_success()   - %s | %s Received event on dead object. data=%s',
                 self.id,
                 self.device,
@@ -231,9 +233,9 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 # If the fast connect re-try fails, then we can print a message to
                 # indicate the failure, and start a slow re-try period.
                 self._retry_connect_tmr.set_timeout(Controller.CONNECT_RETRY_PERIOD_SEC)
-                log.LOG.error('%s Failed to connect to controller. %s', self.id, getattr(err, 'message', err))
+                logging.error('%s Failed to connect to controller. %s', self.id, getattr(err, 'message', err))
 
-            log.LOG.debug(
+            logging.debug(
                 'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
                 self.id,
                 err,
@@ -241,7 +243,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             )
             self._retry_connect_tmr.start()
         else:
-            log.LOG.debug(
+            logging.debug(
                 'Controller._on_connect_fail()      - %s Received event on dead object. %s',
                 self.id,
                 getattr(err, 'message', err),
@@ -283,7 +285,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
     def cancel(self):
         '''@brief Used to cancel pending operations.'''
         if self._cancellable and not self._cancellable.is_cancelled():
-            log.LOG.debug('Controller.cancel()                - %s', self.id)
+            logging.debug('Controller.cancel()                - %s', self.id)
             self._cancellable.cancel()
 
         if self._connect_op:
@@ -291,7 +293,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
 
     def kill(self):
         '''@brief Used to release all resources associated with this object.'''
-        log.LOG.debug('Controller.kill()                  - %s', self.id)
+        logging.debug('Controller.kill()                  - %s', self.id)
         self._release_resources()
 
     def disconnect(self, disconnected_cb, keep_connection):
@@ -301,10 +303,10 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         callback will be added to the main loop's next idle slot to be executed
         ASAP.
         '''
-        log.LOG.debug('Controller.disconnect()            - %s | %s', self.id, self.device)
+        logging.debug('Controller.disconnect()            - %s | %s', self.id, self.device)
         self._kill_ops()
         if self._ctrl and self._ctrl.connected() and not keep_connection:
-            log.LOG.info('%s | %s - Disconnect initiated', self.id, self.device)
+            logging.info('%s | %s - Disconnect initiated', self.id, self.device)
             op = gutil.AsyncOperationWithRetry(self._on_disconn_success, self._on_disconn_fail, self._ctrl.disconnect)
             op.run_async(disconnected_cb)
         else:
@@ -315,7 +317,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             GLib.idle_add(disconnected_cb, self)
 
     def _on_disconn_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
-        log.LOG.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
+        logging.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback
         # cannot be called directly as the current Controller object is in the
@@ -324,7 +326,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         GLib.idle_add(disconnected_cb, self)
 
     def _on_disconn_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
-        log.LOG.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
+        logging.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback
         # cannot be called directly as the current Controller object is in the

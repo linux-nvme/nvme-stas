@@ -9,8 +9,9 @@
 '''This module provides functions to access nvme devices using the pyudev module'''
 
 import os
+import logging
 import pyudev
-from staslib import defs, log, trid
+from staslib import defs, trid
 
 try:
     from pyudev.glib import MonitorObserver
@@ -19,16 +20,12 @@ except (ModuleNotFoundError, AttributeError):
 
 # ******************************************************************************
 class Udev:
-    '''@brief Udev event monitor. Provide a way to register for udev events.'''
-
-    __instance = None
-    __initialized = False
+    '''@brief Udev event monitor. Provide a way to register for udev events.
+    WARNING: THE singleton.Singleton PATTERN CANNOT BE USED WITH THIOS CLASS.
+    IT INTERFERES WITH THE pyudev INTERNALS, WHICH CAUSES OBJECT CLEAN UP TO FAIL.
+    '''
 
     def __init__(self):
-        if self.__initialized:  # Singleton - only init once
-            return
-        self.__initialized = True
-
         self._device_event_registry = dict()
         self._action_event_registry = dict()
         self._context = pyudev.Context()
@@ -38,15 +35,8 @@ class Udev:
         self._sig_id = self._observer.connect('device-event', self._device_event)
         self._monitor.start()
 
-    def __new__(cls):
-        '''This is used to make this class a singleton'''
-        if cls.__instance is None:
-            cls.__instance = super(Udev, cls).__new__(cls)
-
-        return cls.__instance
-
     def release_resources(self):
-        '''Rlease all resources used by this object'''
+        '''Release all resources used by this object'''
         if self._observer and self._sig_id is not None:
             self._observer.disconnect(self._sig_id)
 
@@ -60,15 +50,6 @@ class Udev:
         self._device_event_registry = None
         self._action_event_registry = None
 
-    @classmethod
-    def destroy(cls):
-        '''This is used to destroy this singleton class'''
-        if cls.__instance is not None:
-            cls.__instance.release_resources()
-
-        cls.__instance = None
-        cls.__initialized = False
-
     def get_nvme_device(self, sys_name):
         '''@brief Get the udev device object associated with an nvme device.
         @param sys_name: The device system name (e.g. 'nvme1')
@@ -78,7 +59,7 @@ class Udev:
         try:
             return pyudev.Devices.from_device_file(self._context, device_node)
         except pyudev.DeviceNotFoundByFileError as ex:
-            log.LOG.error("Udev.get_nvme_device() - Error: %s", ex)
+            logging.error("Udev.get_nvme_device() - Error: %s", ex)
             return None
 
     def get_registered_action_cback(self, action: str):
@@ -256,6 +237,11 @@ class Udev:
         return trid.TID(cid)
 
 
-def clean():
-    '''Clean up all resources (especially singletons)'''
-    Udev.destroy()
+UDEV = Udev()  # Singleton
+
+
+def shutdown():
+    '''Destroy the UDEV singleton'''
+    global UDEV  # pylint: disable=global-statement
+    UDEV.release_resources()
+    del UDEV

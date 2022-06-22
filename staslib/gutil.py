@@ -10,8 +10,8 @@
 access to GLib/Gio/Gobject resources.
 '''
 
+import logging
 from gi.repository import Gio, GLib, GObject
-from staslib import log
 
 # ******************************************************************************
 class GTimer:
@@ -131,12 +131,12 @@ class NameResolver:
                 if addresses:
                     traddr = addresses[0].to_string()
                 else:
-                    log.LOG.error('Cannot resolve traddr: %s', hostname)
+                    logging.error('Cannot resolve traddr: %s', hostname)
 
             except GLib.GError:
-                log.LOG.error('Cannot resolve traddr: %s', hostname)
+                logging.error('Cannot resolve traddr: %s', hostname)
 
-            log.LOG.debug('NameResolver.resolve_ctrl_async()  - resolved \'%s\' -> %s', hostname, traddr)
+            logging.debug('NameResolver.resolve_ctrl_async()  - resolved \'%s\' -> %s', hostname, traddr)
             controllers[indx]['traddr'] = traddr
 
             # Invoke callback after all hostnames have been resolved
@@ -149,9 +149,9 @@ class NameResolver:
             if controller.get('transport') in ('tcp', 'rdma'):
                 hostname = controller.get('traddr')
                 if not hostname:
-                    log.LOG.error('Invalid traddr: %s', controller)
+                    logging.error('Invalid traddr: %s', controller)
                 else:
-                    log.LOG.debug('NameResolver.resolve_ctrl_async()  - resolving \'%s\'', hostname)
+                    logging.debug('NameResolver.resolve_ctrl_async()  - resolving \'%s\'', hostname)
                     pending_resolution_count += 1
                     self._resolver.lookup_by_name_async(hostname, cancellable, addr_resolved, indx)
 

@@ -26,6 +26,7 @@ files_to_copy = [
     'gutil.py',
     'log.py',
     'service.py',
+    'singleton.py',
     'stas.py',
     'trid.py',
     'udev.py',
