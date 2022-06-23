@@ -31,7 +31,7 @@ class StaslibLogTest(TestCase):
 #        pass
 
     def test_log_with_syslog_handler(self):
-        '''Check that we can set the handler to SysLogHandler'''
+        '''Check that we can set the handler to logging.handlers.SysLogHandler'''
         if JOURNAL_MODULE is not None:
             # We need to mask the real journal module by creating
             # a fake journal module with invalid contents
@@ -43,7 +43,7 @@ class StaslibLogTest(TestCase):
 
 
     def test_log_with_systemd_journal(self):
-        '''Check that we can set the handler to journal (needs python-systemd to be installed)'''
+        '''Check that we can set the handler to systemd.journal.JournalHandler (needs python-systemd to be installed)'''
         if JOURNAL_MODULE is not None:
             log.init(syslog=False)
             self.assertEqual(log.level(), 'DEBUG')
@@ -51,7 +51,7 @@ class StaslibLogTest(TestCase):
 
 
     def test_log_with_stdout(self):
-        '''Check that we can set the handler to SysLogHandler'''
+        '''Check that we can set the handler to logging.StreamHandler (i.e. stdout)'''
         log.init(syslog=True)
         self.assertEqual(log.level(), 'INFO')
         logging.shutdown()

@@ -150,7 +150,7 @@ class Dc(ctrl.Controller):
     REGISTRATION_RETRY_RERIOD_SEC = 10
 
     def __init__(self, tid: trid.TID, log_pages=None):
-        super().__init__(stas.NVME_ROOT, stas.NVME_HOST, tid, discovery_ctrl=True)
+        super().__init__(stas.Nvme().root, stas.Nvme().host, tid, discovery_ctrl=True)
         self._register_op = None
         self._get_log_op = None
         self._log_pages = log_pages if log_pages else list()  # Log pages cache

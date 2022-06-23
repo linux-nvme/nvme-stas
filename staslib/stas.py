@@ -14,13 +14,27 @@ import ipaddress
 import logging
 
 from libnvme import nvme
-from staslib import conf, defs, trid
+from staslib import conf, defs, singleton, trid
 
 
-SYSCONF = conf.SysConf()  # Singleton
-NVME_ROOT = nvme.root()  # Singleton
-NVME_HOST = nvme.host(NVME_ROOT, SYSCONF.hostnqn, SYSCONF.hostid, SYSCONF.hostsymname)  # Singleton
 TRON = False  # Singleton
+
+
+class Nvme(metaclass=singleton.Singleton):  # pylint: disable=too-few-public-methods
+    '''Singleton object to keep libnvme's root and host objects.
+    The root and host objects cannot be created too early as
+    they depend on configuration files being present. So we
+    can't create them as singleton during module import, but
+    instead they need to be created once stafd/stacd have started.
+    By using this class we ensure that things happen in the right
+    sequence.
+    '''
+
+    def __init__(self):
+        sysconf = conf.SysConf()
+        self.root = nvme.root()
+        self.host = nvme.host(self.root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+
 
 # ******************************************************************************
 def check_if_allowed_to_continue():
@@ -53,7 +67,7 @@ def trace_control(tron: bool):
     TRON = tron
     log = logging.getLogger()
     log.setLevel(logging.DEBUG if TRON else logging.INFO)
-    NVME_ROOT.log_level("debug" if TRON else "err")
+    Nvme().root.log_level("debug" if TRON else "err")
 
 
 # ******************************************************************************
