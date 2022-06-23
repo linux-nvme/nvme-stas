@@ -358,6 +358,7 @@ PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-transpo
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-config.py
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-controller.py
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-service.py
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-log.py
 sudo PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-nvme_options.py
 
 ################################################################################

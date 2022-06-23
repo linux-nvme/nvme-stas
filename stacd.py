@@ -240,7 +240,8 @@ class Stac(service.Service):
 
         udev_rule_ctrl(True)
 
-        self._udev.unregister_for_action_events('add')
+        if self._udev:
+            self._udev.unregister_for_action_events('add')
 
         self._destroy_staf_comlink(self._staf_watcher)
         if self._staf_watcher is not None:
