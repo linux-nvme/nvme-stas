@@ -67,7 +67,8 @@ class Service:  # pylint: disable=too-many-instance-attributes
 
         self._controllers.clear()
 
-        self._sysbus.disconnect()
+        if self._sysbus:
+            self._sysbus.disconnect()
 
         self._cfg_soak_tmr = None
         self._cancellable = None
