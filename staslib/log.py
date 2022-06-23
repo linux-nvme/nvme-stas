@@ -45,5 +45,11 @@ def init(syslog: bool):
 
 def level() -> str:
     '''@brief return current log level'''
-    log = logging.getLogger()
-    return str(logging.getLevelName(log.getEffectiveLevel()))
+    logger = logging.getLogger()
+    return str(logging.getLevelName(logger.getEffectiveLevel()))
+
+
+def set_level_from_tron(tron):
+    '''Set log level based on TRON'''
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG if tron else logging.INFO)

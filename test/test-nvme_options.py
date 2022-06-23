@@ -2,7 +2,7 @@
 import os
 import logging
 import unittest
-from staslib import conf
+from staslib import conf, log
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -11,20 +11,13 @@ class Test(TestCase):
 
     def setUp(self):
         self.setUpPyfakefs()
+        log.init(syslog=False)
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.INFO)
 
     def tearDown(self):
         # No longer need self.tearDownPyfakefs()
         pass
-
-    def test_fabrics_doesnt_exist(self):
-        self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
-        with self.assertLogs(logger=logging.getLogger()) as captured:
-            nvme_options = conf.NvmeOptions()
-            self.assertIsInstance(nvme_options.discovery_supp, bool)
-            self.assertIsInstance(nvme_options.host_iface_supp, bool)
-        self.assertEqual(len(captured.records), 1)
-        self.assertEqual(captured.records[0].getMessage(), "Cannot determine which NVMe options the kernel supports")
-        del nvme_options
 
     def test_fabrics_empty_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))

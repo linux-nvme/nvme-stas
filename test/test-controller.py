@@ -1,8 +1,12 @@
 #!/usr/bin/python3
 import logging
 import unittest
-from staslib import ctrl, stas, trid
+from gi.repository import GLib
+from libnvme import nvme
+from staslib import conf, ctrl, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
+
+LOOP = GLib.MainLoop()
 
 class Test(TestCase):
     '''Unit tests for class Controller'''
@@ -23,8 +27,15 @@ class Test(TestCase):
             'host-iface':  'wlp0s20f3',
         })
 
+        sysconf = conf.SysConf()
+        self.root = nvme.root()
+        self.host = nvme.host(self.root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+
+    def tearDown(self):
+        LOOP.quit()
+
     def test_get_device(self):
-        controller = ctrl.Controller(root=stas.Nvme().root, host=stas.Nvme().host, tid=self.NVME_TID)
+        controller = ctrl.Controller(root=self.root, host=self.host, tid=self.NVME_TID)
         self.assertEqual(controller._connect_attempts, 0)
         self.assertRaises(NotImplementedError, controller._try_to_connect)
         self.assertEqual(controller._connect_attempts, 1)
@@ -42,7 +53,7 @@ class Test(TestCase):
         # self.assertEqual(controller.disconnect(), 0)
 
     def test_connect(self):
-        controller = ctrl.Controller(root=stas.Nvme().root, host=stas.Nvme().host, tid=self.NVME_TID)
+        controller = ctrl.Controller(root=self.root, host=self.host, tid=self.NVME_TID)
         self.assertEqual(controller._connect_attempts, 0)
         controller._find_existing_connection = lambda : None
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
@@ -53,4 +64,5 @@ class Test(TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    GLib.idle_add(unittest.main)
+    LOOP.run()

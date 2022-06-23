@@ -108,9 +108,6 @@ from gi.repository import GLib
 from staslib import conf, log, gutil, trid, udev, ctrl, service  # pylint: disable=ungrouped-imports
 
 log.init(ARGS.syslog)
-SERVICE_CONF = conf.SvcConf()
-SERVICE_CONF.conf_file = ARGS.conf_file
-stas.trace_control(ARGS.tron or SERVICE_CONF.tron)
 
 UDEV_RULE_SUPPRESS = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
 
@@ -137,8 +134,8 @@ def udev_rule_ctrl(enable):
 class Ioc(ctrl.Controller):
     '''@brief This object establishes a connection to one I/O Controller.'''
 
-    def __init__(self, tid: trid.TID):
-        super().__init__(stas.Nvme().root, stas.Nvme().host, tid)
+    def __init__(self, root, host, tid: trid.TID):
+        super().__init__(root, host, tid)
 
     def _on_udev_remove(self, udev_obj):
         '''Called when the associated nvme device (/dev/nvmeX) is removed
@@ -170,12 +167,12 @@ class Stac(service.Service):
         @property
         def tron(self):
             '''@brief Get Trace ON property'''
-            return stas.TRON
+            return STAC.tron
 
         @tron.setter
         def tron(self, value):  # pylint: disable=no-self-use
             '''@brief Set Trace ON property'''
-            stas.trace_control(value)
+            STAC.tron = value
 
         @property
         def log_level(self) -> str:
@@ -187,7 +184,7 @@ class Stac(service.Service):
             @return A string representation of a json object.
             '''
             info = {
-                'tron': stas.TRON,
+                'tron': STAC.tron,
                 'log-level': self.log_level,
             }
             info.update(STAC.info())
@@ -208,8 +205,8 @@ class Stac(service.Service):
             ]
 
     # ==========================================================================
-    def __init__(self):
-        super().__init__(self._reload_hdlr)
+    def __init__(self, args):
+        super().__init__(args, self._reload_hdlr)
 
         # We don't want to apply configuration changes to nvme-cli right away.
         # Often, multiple changes will occur in a short amount of time (sub-second).
@@ -233,7 +230,7 @@ class Stac(service.Service):
         self._staf_watcher.connect_once_available()
 
         # Suppress udev rule to auto-connect when AEN is received.
-        udev_rule_ctrl(SERVICE_CONF.udev_rule_enabled)
+        udev_rule_ctrl(conf.SvcConf().udev_rule_enabled)
 
     def _release_resources(self):
         logging.debug('Stac._release_resources()')
@@ -264,7 +261,7 @@ class Stac(service.Service):
         num_controllers = len(self._controllers)
         for tid in tids:
             if tid not in self._controllers:
-                self._controllers[tid] = Ioc(tid)
+                self._controllers[tid] = Ioc(self._root, self._host, tid)
 
         if num_controllers != len(self._controllers):
             self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
@@ -284,7 +281,7 @@ class Stac(service.Service):
         whether audits should be performed. Audits are enabled when
         "sticky_connections" is disabled.
         '''
-        if not SERVICE_CONF.sticky_connections:
+        if not conf.SvcConf().sticky_connections:
             if self._udev.get_registered_action_cback('add') is None:
                 self._udev.register_for_action_events('add', self._on_add_event)
                 self._audit_connections(self._udev.get_nvme_ioc_tids())
@@ -302,11 +299,12 @@ class Stac(service.Service):
         signal, which can be sent with "systemctl reload stacd".
         '''
         systemd.daemon.notify('RELOADING=1')
-        SERVICE_CONF.reload()
-        stas.trace_control(SERVICE_CONF.tron)
+        service_cnf = conf.SvcConf()
+        service_cnf.reload()
+        self.tron = service_cnf.tron
         self._config_connections_audit()
         self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
-        udev_rule_ctrl(SERVICE_CONF.udev_rule_enabled)
+        udev_rule_ctrl(service_cnf.udev_rule_enabled)
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
 
@@ -349,10 +347,10 @@ class Stac(service.Service):
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, SERVICE_CONF.sticky_connections)
+                controller.disconnect(self.remove_controller, conf.SvcConf().sticky_connections)
 
         for tid in controllers_to_add:
-            self._controllers[tid] = Ioc(tid)
+            self._controllers[tid] = Ioc(self._root, self._host, tid)
 
     def _connect_to_staf(self, _):
         '''@brief Hook up DBus signal handlers for signals from stafd.'''
@@ -411,7 +409,7 @@ class Stac(service.Service):
 
 # ******************************************************************************
 if __name__ == '__main__':
-    STAC = Stac()
+    STAC = Stac(ARGS)
     STAC.run()
 
     STAC = None

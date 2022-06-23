@@ -129,9 +129,6 @@ from gi.repository import GLib
 from staslib import conf, log, gutil, trid, udev, ctrl, service  # pylint: disable=ungrouped-imports
 
 log.init(ARGS.syslog)
-SERVICE_CONF = conf.SvcConf()
-SERVICE_CONF.conf_file = ARGS.conf_file
-stas.trace_control(ARGS.tron or SERVICE_CONF.tron)
 
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
@@ -149,8 +146,8 @@ class Dc(ctrl.Controller):
     GET_LOG_PAGE_RETRY_RERIOD_SEC = 20
     REGISTRATION_RETRY_RERIOD_SEC = 10
 
-    def __init__(self, tid: trid.TID, log_pages=None):
-        super().__init__(stas.Nvme().root, stas.Nvme().host, tid, discovery_ctrl=True)
+    def __init__(self, root, host, tid: trid.TID, log_pages=None):
+        super().__init__(root, host, tid, discovery_ctrl=True)
         self._register_op = None
         self._get_log_op = None
         self._log_pages = log_pages if log_pages else list()  # Log pages cache
@@ -378,12 +375,12 @@ class Staf(service.Service):
         @property
         def tron(self):
             '''@brief Get Trace ON property'''
-            return stas.TRON
+            return STAF.tron
 
         @tron.setter
         def tron(self, value):  # pylint: disable=no-self-use
             '''@brief Set Trace ON property'''
-            stas.trace_control(value)
+            STAF.tron = value
 
         @property
         def log_level(self) -> str:
@@ -395,7 +392,7 @@ class Staf(service.Service):
             @return A string representation of a json object.
             '''
             info = {
-                'tron': stas.TRON,
+                'tron': STAF.tron,
                 'log-level': self.log_level,
             }
             info.update(STAF.info())
@@ -435,11 +432,11 @@ class Staf(service.Service):
             ]
 
     # ==========================================================================
-    def __init__(self):
-        super().__init__(self._reload_hdlr)
+    def __init__(self, args):
+        super().__init__(args, self._reload_hdlr)
 
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
-        self._avahi.config_stypes(SERVICE_CONF.get_stypes())
+        self._avahi.config_stypes(conf.SvcConf().get_stypes())
 
         # We don't want to apply configuration changes to nvme-cli right away.
         # Often, multiple changes will occur in a short amount of time (sub-second).
@@ -474,7 +471,7 @@ class Staf(service.Service):
             return dict()
 
         logging.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
-        return {tid: Dc(tid, log_pages) for tid, log_pages in config.items()}
+        return {tid: Dc(self._root, self._host, tid, log_pages) for tid, log_pages in config.items()}
 
     def _dump_last_known_config(self, controllers):
         try:
@@ -489,17 +486,18 @@ class Staf(service.Service):
         '''@brief Determine whether connections should remain when the
         process exits.
         '''
-        return SERVICE_CONF.persistent_connections
+        return conf.SvcConf().persistent_connections
 
     def _reload_hdlr(self):
         '''@brief Reload configuration file. This is triggered by the SIGHUP
         signal, which can be sent with "systemctl reload stafd".
         '''
         systemd.daemon.notify('RELOADING=1')
-        SERVICE_CONF.reload()
-        stas.trace_control(SERVICE_CONF.tron)
+        service_cnf = conf.SvcConf()
+        service_cnf.reload()
+        self.tron = service_cnf.tron
         self._avahi.kick_start()  # Make sure Avahi is running
-        self._avahi.config_stypes(SERVICE_CONF.get_stypes())
+        self._avahi.config_stypes(service_cnf.get_stypes())
         self._cfg_soak_tmr.start()
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
@@ -563,10 +561,10 @@ class Staf(service.Service):
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, SERVICE_CONF.persistent_connections)
+                controller.disconnect(self.remove_controller, conf.SvcConf().persistent_connections)
 
         for tid in controllers_to_add:
-            self._controllers[tid] = Dc(tid)
+            self._controllers[tid] = Dc(self._root, self._host, tid)
 
     def _avahi_change(self):
         self._cfg_soak_tmr.start()
@@ -574,7 +572,7 @@ class Staf(service.Service):
 
 # ******************************************************************************
 if __name__ == '__main__':
-    STAF = Staf()
+    STAF = Staf(ARGS)
     STAF.run()
 
     STAF = None

@@ -90,8 +90,7 @@ class SvcConf(metaclass=singleton.Singleton):
     def conf_file(self):  # pylint: disable=missing-function-docstring
         return self._conf_file
 
-    @conf_file.setter
-    def conf_file(self, fname):  # pylint: disable=missing-function-docstring
+    def set_conf_file(self, fname):  # pylint: disable=missing-function-docstring
         self._conf_file = fname
         self.reload()
 
@@ -246,8 +245,7 @@ class SysConf(metaclass=singleton.Singleton):
     def conf_file(self):  # pylint: disable=missing-function-docstring
         return self._conf_file
 
-    @conf_file.setter
-    def conf_file(self, fname):  # pylint: disable=missing-function-docstring
+    def set_conf_file(self, fname):  # pylint: disable=missing-function-docstring
         self._conf_file = fname
         self.reload()
 
@@ -376,7 +374,7 @@ class NvmeOptions(metaclass=singleton.Singleton):
                     options = [option.split('=')[0].strip() for option in f.readline().rstrip('\n').split(',')]
             except PermissionError:  # Must be root to read this file
                 raise
-            except OSError:
+            except (OSError, FileNotFoundError):
                 logging.warning('Cannot determine which NVMe options the kernel supports')
             else:
                 for option, supported in self._supported_options.items():

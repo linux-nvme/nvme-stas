@@ -33,7 +33,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
     def test_config(self):
         '''Check we can read the temporary configuration file'''
         service_conf = conf.SvcConf()
-        service_conf.conf_file = StasProcessConfUnitTest.FNAME
+        service_conf.set_conf_file(StasProcessConfUnitTest.FNAME)
         self.assertEqual(service_conf.conf_file, StasProcessConfUnitTest.FNAME)
         self.assertTrue(service_conf.tron)
         self.assertFalse(service_conf.hdr_digest)
@@ -111,7 +111,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     def test_config_1(self):
         '''Check we can read the temporary configuration file'''
         system_conf = conf.SysConf()
-        system_conf.conf_file = StasSysConfUnitTest.FNAME_1
+        system_conf.set_conf_file(StasSysConfUnitTest.FNAME_1)
         self.assertEqual(system_conf.conf_file, StasSysConfUnitTest.FNAME_1)
         self.assertEqual(system_conf.hostnqn, StasSysConfUnitTest.NQN)
         self.assertEqual(system_conf.hostid, StasSysConfUnitTest.ID)
@@ -128,7 +128,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     def test_config_2(self):
         '''Check we can read from /dev/null or missing 'id' definition'''
         system_conf = conf.SysConf()
-        system_conf.conf_file = StasSysConfUnitTest.FNAME_2
+        system_conf.set_conf_file(StasSysConfUnitTest.FNAME_2)
         self.assertEqual(system_conf.conf_file, StasSysConfUnitTest.FNAME_2)
         self.assertIsNone(system_conf.hostnqn)
         self.assertIsNone(system_conf.hostsymname)
@@ -136,7 +136,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     def test_config_3(self):
         '''Check we can read an invalid NQN string'''
         system_conf = conf.SysConf()
-        system_conf.conf_file = StasSysConfUnitTest.FNAME_3
+        system_conf.set_conf_file(StasSysConfUnitTest.FNAME_3)
         self.assertEqual(system_conf.conf_file, StasSysConfUnitTest.FNAME_3)
         self.assertRaises(SystemExit, lambda: system_conf.hostnqn)
         self.assertEqual(system_conf.hostid, StasSysConfUnitTest.ID)
@@ -145,7 +145,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     def test_config_4(self):
         '''Check we can read the temporary configuration file'''
         system_conf = conf.SysConf()
-        system_conf.conf_file = StasSysConfUnitTest.FNAME_4
+        system_conf.set_conf_file(StasSysConfUnitTest.FNAME_4)
         self.assertEqual(system_conf.conf_file, StasSysConfUnitTest.FNAME_4)
         self.assertRaises(SystemExit, lambda: system_conf.hostnqn)
         self.assertRaises(SystemExit, lambda: system_conf.hostid)
@@ -154,7 +154,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     def test_config_missing_file(self):
         '''Check what happens when conf file is missing'''
         system_conf = conf.SysConf()
-        system_conf.conf_file = '/just/some/ramdom/file/name'
+        system_conf.set_conf_file('/just/some/ramdom/file/name')
         self.assertIsNone(system_conf.hostsymname)
 
 
