@@ -104,7 +104,6 @@ import systemd.daemon
 import dasbus.error
 import dasbus.client.observer
 import dasbus.client.proxy
-from libnvme import nvme
 from gi.repository import GLib
 from staslib import conf, log, gutil, trid, udev, ctrl, service  # pylint: disable=ungrouped-imports
 
@@ -113,8 +112,6 @@ SERVICE_CONF = conf.SvcConf()
 SERVICE_CONF.conf_file = ARGS.conf_file
 stas.trace_control(ARGS.tron or SERVICE_CONF.tron)
 
-SYSCONF = conf.SysConf()
-NVME_HOST = nvme.host(stas.NVME_ROOT, SYSCONF.hostnqn, SYSCONF.hostid, SYSCONF.hostsymname)  # Singleton
 UDEV_RULE_SUPPRESS = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
 
 
@@ -141,7 +138,7 @@ class Ioc(ctrl.Controller):
     '''@brief This object establishes a connection to one I/O Controller.'''
 
     def __init__(self, tid: trid.TID):
-        super().__init__(stas.NVME_ROOT, NVME_HOST, tid)
+        super().__init__(stas.NVME_ROOT, stas.NVME_HOST, tid)
 
     def _on_udev_remove(self, udev_obj):
         '''Called when the associated nvme device (/dev/nvmeX) is removed

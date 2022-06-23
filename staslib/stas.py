@@ -17,7 +17,9 @@ from libnvme import nvme
 from staslib import conf, defs, trid
 
 
+SYSCONF = conf.SysConf()  # Singleton
 NVME_ROOT = nvme.root()  # Singleton
+NVME_HOST = nvme.host(NVME_ROOT, SYSCONF.hostnqn, SYSCONF.hostid, SYSCONF.hostsymname)  # Singleton
 TRON = False  # Singleton
 
 # ******************************************************************************

@@ -133,9 +133,6 @@ SERVICE_CONF = conf.SvcConf()
 SERVICE_CONF.conf_file = ARGS.conf_file
 stas.trace_control(ARGS.tron or SERVICE_CONF.tron)
 
-SYSCONF = conf.SysConf()
-NVME_HOST = nvme.host(stas.NVME_ROOT, SYSCONF.hostnqn, SYSCONF.hostid, SYSCONF.hostsymname)  # Singleton
-
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
@@ -153,7 +150,7 @@ class Dc(ctrl.Controller):
     REGISTRATION_RETRY_RERIOD_SEC = 10
 
     def __init__(self, tid: trid.TID, log_pages=None):
-        super().__init__(stas.NVME_ROOT, NVME_HOST, tid, discovery_ctrl=True)
+        super().__init__(stas.NVME_ROOT, stas.NVME_HOST, tid, discovery_ctrl=True)
         self._register_op = None
         self._get_log_op = None
         self._log_pages = log_pages if log_pages else list()  # Log pages cache

@@ -41,3 +41,4 @@ KERNEL_TP8013_MIN_VERSION = KernelVersion('@KERNEL_TP8013_MIN_VERSION@')
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 
 PROG_NAME = os.path.basename(sys.argv[0])
+SYS_CONF_FILE = '/etc/stas/sys.conf'

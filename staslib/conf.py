@@ -234,7 +234,7 @@ class SvcConf(metaclass=singleton.Singleton):
 class SysConf(metaclass=singleton.Singleton):
     '''Read and cache the host configuration file.'''
 
-    def __init__(self, conf_file='/dev/null'):
+    def __init__(self, conf_file=defs.SYS_CONF_FILE):
         self._conf_file = conf_file
         self.reload()
 
@@ -349,7 +349,7 @@ class SysConf(metaclass=singleton.Singleton):
 
 
 # ******************************************************************************
-class NvmeOptions(metaclass=singleton.Singleton):  # Singleton
+class NvmeOptions(metaclass=singleton.Singleton):
     '''Object used to read and cache contents of file /dev/nvme-fabrics.
     Note that this file was not readable prior to Linux 5.16.
     '''
