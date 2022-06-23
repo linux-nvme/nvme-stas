@@ -136,7 +136,7 @@ DLP_CHANGED = (
 
 
 # ******************************************************************************
-class Dc(ctrl.Controller):
+class Dc(ctrl.LinuxController):
     '''@brief This object establishes a connection to one Discover Controller (DC).
     It retrieves the discovery log pages and caches them.
     It also monitors udev events associated with that DC and updates

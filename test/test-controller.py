@@ -35,7 +35,7 @@ class Test(TestCase):
         LOOP.quit()
 
     def test_get_device(self):
-        controller = ctrl.Controller(root=self.root, host=self.host, tid=self.NVME_TID)
+        controller = ctrl.LinuxController(root=self.root, host=self.host, tid=self.NVME_TID)
         self.assertEqual(controller._connect_attempts, 0)
         self.assertRaises(NotImplementedError, controller._try_to_connect)
         self.assertEqual(controller._connect_attempts, 1)
@@ -53,7 +53,7 @@ class Test(TestCase):
         # self.assertEqual(controller.disconnect(), 0)
 
     def test_connect(self):
-        controller = ctrl.Controller(root=self.root, host=self.host, tid=self.NVME_TID)
+        controller = ctrl.LinuxController(root=self.root, host=self.host, tid=self.NVME_TID)
         self.assertEqual(controller._connect_attempts, 0)
         controller._find_existing_connection = lambda : None
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:

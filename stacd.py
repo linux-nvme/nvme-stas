@@ -131,7 +131,7 @@ def udev_rule_ctrl(enable):
 
 
 # ******************************************************************************
-class Ioc(ctrl.Controller):
+class Ioc(ctrl.LinuxController):
     '''@brief This object establishes a connection to one I/O Controller.'''
 
     def __init__(self, root, host, tid: trid.TID):

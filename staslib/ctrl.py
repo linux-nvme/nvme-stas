@@ -19,24 +19,100 @@ DC_KATO_DEFAULT = 30  # seconds
 
 
 # ******************************************************************************
-class Controller:  # pylint: disable=too-many-instance-attributes
+class Controller:
     '''@brief Base class used to manage the connection to a controller.'''
 
     CONNECT_RETRY_PERIOD_SEC = 60
     FAST_CONNECT_RETRY_PERIOD_SEC = 3
 
+    def __init__(self, tid: trid.TID, discovery_ctrl=False):
+        self._tid               = tid
+        self._discovery_ctrl    = discovery_ctrl
+        self._connect_attempts  = 0
+        self._cancellable       = Gio.Cancellable()
+        self._retry_connect_tmr = gutil.GTimer(Controller.CONNECT_RETRY_PERIOD_SEC, self._on_try_to_connect)
+
+    def _find_existing_connection(self):
+        raise NotImplementedError()
+
+    def _on_try_to_connect(self):
+        raise NotImplementedError()
+
+    @property
+    def id(self) -> str:  # pylint: disable=missing-function-docstring
+        return str(self.tid)
+
+    @property
+    def tid(self):  # pylint: disable=missing-function-docstring
+        return self._tid
+
+    @property
+    def device(self) -> str:  # pylint: disable=missing-function-docstring
+        return self._device if self._device else ''
+
+    def controller_id_dict(self) -> dict:
+        '''@brief return the controller ID as a dict.'''
+        cid = self.tid.as_dict()
+        cid['device'] = self.device
+        return cid
+
+    def details(self) -> dict:
+        '''@brief return detailed debug info about this controller'''
+        details = self.controller_id_dict()
+        details.update(self._udev.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial')))
+        details['connect attempts'] = str(self._connect_attempts)
+        details['retry connect timer'] = str(self._retry_connect_tmr)
+        return details
+
+    def info(self) -> dict:
+        '''@brief Get the controller info for this object'''
+        info = self.details()
+        if self._connect_op:
+            info['connect operation'] = self._connect_op.as_dict()
+        return info
+
+    def _alive(self):
+        '''There may be race condition where a queued event gets processed
+        after the object is no longer configured (i.e. alive). This method
+        can be used by callback functions to make sure the object is still
+        alive before processing further.
+        '''
+        return self._cancellable and not self._cancellable.is_cancelled()
+
+    def cancel(self):
+        '''@brief Used to cancel pending operations.'''
+        if self._cancellable and not self._cancellable.is_cancelled():
+            logging.debug('Controller.cancel()                - %s', self.id)
+            self._cancellable.cancel()
+
+        if self._connect_op:
+            self._connect_op.cancel()
+
+    def kill(self):
+        '''@brief Used to release all resources associated with this object.'''
+        logging.debug('Controller.kill()                  - %s', self.id)
+        self._release_resources()
+
+# ******************************************************************************
+class PluginController(Controller):  # pylint: disable=too-many-instance-attributes
+    '''@brief PLUGIN controller implementation class of a controller.'''
+
+    def _on_try_to_connect(self):
+        # TODO: here should go actual plugin commands to connect to a remote target
+        pass
+
+# ******************************************************************************
+class LinuxController(Controller):  # pylint: disable=too-many-instance-attributes
+    '''@brief Linux controller implementation class of a controller.'''
+
     def __init__(self, root, host, tid: trid.TID, discovery_ctrl=False):
+        super().__init__(tid, discovery_ctrl)
         self._root              = root
         self._host              = host
         self._udev              = udev.UDEV
-        self._tid               = tid
-        self._cancellable       = Gio.Cancellable()
         self._connect_op        = None
-        self._connect_attempts  = 0
-        self._retry_connect_tmr = gutil.GTimer(Controller.CONNECT_RETRY_PERIOD_SEC, self._on_try_to_connect)
         self._device            = None
         self._ctrl              = None
-        self._discovery_ctrl    = discovery_ctrl
         self._try_to_connect_deferred = gutil.Deferred(self._try_to_connect)
         self._try_to_connect_deferred.schedule()
 
@@ -66,14 +142,6 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         self._retry_connect_tmr = None
         self._cancellable = None
         self._udev = None
-
-    def _alive(self):
-        '''There may be race condition where a queued event gets processed
-        after the object is no longer configured (i.e. alive). This method
-        can be used by callback functions to make sure the object is still
-        alive before processing further.
-        '''
-        return self._cancellable and not self._cancellable.is_cancelled()
 
     def _kill_ops(self):
         if self._connect_op:
@@ -119,9 +187,6 @@ class Controller:  # pylint: disable=too-many-instance-attributes
         self._udev.unregister_for_device_events(self._on_udev_notification)
         self._kill_ops()  # Kill all pending operations
         self._ctrl = None
-
-    def _find_existing_connection(self):
-        raise NotImplementedError()
 
     def _on_try_to_connect(self):
         self._try_to_connect_deferred.schedule()
@@ -249,52 +314,6 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 getattr(err, 'message', err),
             )
 
-    @property
-    def id(self) -> str:  # pylint: disable=missing-function-docstring
-        return str(self.tid)
-
-    @property
-    def tid(self):  # pylint: disable=missing-function-docstring
-        return self._tid
-
-    @property
-    def device(self) -> str:  # pylint: disable=missing-function-docstring
-        return self._device if self._device else ''
-
-    def controller_id_dict(self) -> dict:
-        '''@brief return the controller ID as a dict.'''
-        cid = self.tid.as_dict()
-        cid['device'] = self.device
-        return cid
-
-    def details(self) -> dict:
-        '''@brief return detailed debug info about this controller'''
-        details = self.controller_id_dict()
-        details.update(self._udev.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial')))
-        details['connect attempts'] = str(self._connect_attempts)
-        details['retry connect timer'] = str(self._retry_connect_tmr)
-        return details
-
-    def info(self) -> dict:
-        '''@brief Get the controller info for this object'''
-        info = self.details()
-        if self._connect_op:
-            info['connect operation'] = self._connect_op.as_dict()
-        return info
-
-    def cancel(self):
-        '''@brief Used to cancel pending operations.'''
-        if self._cancellable and not self._cancellable.is_cancelled():
-            logging.debug('Controller.cancel()                - %s', self.id)
-            self._cancellable.cancel()
-
-        if self._connect_op:
-            self._connect_op.cancel()
-
-    def kill(self):
-        '''@brief Used to release all resources associated with this object.'''
-        logging.debug('Controller.kill()                  - %s', self.id)
-        self._release_resources()
 
     def disconnect(self, disconnected_cb, keep_connection):
         '''@brief Issue an asynchronous disconnect command to a Controller.
