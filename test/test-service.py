@@ -4,6 +4,13 @@ import unittest
 from staslib import service
 from pyfakefs.fake_filesystem_unittest import TestCase
 
+class Args:
+    def __init__(self):
+        self.tron = True
+        self.syslog = True
+        self.conf_file = '/dev/null'
+
+
 class Test(TestCase):
     '''Unit tests for class Service'''
 
@@ -19,7 +26,8 @@ class Test(TestCase):
         # FIXME: this is hack, fix it later
         service.Service._load_last_known_config = lambda x : dict()
         # start the test
-        srv = service.Service(reload_hdlr=lambda x : x)
+
+        srv = service.Service(Args(), reload_hdlr=lambda x : x)
         self.assertRaises(NotImplementedError, srv._keep_connections_on_exit)
         self.assertRaises(NotImplementedError, srv._dump_last_known_config, [])
         self.assertRaises(NotImplementedError, srv._on_config_ctrls)

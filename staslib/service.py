@@ -16,14 +16,26 @@ import systemd.daemon
 import dasbus.connection
 
 from gi.repository import Gio, GLib
-from staslib import conf, ctrl, defs, gutil, stas, trid, udev
+from libnvme import nvme
+from staslib import conf, ctrl, defs, gutil, log, stas, trid, udev
 
 
 # ******************************************************************************
 class Service:  # pylint: disable=too-many-instance-attributes
     '''@brief Base class used to manage a STorage Appliance Service'''
 
-    def __init__(self, reload_hdlr):
+    def __init__(self, args, reload_hdlr):
+
+        sysconf = conf.SysConf()
+        self._root = nvme.root()
+        self._host = nvme.host(self._root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+
+        service_conf = conf.SvcConf()
+        service_conf.set_conf_file(args.conf_file) # reload configuration
+        self._tron = args.tron or service_conf.tron
+        log.set_level_from_tron(self._tron)
+        self._root.log_level("debug" if self._tron else "err")
+
         self._lkc_file     = os.path.join(os.environ.get('RUNTIME_DIRECTORY', os.path.join('/run', defs.PROG_NAME)), 'last-known-config.pickle')
         self._loop         = GLib.MainLoop()
         self._udev         = udev.UDEV
@@ -68,6 +80,18 @@ class Service:  # pylint: disable=too-many-instance-attributes
         self._dbus_iface = iface_obj
         self._sysbus.publish_object(obj_name, iface_obj)
         self._sysbus.register_service(bus_name)
+
+    @property
+    def tron(self):
+        '''@brief Get Trace ON property'''
+        return self._tron
+
+    @tron.setter
+    def tron(self, value):  # pylint: disable=no-self-use
+        '''@brief Set Trace ON property'''
+        self._tron = value
+        log.set_level_from_tron(self._tron)
+        self._root.log_level("debug" if self._tron else "err")
 
     def run(self):
         '''@brief Start the main loop execution'''

@@ -13,27 +13,7 @@ import sys
 import ipaddress
 import logging
 
-from libnvme import nvme
-from staslib import conf, defs, singleton, trid
-
-
-TRON = False  # Singleton
-
-
-class Nvme(metaclass=singleton.Singleton):  # pylint: disable=too-few-public-methods
-    '''Singleton object to keep libnvme's root and host objects.
-    The root and host objects cannot be created too early as
-    they depend on configuration files being present. So we
-    can't create them as singleton during module import, but
-    instead they need to be created once stafd/stacd have started.
-    By using this class we ensure that things happen in the right
-    sequence.
-    '''
-
-    def __init__(self):
-        sysconf = conf.SysConf()
-        self.root = nvme.root()
-        self.host = nvme.host(self.root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+from staslib import conf, defs, trid
 
 
 # ******************************************************************************
@@ -56,18 +36,6 @@ def check_if_allowed_to_continue():
     if not os.path.exists('/dev/nvme-fabrics'):
         # There's no point going any further if the kernel module hasn't been loaded
         sys.exit('Fatal error: missing nvme-tcp kernel module')
-
-
-# ******************************************************************************
-def trace_control(tron: bool):
-    '''@brief Allows changing debug level in real time. Setting tron to True
-    enables full tracing.
-    '''
-    global TRON  # pylint: disable=global-statement
-    TRON = tron
-    log = logging.getLogger()
-    log.setLevel(logging.DEBUG if TRON else logging.INFO)
-    Nvme().root.log_level("debug" if TRON else "err")
 
 
 # ******************************************************************************
