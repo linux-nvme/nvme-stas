@@ -138,7 +138,7 @@ class Ioc(ctrl.Controller):
     '''@brief This object establishes a connection to one I/O Controller.'''
 
     def __init__(self, tid: trid.TID):
-        super().__init__(stas.NVME_ROOT, stas.NVME_HOST, tid)
+        super().__init__(stas.Nvme().root, stas.Nvme().host, tid)
 
     def _on_udev_remove(self, udev_obj):
         '''Called when the associated nvme device (/dev/nvmeX) is removed

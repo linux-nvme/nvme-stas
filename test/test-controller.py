@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 import logging
 import unittest
-from staslib import conf, ctrl, trid
-from libnvme import nvme
+from staslib import ctrl, stas, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 class Test(TestCase):
@@ -15,20 +14,17 @@ class Test(TestCase):
         self.fs.create_file('/etc/nvme/hostid',  contents='01234567-89ab-cdef-0123-456789abcdef\n')
         self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1,transport=%s,traddr=%s,trsvcid=%s,nqn=%s,queue_size=%d,nr_io_queues=%d,reconnect_delay=%d,ctrl_loss_tmo=%d,keep_alive_tmo=%d,hostnqn=%s,host_traddr=%s,host_iface=%s,hostid=%s,duplicate_connect,disable_sqflow,hdr_digest,data_digest,nr_write_queues=%d,nr_poll_queues=%d,tos=%d,fast_io_fail_tmo=%d,discovery,dhchap_secret=%s,dhchap_ctrl_secret=%s\n')
 
-        sysconf = conf.SysConf()
-        self.NVME_ROOT = nvme.root()
-        self.NVME_HOST = nvme.host(self.NVME_ROOT, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
-        self.NVME_TID = {
+        self.NVME_TID = trid.TID({
             'transport':   'tcp',
             'traddr':      '10.10.10.10',
             'subsysnqn':   'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
             'trsvcid':     '8009',
             'host-traddr': '1.2.3.4',
             'host-iface':  'wlp0s20f3',
-        }
+        })
 
     def test_get_device(self):
-        controller = ctrl.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=trid.TID(self.NVME_TID))
+        controller = ctrl.Controller(root=stas.Nvme().root, host=stas.Nvme().host, tid=self.NVME_TID)
         self.assertEqual(controller._connect_attempts, 0)
         self.assertRaises(NotImplementedError, controller._try_to_connect)
         self.assertEqual(controller._connect_attempts, 1)
@@ -46,7 +42,7 @@ class Test(TestCase):
         # self.assertEqual(controller.disconnect(), 0)
 
     def test_connect(self):
-        controller = ctrl.Controller(root=self.NVME_ROOT, host=self.NVME_HOST, tid=trid.TID(self.NVME_TID))
+        controller = ctrl.Controller(root=stas.Nvme().root, host=stas.Nvme().host, tid=self.NVME_TID)
         self.assertEqual(controller._connect_attempts, 0)
         controller._find_existing_connection = lambda : None
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
