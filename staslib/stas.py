@@ -76,7 +76,8 @@ def remove_invalid_addresses(controllers: list):
     '''@brief Remove controllers with invalid addresses from the list of controllers.'''
     valid_controllers = list()
     for controller in controllers:
-        if controller.get('transport') in ('tcp', 'rdma'):
+        transport = controller.get('transport')
+        if transport in ('tcp', 'rdma'):
             # Let's make sure that traddr is
             # syntactically a valid IPv4 or IPv6 address.
             traddr = controller.get('traddr')
@@ -86,6 +87,7 @@ def remove_invalid_addresses(controllers: list):
                 logging.warning('%s IP address is not valid', trid.TID(controller))
                 continue
 
+            # Let's make sure the address family is enabled.
             service_conf = conf.SvcConf()
             if ip.version not in service_conf.ip_family:
                 logging.debug(
@@ -96,8 +98,13 @@ def remove_invalid_addresses(controllers: list):
                 )
                 continue
 
-        # At some point, need to validate FC addresses as well...
+            valid_controllers.append(controller)
 
-        valid_controllers.append(controller)
+        elif transport in ('fc', 'loop'):
+            # At some point, need to validate FC addresses as well...
+            valid_controllers.append(controller)
+
+        else:
+            logging.warning('Invalid transport %s', transport)
 
     return valid_controllers
