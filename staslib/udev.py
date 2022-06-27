@@ -145,10 +145,6 @@ class Udev:
         if len(list(device.children)) != 0:
             return True
 
-        subsysnqn = device.attributes.get('subsysnqn')
-        if subsysnqn is not None and subsysnqn.decode() != defs.WELL_KNOWN_DISC_NQN:
-            return True
-
         return False
 
     def find_nvme_dc_device(self, tid):
