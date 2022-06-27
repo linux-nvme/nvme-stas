@@ -1,6 +1,13 @@
 # STorage Appliance Services (STAS)
 
-## Changes with release 1.1.4
+## Changes with release 1.1.5
+
+- Fix issues introduced in 1.1.4 when enabling Fibre Channel (FC) support. 
+  - Eliminate pcie devices from discovery log pages. When enabling FC, pcie was accidentally enabled as well.
+  - Fix I/O controller scan and detect algorithm. Again, while adding support for FC, the I/O scan & detect algorithm was modified, but we accidentally made it detect Discovery Controllers as well as I/O controllers.
+
+
+## Changes with release 1.1.4 (Do not use - see 1.1.5 above)
 
 - Fix issues for Fibre Channel (FC) support. 
 - Add TESTING.md

@@ -12,7 +12,7 @@ copyright = 'Copyright (c) 2022, Dell Inc. or its subsidiaries.  All rights rese
 author = 'Martin Belanger <martin.belanger@dell.com>'
 master_doc = 'index'
 
-release = '1.1.4'
+release = '1.1.5'
 
 
 # -- General configuration ---------------------------------------------------
