@@ -4,13 +4,6 @@ x-stas: &default-stas
     image: ghcr.io/linux-nvme/nvme-stas:main
     build:
       context: .
-      args:
-        registry: library
-        base: fedora
-        version: 33
-        GITHUB_ORG: linux-nvme
-        GITHUB_REPO: libnvme
-        GITHUB_TOKEN:
     volumes:
         - /run/dbus:/run/dbus
         - /etc/nvme:/etc/nvme

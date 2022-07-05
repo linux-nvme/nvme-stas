@@ -58,9 +58,6 @@ jobs:
         uses: docker/build-push-action@e551b19e49efd4e98792db7592c17c09b89db8d8
         with:
           context: .
-          build-args: |
-            GITHUB_ORG=linux-nvme
-            GITHUB_REPO=libnvme
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
