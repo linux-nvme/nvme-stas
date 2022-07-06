@@ -87,9 +87,9 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 nvme_event = udev_obj.get("NVME_EVENT")
                 if isinstance(nvme_aen, str):
                     logging.info('%s | %s - Received AEN: %s', self.id, udev_obj.sys_name, nvme_aen)
-                    self._on_aen(udev_obj, int(nvme_aen, 16))
+                    self._on_aen(int(nvme_aen, 16))
                 if isinstance(nvme_event, str):
-                    self._on_nvme_event(udev_obj, nvme_event)
+                    self._on_nvme_event(nvme_event)
             elif udev_obj.action == 'remove':
                 logging.info('%s | %s - Received "remove" event', self.id, udev_obj.sys_name)
                 self._on_udev_remove(udev_obj)
@@ -109,10 +109,10 @@ class Controller:  # pylint: disable=too-many-instance-attributes
                 udev_obj.sys_name,
             )
 
-    def _on_aen(self, udev_obj, aen: int):
+    def _on_aen(self, aen: int):
         pass
 
-    def _on_nvme_event(self, udev_obj, nvme_event):
+    def _on_nvme_event(self, nvme_event):
         pass
 
     def _on_udev_remove(self, udev_obj):  # pylint: disable=unused-argument

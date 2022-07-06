@@ -2,12 +2,12 @@
 
 ## Changes with release 1.1.5
 
-- Fix issues introduced in 1.1.4 when enabling Fibre Channel (FC) support. 
+- Fix issues introduced in 1.1.3 when enabling Fibre Channel (FC) support. 
   - Eliminate pcie devices from discovery log pages. When enabling FC, pcie was accidentally enabled as well.
   - Fix I/O controller scan and detect algorithm. Again, while adding support for FC, the I/O scan & detect algorithm was modified, but we accidentally made it detect Discovery Controllers as well as I/O controllers.
 
 
-## Changes with release 1.1.4 (Do not use - see 1.1.5 above)
+## ~~Changes with release 1.1.4~~ USE 1.1.5 INSTEAD.
 
 - Fix issues for Fibre Channel (FC) support. 
 - Add TESTING.md
@@ -20,7 +20,7 @@
 
 **`stafd`/`stacd`**: Fixed crash caused by `stafd`/`stacd` calling the wrong callback function during the normal disconnect of a controller. There are two callback functions that can be called after a controller is disconnected, but one of them must only be called on a final disconnect just before the process (`stafd` or `stacd`) exits. The wrong callback was being called on a normal disconnect, which led the process to think it was shutting down.
 
-## ~~Changes with release 1.1.2~~ DO NOT USE. SEE 1.1.3 INSTEAD.
+## ~~Changes with release 1.1.2~~ USE 1.1.3 INSTEAD.
 
 stacd: Bug fix. Check that self._cfg_soak_tmr is not None before dereferencing it.
 

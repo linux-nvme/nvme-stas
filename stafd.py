@@ -191,13 +191,13 @@ class Dc(ctrl.Controller):
         '''@brief Return the list of referrals'''
         return [page for page in self._log_pages if page['subtype'] == 'referral']
 
-    def _on_aen(self, udev_obj, aen: int):
-        super()._on_aen(udev_obj, aen)
+    def _on_aen(self, aen: int):
+        super()._on_aen(aen)
         if aen == DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
 
-    def _on_nvme_event(self, udev_obj, nvme_event: str):
-        super()._on_nvme_event(udev_obj, nvme_event)
+    def _on_nvme_event(self, nvme_event: str):
+        super()._on_nvme_event(nvme_event)
         if nvme_event == 'connected' and self._register_op:
             self._register_op.run_async()
 

@@ -141,9 +141,11 @@ def create(args):
 
     # Extract the list of transport types found in the
     # config file and load the corresponding kernel module.
+    _runcmd(['/usr/sbin/modprobe', 'nvmet'])
     trtypes = {port.get('trtype') for port in ports if port.get('trtype') is not None}
     for trtype in trtypes:
-        _runcmd(['/usr/sbin/modprobe', f'nvmet-{trtype}'])
+        if trtype in ('tcp', 'fc', 'rdma'):
+            _runcmd(['/usr/sbin/modprobe', f'nvmet-{trtype}'])
 
     for port in ports:
         print('')
