@@ -124,7 +124,7 @@ The configuration file is named `/etc/stas/stafd.conf`. This file contains confi
 If **`stafd`** is not detecting any discovery controllers through Avahi, it could simply be that the mDNS packets are being suppressed by your firewall. If you know for a fact that the discovery controllers are advertizing themselves with mDNS packets, make sure that the Avahi daemon is receiving them as follows:
 
 ```bash
-avahi-browse -r _nvme-disc._tcp
+avahi-browse -t -r _nvme-disc._tcp
 ```
 
 If you're not seeing anything, then check whether your firewall allows mDNS packets.
