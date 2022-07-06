@@ -7,7 +7,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 
-files_to_configure = [ 'defs.py' ]
+files_to_configure = [ 'defs.py', '__init__.py' ]
 configured_files = []
 foreach file : files_to_configure
     configured_files += configure_file(
@@ -18,7 +18,6 @@ foreach file : files_to_configure
 endforeach
 
 files_to_copy = [
-    '__init__.py',
     'avahi.py',
     'conf.py',
     'ctrl.py',
