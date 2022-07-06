@@ -19,7 +19,7 @@ def __apply_overrides_if_any():
     present, and if so, inserts that directory in the search path as the first
     location to look for modules.
     '''
-    import os  # pytlint: disable=import-outside-toplevel
+    import os  # pylint: disable=import-outside-toplevel
     override_dir = os.path.join(__path__[0], 'override')
     if os.path.isdir(override_dir):
         __path__.insert(0, override_dir)
