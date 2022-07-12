@@ -12,8 +12,7 @@ throughout nvme-stas to uniquely identify a Controller'''
 import hashlib
 from staslib import conf
 
-class TID:
-    # pylint: disable=too-many-instance-attributes
+class TID:  # pylint: disable=too-many-instance-attributes
     '''Transport Identifier'''
     RDMA_IP_PORT = '4420'
     DISC_IP_PORT = '8009'

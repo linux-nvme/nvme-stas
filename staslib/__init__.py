@@ -19,10 +19,10 @@ def __apply_overrides_if_any():
     present, and if so, inserts that directory in the search path as the first
     location to look for modules.
     '''
-    import os
+    import os  # pylint: disable=import-outside-toplevel
     override_dir = os.path.join(__path__[0], 'override')
     if os.path.isdir(override_dir):
         __path__.insert(0, override_dir)
 
 __apply_overrides_if_any()
-del(__apply_overrides_if_any)  # Remove this function from staslib package (once we've used it we need not keep it around)
+del __apply_overrides_if_any  # Remove this function from staslib package (once we've used it we need not keep it around)

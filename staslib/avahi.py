@@ -172,9 +172,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         services = dict()
         for service, obj in self._services.items():
             interface, protocol, name, stype, domain = service
-            key = '({}, {}, {}.{}, {})'.format(  # pylint: disable=consider-using-f-string
-                socket.if_indextoname(interface), Avahi.protos.get(protocol, 'unknown'), name, domain, stype
-            )
+            key = f'({socket.if_indextoname(interface)}, {Avahi.protos.get(protocol, "unknown")}, {name}.{domain}, {stype})'
             services[key] = obj.get('data', {})
 
         info = {
@@ -316,7 +314,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         _interface_name: str,
         _signal_name: str,
         args: typing.Tuple[int, int, str, str, str, int],
-        *_user_data
+        *_user_data,
     ):
         (interface, protocol, name, stype, domain, flags) = args
         logging.debug(
@@ -352,7 +350,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         _interface_name: str,
         _signal_name: str,
         args: typing.Tuple[int, int, str, str, str, int],
-        *_user_data
+        *_user_data,
     ):
         (interface, protocol, name, stype, domain, flags) = args
         logging.debug(
@@ -386,7 +384,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         _interface_name: str,
         _signal_name: str,
         args: typing.Tuple[int, int, str, str, str, str, int, str, int, list, int],
-        *_user_data
+        *_user_data,
     ):
         (interface, protocol, name, stype, domain, host, aprotocol, address, port, txt, flags) = args
         txt = _txt2dict(txt)
@@ -428,7 +426,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         interface_name: str,
         _signal_name: str,
         args: typing.Tuple[str],
-        *_user_data
+        *_user_data,
     ):
         (error,) = args
         if 'ServiceResolver' not in interface_name or 'TimeoutError' not in error:
