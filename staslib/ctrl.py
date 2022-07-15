@@ -48,8 +48,7 @@ class Controller:  # pylint: disable=too-many-instance-attributes
             self._try_to_connect_deferred.cancel()
         self._try_to_connect_deferred = None
 
-        device = self.device
-        if device:
+        if self._udev:
             self._udev.unregister_for_device_events(self._on_udev_notification)
 
         if self._retry_connect_tmr is not None:

@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.1.6
+
+- Fix issues with I/O controller connection audits
+  - Eliminate pcie devices from list of I/O controller connections to audit
+  - Add soaking timer to workaround race condition between kernel and user-space applications on "add" uevents. When the kernel adds a new nvme device (e.g. `/dev/nvme7`) and sends a "add" uevent to notify user-space applications, the attributes associated with that device (e.g. `/sys/class/nvme/nvme7/cntrltype`) may not be fully initialized which can lead `stacd` to dismiss a device that should get audited. 
+
 ## Changes with release 1.1.5
 
 - Fix issues introduced in 1.1.3 when enabling Fibre Channel (FC) support. 
