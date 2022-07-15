@@ -189,6 +189,9 @@ class Udev:
         '''
         tids = []
         for device in self._context.list_devices(subsystem='nvme'):
+            if device.properties.get('NVME_TRTYPE', '') not in ('tcp', 'rdma', 'fc'):
+                continue
+
             if not self.is_ioc_device(device):
                 continue
 

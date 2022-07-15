@@ -156,6 +156,7 @@ class Stac(service.Service):
 
     CONF_STABILITY_SOAK_TIME_SEC = 1.5
     CONF_STABILITY_LONG_SOAK_TIME_SEC = 10  # pylint: disable=invalid-name
+    ADD_EVENT_SOAK_TIME_SEC = 1
 
     class Dbus:
         '''This is the DBus interface that external programs can use to
@@ -217,6 +218,8 @@ class Stac(service.Service):
         self._cfg_soak_tmr = gutil.GTimer(Stac.CONF_STABILITY_SOAK_TIME_SEC, self._on_config_ctrls)
         self._cfg_soak_tmr.start()
 
+        self._add_event_soak_tmr = gutil.GTimer(Stac.ADD_EVENT_SOAK_TIME_SEC, self._on_add_event_soaked)
+
         self._config_connections_audit()
 
         # Create the D-Bus instance.
@@ -235,6 +238,9 @@ class Stac(service.Service):
     def _release_resources(self):
         logging.debug('Stac._release_resources()')
 
+        if self._add_event_soak_tmr:
+            self._add_event_soak_tmr.kill()
+
         udev_rule_ctrl(True)
 
         if self._udev:
@@ -248,6 +254,7 @@ class Stac(service.Service):
 
         self._staf = None
         self._staf_watcher = None
+        self._add_event_soak_tmr = None
 
     def _audit_connections(self, tids):
         '''A host should only connect to I/O controllers that have been zoned
@@ -266,15 +273,26 @@ class Stac(service.Service):
         if num_controllers != len(self._controllers):
             self._cfg_soak_tmr.start(Stac.CONF_STABILITY_SOAK_TIME_SEC)
 
-    def _on_add_event(self, udev_obj):
+    def _on_add_event(self, udev_obj):  # pylint: disable=unused-argument
         '''@brief This function is called when a "add" event is received from
         the kernel for an NVMe device. This is used to trigger an audit and make
         sure that the connection to an I/O controller is allowed.
+
+        WARNING: There is a race condition with the "add" event from the kernel.
+        The kernel sends the "add" event a bit early and the sysfs attributes
+        associated with the nvme object are not always fully initialized.
+        To workaround this problem we use a soaking timer to give time for the
+        sysfs attributes to stabilize.
         '''
-        if self._udev.is_ioc_device(udev_obj):
-            tid = self._udev.get_tid(udev_obj)
-            logging.debug('Stac._on_add_event()               - tid=%s | %s', tid, udev_obj.sys_name)
-            self._audit_connections([tid])
+        self._add_event_soak_tmr.start()
+
+    def _on_add_event_soaked(self):
+        '''@brief After the add event has been soaking for ADD_EVENT_SOAK_TIME_SEC
+        seconds, we can audit the connections.
+        '''
+        if not conf.SvcConf().sticky_connections:
+            self._audit_connections(self._udev.get_nvme_ioc_tids())
+        return GLib.SOURCE_REMOVE
 
     def _config_connections_audit(self):
         '''This function checks the "sticky_connections" parameter to determine
