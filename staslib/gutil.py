@@ -313,12 +313,12 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         This callback method is invoked when the operation with the
         Controller has completed (be it successful or not).
         '''
-        success, data, err = async_caller.communicate_finish(result)
-
         # The operation might have been cancelled.
         # Only proceed if it hasn't been cancelled.
         if self._operation is None or self._cancellable.is_cancelled():
             return
+
+        success, data, err = async_caller.communicate_finish(result)
 
         if success:
             self._errmsg = None
