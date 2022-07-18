@@ -38,14 +38,24 @@ PRIMARY_GRP=$( id -ng )
 PRIMARY_USR=$( id -nu )
 PYTHON_PATH=.:./subprojects/libnvme
 
+log() {
+    msg="$1"
+    printf "%b[1;36m%s%b[0m\n" "\0033" "${msg}" "\0033"
+    sudo logger -i "@@@@@  COVERAGE -" -p 4 "${msg}"
+}
+
 sd_stop() {
-    unit="$1"-cov.service
+    app="$1"
+    unit="${app}"-cov.service
+    log "Stop ${app}"
     sudo systemctl stop "${unit}" >/dev/null 2>&1
     sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
 }
 
 sd_restart() {
-    unit="$1"-cov.service
+    app="$1"
+    unit="${app}"-cov.service
+    log "Restart ${app}"
     sudo systemctl restart "${unit}" >/dev/null 2>&1
 }
 
@@ -61,7 +71,7 @@ sd_start() {
         cmd="${app} --syslog -f ${conf}"
     fi
 
-    printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start ${app}" "\0033"
+    log "Start ${app}"
 
     RUNTIME_DIRECTORY=/tmp/${app}
     rm -rf ${RUNTIME_DIRECTORY}
@@ -75,7 +85,7 @@ reload_cfg() {
     app="$1"
     unit="${app}"-cov.service
     pid=$( systemctl show --property MainPID --value "${unit}" )
-    printf "%b[1;36m%s%b[0m\n" "\0033" "Reload config ${app}" "\0033"
+    log "Reload config ${app}"
     sudo kill -HUP "${pid}"
 }
 
@@ -83,15 +93,24 @@ if [ ! -d coverage ]; then
     mkdir coverage
 fi
 
+
+log "START-START-START-START-START-START-START-START-START-START-START-START"
+
+
+
 ################################################################################
 # Load nvme kernel module
+log "modprobe nvme-tcp"
 sudo /usr/sbin/modprobe nvme-tcp
 
+log "nvme disconnect-all"
 sudo nvme disconnect-all
 
 ################################################################################
 # Create a dummy config file for @STAFD_PROCNAME@
-stafd_conf_fname=$(mktemp /tmp/@STAFD_PROCNAME@.conf.XXXXXX)
+file=/tmp/@STAFD_PROCNAME@.conf.XXXXXX
+log "Create dummy config file $file"
+stafd_conf_fname=$(mktemp $file)
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -102,7 +121,9 @@ EOF
 
 ################################################################################
 # Create a dummy config file for @STACD_PROCNAME@
-stacd_conf_fname=$(mktemp /tmp/@STACD_PROCNAME@.conf.XXXXXX)
+file=/tmp/@STACD_PROCNAME@.conf.XXXXXX
+log "Create dummy config file $file"
+stacd_conf_fname=$(mktemp $file)
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -111,6 +132,7 @@ udev-rule=disabled
 sticky-connections=enabled
 EOF
 
+log "Stop & Mask Avahi daemon"
 sudo systemctl stop avahi-daemon.service
 sudo systemctl stop avahi-daemon.socket
 sudo systemctl mask avahi-daemon.service
@@ -118,11 +140,11 @@ sudo systemctl mask avahi-daemon.socket
 sleep 1
 
 
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status while @STAFD_PROCNAME@ is not running" "\0033"
+log "Invoking @STAFD_CTLNAME@ status while @STAFD_PROCNAME@ is not running"
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls >/dev/null 2>&1
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ invalid-command >/dev/null 2>&1
 
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ status while @STACD_PROCNAME@ is not running" "\0033"
+log "Invoking @STACD_CTLNAME@ status while @STACD_PROCNAME@ is not running"
 coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls >/dev/null 2>&1
 coverage run --rcfile=.coveragerc @STACD_CTLNAME@ invalid-command >/dev/null 2>&1
 
@@ -132,30 +154,33 @@ sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
 sd_start "@STACD_PROCNAME@" "@STACD_DBUS_NAME@" "${stacd_conf_fname}"
 sleep 3
 
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
+log "Invoking @STAFD_CTLNAME@ status"
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
 
 reload_cfg "@STAFD_PROCNAME@"
 sleep 1
 
+log "Restart Avahi daemon"
 sudo systemctl unmask avahi-daemon.socket
 sudo systemctl unmask avahi-daemon.service
 sudo systemctl start avahi-daemon.socket
 sudo systemctl start avahi-daemon.service
 sleep 2
 
+log "Change stafd config: tron=true, persistent-connections=false, zeroconf=enable"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 persistent-connections=false
 
 [Service Discovery]
-zeroconf=disabled
+zeroconf=enabled
 EOF
 reload_cfg "@STAFD_PROCNAME@"
 
 sleep 1
 
+log "Change stafd config: ip-family=ipv4, kato=10, adding multiple controllers"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -172,11 +197,15 @@ controller=transport=tcp;traddr=abracadabra
 controller=
 controller=trsvcid
 controller=transport=rdma;traddr=!@#$
+controller=transport=fc;traddr=21:00:00:00:00:00:00:00;host-traddr=20:00:00:00:00:00:00:00
+controller=transport=XM;traddr=2.2.2.2
 blacklist=transport=tcp;traddr=1.1.1.1
 blacklist=transport=tcp;traddr=1000.1000.1000.1000
 EOF
 reload_cfg "@STAFD_PROCNAME@"
 
+
+log "Change stacd config: tron=true, udev-rule=disabled, sticky-connections=disabled"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -186,12 +215,12 @@ EOF
 reload_cfg "@STACD_PROCNAME@"
 sleep 3
 
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
+log "Invoking @STAFD_CTLNAME@ status"
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
 
 ################################################################################
 # Fake mDNS packets from a CDC
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start Avahi publisher" "\0033"
+log "Start Avahi publisher"
 AVAHI_PUBLISHER=mdns_publisher.service
 sudo systemctl stop ${AVAHI_PUBLISHER} >/dev/null 2>&1
 sudo systemctl reset-failed ${AVAHI_PUBLISHER} >/dev/null 2>&1
@@ -200,7 +229,7 @@ sleep 1
 
 ################################################################################
 # Start nvme target simulator
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Start nvmet" "\0033"
+log "Start nvmet"
 sudo ../utils/nvmet/nvmet.py clean
 sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf
 sleep 2
@@ -210,76 +239,76 @@ reload_cfg "@STACD_PROCNAME@"
 sleep 3
 
 ################################################################################
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_PROCNAME@ --version" "\0033"
+log "Invoking @STAFD_PROCNAME@ --version"
 coverage run --rcfile=.coveragerc @STAFD_PROCNAME@ --version
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_PROCNAME@ --idl" "\0033"
+log "Invoking @STAFD_PROCNAME@ --idl"
 coverage run --rcfile=.coveragerc @STAFD_PROCNAME@ --idl /tmp/@STAFD_PROCNAME@.idl
 
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_PROCNAME@ --version" "\0033"
+log "Invoking @STACD_PROCNAME@ --version"
 coverage run --rcfile=.coveragerc @STACD_PROCNAME@ --version
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_PROCNAME@ --idl" "\0033"
+log "Invoking @STACD_PROCNAME@ --idl"
 coverage run --rcfile=.coveragerc @STACD_PROCNAME@ --idl /tmp/@STACD_PROCNAME@.idl
 
 ################################################################################
 # Stimulate D-Bus activity
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ --version" "\0033"
+log "Invoking @STAFD_CTLNAME@ --version"
 sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ --version
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ with a bad command" "\0033"
+log "Invoking @STAFD_CTLNAME@ with a bad command"
 sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ blah
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ troff" "\0033"
+log "Invoking @STAFD_CTLNAME@ troff"
 sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ troff
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ status" "\0033"
+log "Invoking @STAFD_CTLNAME@ status"
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ tron" "\0033"
+log "Invoking @STAFD_CTLNAME@ tron"
 sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ tron
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ ls" "\0033"
+log "Invoking @STAFD_CTLNAME@ ls"
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls -d   >/dev/null 2>&1
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ adlp" "\0033"
+log "Invoking @STAFD_CTLNAME@ adlp"
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ adlp -d >/dev/null 2>&1
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STAFD_CTLNAME@ dlp" "\0033"
+log "Invoking @STAFD_CTLNAME@ dlp"
 coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ dlp -t tcp -a ::1 -s 8009 >/dev/null 2>&1
 
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ --version" "\0033"
+log "Invoking @STACD_CTLNAME@ --version"
 sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ --version
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ with a bad command" "\0033"
+log "Invoking @STACD_CTLNAME@ with a bad command"
 sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ blah
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ troff" "\0033"
+log "Invoking @STACD_CTLNAME@ troff"
 sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ troff
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ status" "\0033"
+log "Invoking @STACD_CTLNAME@ status"
 coverage run --rcfile=.coveragerc @STACD_CTLNAME@ status >/dev/null 2>&1
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ tron" "\0033"
+log "Invoking @STACD_CTLNAME@ tron"
 sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ tron
-printf "%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
+log "Invoking @STACD_CTLNAME@ ls"
 coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
 
 ################################################################################
 # Stimulate AENs activity by removing/restoring namespaces
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Remove namespace: klingons" "\0033"
+log "Remove namespace: klingons"
 sudo ../utils/nvmet/nvmet.py unlink -p 1 -s klingons
 sleep 2
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
+log "Invoking @STACD_CTLNAME@ ls"
 coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
 
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Restore namespace: klingons" "\0033"
+log "Restore namespace: klingons"
 sudo ../utils/nvmet/nvmet.py link -p 1 -s klingons
 sleep 2
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Invoking @STACD_CTLNAME@ ls" "\0033"
+log "Invoking @STACD_CTLNAME@ ls"
 coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
 
 ################################################################################
 # Stop Avahi Publisher
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop Avahi publisher" "\0033"
+log "Stop Avahi publisher"
 sudo systemctl stop ${AVAHI_PUBLISHER}
 sleep 1
 
 ################################################################################
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Restart Avahi publisher" "\0033"
+log "Restart Avahi publisher"
 sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
 sleep 2
 
 ################################################################################
 # Make config changes for @STAFD_PROCNAME@
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Empty configuration and disable zeroconf for @STAFD_PROCNAME@" "\0033"
+log "Empty configuration and disable zeroconf for @STAFD_PROCNAME@"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -293,7 +322,7 @@ sleep 1
 
 ################################################################################
 # Make more config changes for @STAFD_PROCNAME@
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Add single controller (::1) and re-enable zeroconf for @STAFD_PROCNAME@" "\0033"
+log "Add single controller (::1) and re-enable zeroconf for @STAFD_PROCNAME@"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -307,24 +336,23 @@ sleep 2
 
 ################################################################################
 # Stop Avahi Publisher
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop Avahi publisher" "\0033"
+log "Stop Avahi publisher"
 sudo systemctl stop ${AVAHI_PUBLISHER}
 sleep 2
 
 ################################################################################
 # Remove one of the NVMe device's
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Remove (disconnect) nvme1" "\0033"
+log "Remove (disconnect) nvme1"
 sudo nvme disconnect -d nvme1
 sleep 2
 
 
 ################################################################################
-printf "%b[1;36m%s%b[0m\n" "\0033" "Restart @STAFD_PROCNAME@ and @STACD_PROCNAME@" "\0033"
 sd_restart "@STAFD_PROCNAME@"
 sd_restart "@STACD_PROCNAME@"
 sleep 1
 
-printf "%b[1;36m%s%b[0m\n" "\0033" "Create invalid conditions for saving/loading @STAFD_PROCNAME@'s last known config" "\0033"
+log "Create invalid conditions for saving/loading @STAFD_PROCNAME@'s last known config"
 rm -rf "/tmp/@STAFD_PROCNAME@"
 sd_stop "@STAFD_PROCNAME@"
 sd_restart "@STACD_PROCNAME@"
@@ -334,7 +362,7 @@ sleep 2
 
 ################################################################################
 # Stop everything and collect coverage stats
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop @STAFD_PROCNAME@ and @STACD_PROCNAME@" "\0033"
+log "Stop @STAFD_PROCNAME@ and @STACD_PROCNAME@"
 sd_stop "@STAFD_PROCNAME@"
 sd_stop "@STACD_PROCNAME@"
 sleep 1
@@ -345,33 +373,49 @@ sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage  >/dev/null 2>&1
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" staslib/__pycache__  >/dev/null 2>&1
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/libnvme/libnvme/__pycache__  >/dev/null 2>&1
 
+log "nvme disconnect-all"
 sudo nvme disconnect-all
 
+log "Remove ${stafd_conf_fname} and ${stacd_conf_fname}"
 rm "${stafd_conf_fname}"
 rm "${stacd_conf_fname}"
 
+log "Run unit test: test-udev"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-udev.py
+log "Run unit test: test-avahi"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-avahi.py
+log "Run unit test: test-gtimer"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-gtimer.py
+log "Run unit test: test-version"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py
+log "Run unit test: test-transport_id"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-transport_id.py
+log "Run unit test: test-config"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-config.py
+log "Run unit test: test-controller"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-controller.py
+log "Run unit test: test-service"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-service.py
+log "Run unit test: test-log"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-log.py
+log "Run unit test: test-nvme_options"
 sudo PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-nvme_options.py
 
 ################################################################################
 # Stop nvme target simulator
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Stop nvmet" "\0033"
+log "Stop nvmet"
 sudo ../utils/nvmet/nvmet.py clean
 
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Collect all coverage data" "\0033"
+log "Collect all coverage data"
 coverage combine --rcfile=.coveragerc
 
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Generating coverage report" "\0033"
+log "Generating coverage report"
 coverage report -i --rcfile=.coveragerc
 
-printf "\n%b[1;36m%s%b[0m\n" "\0033" "Generating coverage report (HTML)" "\0033"
+log "Generating coverage report (HTML)"
 coverage html -i --rcfile=.coveragerc
 
+
+log "All done!!!"
+
+log "FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED"

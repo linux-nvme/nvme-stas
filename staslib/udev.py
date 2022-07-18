@@ -16,7 +16,7 @@ from staslib import defs, trid
 try:
     from pyudev.glib import MonitorObserver
 except (ModuleNotFoundError, AttributeError):
-    from staslib.glibudev import MonitorObserver  # pylint: disable=relative-beyond-top-level,ungrouped-imports
+    from staslib.glibudev import MonitorObserver  # pylint: disable=ungrouped-imports
 
 # ******************************************************************************
 class Udev:
@@ -99,7 +99,7 @@ class Udev:
     def get_attributes(self, sys_name: str, attr_ids) -> dict:
         '''@brief Get all the attributes associated with device @sys_name'''
         attrs = {attr_id: '' for attr_id in attr_ids}
-        if sys_name:
+        if sys_name and sys_name != 'nvme?':
             udev = self.get_nvme_device(sys_name)
             if udev is not None:
                 for attr_id in attr_ids:

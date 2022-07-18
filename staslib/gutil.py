@@ -104,8 +104,7 @@ class GTimer:
 
 
 # ******************************************************************************
-class NameResolver:
-    # pylint: disable=too-few-public-methods
+class NameResolver:  # pylint: disable=too-few-public-methods
     '''@brief DNS resolver to convert host names to IP addresses.'''
 
     def __init__(self):
@@ -133,8 +132,10 @@ class NameResolver:
                 else:
                     logging.error('Cannot resolve traddr: %s', hostname)
 
-            except GLib.GError:
-                logging.error('Cannot resolve traddr: %s', hostname)
+            except GLib.GError as err:
+                # We don't need to report "cancellation" errors.
+                if not err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                    logging.error('Cannot resolve traddr: %s. %s', hostname, err.message)  # pylint: disable=no-member
 
             logging.debug('NameResolver.resolve_ctrl_async()  - resolved \'%s\' -> %s', hostname, traddr)
             controllers[indx]['traddr'] = traddr
