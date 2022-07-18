@@ -1,7 +1,4 @@
-ARG registry=library
-ARG base=fedora
-ARG version=33
-FROM $registry/$base:$version
+FROM fedora:36
 
 WORKDIR /root
 
