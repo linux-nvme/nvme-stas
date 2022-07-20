@@ -2,12 +2,12 @@ FROM fedora:36
 
 WORKDIR /root
 
-# for nvme-stas
-RUN dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject meson
-# for libnvme
-RUN dnf install -y git gcc g++ cmake openssl-devel libuuid-devel json-c-devel swig python-devel meson
+# first line for nvme-stas
+# second line for libnvme
+RUN dnf install -y python3-dasbus python3-pyudev python3-systemd python3-gobject meson \
+                   git gcc g++ cmake openssl-devel libuuid-devel json-c-devel swig python-devel meson && dnf clean all
 
 COPY . .
-RUN meson .build && ninja -C .build && cd .build && meson install
+RUN meson .build && ninja -C .build && meson install -C .build
 
 ENTRYPOINT ["python3"]
