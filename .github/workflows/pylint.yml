@@ -1,9 +1,19 @@
-name: Pylint
+name: Linters
 
 on: [push]
 
 jobs:
-  build:
+
+  docker-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hadolint/hadolint-action@v2.1.0
+        with:
+          recursive: true
+          ignore: DL3041
+
+  python-lint:
     runs-on: ubuntu-latest
 
     strategy:
