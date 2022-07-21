@@ -16,12 +16,16 @@ services:
     environment:
       RUNTIME_DIRECTORY: /run/stafd
       XDG_CACHE_HOME: /var/cache/stafd
+      LD_LIBRARY_PATH: /root/stas-dest/usr/lib64
+      PYTHONPATH: /root/stas-dest/usr/lib64/python3.10/site-packages:/root/stas-dest/usr/lib/python3.10/site-packages
       PYTHONUNBUFFERED: 1
-    command: -u /usr/sbin/stafd
+    command: -u /root/stas-dest/usr/sbin/stafd --tron
   stacd:
     <<: *default-stas
     environment:
       RUNTIME_DIRECTORY: /run/stacd
       XDG_CACHE_HOME: /var/cache/stacd
+      LD_LIBRARY_PATH: /root/stas-dest/usr/lib64
+      PYTHONPATH: /root/stas-dest/usr/lib64/python3.10/site-packages:/root/stas-dest/usr/lib/python3.10/site-packages
       PYTHONUNBUFFERED: 1
-    command: -u /usr/sbin/stacd
+    command: -u /root/stas-dest/usr/sbin/stacd --tron
