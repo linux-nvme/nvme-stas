@@ -81,6 +81,8 @@ class Test(TestCase):
         self.assertEqual(
             controller.details(),
             {
+                'dctype': '',
+                'cntrltype': '',
                 'transport': 'tcp',
                 'traddr': '10.10.10.10',
                 'trsvcid': '8009',
@@ -99,6 +101,8 @@ class Test(TestCase):
         self.assertEqual(
             controller.info(),
             {
+                'dctype': '',
+                'cntrltype': '',
                 'transport': 'tcp',
                 'traddr': '10.10.10.10',
                 'trsvcid': '8009',

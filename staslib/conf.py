@@ -74,7 +74,7 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
             ('Global', 'udev-rule'): 'enabled',
-            ('Global', 'sticky-connections'): 'disabled',
+            ('Global', 'sticky-connections'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'blacklist'): list(),

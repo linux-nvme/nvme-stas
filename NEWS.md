@@ -5,6 +5,7 @@
 - Fix issues with I/O controller connection audits
   - Eliminate pcie devices from list of I/O controller connections to audit
   - Add soaking timer to workaround race condition between kernel and user-space applications on "add" uevents. When the kernel adds a new nvme device (e.g. `/dev/nvme7`) and sends a "add" uevent to notify user-space applications, the attributes associated with that device (e.g. `/sys/class/nvme/nvme7/cntrltype`) may not be fully initialized which can lead `stacd` to dismiss a device that should get audited. 
+- Make `sticky-connections=enabled` the default (see `stacd.conf`) 
 
 ## Changes with release 1.1.5
 
@@ -32,7 +33,7 @@ stacd: Bug fix. Check that self._cfg_soak_tmr is not None before dereferencing i
 
 ## Changes with release 1.1.1
 
-Make `sticky-connections-disabled` by default
+Make `sticky-connections=disabled` the default (see `stacd.conf`) 
 
 ## Changes with release 1.1
 
