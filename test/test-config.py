@@ -40,7 +40,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)
         self.assertTrue(service_conf.udev_rule_enabled)
-        self.assertFalse(service_conf.sticky_connections)
+        self.assertTrue(service_conf.sticky_connections)
         self.assertFalse(service_conf.ignore_iface)
         self.assertIn(6, service_conf.ip_family)
         self.assertNotIn(4, service_conf.ip_family)

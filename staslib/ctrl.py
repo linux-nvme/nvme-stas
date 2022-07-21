@@ -61,7 +61,11 @@ class Controller(stas.ControllerABC):
     def details(self) -> dict:
         '''@brief return detailed debug info about this controller'''
         details = super().details()
-        details.update(self._udev.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial')))
+        details.update(
+            self._udev.get_attributes(self.device,
+                                      ('hostid', 'hostnqn', 'model',
+                                       'serial', 'dctype', 'cntrltype'))
+        )
         return details
 
     def info(self) -> dict:

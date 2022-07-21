@@ -378,7 +378,7 @@
                             entries in <filename>stacd.conf</filename> have been removed.
                         </para>
 
-                        <formalpara><title>With <code>sticky-connections=disabled</code> (default)</title>
+                        <formalpara><title>With <code>sticky-connections=disabled</code></title>
                             <para>
                                 <code>stacd</code> immediately disconnects from
                                 a previously connected IOC if the response to a
@@ -411,7 +411,7 @@
                             </formalpara>
                         </formalpara>
 
-                        <formalpara><title>With <code>sticky-connections=enabled</code></title>
+                        <formalpara><title>With <code>sticky-connections=enabled (default)</code></title>
                             <para>
                                 <code>stacd</code> does not disconnect from IOCs
                                 when a DPLE is removed or a <literal>controller=</literal>
