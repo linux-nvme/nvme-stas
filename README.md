@@ -61,8 +61,8 @@ The following configuration files are defined:
 | File                   | Consumer          | Purpose                                                      |
 | ---------------------- | ----------------- | ------------------------------------------------------------ |
 | `/etc/stas/sys.conf`   | `stafd` + `stacd` | Contains system-wide (i.e. host) configuration such as the Host NQN, the Host ID, and the Host Symbolic Name. Changes to this file can be made manually or with the help of the `stasadm` utility as described in the previous section. <br /><br />For example, `stasadm hostnqn -f /etc/nvme/hostnqn` writes the Host NQN to the file `/etc/nvme/hostnqn`, but also adds an entry to `/etc/stas/sys.conf` to indicate where the Host NQN has been saved. <br /><br />This gives nvme-stas the flexibility of defining its own Host parameters or to use the same parameters defined by `libnvme` and `nvme-cli`. |
-| `/etc/stas/stafd.conf` | `stafd`           | Contains configuration specific to `stafd`. Discovery controllers can be manually added or blacklisted in this file. |
-| `/etc/stas/stacd.conf` | `stacd`           | Contains configuration specific to `stacd`. I/O controllers can be manually added or blacklisted in this file. |
+| `/etc/stas/stafd.conf` | `stafd`           | Contains configuration specific to `stafd`. Discovery controllers can be manually added or excluded in this file. |
+| `/etc/stas/stacd.conf` | `stacd`           | Contains configuration specific to `stacd`. I/O controllers can be manually added or excluded in this file. |
 
 ## D-Bus interface
 

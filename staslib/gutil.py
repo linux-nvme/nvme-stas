@@ -198,7 +198,7 @@ class _AsyncCaller(GObject.Object):
                 value.result = self._user_function(*self._user_args)
                 task.return_value(value)
             except Exception as ex:  # pylint: disable=broad-except
-                task.return_error(GLib.Error(repr(ex)))
+                task.return_error(GLib.Error(message=str(ex), domain=type(ex).__name__))
 
         task = Gio.Task.new(self, cancellable, cb_function, *cb_args)
         task.set_return_on_cancel(False)

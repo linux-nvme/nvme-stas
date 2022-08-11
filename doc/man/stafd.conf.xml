@@ -63,9 +63,9 @@
             <filename>stafd.conf</filename> is a plain text file divided into
             sections, with configuration entries in the style
             <replaceable>key</replaceable>=<replaceable>value</replaceable>.
-            A space immediately before or after the <literal>=</literal> is
-            ignored. Empty lines and lines starting with <literal>#</literal>
-            are ignored, which may be used for commenting.
+            Spaces immediately before or after the <literal>=</literal> are
+            ignored. Empty lines are ignored as well as lines starting with
+            <literal>#</literal>, which may be used for commenting.
         </para>
     </refsect1>
 
@@ -94,9 +94,9 @@
                             Discovery Controllers (DC) are persistent. When
                             true, connections initiated by stafd will persists
                             even when stafd is stopped. When
-                            <literal>false</literal>, <code>stafd</code>
+                            <parameter>false</parameter>, <code>stafd</code>
                             will disconnect from all DCs it is connected to on
-                            exit. Defaults to <literal>false</literal>.
+                            exit. Defaults to <parameter>false</parameter>.
                         </para>
                     </listitem>
                 </varlistentry>
@@ -132,7 +132,7 @@
                             default.
                         </para>
                         <para>
-                            Defaults to <literal>false</literal>.
+                            Defaults to <parameter>false</parameter>.
                         </para>
                     </listitem>
                 </varlistentry>
@@ -154,11 +154,11 @@
                     <listitem>
                         <para>
                             Enable zeroconf provisioning using DNS-SD/mDNS.
-                            Takes a string argument <literal>enabled</literal> or
-                            <literal>disabled</literal>.
+                            Takes a string argument <parameter>enabled</parameter> or
+                            <parameter>disabled</parameter>.
                         </para>
                         <para>
-                            When <literal>enabled</literal>, the default,
+                            When <parameter>enabled</parameter>, the default,
                             <code>stafd</code> makes a request with the
                             Avahi daemon to locate Discovery Controllers using
                             DNS-SD/mDNS.

@@ -15,10 +15,10 @@
 
             <listitem id='tron-text'>
                 <para>
-                    Trace ON. Takes a boolean argument. If <literal>true</literal>,
+                    Trace ON. Takes a boolean argument. If <parameter>true</parameter>,
                     enables full code tracing. The trace will be displayed in
                     the system log such as systemd's journal. Defaults to
-                    <literal>false</literal>.
+                    <parameter>false</parameter>.
                 </para>
             </listitem>
         </varlistentry>
@@ -31,9 +31,9 @@
                     Enable Protocol Data Unit (PDU) Header Digest. Takes a
                     boolean argument. NVMe/TCP facilitates an optional PDU
                     Header digest. Digests are calculated using the CRC32C
-                    algorithm. If <literal>true</literal>, Header Digests
+                    algorithm. If <parameter>true</parameter>, Header Digests
                     are inserted in PDUs and checked for errors. Defaults to
-                    <literal>false</literal>.
+                    <parameter>false</parameter>.
                 </para>
             </listitem>
         </varlistentry>
@@ -46,9 +46,9 @@
                     Enable Protocol Data Unit (PDU) Data Digest. Takes a
                     boolean argument. NVMe/TCP facilitates an optional PDU
                     Data digest. Digests are calculated using the CRC32C
-                    algorithm. If <literal>true</literal>, Data Digests
+                    algorithm. If <parameter>true</parameter>, Data Digests
                     are inserted in PDUs and checked for errors. Defaults to
-                    <literal>false</literal>.
+                    <parameter>false</parameter>.
                 </para>
             </listitem>
         </varlistentry>
@@ -76,17 +76,17 @@
                     whether IPv4, IPv6, or both are supported when
                     connecting to a Controller. Connections will not be
                     attempted to IP addresses (whether discovered or
-                    manually configured with the 'controller') if those
-                    IP addresses are disabled by this option. If an invalid
-                    value is entered, then "ipv4+ipv6" will be used by default.
+                    manually configured with <varname>controller=</varname>)
+                    disabled by this option. If an invalid value
+                    is entered, then the default (see below) will apply.
                 </para>
 
                 <para>
-                    Choices are <literal>ipv4</literal>, <literal>ipv6</literal>, or <literal>ipv4+ipv6</literal>.
+                    Choices are <parameter>ipv4</parameter>, <parameter>ipv6</parameter>, or <parameter>ipv4+ipv6</parameter>.
                 </para>
 
                 <para>
-                    Defaults to <literal>ipv4+ipv6</literal>.
+                    Defaults to <parameter>ipv4+ipv6</parameter>.
                 </para>
             </listitem>
         </varlistentry>
@@ -103,7 +103,7 @@
 
             <listitem id='controller-text'>
                 <para>
-                    Controllers are specified with the <literal>controller</literal>
+                    Controllers are specified with the <varname>controller</varname>
                     option. This option may be specified more than once to specify
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
@@ -123,7 +123,7 @@
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
-                                    <literal>trtype</literal> values understood
+                                    <parameter>trtype</parameter> values understood
                                     are:
                                 </para>
 
@@ -254,10 +254,14 @@
                             <term><varname>nqn=</varname></term>
                             <listitem>
                                 <para>
-                                    This is an optional field that specifies the
-                                    Discovery Controller's NVMe Qualified Name.
-                                    If not specified, this will default to the
-                                    well-known DC NQN: <literal>nqn.2014-08.org.nvmexpress.discovery</literal>.
+                                    This field specifies the Controller's NVMe
+                                    Qualified Name.
+                                </para>
+                                <para>
+                                    This field is mandatory for I/O Controllers, but is optional for
+                                    Discovery Controllers (DC). For the latter, the NQN will default
+                                    to the well-known DC NQN: <literal>nqn.2014-08.org.nvmexpress.discovery</literal>
+                                    if left undefined.
                                 </para>
                             </listitem>
                         </varlistentry>
@@ -294,7 +298,7 @@
                 <para>
                     Examples:
                     <programlisting>controller = transport=tcp;traddr=localhost;trsvcid=8009
-controller = transport=tcp;traddr=[2001:db8:::370:7334];host-iface=enp0s8
+controller = transport=tcp;traddr=2001:db8::370:7334;host-iface=enp0s8
 controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </programlisting>
                 </para>
@@ -302,44 +306,43 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
         </varlistentry>
 
         <varlistentry>
-            <term><varname>blacklist=</varname></term>
+            <term><varname>exclude=</varname></term>
 
-            <listitem id='blacklist-text'>
+            <listitem id='exclude-text'>
                 <para>
-                    Blacklisted controllers can be specified with the
-                    <literal>blacklist</literal> option. Using mDNS to
+                    Controllers that should be excluded can be specified with the
+                    <varname>exclude=</varname> option. Using mDNS to
                     automatically discover and connect to controllers, can result
                     in unintentional connections being made. This keyword allows
-                    configuring the controllers that should not be connected to
-                    (whatever the reason may be).
+                    configuring the controllers that should not be connected to.
                 </para>
 
                 <para>
-                    The syntax is the same as for "controller", except that the key
-                    <literal>host-traddr</literal> does not apply. Multiple
-                    <literal>blacklist</literal> keywords may appear in the config
-                    file to specify more than 1 blacklisted controller.
+                    The syntax is the same as for "controller", except that the parameter
+                    <parameter>host-traddr</parameter> does not apply. Multiple
+                    <varname>exclude=</varname> keywords may appear in the config
+                    file to specify more than 1 excluded controller.
                 </para>
 
                 <para>
                     Note 1: A minimal match approach is used to eliminate unwanted
                     controllers. That is, you do not need to specify all the
                     parameters to identify a controller. Just specifying the
-                    <literal>host-iface</literal>, for example, can be used to
-                    blacklist all controllers on an interface.
+                    <parameter>host-iface</parameter>, for example, can be used to
+                    exclude all controllers on an interface.
                 </para>
 
                 <para>
-                    Note 2: <literal>blacklist</literal> takes precedence over
-                    <literal>controller</literal>. A controller specified by the
-                    <literal>controller</literal> keyword, can be eliminated by
-                    the <literal>blacklist</literal> keyword.
+                    Note 2: <varname>exclude=</varname> takes precedence over
+                    <varname>controller</varname>. A controller specified by the
+                    <varname>controller</varname> keyword, can be eliminated by
+                    the <varname>exclude=</varname> keyword.
                 </para>
 
                 <para>
                     Examples:
-                    <programlisting>blacklist = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
-blacklist = host-iface=enp0s8                             # Eliminate everything on this interface
+                    <programlisting>exclude = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
+exclude = host-iface=enp0s8                             # Eliminate everything on this interface
                     </programlisting>
                 </para>
             </listitem>

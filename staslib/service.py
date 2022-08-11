@@ -10,7 +10,6 @@
 which the Staf and the Stac objects are derived.'''
 
 import json
-import pickle
 import logging
 import pathlib
 import systemd.daemon
@@ -121,7 +120,24 @@ class Stac(Service):
         self._staf_watcher = None
         self._add_event_soak_tmr = None
 
-    def _audit_connections(self, tids):
+    def _dump_last_known_config(self, controllers):
+        config = list(controllers.keys())
+        logging.debug('Stac._dump_last_known_config()     - IOC count = %s', len(config))
+        self._write_lkc(config)
+
+    def _load_last_known_config(self):
+        config = self._read_lkc() or list()
+        logging.debug('Stac._load_last_known_config()     - IOC count = %s', len(config))
+
+        controllers = {}
+        for tid in config:
+            # Only create Ioc objects if there is already a connection in the kernel
+            if udev.UDEV.find_nvme_ioc_device(tid) is not None:
+                controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
+
+        return controllers
+
+    def _audit_all_connections(self, tids):
         '''A host should only connect to I/O controllers that have been zoned
         for that host or a manual "controller" entry exists in stcd.conf.
         A host should disconnect from an I/O controller when that I/O controller
@@ -129,7 +145,7 @@ class Stac(Service):
         stacd.conf. stacd will audit connections if "sticky-connections=disabled".
         stacd will delete any connection that is not supposed to exist.
         '''
-        logging.debug('Stac._audit_connections()          - tids = %s', tids)
+        logging.debug('Stac._audit_all_connections()      - tids = %s', tids)
         num_controllers = len(self._controllers)
         for tid in tids:
             if tid not in self._controllers:
@@ -149,14 +165,16 @@ class Stac(Service):
         To workaround this problem we use a soaking timer to give time for the
         sysfs attributes to stabilize.
         '''
+        logging.debug('Stac._on_add_event(()              - Received "add" event: %s', udev_obj.sys_name)
         self._add_event_soak_tmr.start()
 
     def _on_add_event_soaked(self):
         '''@brief After the add event has been soaking for ADD_EVENT_SOAK_TIME_SEC
         seconds, we can audit the connections.
         '''
-        if not conf.SvcConf().sticky_connections:
-            self._audit_connections(self._udev.get_nvme_ioc_tids())
+        svc_conf = conf.SvcConf()
+        if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':
+            self._audit_all_connections(self._udev.get_nvme_ioc_tids(svc_conf.disconnect_trtypes))
         return GLib.SOURCE_REMOVE
 
     def _config_connections_audit(self):
@@ -164,10 +182,11 @@ class Stac(Service):
         whether audits should be performed. Audits are enabled when
         "sticky_connections" is disabled.
         '''
-        if not conf.SvcConf().sticky_connections:
+        svc_conf = conf.SvcConf()
+        if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':
             if self._udev.get_registered_action_cback('add') is None:
                 self._udev.register_for_action_events('add', self._on_add_event)
-                self._audit_connections(self._udev.get_nvme_ioc_tids())
+                self._audit_all_connections(self._udev.get_nvme_ioc_tids(svc_conf.disconnect_trtypes))
         else:
             self._udev.unregister_for_action_events('add')
 
@@ -186,8 +205,8 @@ class Stac(Service):
         service_cnf.reload()
         self.tron = service_cnf.tron
         self._config_connections_audit()
-        self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
         udev_rule_ctrl(service_cnf.udev_rule_enabled)
+        self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
 
@@ -216,7 +235,7 @@ class Stac(Service):
 
         logging.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
 
-        controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list)
+        controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
 
         new_controller_ids = {trid.TID(controller) for controller in controllers}
@@ -230,10 +249,12 @@ class Stac(Service):
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, conf.SvcConf().sticky_connections)
+                controller.disconnect(self.remove_controller, conf.SvcConf().disconnect_scope == 'no-disconnect')
 
         for tid in controllers_to_add:
             self._controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
+
+        self._dump_last_known_config(self._controllers)
 
     def _connect_to_staf(self, _):
         '''@brief Hook up DBus signal handlers for signals from stafd.'''
@@ -284,12 +305,6 @@ class Stac(Service):
         if self._cfg_soak_tmr:
             self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
 
-    def _load_last_known_config(self):
-        return dict()
-
-    def _dump_last_known_config(self, controllers):
-        pass
-
 
 # ******************************************************************************
 class Staf(Service):
@@ -317,24 +332,15 @@ class Staf(Service):
             self._avahi.kill()
             self._avahi = None
 
-    def _load_last_known_config(self):
-        try:
-            with open(self._lkc_file, 'rb') as file:
-                config = pickle.load(file)
-        except (FileNotFoundError, AttributeError):
-            return dict()
+    def _dump_last_known_config(self, controllers):
+        config = {tid: dc.log_pages() for tid, dc in controllers.items()}
+        logging.debug('Staf._dump_last_known_config()     - DC count = %s', len(config))
+        self._write_lkc(config)
 
+    def _load_last_known_config(self):
+        config = self._read_lkc() or dict()
         logging.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
         return {tid: ctrl.Dc(self, self._root, self._host, tid, log_pages) for tid, log_pages in config.items()}
-
-    def _dump_last_known_config(self, controllers):
-        try:
-            with open(self._lkc_file, 'wb') as file:
-                config = {tid: dc.log_pages() for tid, dc in controllers.items()}
-                logging.debug('Staf._dump_last_known_config()     - DC count = %s', len(config))
-                pickle.dump(config, file)
-        except FileNotFoundError as ex:
-            logging.error('Unable to save last known config: %s', ex)
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
@@ -401,7 +407,7 @@ class Staf(Service):
         logging.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
 
-        controllers = stas.remove_blacklisted(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
+        controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
 
         new_controller_ids = {trid.TID(controller) for controller in controllers}
@@ -419,6 +425,8 @@ class Staf(Service):
 
         for tid in controllers_to_add:
             self._controllers[tid] = ctrl.Dc(self, self._root, self._host, tid)
+
+        self._dump_last_known_config(self._controllers)
 
     def _avahi_change(self):
         self._cfg_soak_tmr.start()

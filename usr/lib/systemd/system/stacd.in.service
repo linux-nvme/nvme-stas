@@ -26,6 +26,7 @@ ExecReload=/bin/kill -HUP $MAINPID
 # Cache directory: /var/cache/@STACD_PROCNAME@
 RuntimeDirectory=@STACD_PROCNAME@
 CacheDirectory=@STACD_PROCNAME@
+RuntimeDirectoryPreserve=yes
 
 [Install]
 WantedBy=multi-user.target

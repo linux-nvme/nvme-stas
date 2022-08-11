@@ -43,11 +43,11 @@ if want_man or want_html
         endforeach
     endif
 
-    tmp_dir = meson.build_root() / 'man-tmp'
+    tmp_dir = conf.get('BUILD_DIR') / 'man-tmp'
 
     # Generate DocBooks from IDL queried directly from the D-Bus services.
     dbus_services = [ stafd, stacd ]
-    env = environment({'PYTHONPATH': meson.build_root()})
+    env = environment({'PYTHONPATH': conf.get('BUILD_DIR')})
     foreach service : dbus_services
         rr = run_command(
             dbus2doc,

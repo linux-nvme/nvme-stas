@@ -31,7 +31,7 @@ class Controller(stas.ControllerABC):
         super().__init__(root, host, tid, discovery_ctrl)
 
     def _release_resources(self):
-        logging.debug('Controller._release_resources()    - %s', self.id)
+        logging.debug('Controller._release_resources()    - %s | %s', self.id, self.device)
 
         if self._udev:
             self._udev.unregister_for_device_events(self._on_udev_notification)
@@ -62,9 +62,7 @@ class Controller(stas.ControllerABC):
         '''@brief return detailed debug info about this controller'''
         details = super().details()
         details.update(
-            self._udev.get_attributes(self.device,
-                                      ('hostid', 'hostnqn', 'model',
-                                       'serial', 'dctype', 'cntrltype'))
+            self._udev.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial', 'dctype', 'cntrltype'))
         )
         return details
 
@@ -116,7 +114,8 @@ class Controller(stas.ControllerABC):
             )
 
     def _on_ctrl_removed(self, obj):  # pylint: disable=unused-argument
-        self._udev.unregister_for_device_events(self._on_udev_notification)
+        if self._udev:
+            self._udev.unregister_for_device_events(self._on_udev_notification)
         self._kill_ops()  # Kill all pending operations
         self._ctrl = None
 
@@ -151,8 +150,7 @@ class Controller(stas.ControllerABC):
             )
         else:
             service_conf = conf.SvcConf()
-            cfg = { 'hdr_digest':  service_conf.hdr_digest,
-                    'data_digest': service_conf.data_digest }
+            cfg = {'hdr_digest': service_conf.hdr_digest, 'data_digest': service_conf.data_digest}
             if service_conf.kato is not None:
                 cfg['keep_alive_tmo'] = service_conf.kato
             elif self._discovery_ctrl:
@@ -216,7 +214,7 @@ class Controller(stas.ControllerABC):
                 # If the fast connect re-try fails, then we can print a message to
                 # indicate the failure, and start a slow re-try period.
                 self._retry_connect_tmr.set_timeout(self.CONNECT_RETRY_PERIOD_SEC)
-                logging.error('%s Failed to connect to controller. %s', self.id, getattr(err, 'message', err))
+                logging.error('%s Failed to connect to controller. %s %s', self.id, err.domain, err.message)
 
             logging.debug(
                 'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
@@ -227,9 +225,10 @@ class Controller(stas.ControllerABC):
             self._retry_connect_tmr.start()
         else:
             logging.debug(
-                'Controller._on_connect_fail()      - %s Received event on dead object. %s',
+                'Controller._on_connect_fail()      - %s Received event on dead object. %s %s',
                 self.id,
-                getattr(err, 'message', err),
+                err.domain,
+                err.message,
             )
 
     def disconnect(self, disconnected_cb, keep_connection):
@@ -337,8 +336,13 @@ class Dc(Controller):
             self._get_log_op.run_async()
 
     def _on_nvme_event(self, nvme_event: str):
-        if nvme_event == 'connected' and self._register_op:
-            self._register_op.run_async()
+        if nvme_event == 'connected':
+            # This event indicates that the kernel
+            # driver re-connected to the DC.
+            if self._register_op:
+                self._register_op.run_async()
+            elif self._get_log_op:
+                self._get_log_op.run_async()
 
     def _on_ctrl_removed(self, obj):
         super()._on_ctrl_removed(obj)
@@ -375,6 +379,10 @@ class Dc(Controller):
         '''@brief Function called when we successfully register with the
         Discovery Controller. See self._register_op object
         for details.
+
+        NOTE: The name _on_registration_success() may be misleading. "success"
+        refers to the fact that a successful exchange was made with the DC.
+        It doesn't mean that the registration itself succeeded.
         '''
         if self._alive():
             if data is not None:

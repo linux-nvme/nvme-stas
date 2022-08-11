@@ -183,13 +183,13 @@ class Udev:
 
         return None
 
-    def get_nvme_ioc_tids(self):
+    def get_nvme_ioc_tids(self, transports):
         '''@brief  Find all the I/O controller nvme devices in the system.
         @return A list of pyudev.device._device.Device objects
         '''
         tids = []
         for device in self._context.list_devices(subsystem='nvme'):
-            if device.properties.get('NVME_TRTYPE', '') not in ('tcp', 'rdma', 'fc'):
+            if device.properties.get('NVME_TRTYPE', '') not in transports:
                 continue
 
             if not self.is_ioc_device(device):
@@ -241,6 +241,6 @@ UDEV = Udev()  # Singleton
 
 def shutdown():
     '''Destroy the UDEV singleton'''
-    global UDEV  # pylint: disable=global-statement
+    global UDEV  # pylint: disable=global-statement,global-variable-not-assigned
     UDEV.release_resources()
     del UDEV
