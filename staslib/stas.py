@@ -13,6 +13,7 @@ import os
 import sys
 import abc
 import signal
+import pickle
 import logging
 import ipaddress
 import systemd.daemon
@@ -57,22 +58,22 @@ def cid_from_dlpe(dlpe, host_traddr, host_iface):
 
 
 # ******************************************************************************
-def _blacklisted(blacklisted_ctrl_list, controller):
-    '''@brief Check if @controller is black-listed.'''
-    for blacklisted_ctrl in blacklisted_ctrl_list:
-        test_results = [val == controller.get(key, None) for key, val in blacklisted_ctrl.items()]
+def _excluded(excluded_ctrl_list, controller):
+    '''@brief Check if @controller is excluded.'''
+    for excluded_ctrl in excluded_ctrl_list:
+        test_results = [val == controller.get(key, None) for key, val in excluded_ctrl.items()]
         if all(test_results):
             return True
     return False
 
 
 # ******************************************************************************
-def remove_blacklisted(controllers: list):
-    '''@brief Remove black-listed controllers from the list of controllers.'''
-    blacklisted_ctrl_list = conf.SvcConf().get_blacklist()
-    if blacklisted_ctrl_list:
-        logging.debug('remove_blacklisted()               - blacklisted_ctrl_list = %s', blacklisted_ctrl_list)
-        controllers = [controller for controller in controllers if not _blacklisted(blacklisted_ctrl_list, controller)]
+def remove_excluded(controllers: list):
+    '''@brief Remove excluded controllers from the list of controllers.'''
+    excluded_ctrl_list = conf.SvcConf().get_excluded()
+    if excluded_ctrl_list:
+        logging.debug('remove_excluded()                  - excluded_ctrl_list = %s', excluded_ctrl_list)
+        controllers = [controller for controller in controllers if not _excluded(excluded_ctrl_list, controller)]
     return controllers
 
 
@@ -271,7 +272,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
                 'Kernel does not appear to support all the options needed to run this program. Consider updating to a later kernel version.'
             )
 
-        # We don't want to apply configuration changes to nvme-cli right away.
+        # We don't want to apply configuration changes right away.
         # Often, multiple changes will occur in a short amount of time (sub-second).
         # We want to wait until there are no more changes before applying them
         # to the system. The following timer acts as a "soak period". Changes
@@ -409,7 +410,8 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
             controllers = self._controllers.values()
             logging.debug(
                 'ServiceABC._stop_hdlr()            - Controller count = %s, keep_connections = %s',
-                len(controllers), keep_connections
+                len(controllers),
+                keep_connections,
             )
             for controller in controllers:
                 controller.disconnect(self._on_final_disconnect, keep_connections)
@@ -423,8 +425,13 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         @param controller: the controller object
         @param success: whether the disconnect operation was successful
         '''
-        logging.debug('ServiceABC._on_final_disconnect()  - %s | %s disconnect %s',
-                      controller.id, controller.device, 'succeeded' if success else 'failed')
+        logging.debug(
+            'ServiceABC._on_final_disconnect()  - %s | %s disconnect %s',
+            controller.id,
+            controller.device,
+            'succeeded' if success else 'failed',
+        )
+
         self._remove_ctrl_from_dict(controller)
 
         controller.kill()
@@ -445,15 +452,35 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     def _config_ctrls(self):
         '''@brief Start controllers configuration.'''
-        # The configuration file may contain controllers and/or blacklist
-        # elements with traddr specified as hostname instead of IP address.
-        # Because of this, we need to remove those blacklisted elements before
-        # running name resolution. And we will need to remove blacklisted
+        # The configuration file may contain controllers and/or excluded
+        # controllers with traddr specified as hostname instead of IP address.
+        # Because of this, we need to remove those excluded elements before
+        # running name resolution. And we will need to remove excluded
         # elements after name resolution is complete (i.e. in the calback
         # function _config_ctrls_finish)
         logging.debug('ServiceABC._config_ctrls()')
-        configured_controllers = remove_blacklisted(conf.SvcConf().get_controllers())
+        configured_controllers = remove_excluded(conf.SvcConf().get_controllers())
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
+
+    def _read_lkc(self):
+        '''@brief Read Last Known Config from file'''
+        try:
+            with open(self._lkc_file, 'rb') as file:
+                return pickle.load(file)
+        except (FileNotFoundError, AttributeError, EOFError):
+            return None
+
+    def _write_lkc(self, config):
+        '''@brief Write Last Known Config to file, and if config is empty
+        make sure the file is emptied.'''
+        try:
+            # Note that if config is empty we still
+            # want to open/close the file to empty it.
+            with open(self._lkc_file, 'wb') as file:
+                if config:
+                    pickle.dump(config, file)
+        except FileNotFoundError as ex:
+            logging.error('Unable to save last known config: %s', ex)
 
     @abc.abstractmethod
     def _keep_connections_on_exit(self):

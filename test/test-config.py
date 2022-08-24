@@ -17,9 +17,14 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'tron=true\n',
             'kato=200\n',
             'ip-family=ipv6\n',
+            '\n',
+            '[I/O controller disconnect policy]\n',
+            'disconnect-scope = joe\n',
+            'disconnect-trtypes = bob\n',
+            '\n',
             '[Controllers]\n',
             'controller=transport=tcp;traddr=100.100.100.100;host-iface=enp0s8\n',
-            'blacklist=transport=tcp;traddr=10.10.10.10\n',
+            'exclude=transport=tcp;traddr=10.10.10.10\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
             f.writelines(data)
@@ -39,8 +44,9 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertFalse(service_conf.hdr_digest)
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)
-        self.assertTrue(service_conf.udev_rule_enabled)
-        self.assertTrue(service_conf.sticky_connections)
+        self.assertFalse(service_conf.udev_rule_enabled)
+        self.assertEqual(service_conf.disconnect_scope, 'only-stas-connections')
+        self.assertEqual(service_conf.disconnect_trtypes, ['tcp'])
         self.assertFalse(service_conf.ignore_iface)
         self.assertIn(6, service_conf.ip_family)
         self.assertNotIn(4, service_conf.ip_family)
@@ -52,7 +58,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ],
         )
 
-        self.assertEqual(service_conf.get_blacklist(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
+        self.assertEqual(service_conf.get_excluded(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
 
         self.assertEqual(service_conf.get_stypes(), ['_nvme-disc._tcp'])
 

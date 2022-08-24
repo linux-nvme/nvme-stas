@@ -15,13 +15,13 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="nvme-stas"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>nvme-stas — NVMe over Fabrics STorage Appliance Services</p></div><div class="refsect1"><a name="idm46417209258432"></a><h2>Introduction</h2><p>
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="nvme-stas"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>nvme-stas — NVMe over Fabrics STorage Appliance Services</p></div><div class="refsect1"><a name="idm18"></a><h2>Introduction</h2><p>
         This page describes the services provided by the <code class="code">nvme-stas</code> package.
     </p><p>
         <code class="code">nvme-stas</code> is composed of two services, <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
         and <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>,
         running on a host computer (the NVMe Host).
-    </p><div class="refsect2"><a name="idm46417209254352"></a><h3>STorage Appliance Finder (<code class="code">stafd</code>)</h3><p>
+    </p><div class="refsect2"><a name="idm30"></a><h3>STorage Appliance Finder (<code class="code">stafd</code>)</h3><p>
             The tasks performed by <code class="code">stafd</code> include:
         </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: opencircle; "><li class="listitem" style="list-style-type: circle"><p>
                     Register for mDNS service type <em class="parameter"><code>_nvme-disc._tcp</code></em>
@@ -44,7 +44,7 @@
                     Provide a D-Bus API where other applications can interact
                     with <code class="code">stafd</code>. This API can be used, for example, to retrieve
                     the list of cached discovery log pages.
-                </p></li></ul></div></div><div class="refsect2"><a name="idm46417209290608"></a><h3>STorage Appliance Connector (<code class="code">stacd</code>)</h3><p>
+                </p></li></ul></div></div><div class="refsect2"><a name="idm51"></a><h3>STorage Appliance Connector (<code class="code">stacd</code>)</h3><p>
             The tasks performed by <code class="code">stacd</code> include:
         </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: opencircle; "><li class="listitem" style="list-style-type: circle"><p>
                     Read the list of storage subsystems (i.e., discovery log pages)
@@ -59,7 +59,7 @@
                     Provide a D-Bus API where other applications can interact
                     with <code class="code">stacd</code>. For example, an application could retrieve the
                     list of I/O controllers that <code class="code">stacd</code> connected to.
-                </p></li></ul></div></div><div class="refsect2"><a name="idm46417209426064"></a><h3>System configuration</h3><p>
+                </p></li></ul></div></div><div class="refsect2"><a name="idm71"></a><h3>System configuration</h3><p>
             A host must be provided with a Host NQN and a Host ID. <code class="code">nvme-stas</code>
             will not run without these two mandatory configuration parameters.
             To follow in the footsteps of <code class="code">nvme-cli</code> and <code class="code">libnvme</code>,
@@ -83,7 +83,7 @@
             The documentation for <code class="filename">/etc/stas/sys.conf</code>
             can be found <code class="filename">/etc/stas/sys.conf.doc</code>.
         <p>
-        </p></div></div><div class="refsect1"><a name="idm46417209400352"></a><h2>See Also</h2><p>
+        </p></div></div><div class="refsect1"><a name="idm98"></a><h2>See Also</h2><p>
         <span class="citerefentry"><span class="refentrytitle">stacctl</span>(1)</span>,
         <span class="citerefentry"><span class="refentrytitle">stacd.conf</span>(5)</span>,
         <span class="citerefentry"><span class="refentrytitle">stacd.service</span>(8)</span>,

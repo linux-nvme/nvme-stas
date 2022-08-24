@@ -73,11 +73,12 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Global', 'kato'): None,
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'udev-rule'): 'enabled',
-            ('Global', 'sticky-connections'): 'enabled',
+            ('Global', 'udev-rule'): 'disabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
-            ('Controllers', 'blacklist'): list(),
+            ('Controllers', 'exclude'): list(),
+            ('I/O controller disconnect policy', 'disconnect-scope'): 'only-stas-connections',
+            ('I/O controller disconnect policy', 'disconnect-trtypes'): ['tcp'],
         }
         self._conf_file = conf_file
         self.reload()
@@ -139,9 +140,46 @@ class SvcConf(metaclass=singleton.Singleton):
         return self.__get_value('Global', 'udev-rule')[0] == 'enabled'
 
     @property
-    def sticky_connections(self):
-        '''@brief return the "sticky-connections" config parameter'''
-        return self.__get_value('Global', 'sticky-connections')[0] == 'enabled'
+    def disconnect_scope(self):
+        '''@brief return the disconnect scope (i.e. which connections are affected by DLPE removal)'''
+        disconnect_scope = self.__get_value('I/O controller disconnect policy', 'disconnect-scope')[0]
+        if disconnect_scope not in (
+            'only-stas-connections',
+            'all-connections-matching-disconnect-trtypes',
+            'no-disconnect',
+        ):
+            logging.warning(
+                'File:%s, Section: [I/O controller disconnect policy] - Invalid "disconnect-scope": %s',
+                self.conf_file,
+                disconnect_scope,
+            )
+
+            disconnect_scope = self._defaults[('I/O controller disconnect policy', 'disconnect-scope')]
+        return disconnect_scope
+
+    @property
+    def disconnect_trtypes(self):
+        '''@brief return the type(s) of transport that will be audited
+        as part of I/O controller disconnect policy, when "disconnect-scope" is set to
+        "all-connections-matching-disconnect-trtypes"'''
+        attr = self.__get_value('I/O controller disconnect policy', 'disconnect-trtypes')[0]
+        attr = set(attr.split('+'))  # Use set() to eliminate potential duplicates
+
+        trtypes = []
+        for trtype in attr:
+            if trtype not in ('tcp', 'rdma', 'fc'):
+                logging.warning(
+                    'File:%s, Section: [I/O controller disconnect policy], Invalid "disconnect-trtypes": %s',
+                    self.conf_file,
+                    trtype,
+                )
+            else:
+                trtypes.append(trtype)
+
+        if len(trtypes) == 0:
+            trtypes = self._defaults[('I/O controller disconnect policy', 'disconnect-trtypes')]
+
+        return trtypes
 
     @property
     def kato(self):
@@ -172,9 +210,9 @@ class SvcConf(metaclass=singleton.Singleton):
                 pass
         return controllers
 
-    def get_blacklist(self):
-        '''@brief Return the list of blacklisted controllers in the config file.
-        Each blacklisted controller is in the form of a dictionary
+    def get_excluded(self):
+        '''@brief Return the list of excluded controllers in the config file.
+        Each excluded controller is in the form of a dictionary
         as follows. All the keys are optional.
         {
             'transport':  [TRANSPORT],
@@ -184,16 +222,16 @@ class SvcConf(metaclass=singleton.Singleton):
             'subsysnqn':  [NQN],
         }
         '''
-        controller_list = self.__get_value('Controllers', 'blacklist')
-        blacklist = [parse_controller(controller) for controller in controller_list]
-        for controller in blacklist:
+        controller_list = self.__get_value('Controllers', 'exclude')
+        excluded = [parse_controller(controller) for controller in controller_list]
+        for controller in excluded:
             controller.pop('host-traddr', None)  # remove host-traddr
             try:
                 # replace 'nqn' key by 'subsysnqn', if present.
                 controller['subsysnqn'] = controller.pop('nqn')
             except KeyError:
                 pass
-        return blacklist
+        return excluded
 
     def get_stypes(self):
         '''@brief Get the DNS-SD/mDNS service types.'''

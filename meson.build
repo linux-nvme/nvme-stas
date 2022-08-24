@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.53.0',
-    version: '1.1.6',
+    version: '1.2-rc1',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -69,6 +69,7 @@ conf.set('LICENSE', meson.project_license()[0])
 conf.set('KERNEL_IFACE_MIN_VERSION', '5.14')
 conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
 conf.set('BUILD_DIR', meson.current_build_dir())
+conf.set('SRCE_ROOT', meson.current_source_dir())
 
 foreach component : [ ['staf', 'STorage Appliance Finder'],
                       ['stac', 'STorage Appliance Connector'] ]

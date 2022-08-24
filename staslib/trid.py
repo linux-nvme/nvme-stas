@@ -40,17 +40,9 @@ class TID:  # pylint: disable=too-many-instance-attributes
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface  = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
         self._subsysnqn   = cid.get('subsysnqn')
-        self._key         = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._host_iface, self._subsysnqn)
-        self._hash        = int.from_bytes(hashlib.md5(''.join(self._key).encode('utf-8')).digest(), 'big')  # We need a consistent hash between restarts
+        key               = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._subsysnqn)
+        self._hash        = int.from_bytes(hashlib.md5(''.join(key).encode('utf-8')).digest(), 'big')  # We need a consistent hash between restarts
         self._id          = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'  # pylint: disable=line-too-long
-
-    @property
-    def key(self):  # pylint: disable=missing-function-docstring
-        return self._key
-
-    @property
-    def hash(self):  # pylint: disable=missing-function-docstring
-        return self._hash
 
     @property
     def transport(self):  # pylint: disable=missing-function-docstring
@@ -93,10 +85,10 @@ class TID:  # pylint: disable=too-many-instance-attributes
         return self._id
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.key == other.key
+        return isinstance(other, self.__class__) and self._hash == other._hash
 
     def __ne__(self, other):
-        return not isinstance(other, self.__class__) or self.key != other.key
+        return not isinstance(other, self.__class__) or self._hash != other._hash
 
     def __hash__(self):
-        return self.hash
+        return self._hash

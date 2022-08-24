@@ -15,43 +15,43 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stafd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd.conf — 
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="stafd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd.conf — 
             <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
             configuration file
         </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><p>
             <code class="filename">/etc/stas/stafd.conf</code>
-        </p></div><div class="refsect1"><a name="idm46377465181232"></a><h2>Description</h2><p>
+        </p></div><div class="refsect1"><a name="idm24"></a><h2>Description</h2><p>
             When <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span> starts up, it reads its
             configuration from <code class="filename">stafd.conf</code>.
-        </p></div><div class="refsect1"><a name="idm46377465178096"></a><h2>Configuration File Format</h2><p>
+        </p></div><div class="refsect1"><a name="idm31"></a><h2>Configuration File Format</h2><p>
             <code class="filename">stafd.conf</code> is a plain text file divided into
             sections, with configuration entries in the style
             <em class="replaceable"><code>key</code></em>=<em class="replaceable"><code>value</code></em>.
-            Whitespace immediately before or after the "<code class="literal">=</code>" is
-            ignored. Empty lines and lines starting with "<code class="literal">#</code>"
-            are ignored, which may be used for commenting.
-        </p></div><div class="refsect1"><a name="idm46377465219872"></a><h2>Options</h2><div class="refsect2"><a name="idm46377465219200"></a><h3>[Global] section</h3><p>
+            Spaces immediately before or after the "<code class="literal">=</code>" are
+            ignored. Empty lines are ignored as well as lines starting with
+            "<code class="literal">#</code>", which may be used for commenting.
+        </p></div><div class="refsect1"><a name="idm39"></a><h2>Options</h2><div class="refsect2"><a name="idm41"></a><h3>[Global] section</h3><p>
                 The following options are available in the
                 "<code class="literal">[Global]</code>" section:
             </p><div class="variablelist"><dl class="variablelist"><dt><a name="tron"></a><span class="term"><code class="varname">tron=</code></span></dt><dd><p><a name="tron-text"></a>
-                    Trace ON. Takes a boolean argument. If "<code class="literal">true</code>",
+                    Trace ON. Takes a boolean argument. If <em class="parameter"><code>true</code></em>,
                     enables full code tracing. The trace will be displayed in
                     the system log such as systemd's journal. Defaults to
-                    "<code class="literal">false</code>".
+                    <em class="parameter"><code>false</code></em>.
                 </p></dd><dt><a name="hdr-digest"></a><span class="term"><code class="varname">hdr-digest=</code></span></dt><dd><p><a name="hdr-digest-text"></a>
                     Enable Protocol Data Unit (PDU) Header Digest. Takes a
                     boolean argument. NVMe/TCP facilitates an optional PDU
                     Header digest. Digests are calculated using the CRC32C
-                    algorithm. If "<code class="literal">true</code>", Header Digests
+                    algorithm. If <em class="parameter"><code>true</code></em>, Header Digests
                     are inserted in PDUs and checked for errors. Defaults to
-                    "<code class="literal">false</code>".
+                    <em class="parameter"><code>false</code></em>.
                 </p></dd><dt><a name="data-digest"></a><span class="term"><code class="varname">data-digest=</code></span></dt><dd><p><a name="data-digest-text"></a>
                     Enable Protocol Data Unit (PDU) Data Digest. Takes a
                     boolean argument. NVMe/TCP facilitates an optional PDU
                     Data digest. Digests are calculated using the CRC32C
-                    algorithm. If "<code class="literal">true</code>", Data Digests
+                    algorithm. If <em class="parameter"><code>true</code></em>, Data Digests
                     are inserted in PDUs and checked for errors. Defaults to
-                    "<code class="literal">false</code>".
+                    <em class="parameter"><code>false</code></em>.
                 </p></dd><dt><a name="kato"></a><span class="term"><code class="varname">kato=</code></span></dt><dd><p><a name="kato-text"></a>
                     Keep Alive Timeout (KATO) in seconds. Takes an unsigned
                     integer. This field specifies the timeout value for the Keep
@@ -63,21 +63,21 @@
                     whether IPv4, IPv6, or both are supported when
                     connecting to a Controller. Connections will not be
                     attempted to IP addresses (whether discovered or
-                    manually configured with the 'controller') if those
-                    IP addresses are disabled by this option. If an invalid
-                    value is entered, then "ipv4+ipv6" will be used by default.
+                    manually configured with <code class="varname">controller=</code>)
+                    disabled by this option. If an invalid value
+                    is entered, then the default (see below) will apply.
                 </p><p>
-                    Choices are "<code class="literal">ipv4</code>", "<code class="literal">ipv6</code>", or "<code class="literal">ipv4+ipv6</code>".
+                    Choices are <em class="parameter"><code>ipv4</code></em>, <em class="parameter"><code>ipv6</code></em>, or <em class="parameter"><code>ipv4+ipv6</code></em>.
                 </p><p>
-                    Defaults to "<code class="literal">ipv4+ipv6</code>".
+                    Defaults to <em class="parameter"><code>ipv4+ipv6</code></em>.
                 </p></dd><dt><span class="term"><code class="varname">persistent-connections=</code></span></dt><dd><p>
                             Takes a boolean argument. Whether connections to
                             Discovery Controllers (DC) are persistent. When
                             true, connections initiated by stafd will persists
                             even when stafd is stopped. When
-                            "<code class="literal">false</code>", <code class="code">stafd</code>
+                            <em class="parameter"><code>false</code></em>, <code class="code">stafd</code>
                             will disconnect from all DCs it is connected to on
-                            exit. Defaults to "<code class="literal">false</code>".
+                            exit. Defaults to <em class="parameter"><code>false</code></em>.
                         </p></dd><dt><span class="term"><code class="varname">ignore-iface=</code></span></dt><dd><p>
                             Takes a boolean argument. This option controls how
                             connections with Discovery Controllers (DC) are made.
@@ -99,16 +99,16 @@
                             <code class="code">stafd</code> does not ignore the interface by
                             default.
                         </p><p>
-                            Defaults to "<code class="literal">false</code>".
-                        </p></dd></dl></div></div><div class="refsect2"><a name="idm46377465349136"></a><h3>[Service Discovery] section</h3><p>
+                            Defaults to <em class="parameter"><code>false</code></em>.
+                        </p></dd></dl></div></div><div class="refsect2"><a name="idm104"></a><h3>[Service Discovery] section</h3><p>
                 The following options are available in the
                 "<code class="literal">[Service Discovery]</code>" section:
             </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="varname">zeroconf=</code></span></dt><dd><p>
                             Enable zeroconf provisioning using DNS-SD/mDNS.
-                            Takes a string argument "<code class="literal">enabled</code>" or
-                            "<code class="literal">disabled</code>".
+                            Takes a string argument <em class="parameter"><code>enabled</code></em> or
+                            <em class="parameter"><code>disabled</code></em>.
                         </p><p>
-                            When "<code class="literal">enabled</code>", the default,
+                            When <em class="parameter"><code>enabled</code></em>, the default,
                             <code class="code">stafd</code> makes a request with the
                             Avahi daemon to locate Discovery Controllers using
                             DNS-SD/mDNS.
@@ -118,16 +118,16 @@
                             "<code class="literal">_nvme-disc._tcp</code>".
                         </p></dd></dl></div></div><div class="refsect2"><a name="controller"></a><h3>[Controllers] section</h3><p>The following options are available in the
             "<code class="literal">[Controllers]</code>" section:</p><dt><span class="term"><code class="varname">controller=</code></span></dt><dd><p><a name="controller-text"></a>
-                    Controllers are specified with the "<code class="literal">controller</code>"
+                    Controllers are specified with the <code class="varname">controller</code>
                     option. This option may be specified more than once to specify
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm46377465422512"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm132"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
-                                    "<code class="literal">trtype</code>" values understood
+                                    <em class="parameter"><code>trtype</code></em> values understood
                                     are:
                                 </p><div class="table"><a name="transport-types"></a><p class="title"><b>Table 1. Transport type</b></p><div class="table-contents"><table class="table" summary="Transport type" border="1"><colgroup><col><col></colgroup><thead><tr><th>trtype</th><th>Definition</th></tr></thead><tbody><tr><td>rdma</td><td>
                                                     The network fabric is an rdma network (RoCE, iWARP, Infiniband, basic rdma, etc)
@@ -190,10 +190,13 @@
                                         IANA Service names port numbers
                                     </a>
                                 </p></dd><dt><a name="nqn"></a><span class="term"><code class="varname">nqn=</code></span></dt><dd><p>
-                                    This is an optional field that specifies the
-                                    Discovery Controller's NVMe Qualified Name.
-                                    If not specified, this will default to the
-                                    well-known DC NQN: "<code class="literal">nqn.2014-08.org.nvmexpress.discovery</code>".
+                                    This field specifies the Controller's NVMe
+                                    Qualified Name.
+                                </p><p>
+                                    This field is mandatory for I/O Controllers, but is optional for
+                                    Discovery Controllers (DC). For the latter, the NQN will default
+                                    to the well-known DC NQN: "<code class="literal">nqn.2014-08.org.nvmexpress.discovery</code>"
+                                    if left undefined.
                                 </p></dd><dt><a name="host-traddr"></a><span class="term"><code class="varname">host-traddr=</code></span></dt><dd><p>
                                     This is an optional field that specifies the
                                     network address used on the host to connect
@@ -210,37 +213,36 @@
                                 </p></dd></dl></div></div><p>
                     Examples:
                     </p><pre class="programlisting">controller = transport=tcp;traddr=localhost;trsvcid=8009
-controller = transport=tcp;traddr=[2001:db8:::370:7334];host-iface=enp0s8
+controller = transport=tcp;traddr=2001:db8::370:7334;host-iface=enp0s8
 controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </pre><p>
-                </p></dd><dt><span class="term"><code class="varname">blacklist=</code></span></dt><dd><p><a name="blacklist-text"></a>
-                    Blacklisted controllers can be specified with the
-                    "<code class="literal">blacklist</code>" option. Using mDNS to
+                </p></dd><dt><span class="term"><code class="varname">exclude=</code></span></dt><dd><p><a name="exclude-text"></a>
+                    Controllers that should be excluded can be specified with the
+                    <code class="varname">exclude=</code> option. Using mDNS to
                     automatically discover and connect to controllers, can result
                     in unintentional connections being made. This keyword allows
-                    configuring the controllers that should not be connected to
-                    (whatever the reason may be).
+                    configuring the controllers that should not be connected to.
                 </p><p>
-                    The syntax is the same as for "controller", except that the key
-                    "<code class="literal">host-traddr</code>" does not apply. Multiple
-                    "<code class="literal">blacklist</code>" keywords may appear in the config
-                    file to specify more than 1 blacklisted controller.
+                    The syntax is the same as for "controller", except that the parameter
+                    <em class="parameter"><code>host-traddr</code></em> does not apply. Multiple
+                    <code class="varname">exclude=</code> keywords may appear in the config
+                    file to specify more than 1 excluded controller.
                 </p><p>
                     Note 1: A minimal match approach is used to eliminate unwanted
                     controllers. That is, you do not need to specify all the
                     parameters to identify a controller. Just specifying the
-                    "<code class="literal">host-iface</code>", for example, can be used to
-                    blacklist all controllers on an interface.
+                    <em class="parameter"><code>host-iface</code></em>, for example, can be used to
+                    exclude all controllers on an interface.
                 </p><p>
-                    Note 2: "<code class="literal">blacklist</code>" takes precedence over
-                    "<code class="literal">controller</code>". A controller specified by the
-                    "<code class="literal">controller</code>" keyword, can be eliminated by
-                    the "<code class="literal">blacklist</code>" keyword.
+                    Note 2: <code class="varname">exclude=</code> takes precedence over
+                    <code class="varname">controller</code>. A controller specified by the
+                    <code class="varname">controller</code> keyword, can be eliminated by
+                    the <code class="varname">exclude=</code> keyword.
                 </p><p>
                     Examples:
-                    </p><pre class="programlisting">blacklist = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
-blacklist = host-iface=enp0s8                             # Eliminate everything on this interface
+                    </p><pre class="programlisting">exclude = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
+exclude = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm46377465327792"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm214"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
         </p></div></div></body></html>

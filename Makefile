@@ -54,7 +54,7 @@ loc:
 
 .PHONY: loc-full
 loc-full:
-	@cloc --by-file --exclude-dir=${BUILD-DIR},doc,subprojects,test,utils,debian,obj-x86_64-linux-gnu,.github .
+	@cloc --by-file --exclude-dir=${BUILD-DIR},subprojects,debian,obj-x86_64-linux-gnu,.github .
 
 # Coverage requirements:
 #   pip install coverage

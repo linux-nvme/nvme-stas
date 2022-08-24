@@ -93,9 +93,37 @@ if [ ! -d coverage ]; then
     mkdir coverage
 fi
 
+prerun_install() {
+    for file in staf stac; do
+        if [ ! -f "/usr/share/dbus-1/system.d/org.nvmexpress.${file}.conf" -a \
+             ! -f "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf" ]; then
+            log "hardlink /etc/dbus-1/system.d/org.nvmexpress.${file}.conf -> @BUILD_DIR@/etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
+            sudo ln @BUILD_DIR@/etc/dbus-1/system.d/org.nvmexpress.${file}.conf /etc/dbus-1/system.d/org.nvmexpress.${file}.conf
+            if [ $? -ne 0 ]; then
+                log "hardlink failed"
+                exit
+            fi
+        fi
+    done
+    sudo systemctl reload dbus.service
+}
+
+postrun_cleaup() {
+    for file in staf stac; do
+        if [ -f "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf" ]; then
+            if [ "$(stat -c %h -- "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf")" -gt 1 ]; then
+                log "Remove hardlink /etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
+                sudo rm "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
+            fi
+        fi
+    done
+    sudo systemctl reload dbus.service
+}
+
 
 log "START-START-START-START-START-START-START-START-START-START-START-START"
 
+prerun_install
 
 
 ################################################################################
@@ -129,7 +157,10 @@ cat > "${stacd_conf_fname}" <<'EOF'
 tron=true
 kato=10
 udev-rule=disabled
-sticky-connections=enabled
+
+[I/O controller disconnect policy]
+disconnect-scope=all-connections-matching-disconnect-trtypes
+disconnect-trtype=tcp+rdma
 EOF
 
 log "Stop & Mask Avahi daemon"
@@ -199,8 +230,8 @@ controller=trsvcid
 controller=transport=rdma;traddr=!@#$
 controller=transport=fc;traddr=21:00:00:00:00:00:00:00;host-traddr=20:00:00:00:00:00:00:00
 controller=transport=XM;traddr=2.2.2.2
-blacklist=transport=tcp;traddr=1.1.1.1
-blacklist=transport=tcp;traddr=1000.1000.1000.1000
+exclude=transport=tcp;traddr=1.1.1.1
+exclude=transport=tcp;traddr=1000.1000.1000.1000
 EOF
 reload_cfg "@STAFD_PROCNAME@"
 
@@ -210,7 +241,10 @@ cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 udev-rule=disabled
-sticky-connections=disabled
+
+[I/O controller disconnect policy]
+disconnect-scope=blah-blah
+disconnect-trtypes=boing-boing
 EOF
 reload_cfg "@STACD_PROCNAME@"
 sleep 3
@@ -418,4 +452,6 @@ coverage html -i --rcfile=.coveragerc
 
 log "All done!!!"
 
+postrun_cleaup
 log "FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED"
+

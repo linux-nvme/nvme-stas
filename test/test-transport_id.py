@@ -36,13 +36,9 @@ class Test(unittest.TestCase):
         self.tid = trid.TID(self.cid)
         self.other_tid = trid.TID(self.other_cid)
 
-    def test_key(self):
-        '''Check that a key exists'''
-        self.assertIsInstance(self.tid.key, tuple)
-
     def test_hash(self):
         '''Check that a hash exists'''
-        self.assertIsInstance(self.tid.hash, int)
+        self.assertIsInstance(self.tid._hash, int)
 
     def test_transport(self):
         '''Check that transport is set'''

@@ -62,9 +62,9 @@
             <filename>stacd.conf</filename> is a plain text file divided into
             sections, with configuration entries in the style
             <replaceable>key</replaceable>=<replaceable>value</replaceable>.
-            A space immediately before or after the <literal>=</literal> is
-            ignored. Empty lines and lines starting with <literal>#</literal>
-            are ignored, which may be used for commenting.
+            Spaces immediately before or after the <literal>=</literal> are
+            ignored. Empty lines are ignored as well as lines starting with
+            <literal>#</literal>, which may be used for commenting.
         </para>
     </refsect1>
 
@@ -75,7 +75,7 @@
             <title>[Global] section</title>
             <para>
                 The following options are available in the
-                <literal>[Global]</literal>section:
+                <literal>[Global]</literal> section:
             </para>
 
             <variablelist>
@@ -127,13 +127,13 @@
                             the log pages retrieved from that DC must be
                             reachable on interface ens102. If this doesn't work,
                             for example you cannot "ping -I ens102 [storage-ip]",
-                            then the most likely explanation is that arp proxy
+                            then the most likely explanation is that proxy arp
                             is not enabled on the switch that the host is
                             connected to on interface ens102. Whatever you do,
                             resist the temptation to manually set up the routing
                             tables or to add alternate routes going over a
                             different interface than the one where the DC is
-                            located. That simply won't work. Make sure arp proxy
+                            located. That simply won't work. Make sure proxy arp
                             is enabled on the switch first.
                         </para>
 
@@ -151,7 +151,7 @@
                         </para>
 
                         <para>
-                            Defaults to <literal>false</literal>.
+                            Defaults to <parameter>false</parameter>.
                         </para>
                     </listitem>
                 </varlistentry>
@@ -160,8 +160,8 @@
                     <term><varname>udev-rule=</varname></term>
                     <listitem>
                         <para>
-                            Takes a string argument <literal>enabled</literal> or
-                            <literal>disabled</literal>. This option determines
+                            Takes a string argument <parameter>enabled</parameter> or
+                            <parameter>disabled</parameter>. This option determines
                             whether <code>nvme-cli</code>'s udev rule will be executed
                             or ignored.
                         </para>
@@ -171,7 +171,8 @@
                             that tells the udev daemon (<code>udevd</code>) to look
                             for Asynchronous Event Notifications (AEN) indicating
                             a change of Discovery Log Page Entries (DPLE). The
-                            udev rule is installed as: <filename>/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules</filename>
+                            udev rule is typically installed as: 
+                            <filename>/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules</filename>
                         </para>
 
                         <para>
@@ -201,231 +202,388 @@
                             printed by the kernel because two processes are trying
                             to connect to the same IOC at the same time. One of
                             them will be rejected by the kernel, but the other
-                            will succeed.
+                            will succeed. A typical error message from the kernel
+                            may look something like this: 
+                            "<computeroutput>[...] failed to connect controller, error 1006</computeroutput>".
                         </para>
 
                         <para>
                             The <code>udev-rule</code> option allows a user to
-                            disable <code>nvme-cli</code>'s udev rule so that <code>udevd</code> will
-                            not act on received AENs. Instead, only
-                            <code>stafd</code>/<code>stacd</code> will be allowed
-                            to react to AENs and set up IOC connections.
+                            disable <code>nvme-cli</code>'s udev rule so that 
+                            <code>udevd</code> will not act on received AENs. 
+                            Instead, only <code>stafd</code>/<code>stacd</code> 
+                            will be allowed to react to AENs and set up IOC connections.
                         </para>
 
                         <para>
-                            Defaults to <literal>enabled</literal>, which means
-                            that <code>udevd</code> and <code>stafd</code>/<code>stacd</code>
-                            will react to AENs. It also means that the race condition
-                            will happen by default and error messages will be
-                            printed to the syslog.
+                            Defaults to <parameter>disabled</parameter>, which means
+                            that <code>udevd</code> will not react to AENs. This 
+                            prevents the race condition from happening by default 
+                            and error messages will not be printed to the syslog.
+                        </para>
+                    </listitem>
+                </varlistentry>
+            </variablelist>
+        </refsect2>
+
+        <refsect2>
+            <title>[I/O controller disconnect policy] section</title>
+            <para>
+                Fabric Zoning defines the connectivity relationships allowed 
+                between Host and Subsystem entities that are members of the same 
+                fabric. Entities that share a common zone (i.e., are zoned together) 
+                are allowed to discover each other and establish connections 
+                between them. Fabric Zoning is configured on Discovery Controllers (DC).
+                Users can add/remove controllers and/or hosts to/from zones.
+            </para>
+
+            <table frame='all'>
+                <title>List of terms used in this section:</title>
+                <tgroup cols="2" align='left' colsep='1' rowsep='1'>
+                    <thead>
+                        <row>
+                            <entry>Term</entry>
+                            <entry>Description</entry>
+                        </row>
+                    </thead>
+
+                    <tbody>
+                        <row>
+                            <entry>AEN</entry>
+                            <entry>Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. The AEN is used to notify hosts that a change (e.g., a zoning change) has occurred.</entry>
+                        </row>
+
+                        <row>
+                            <entry>DC</entry>
+                            <entry>Discovery Controller.</entry>
+                        </row>
+
+                        <row>
+                            <entry>DLP</entry>
+                            <entry>Discovery Log Page. A host will issue a Get Log Page command to retrieve the list of controllers it may connect to.</entry>
+                        </row>
+
+                        <row>
+                            <entry>DLPE</entry>
+                            <entry><simpara>
+                                       Discovery Log Page Entry. The response
+                                       to a Get Log Page command contains a list of DLPEs identifying
+                                       each controller that the host is allowed to connect with.
+                                   </simpara><simpara>
+                                       Note that DLPEs may contain both I/O Controllers (IOCs)
+                                       and Discovery Controllers (DCs). DCs listed in DLPEs
+                                       are called referrals. <code>stacd</code> only deals with IOCs.
+                                       Referrals (DCs) are handled by <code>stafd</code>.
+                                   </simpara>
+                            </entry>
+                        </row>
+
+                        <row>
+                            <entry>IOC</entry>
+                            <entry>I/O Controller.</entry>
+                        </row>
+
+                        <row>
+                            <entry>Manual Config</entry>
+                            <entry>Refers to manually adding entries to <filename>stacd.conf</filename> with the <varname>controller=</varname> parameter.</entry>
+                        </row>
+
+                        <row>
+                            <entry>Automatic Config</entry>
+                            <entry>Refers to receiving configuration from a DC as DLPEs</entry>
+                        </row>
+
+                        <row>
+                            <entry>External Config</entry>
+                            <entry>Refers to configuration done outside of the <code>nvme-stas</code> framework, for example using <code>nvme-cli</code> commands</entry>
+                        </row>
+                    </tbody>
+                </tgroup>
+            </table>
+
+
+            <para>
+                DCs notify hosts of Fabric Zoning configuration changes by sending
+                AENs indicating a "Discovery Log" change. The host uses these AENs as
+                a trigger to issue a Get Log Page command. The response to this command
+                is used to update the list of DLPEs containing the controllers
+                the host is allowed to access.
+                Upon reception of the current DLPEs, the host will determine
+                whether DLPEs were added and/or removed, which will trigger the
+                addition and/or removal of controller connections. This happens in real time
+                and may affect active connections to controllers including controllers
+                that support I/O operations (IOCs). A host that was previously
+                connected to an IOC may suddenly be told that it is no longer
+                allowed to connect to that IOC and should disconnect from it.
+            </para>
+
+            <formalpara><title>IOC connection creation</title>
+                <para>
+                    There are 3 ways to configure IOC connections on a host:
+                </para>
+
+                <orderedlist>
+                    <listitem>
+                        <para>
+                            Manual Config by adding <varname>controller=</varname> entries
+                            to the <literal>[Controllers]</literal> section (see below).
+                        </para>
+                    </listitem>
+                    <listitem>
+                        <para>
+                            Automatic Config received in the form of
+                            DLPEs from a remote DC.
+                        </para>
+                    </listitem>
+                    <listitem>
+                        <para>
+                            External Config using <code>nvme-cli</code> (e.g. "<code>nvme connect</code>")
+                        </para>
+                    </listitem>
+                </orderedlist>
+            </formalpara>
+
+            <formalpara><title>IOC connection removal/prevention</title>
+                <para>
+                    There are 3 ways to remove (or prevent) connections to an IOC:
+                </para>
+
+                <orderedlist>
+                    <listitem>
+                        <para>
+                            Manual Config.
+                            <orderedlist numeration='lowerroman'>
+                                <listitem>
+                                    <para>
+                                        by adding <varname>exclude=</varname> entries to
+                                        the <literal>[Controllers]</literal> section (see below).
+                                    </para>
+                                </listitem>
+                                <listitem>
+                                    <para>
+                                        by removing <varname>controller=</varname> entries
+                                        from the <literal>[Controllers]</literal> section.
+                                    </para>
+                                </listitem>
+                            </orderedlist>
+                        </para>
+                    </listitem>
+                    <listitem>
+                        <para>
+                            Automatic Config. As explained above, changing
+                            zoning at a DC will result in the host getting
+                            a new list of DLPEs. On DLPE removal, the host
+                            should remove the connection to the IOC matching
+                            that DLPE. This behavior is configurable using
+                            the <varname>disconnect-scope=</varname> parameter
+                            described below.
+                        </para>
+                    </listitem>
+                    <listitem>
+                        <para>
+                            External Config using <code>nvme-cli</code> (e.g. "<code>nvme
+                            disconnect</code>" or "<code>nvme disconnect-all</code>")
+                        </para>
+                    </listitem>
+                </orderedlist>
+            </formalpara>
+
+            <para>
+                The decision by the host to automatically disconnect from an
+                IOC following zoning changes at the DC is controlled by two 
+                configuration parameters: <code>disconnect-scope</code> and 
+                <code>disconnect-trtypes</code>.
+            </para>
+
+            <variablelist>
+                <varlistentry>
+                    <term><varname>disconnect-scope=</varname></term>
+                    <listitem>
+                        <para>
+                            Takes one of: <parameter>only-stas-connections</parameter>,
+                            <parameter>all-connections-matching-disconnect-trtypes</parameter>, or <parameter>no-disconnect</parameter>.
+                        </para>
+
+                        <para>
+                            In theory, hosts should only connect to IOCs that have
+                            been zoned for them. Connections to IOCs that a host
+                            is not zoned to have access to should simply not exist.
+                            In practice, however, users may not want hosts to
+                            disconnect from all IOCs in reaction to Fabric Zoning 
+                            changes or at least for some of the IOC connections.
+                        </para>
+
+                        <para>
+                            Some users may prefer for IOC connections to be "sticky" 
+                            and only be removed manually (<code>nvme-cli</code> or 
+                            <varname>exclude=</varname>) or removed by a system 
+                            reboot. Specifically, they don't want IOC connections 
+                            to be removed unexpectedly on DLPE removal. These users 
+                            may want to set <varname>disconnect-scope</varname>
+                            to <parameter>no-disconnect</parameter>.
+                        </para>
+
+                        <para>
+                            It is important to note that when IOC connections 
+                            are removed, ongoing I/O transactions will be 
+                            terminated immediately. There is no way to tell what
+                            happens to the data being exchanged when such an abrupt
+                            termination happens. If a host was in the middle of writing
+                            to a storage subsystem, there is a chance that outstanding
+                            I/O operations may not successfully complete.
+                        </para>
+
+                        <refsect3>
+                            <title>Values:</title>
+                            <variablelist>
+                                <varlistentry>
+                                    <term><parameter>only-stas-connections</parameter></term>
+                                    <listitem>
+                                        <para>
+                                            Only remove connections previously made by <code>stacd</code>.
+                                        </para>
+                                        <para>
+                                            In this mode, when a DLPE is removed as a result of
+                                            zoning configuration changes at a DC, the corresponding
+                                            IOC connection will be removed by <code>stacd</code>.
+                                        </para>
+                                        <para>
+                                            Connections to IOCs made externally, e.g. using <code>nvme-cli</code>,
+                                            will not be affected, unless they happen to be duplicates
+                                            of connections made by <code>stacd</code>. It's simply not
+                                            possible for <code>stacd</code> to tell that a connection
+                                            was previously made with <code>nvme-cli</code> (or any other external tool).
+                                            So, it's good practice to avoid duplicating
+                                            configuration between <code>stacd</code> and external tools.
+                                        </para>
+                                        <para>
+                                            Users wanting to persist some of their IOC connections
+                                            regardless of Fabric Zoning changes should not use 
+                                            <code>nvme-cli</code> to make those connections. Instead, 
+                                            they should hard-code them in <filename>stacd.conf</filename>
+                                            with the <varname>controller=</varname> parameter. Using the
+                                            <varname>controller=</varname> parameter is the only way for a user
+                                            to tell <code>stacd</code> that a connection must be made and
+                                            not be deleted "<emphasis>no-matter-what</emphasis>".
+                                        </para>
+                                    </listitem>
+                                </varlistentry>
+
+                                <varlistentry>
+                                    <term><parameter>all-connections-matching-disconnect-trtypes</parameter></term>
+                                    <listitem>
+                                        <para>
+                                            All connections that match the transport type specified by 
+                                            <varname>disconnect-trtypes=</varname>, whether they were 
+                                            made automatically by <code>stacd</code> or externally 
+                                            (e.g., <code>nvme-cli</code>), will be audited and are 
+                                            subject to removal on DLPE removal.
+                                        </para>
+                                        <para>
+                                            In this mode, as DLPEs are removed as a result of
+                                            zoning configuration changes at a DC, the corresponding
+                                            IOC connections will be removed by the host immediately
+                                            whether they were made by <code>stacd</code>, <code>nvme-cli</code>,
+                                            or any other way. Basically, <code>stacd</code> audits 
+                                            <emphasis>all</emphasis> IOC connections matching the 
+                                            transport type specified by <varname>disconnect-trtypes=</varname>.
+                                        </para>
+                                        <formalpara><title><emphasis>NOTE</emphasis></title>
+                                            <para>
+                                                This mode implies that <code>stacd</code> will
+                                                only allow Manually Configured or Automatically
+                                                Configured IOC connections to exist. Externally
+                                                Configured connections using <code>nvme-cli</code>
+                                                (or other external mechanism)
+                                                that do not match any Manual Config
+                                                (<filename>stacd.conf</filename>)
+                                                or Automatic Config (DLPEs) will get deleted
+                                                immediately by <code>stacd</code>.
+                                            </para>
+                                        </formalpara>
+                                    </listitem>
+                                </varlistentry>
+
+                                <varlistentry>
+                                    <term><parameter>no-disconnect</parameter></term>
+                                    <listitem>
+                                        <para>
+                                            <code>stacd</code> does not disconnect from IOCs 
+                                            when a DPLE is removed or a <varname>controller=</varname> 
+                                            entry is removed from <filename>stacd.conf</filename>.
+                                            All IOC connections are "sticky".
+                                        </para>
+
+                                        <para>
+                                            Instead, users can remove connections 
+                                            by issuing the <code>nvme-cli</code>
+                                            command "<code>nvme disconnect</code>", add an
+                                            <varname>exclude=</varname> entry to
+                                            <filename>stacd.conf</filename>, or wait
+                                            until the next system reboot at which time all
+                                            connections will be removed.
+                                        </para>
+                                    </listitem>
+                                </varlistentry>
+                            </variablelist>
+                        </refsect3>
+
+                        <para>
+                            Defaults to <parameter>only-stas-connections</parameter>.
                         </para>
                     </listitem>
                 </varlistentry>
 
                 <varlistentry>
-                    <term><varname>sticky-connections=</varname></term>
+                    <term><varname>disconnect-trtypes=</varname></term>
                     <listitem>
                         <para>
-                            Keep existing connections to I/O controllers (IOC).
-                            Takes a string argument <literal>enabled</literal> or
-                            <literal>disabled</literal>.
+                            This parameter only applies when <varname>disconnect-scope</varname>
+                            is set to <parameter>all-connections-matching-disconnect-trtypes</parameter>. 
+                            It limits the scope of the audit to specific transport types.
                         </para>
 
                         <para>
-                            The parameter <code>sticky-connections</code>
-                            determines how <code>stacd</code> reacts to the
-                            removal of an IOC Discovery Page Entry (DLPE) or the
-                            removal of a <literal>controller=</literal> entry in
-                            <filename>/etc/stas/stacd.conf</filename>. In other
-                            words, whether it should immediately disconnect
-                            from IOC when the DPLE/<literal>controller=</literal>
-                            is removed, or whether it should maintain the connection.
+                            Can take the values <parameter>tcp</parameter>,
+                            <parameter>rdma</parameter>, <parameter>fc</parameter>, or
+                            a combination thereof by separating them with a plus (+) sign.
+                            For example: <parameter>tcp+fc</parameter>. No spaces
+                            are allowed between values and the plus (+) sign.
                         </para>
 
-                        <table frame='all'><title>List of terms used in the following text:</title>
-                            <tgroup cols="2" align='left' colsep='1' rowsep='1'>
-                                <thead>
-                                    <row>
-                                        <entry>Term</entry>
-                                        <entry>Description</entry>
-                                    </row>
-                                </thead>
-
-                                <tbody>
-                                    <row>
-                                        <entry>Manual Config</entry>
-                                        <entry>Refers to manually adding entries to <filename>stacd.conf</filename></entry>
-                                    </row>
-
-                                    <row>
-                                        <entry>Automatic Config</entry>
-                                        <entry>Refers to receiving configuration from a Discovery Controller (DC) as DLPEs</entry>
-                                    </row>
-
-                                    <row>
-                                        <entry>External Config</entry>
-                                        <entry>Refers to configuration done outside of the <code>nvme-stas</code> framework, for example using <code>nvme-cli</code> commands</entry>
-                                    </row>
-                                </tbody>
-                            </tgroup>
-                        </table>
-
-                        <formalpara><title>IOC connection creation</title>
-                            <para>
-                                There are 3 ways to configure IOC connections on a host:
-                            </para>
-
-                            <orderedlist>
-                                <listitem>
-                                    <para>
-                                        Manual Config by adding <literal>controller=</literal> entries
-                                        to the <literal>[Controllers]</literal> section (see below).
-                                    </para>
-                                </listitem>
-                                <listitem>
-                                    <para>
-                                        Automatic Config received in the form of
-                                        DLPEs from a remote DC.
-                                    </para>
-                                </listitem>
-                                <listitem>
-                                    <para>
-                                        External Config using <code>nvme-cli</code> (e.g. "<code>nvme connect</code>")
-                                    </para>
-                                </listitem>
-                            </orderedlist>
-                        </formalpara>
-
-                        <formalpara><title>Zoning and DLPEs</title>
-                            <para>
-                                Zoning configuration is performed at Discovery
-                                Controllers (DC). A zone is used to specify the list
-                                of IOC that a host is allowed to access.
-                                The zone contains a list of hosts and the IOC
-                                that these hosts can access. Users can add or
-                                remove IOC and/or hosts from zones.
-                            </para>
-                            <simpara>
-                                DCs notify hosts of zoning configuration changes by
-                                sending Asynchronous Event Notifications (AEN)
-                                indicating a "Change of Discovery Log Page (DLP)".
-                                The host uses these AENs as a trigger to retrieve the
-                                new list of DLPEs by issuing a Get DLP command.
-                                This happens in real time, which means that a host
-                                that was previously connected to an IOC may
-                                suddenly be told that it is no longer allowed to
-                                connect to that IOC and should disconnect from it.
-                            </simpara>
-                        </formalpara>
-
-                        <formalpara><title>IOC connection removal</title>
-                            <para>
-                                There are 3 ways to remove controller connections to an IOC:
-                            </para>
-
-                            <orderedlist>
-                                <listitem>
-                                    <para>
-                                        Manual Config.
-                                        <orderedlist numeration='lowerroman'>
-                                            <listitem>
-                                                <para>
-                                                    by adding <literal>blacklist=</literal> entries to
-                                                    the <literal>[Controllers]</literal> section (see below).
-                                                </para>
-                                            </listitem>
-                                            <listitem>
-                                                <para>
-                                                    by removing <literal>controller=</literal> entries
-                                                    from the <literal>[Controllers]</literal> section.
-                                                </para>
-                                            </listitem>
-                                        </orderedlist>
-                                    </para>
-                                </listitem>
-                                <listitem>
-                                    <para>
-                                        Automatic Config. As explained above, changing
-                                        zoning at a DC will result in the host getting
-                                        a new list of DLPEs. On DLPE removal, the host
-                                        should remove the connection to the IOC matching
-                                        that DLPE.
-                                    </para>
-                                </listitem>
-                                <listitem>
-                                    <para>
-                                        External Config using <code>nvme-cli</code> (e.g. "<code>nvme
-                                        disconnect</code>" or "<code>nvme disconnect-all</code>")
-                                    </para>
-                                </listitem>
-                            </orderedlist>
-                        </formalpara>
+                        <refsect3>
+                            <title>Values:</title>
+                            <variablelist>
+                                <varlistentry>
+                                    <term><parameter>tcp</parameter></term>
+                                    <listitem>
+                                        <para>
+                                            Audit TCP connections.
+                                        </para>
+                                    </listitem>
+                                </varlistentry>
+                                <varlistentry>
+                                    <term><parameter>rdma</parameter></term>
+                                    <listitem>
+                                        <para>
+                                            Audit RDMA connections.
+                                        </para>
+                                    </listitem>
+                                </varlistentry>
+                                <varlistentry>
+                                    <term><parameter>fc</parameter></term>
+                                    <listitem>
+                                        <para>
+                                            Audit Fibre Channel connections.
+                                        </para>
+                                    </listitem>
+                                </varlistentry>
+                            </variablelist>
+                        </refsect3>
 
                         <para>
-                            Some users may prefer for the IOC to be "sticky" and
-                            only be removed manually (<code>nvme-cli</code> or <literal>blacklist=</literal>) or
-                            removed by a system reboot. They don't want for IOC
-                            connections to be removed unexpectedly on DLPE
-                            removal. This is where <code>sticky-connections=</code>
-                            comes into play.
+                            Defaults to <parameter>tcp</parameter>.
                         </para>
-
-
-                        <para>
-                            <code>sticky-connections=</code> tells <code>stacd</code>
-                            whether to keep connections to IOC even if their
-                            DPLEs have been removed or the <literal>controller=</literal>
-                            entries in <filename>stacd.conf</filename> have been removed.
-                        </para>
-
-                        <formalpara><title>With <code>sticky-connections=disabled</code></title>
-                            <para>
-                                <code>stacd</code> immediately disconnects from
-                                a previously connected IOC if the response to a
-                                Get DLP command no longer contains a DLPE matching
-                                that IOC or a <literal>controller=</literal>
-                                entry in <filename>stacd.conf</filename> is removed.
-                            </para>
-
-                            <simpara>
-                                Ongoing I/O transactions will be terminated immediately
-                                as well. There is no way to tell what happens to
-                                the data being exchanged when such an abrupt
-                                termination happens. If a host was in the middle
-                                of writing to a storage subsystem, there is a good
-                                chance that incomplete and potentially corrupt data
-                                will be left on the remote storage.
-                            </simpara>
-
-                            <formalpara><title><emphasis>NOTE</emphasis></title>
-                                <para>
-                                    This mode implies that <code>nvme-stas</code> will
-                                    only allow Manually Configured or Automatically
-                                    Configured IOC connections to exist. Externally
-                                    Configured connections using <code>nvme-cli</code>
-                                    that do not match any Manual Config
-                                    (<filename>stacd.conf</filename>)
-                                    or Automatic Config (DLPEs) will get deleted
-                                    immediately by <code>stacd</code>.
-                                </para>
-                            </formalpara>
-                        </formalpara>
-
-                        <formalpara><title>With <code>sticky-connections=enabled (default)</code></title>
-                            <para>
-                                <code>stacd</code> does not disconnect from IOCs
-                                when a DPLE is removed or a <literal>controller=</literal>
-                                entry is removed from <filename>stacd.conf</filename>.
-                            </para>
-                            <para>
-                                Instead, users can issue the <code>nvme-cli</code>
-                                command "<code>nvme disconnect</code>", add a
-                                <literal>blacklist=</literal> entry to
-                                <filename>stacd.conf</filename>, or wait
-                                until the next system reboot at which time all
-                                connections will be removed.
-                            </para>
-                        </formalpara>
                     </listitem>
                 </varlistentry>
             </variablelist>

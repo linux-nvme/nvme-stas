@@ -110,10 +110,13 @@
       <term><option>--nqn=NQN</option></term>
       <listitem>
           <para>
-              This is an optional field that specifies the
-              Discovery Controller's NVMe Qualified Name.
-              If not specified, this will default to the
-              well-known DC NQN: <literal>nqn.2014-08.org.nvmexpress.discovery</literal>.
+              This field specifies the Controller's NVMe Qualified Name.
+          </para>
+          <para>
+              This field is mandatory for I/O Controllers, but is optional for
+              Discovery Controllers (DC). For the latter, the NQN will default
+              to the well-known DC NQN: <literal>nqn.2014-08.org.nvmexpress.discovery</literal>
+              if left undefined.
           </para>
       </listitem>
   </varlistentry>
