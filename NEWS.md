@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.2
+
+- Replace `sticky-connections` by a new configuration section, `[I/O controller disconnect policy]`, in `stacd.conf`.
+  - This is needed so that hosts can better react to Fabric Zoning changes at the CDC.
+
+
 ## Changes with release 1.1.6
 
 - Fix issues with I/O controller connection audits
