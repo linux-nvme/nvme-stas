@@ -172,13 +172,19 @@
                             prevents the race condition from happening by default 
                             and error messages will not be printed to the syslog.
                         </p></dd></dl></div></div><div class="refsect2"><a name="idm136"></a><h3>[I/O controller disconnect policy] section</h3><p>
-                Fabric Zoning defines the connectivity relationships allowed 
-                between Host and Subsystem entities that are members of the same 
-                fabric. Entities that share a common zone (i.e., are zoned together) 
-                are allowed to discover each other and establish connections 
-                between them. Fabric Zoning is configured on Discovery Controllers (DC).
-                Users can add/remove controllers and/or hosts to/from zones.
-            </p><div class="table"><a name="idm139"></a><p class="title"><b>Table 1. List of terms used in this section:</b></p><div class="table-contents"><table class="table" summary="List of terms used in this section:" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Term</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left">AEN</td><td align="left">Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. The AEN is used to notify hosts that a change (e.g., a zoning change) has occurred.</td></tr><tr><td align="left">DC</td><td align="left">Discovery Controller.</td></tr><tr><td align="left">DLP</td><td align="left">Discovery Log Page. A host will issue a Get Log Page command to retrieve the list of controllers it may connect to.</td></tr><tr><td align="left">DLPE</td><td align="left"><p>
+                Connectivity between hosts and subssystems in a fabric is
+                controlled by Fabric Zoning. Entities that share a common
+                zone (i.e., are zoned together) are allowed to discover each
+                other and establish connections between them. Fabric Zoning is
+                configured on Discovery Controllers (DC). Users can add/remove
+                controllers and/or hosts to/from zones.
+            </p><p>
+                Hosts have no direct knowledge of the Fabric Zoning configuration
+                that is active on a given DC. As a result, if a host is impacted
+                by a Fabric Zoning configuration change, it will be notified of
+                the connectivity configuration change by the DC via Asynchronous
+                Event Notifications (AEN).
+            </p><div class="table"><a name="idm140"></a><p class="title"><b>Table 1. List of terms used in this section:</b></p><div class="table-contents"><table class="table" summary="List of terms used in this section:" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Term</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left">AEN</td><td align="left">Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. AENs are used by DCs to notify hosts that a change (e.g., a connectivity configuration change) has occurred.</td></tr><tr><td align="left">DC</td><td align="left">Discovery Controller.</td></tr><tr><td align="left">DLP</td><td align="left">Discovery Log Page. A host will issue a Get Log Page command to retrieve the list of controllers it may connect to.</td></tr><tr><td align="left">DLPE</td><td align="left"><p>
                                        Discovery Log Page Entry. The response
                                        to a Get Log Page command contains a list of DLPEs identifying
                                        each controller that the host is allowed to connect with.
@@ -189,7 +195,7 @@
                                        Referrals (DCs) are handled by <code class="code">stafd</code>.
                                    </p>
                             </td></tr><tr><td align="left">IOC</td><td align="left">I/O Controller.</td></tr><tr><td align="left">Manual Config</td><td align="left">Refers to manually adding entries to <code class="filename">stacd.conf</code> with the <code class="varname">controller=</code> parameter.</td></tr><tr><td align="left">Automatic Config</td><td align="left">Refers to receiving configuration from a DC as DLPEs</td></tr><tr><td align="left">External Config</td><td align="left">Refers to configuration done outside of the <code class="code">nvme-stas</code> framework, for example using <code class="code">nvme-cli</code> commands</td></tr></tbody></table></div></div><br class="table-break"><p>
-                DCs notify hosts of Fabric Zoning configuration changes by sending
+                DCs notify hosts of connectivity configuration changes by sending
                 AENs indicating a "Discovery Log" change. The host uses these AENs as
                 a trigger to issue a Get Log Page command. The response to this command
                 is used to update the list of DLPEs containing the controllers
@@ -223,21 +229,21 @@
                                         from the "<code class="literal">[Controllers]</code>" section.
                                     </p></li></ol></div><p>
                         </p></li><li class="listitem"><p>
-                            Automatic Config. As explained above, changing
-                            zoning at a DC will result in the host getting
-                            a new list of DLPEs. On DLPE removal, the host
-                            should remove the connection to the IOC matching
-                            that DLPE. This behavior is configurable using
-                            the <code class="varname">disconnect-scope=</code> parameter
+                            Automatic Config. As explained above, a host gets a
+                            new list of DLPEs upon connectivity configuration
+                            changes. On DLPE removal, the host should remove the
+                            connection to the IOC matching that DLPE. This
+                            behavior is configurable using the
+                            <code class="varname">disconnect-scope=</code> parameter
                             described below.
                         </p></li><li class="listitem"><p>
                             External Config using <code class="code">nvme-cli</code> (e.g. "<code class="code">nvme
                             disconnect</code>" or "<code class="code">nvme disconnect-all</code>")
                         </p></li></ol></div><p>
                 The decision by the host to automatically disconnect from an
-                IOC following zoning changes at the DC is controlled by two 
-                configuration parameters: <code class="code">disconnect-scope</code> and 
-                <code class="code">disconnect-trtypes</code>.
+                IOC following connectivity configuration changes is controlled
+                by two parameters: <code class="code">disconnect-scope</code>
+                and <code class="code">disconnect-trtypes</code>.
             </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="varname">disconnect-scope=</code></span></dt><dd><p>
                             Takes one of: <em class="parameter"><code>only-stas-connections</code></em>,
                             <em class="parameter"><code>all-connections-matching-disconnect-trtypes</code></em>, or <em class="parameter"><code>no-disconnect</code></em>.
@@ -246,8 +252,9 @@
                             been zoned for them. Connections to IOCs that a host
                             is not zoned to have access to should simply not exist.
                             In practice, however, users may not want hosts to
-                            disconnect from all IOCs in reaction to Fabric Zoning 
-                            changes or at least for some of the IOC connections.
+                            disconnect from all IOCs in reaction to connectivity
+                            configuration changes (or at least for some of the IOC
+                            connections).
                         </p><p>
                             Some users may prefer for IOC connections to be "sticky" 
                             and only be removed manually (<code class="code">nvme-cli</code> or 
@@ -264,11 +271,11 @@
                             termination happens. If a host was in the middle of writing
                             to a storage subsystem, there is a chance that outstanding
                             I/O operations may not successfully complete.
-                        </p><div class="refsect3"><a name="idm236"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>only-stas-connections</code></em></span></dt><dd><p>
+                        </p><div class="refsect3"><a name="idm237"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>only-stas-connections</code></em></span></dt><dd><p>
                                             Only remove connections previously made by <code class="code">stacd</code>.
                                         </p><p>
                                             In this mode, when a DLPE is removed as a result of
-                                            zoning configuration changes at a DC, the corresponding
+                                            connectivity configuration changes, the corresponding
                                             IOC connection will be removed by <code class="code">stacd</code>.
                                         </p><p>
                                             Connections to IOCs made externally, e.g. using <code class="code">nvme-cli</code>,
@@ -280,7 +287,7 @@
                                             configuration between <code class="code">stacd</code> and external tools.
                                         </p><p>
                                             Users wanting to persist some of their IOC connections
-                                            regardless of Fabric Zoning changes should not use 
+                                            regardless of connectivity configuration changes should not use
                                             <code class="code">nvme-cli</code> to make those connections. Instead, 
                                             they should hard-code them in <code class="filename">stacd.conf</code>
                                             with the <code class="varname">controller=</code> parameter. Using the
@@ -295,7 +302,7 @@
                                             subject to removal on DLPE removal.
                                         </p><p>
                                             In this mode, as DLPEs are removed as a result of
-                                            zoning configuration changes at a DC, the corresponding
+                                            connectivity configuration changes, the corresponding
                                             IOC connections will be removed by the host immediately
                                             whether they were made by <code class="code">stacd</code>, <code class="code">nvme-cli</code>,
                                             or any other way. Basically, <code class="code">stacd</code> audits 
@@ -336,7 +343,7 @@
                             a combination thereof by separating them with a plus (+) sign.
                             For example: <em class="parameter"><code>tcp+fc</code></em>. No spaces
                             are allowed between values and the plus (+) sign.
-                        </p><div class="refsect3"><a name="idm309"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>tcp</code></em></span></dt><dd><p>
+                        </p><div class="refsect3"><a name="idm310"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>tcp</code></em></span></dt><dd><p>
                                             Audit TCP connections.
                                         </p></dd><dt><span class="term"><em class="parameter"><code>rdma</code></em></span></dt><dd><p>
                                             Audit RDMA connections.
@@ -351,7 +358,7 @@
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm340"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm341"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
@@ -471,6 +478,6 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </p><pre class="programlisting">exclude = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
 exclude = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm422"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm423"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
         </p></div></div></body></html>

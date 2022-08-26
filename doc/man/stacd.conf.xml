@@ -229,12 +229,20 @@
         <refsect2>
             <title>[I/O controller disconnect policy] section</title>
             <para>
-                Fabric Zoning defines the connectivity relationships allowed 
-                between Host and Subsystem entities that are members of the same 
-                fabric. Entities that share a common zone (i.e., are zoned together) 
-                are allowed to discover each other and establish connections 
-                between them. Fabric Zoning is configured on Discovery Controllers (DC).
-                Users can add/remove controllers and/or hosts to/from zones.
+                Connectivity between hosts and subssystems in a fabric is
+                controlled by Fabric Zoning. Entities that share a common
+                zone (i.e., are zoned together) are allowed to discover each
+                other and establish connections between them. Fabric Zoning is
+                configured on Discovery Controllers (DC). Users can add/remove
+                controllers and/or hosts to/from zones.
+            </para>
+
+            <para>
+                Hosts have no direct knowledge of the Fabric Zoning configuration
+                that is active on a given DC. As a result, if a host is impacted
+                by a Fabric Zoning configuration change, it will be notified of
+                the connectivity configuration change by the DC via Asynchronous
+                Event Notifications (AEN).
             </para>
 
             <table frame='all'>
@@ -250,7 +258,7 @@
                     <tbody>
                         <row>
                             <entry>AEN</entry>
-                            <entry>Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. The AEN is used to notify hosts that a change (e.g., a zoning change) has occurred.</entry>
+                            <entry>Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. AENs are used by DCs to notify hosts that a change (e.g., a connectivity configuration change) has occurred.</entry>
                         </row>
 
                         <row>
@@ -303,7 +311,7 @@
 
 
             <para>
-                DCs notify hosts of Fabric Zoning configuration changes by sending
+                DCs notify hosts of connectivity configuration changes by sending
                 AENs indicating a "Discovery Log" change. The host uses these AENs as
                 a trigger to issue a Get Log Page command. The response to this command
                 is used to update the list of DLPEs containing the controllers
@@ -370,12 +378,12 @@
                     </listitem>
                     <listitem>
                         <para>
-                            Automatic Config. As explained above, changing
-                            zoning at a DC will result in the host getting
-                            a new list of DLPEs. On DLPE removal, the host
-                            should remove the connection to the IOC matching
-                            that DLPE. This behavior is configurable using
-                            the <varname>disconnect-scope=</varname> parameter
+                            Automatic Config. As explained above, a host gets a
+                            new list of DLPEs upon connectivity configuration
+                            changes. On DLPE removal, the host should remove the
+                            connection to the IOC matching that DLPE. This
+                            behavior is configurable using the
+                            <varname>disconnect-scope=</varname> parameter
                             described below.
                         </para>
                     </listitem>
@@ -390,9 +398,9 @@
 
             <para>
                 The decision by the host to automatically disconnect from an
-                IOC following zoning changes at the DC is controlled by two 
-                configuration parameters: <code>disconnect-scope</code> and 
-                <code>disconnect-trtypes</code>.
+                IOC following connectivity configuration changes is controlled
+                by two parameters: <code>disconnect-scope</code>
+                and <code>disconnect-trtypes</code>.
             </para>
 
             <variablelist>
@@ -409,8 +417,9 @@
                             been zoned for them. Connections to IOCs that a host
                             is not zoned to have access to should simply not exist.
                             In practice, however, users may not want hosts to
-                            disconnect from all IOCs in reaction to Fabric Zoning 
-                            changes or at least for some of the IOC connections.
+                            disconnect from all IOCs in reaction to connectivity
+                            configuration changes (or at least for some of the IOC
+                            connections).
                         </para>
 
                         <para>
@@ -444,7 +453,7 @@
                                         </para>
                                         <para>
                                             In this mode, when a DLPE is removed as a result of
-                                            zoning configuration changes at a DC, the corresponding
+                                            connectivity configuration changes, the corresponding
                                             IOC connection will be removed by <code>stacd</code>.
                                         </para>
                                         <para>
@@ -458,7 +467,7 @@
                                         </para>
                                         <para>
                                             Users wanting to persist some of their IOC connections
-                                            regardless of Fabric Zoning changes should not use 
+                                            regardless of connectivity configuration changes should not use
                                             <code>nvme-cli</code> to make those connections. Instead, 
                                             they should hard-code them in <filename>stacd.conf</filename>
                                             with the <varname>controller=</varname> parameter. Using the
@@ -481,7 +490,7 @@
                                         </para>
                                         <para>
                                             In this mode, as DLPEs are removed as a result of
-                                            zoning configuration changes at a DC, the corresponding
+                                            connectivity configuration changes, the corresponding
                                             IOC connections will be removed by the host immediately
                                             whether they were made by <code>stacd</code>, <code>nvme-cli</code>,
                                             or any other way. Basically, <code>stacd</code> audits 
