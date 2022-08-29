@@ -229,7 +229,7 @@
         <refsect2>
             <title>[I/O controller disconnect policy] section</title>
             <para>
-                Connectivity between hosts and subssystems in a fabric is
+                Connectivity between hosts and subsystems in a fabric is
                 controlled by Fabric Zoning. Entities that share a common
                 zone (i.e., are zoned together) are allowed to discover each
                 other and establish connections between them. Fabric Zoning is

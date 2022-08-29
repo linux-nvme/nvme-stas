@@ -219,7 +219,7 @@ class Stac(Service):
 
         return list()
 
-    def _config_ctrls_finish(self, configured_ctrl_list):
+    def _config_ctrls_finish(self, configured_ctrl_list):  # pylint: disable=too-many-locals
         configured_ctrl_list = [
             ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict and 'subsysnqn' in ctrl_dict
         ]
@@ -246,10 +246,14 @@ class Stac(Service):
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
+        svc_conf = conf.SvcConf()
+        no_disconnect = svc_conf.disconnect_scope == 'no-disconnect'
+        match_trtypes = svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes'
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, conf.SvcConf().disconnect_scope == 'no-disconnect')
+                keep_connection = no_disconnect or (match_trtypes and tid.transport not in svc_conf.disconnect_trtypes)
+                controller.disconnect(self.remove_controller, keep_connection)
 
         for tid in controllers_to_add:
             self._controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
