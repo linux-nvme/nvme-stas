@@ -12,8 +12,10 @@ throughout nvme-stas to uniquely identify a Controller'''
 import hashlib
 from staslib import conf
 
+
 class TID:  # pylint: disable=too-many-instance-attributes
     '''Transport Identifier'''
+
     RDMA_IP_PORT = '4420'
     DISC_IP_PORT = '8009'
 
@@ -40,8 +42,9 @@ class TID:  # pylint: disable=too-many-instance-attributes
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface  = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
         self._subsysnqn   = cid.get('subsysnqn')
-        key               = (self._transport, self._traddr, self._trsvcid, self._host_traddr, self._subsysnqn)
-        self._hash        = int.from_bytes(hashlib.md5(''.join(key).encode('utf-8')).digest(), 'big')  # We need a consistent hash between restarts
+        self._shortkey    = (self._transport, self._traddr, self._trsvcid, self._subsysnqn, self._host_traddr)
+        self._key         = (self._transport, self._traddr, self._trsvcid, self._subsysnqn, self._host_traddr, self._host_iface)
+        self._hash        = int.from_bytes(hashlib.md5(''.join(self._key).encode('utf-8')).digest(), 'big')  # We need a consistent hash between restarts
         self._id          = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'  # pylint: disable=line-too-long
 
     @property
@@ -85,10 +88,22 @@ class TID:  # pylint: disable=too-many-instance-attributes
         return self._id
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self._hash == other._hash
+        if not isinstance(other, self.__class__):
+            return False
+
+        if self._host_iface and other._host_iface:
+            return self._key == other._key
+
+        return self._shortkey == other._shortkey
 
     def __ne__(self, other):
-        return not isinstance(other, self.__class__) or self._hash != other._hash
+        if not isinstance(other, self.__class__):
+            return True
+
+        if self._host_iface and other._host_iface:
+            return self._key != other._key
+
+        return self._shortkey != other._shortkey
 
     def __hash__(self):
         return self._hash
