@@ -12,6 +12,7 @@ access to GLib/Gio/Gobject resources.
 
 import logging
 from gi.repository import Gio, GLib, GObject
+from staslib import trid
 
 # ******************************************************************************
 class GTimer:
@@ -110,7 +111,7 @@ class NameResolver:  # pylint: disable=too-few-public-methods
     def __init__(self):
         self._resolver = Gio.Resolver.get_default()
 
-    def resolve_ctrl_async(self, cancellable, controllers: dict, callback):
+    def resolve_ctrl_async(self, cancellable, controllers: list, callback):
         '''@brief The traddr fields may specify a hostname instead of an IP
         address. We need to resolve all the host names to addresses.
         Resolving hostnames may take a while as a DNS server may need
@@ -123,7 +124,8 @@ class NameResolver:  # pylint: disable=too-few-public-methods
         pending_resolution_count = 0
 
         def addr_resolved(resolver, result, indx):
-            hostname = controllers[indx]['traddr']
+            cid = controllers[indx].as_dict()
+            hostname = cid['traddr']
             traddr = hostname
             try:
                 addresses = resolver.lookup_by_name_finish(result)
@@ -138,7 +140,9 @@ class NameResolver:  # pylint: disable=too-few-public-methods
                     logging.error('Cannot resolve traddr: %s. %s', hostname, err.message)  # pylint: disable=no-member
 
             logging.debug('NameResolver.resolve_ctrl_async()  - resolved \'%s\' -> %s', hostname, traddr)
-            controllers[indx]['traddr'] = traddr
+
+            cid['traddr'] = traddr
+            controllers[indx] = trid.TID(cid)
 
             # Invoke callback after all hostnames have been resolved
             nonlocal pending_resolution_count
@@ -147,8 +151,8 @@ class NameResolver:  # pylint: disable=too-few-public-methods
                 callback(controllers)
 
         for indx, controller in enumerate(controllers):
-            if controller.get('transport') in ('tcp', 'rdma'):
-                hostname = controller.get('traddr')
+            if controller.transport in ('tcp', 'rdma'):
+                hostname = controller.traddr
                 if not hostname:
                     logging.error('Invalid traddr: %s', controller)
                 else:

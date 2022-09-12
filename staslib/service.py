@@ -19,7 +19,7 @@ import dasbus.client.proxy
 
 from gi.repository import GLib
 from libnvme import nvme
-from staslib import avahi, conf, ctrl, defs, gutil, stas, trid, udev
+from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, trid, udev
 
 
 # ******************************************************************************
@@ -132,6 +132,9 @@ class Stac(Service):
         controllers = {}
         for tid in config:
             # Only create Ioc objects if there is already a connection in the kernel
+            # First, regenerate the TID (in case of soft. upgrade and TID object
+            # has changed internally)
+            tid = trid.TID(tid.as_dict())
             if udev.UDEV.find_nvme_ioc_device(tid) is not None:
                 controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
 
@@ -207,6 +210,10 @@ class Stac(Service):
         self._config_connections_audit()
         udev_rule_ctrl(service_cnf.udev_rule_enabled)
         self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
+
+        for controller in self._controllers.values():
+            controller.reload_hdlr()
+
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
 
@@ -219,26 +226,31 @@ class Stac(Service):
 
         return list()
 
-    def _config_ctrls_finish(self, configured_ctrl_list):  # pylint: disable=too-many-locals
+    def _config_ctrls_finish(self, configured_ctrl_list: list):  # pylint: disable=too-many-locals
+        '''@param configured_ctrl_list: list of TIDs'''
+        # Eliminate invalid entries
         configured_ctrl_list = [
-            ctrl_dict for ctrl_dict in configured_ctrl_list if 'traddr' in ctrl_dict and 'subsysnqn' in ctrl_dict
+            tid for tid in configured_ctrl_list if '' not in (tid.transport, tid.traddr, tid.trsvcid, tid.subsysnqn)
         ]
+
         logging.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
 
-        discovered_ctrl_list = list()
+        discovered_ctrls = dict()
         for staf_data in self._get_log_pages_from_stafd():
             host_traddr = staf_data['discovery-controller']['host-traddr']
             host_iface = staf_data['discovery-controller']['host-iface']
             for dlpe in staf_data['log-pages']:
                 if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
-                    discovered_ctrl_list.append(stas.cid_from_dlpe(dlpe, host_traddr, host_iface))
+                    tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface)
+                    discovered_ctrls[tid] = dlpe
 
+        discovered_ctrl_list = list(discovered_ctrls.keys())
         logging.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
 
         controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list)
-        controllers = stas.remove_invalid_addresses(controllers)
+        controllers = iputil.remove_invalid_addresses(controllers)
 
-        new_controller_ids = {trid.TID(controller) for controller in controllers}
+        new_controller_ids = set(controllers)
         cur_controller_ids = set(self._controllers.keys())
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_del = cur_controller_ids - new_controller_ids
@@ -257,6 +269,11 @@ class Stac(Service):
 
         for tid in controllers_to_add:
             self._controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
+
+        for tid, controller in self._controllers.items():
+            if tid in discovered_ctrls:
+                dlpe = discovered_ctrls[tid]
+                controller.update_dlpe(dlpe)
 
         self._dump_last_known_config(self._controllers)
 
@@ -363,6 +380,13 @@ class Staf(Service):
         self._avahi.kick_start()  # Make sure Avahi is running
         self._avahi.config_stypes(service_cnf.get_stypes())
         self._cfg_soak_tmr.start()
+
+        if self._host.hostsymname != conf.SysConf().hostsymname:
+            self._host.set_symname(conf.SysConf().hostsymname)
+            for controller in self._controllers.values():
+                controller.reload_hdlr()
+                controller.register()
+
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
 
@@ -390,31 +414,39 @@ class Staf(Service):
 
     def _referrals(self) -> list:
         return [
-            stas.cid_from_dlpe(dlpe, controller.tid.host_traddr, controller.tid.host_iface)
+            stas.tid_from_dlpe(dlpe, controller.tid.host_traddr, controller.tid.host_iface)
             for controller in self.get_controllers()
             for dlpe in controller.referrals()
         ]
 
-    def _config_ctrls_finish(self, configured_ctrl_list):
+    def _config_ctrls_finish(self, configured_ctrl_list: list):
         '''@brief Finish discovery controllers configuration after
         hostnames (if any) have been resolved.
+        @param configured_ctrl_list: List of TIDs
         '''
-        configured_ctrl_list = [
-            ctrl_dict
-            for ctrl_dict in configured_ctrl_list
-            if 'traddr' in ctrl_dict and ctrl_dict.setdefault('subsysnqn', defs.WELL_KNOWN_DISC_NQN)
-        ]
+        # Eliminate invalid entries
+        controllers = list()
+        for tid in configured_ctrl_list:
+            if '' in (tid.transport, tid.traddr, tid.trsvcid):
+                continue
+            if not tid.subsysnqn:
+                cid = tid.as_dict()
+                cid['subsysnqn'] = defs.WELL_KNOWN_DISC_NQN
+                controllers.append(trid.TID(cid))
+            else:
+                controllers.append(tid)
+        configured_ctrl_list = controllers
 
-        discovered_ctrl_list = self._avahi.get_controllers()
+        discovered_ctrl_list = [trid.TID(cid) for cid in self._avahi.get_controllers()]
         referral_ctrl_list = self._referrals()
         logging.debug('Staf._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
 
         controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
-        controllers = stas.remove_invalid_addresses(controllers)
+        controllers = iputil.remove_invalid_addresses(controllers)
 
-        new_controller_ids = {trid.TID(controller) for controller in controllers}
+        new_controller_ids = set(controllers)
         cur_controller_ids = set(self._controllers.keys())
         controllers_to_add = new_controller_ids - cur_controller_ids
         controllers_to_del = cur_controller_ids - new_controller_ids

@@ -158,7 +158,7 @@ tron=true
 kato=10
 udev-rule=disabled
 
-[I/O controller disconnect policy]
+[I/O controller connection management]
 disconnect-scope=all-connections-matching-disconnect-trtypes
 disconnect-trtype=tcp+rdma
 EOF
@@ -242,7 +242,7 @@ cat > "${stacd_conf_fname}" <<'EOF'
 tron=true
 udev-rule=disabled
 
-[I/O controller disconnect policy]
+[I/O controller connection management]
 disconnect-scope=blah-blah
 disconnect-trtypes=boing-boing
 EOF

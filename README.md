@@ -93,7 +93,9 @@ The following packages must be installed to use **`stafd`**/**`stacd`**
 
 ```bash
 sudo apt-get install -y python3-pyudev python3-systemd python3-gi
-sudo pip3 install dasbus
+sudo apt-get install -y python3-dasbus # Ubuntu 22.04
+OR:
+sudo pip3 install dasbus # Ubuntu 20.04
 ```
 
 **RPM packages (tested on Fedora 34..35 and SLES15):**

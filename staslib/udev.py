@@ -11,7 +11,7 @@
 import os
 import logging
 import pyudev
-from staslib import defs, trid
+from staslib import defs, iputil, trid
 
 try:
     from pyudev.glib import MonitorObserver
@@ -223,6 +223,45 @@ class Udev:
         return '' if attr.lower() == 'none' else attr
 
     @staticmethod
+    def get_key_from_attr(device, attr, key, delim=','):
+        '''Get attribute specified by attr, which is composed of key=value pairs.
+        Then return the value associated with key.
+        @param device: The Device object
+        @param attr: The device's attribute to get
+        @param key: The key to look for in the attribute
+        @param delim: Delimiter used between key=value pairs.
+        @example:
+            "address" attribute contains "trtype=tcp,traddr=10.10.1.100,trsvcid=4420,host_traddr=10.10.1.50"
+        '''
+        address_attr = Udev._get_attribute(device, attr)
+        if not address_attr:
+            return ''
+
+        if key[-1] != '=':
+            key += '='
+        start = address_attr.find(key)
+        if start < 0:
+            return ''
+        start += len(key)
+
+        end = address_attr.find(delim, start)
+        if end < 0:
+            return address_attr[start:]
+
+        return address_attr[start:end]
+
+    @staticmethod
+    def _get_host_iface(device):
+        host_iface = Udev._get_property(device, 'NVME_HOST_IFACE')
+        if not host_iface:
+            # We'll try to find the interface from the source address on
+            # the connection. Only available if kernel exposes the source
+            # address (src_addr) in the "address" attribute.
+            src_addr = Udev.get_key_from_attr(device, 'address', 'src_addr=')
+            host_iface = iputil.get_interface(src_addr)
+        return host_iface
+
+    @staticmethod
     def get_tid(device):
         '''@brief return the Transport ID associated with a udev device'''
         cid = {
@@ -230,7 +269,7 @@ class Udev:
             'traddr':      Udev._get_property(device, 'NVME_TRADDR'),
             'trsvcid':     Udev._get_property(device, 'NVME_TRSVCID'),
             'host-traddr': Udev._get_property(device, 'NVME_HOST_TRADDR'),
-            'host-iface':  Udev._get_property(device, 'NVME_HOST_IFACE'),
+            'host-iface':  Udev._get_host_iface(device),
             'subsysnqn':   Udev._get_attribute(device, 'subsysnqn'),
         }
         return trid.TID(cid)

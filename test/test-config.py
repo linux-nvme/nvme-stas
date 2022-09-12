@@ -18,7 +18,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'kato=200\n',
             'ip-family=ipv6\n',
             '\n',
-            '[I/O controller disconnect policy]\n',
+            '[I/O controller connection management]\n',
             'disconnect-scope = joe\n',
             'disconnect-trtypes = bob\n',
             '\n',

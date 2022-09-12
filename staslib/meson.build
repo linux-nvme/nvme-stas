@@ -23,6 +23,7 @@ files_to_copy = [
     'ctrl.py',
     'glibudev.py',
     'gutil.py',
+    'iputil.py',
     'log.py',
     'service.py',
     'singleton.py',
