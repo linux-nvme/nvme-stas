@@ -75,10 +75,12 @@ class Test(unittest.TestCase):
     def test_eq(self):
         '''Check that two TRID objects can be tested for equality'''
         self.assertEqual(self.tid, trid.TID(self.cid))
+        self.assertFalse(self.tid == 'blah')
 
     def test_ne(self):
         '''Check that two TID objects can be tested for non-equality'''
         self.assertNotEqual(self.tid, self.other_tid)
+        self.assertNotEqual(self.tid, 'hello')
 
 
 if __name__ == '__main__':

@@ -15,7 +15,6 @@ import abc
 import signal
 import pickle
 import logging
-import ipaddress
 import systemd.daemon
 import dasbus.connection
 from gi.repository import Gio, GLib
@@ -45,9 +44,9 @@ def check_if_allowed_to_continue():
 
 
 # ******************************************************************************
-def cid_from_dlpe(dlpe, host_traddr, host_iface):
+def tid_from_dlpe(dlpe, host_traddr, host_iface):
     '''@brief Take a Discovery Log Page Entry and return a Controller ID as a dict.'''
-    return {
+    cid = {
         'transport':   dlpe['trtype'],
         'traddr':      dlpe['traddr'],
         'trsvcid':     dlpe['trsvcid'],
@@ -55,10 +54,11 @@ def cid_from_dlpe(dlpe, host_traddr, host_iface):
         'host-iface':  host_iface,
         'subsysnqn':   dlpe['subnqn'],
     }
+    return trid.TID(cid)
 
 
 # ******************************************************************************
-def _excluded(excluded_ctrl_list, controller):
+def _excluded(excluded_ctrl_list, controller: dict):
     '''@brief Check if @controller is excluded.'''
     for excluded_ctrl in excluded_ctrl_list:
         test_results = [val == controller.get(key, None) for key, val in excluded_ctrl.items()]
@@ -69,51 +69,16 @@ def _excluded(excluded_ctrl_list, controller):
 
 # ******************************************************************************
 def remove_excluded(controllers: list):
-    '''@brief Remove excluded controllers from the list of controllers.'''
+    '''@brief Remove excluded controllers from the list of controllers.
+    @param controllers: List of TIDs
+    '''
     excluded_ctrl_list = conf.SvcConf().get_excluded()
     if excluded_ctrl_list:
         logging.debug('remove_excluded()                  - excluded_ctrl_list = %s', excluded_ctrl_list)
-        controllers = [controller for controller in controllers if not _excluded(excluded_ctrl_list, controller)]
+        controllers = [
+            controller for controller in controllers if not _excluded(excluded_ctrl_list, controller.as_dict())
+        ]
     return controllers
-
-
-# ******************************************************************************
-def remove_invalid_addresses(controllers: list):
-    '''@brief Remove controllers with invalid addresses from the list of controllers.'''
-    valid_controllers = list()
-    for controller in controllers:
-        transport = controller.get('transport')
-        if transport in ('tcp', 'rdma'):
-            # Let's make sure that traddr is
-            # syntactically a valid IPv4 or IPv6 address.
-            traddr = controller.get('traddr')
-            try:
-                ip = ipaddress.ip_address(traddr)
-            except ValueError:
-                logging.warning('%s IP address is not valid', trid.TID(controller))
-                continue
-
-            # Let's make sure the address family is enabled.
-            service_conf = conf.SvcConf()
-            if ip.version not in service_conf.ip_family:
-                logging.debug(
-                    '%s ignored because IPv%s is disabled in %s',
-                    trid.TID(controller),
-                    ip.version,
-                    service_conf.conf_file,
-                )
-                continue
-
-            valid_controllers.append(controller)
-
-        elif transport in ('fc', 'loop'):
-            # At some point, need to validate FC addresses as well...
-            valid_controllers.append(controller)
-
-        else:
-            logging.warning('Invalid transport %s', transport)
-
-    return valid_controllers
 
 
 # ******************************************************************************
@@ -198,6 +163,9 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         self._try_to_connect_deferred.schedule()
         return GLib.SOURCE_REMOVE
 
+    def _should_try_to_reconnect(self):  # pylint: disable=no-self-use
+        return True
+
     def _try_to_connect(self):
         # This is a deferred function call. Make sure
         # the source of the deferred is still good.
@@ -230,6 +198,11 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         raise NotImplementedError()
 
     @abc.abstractmethod
+    def connected(self):
+        '''@brief Return whether a connection is established'''
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def disconnect(self, disconnected_cb, keep_connection):
         '''@brief Issue an asynchronous disconnect command to a Controller.
         Once the async command has completed, the callback 'disconnected_cb'
@@ -237,6 +210,11 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         callback will be added to the main loop's next idle slot to be executed
         ASAP.
         '''
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def reload_hdlr(self):
+        '''@brief This is called when a "reload" signal is received.'''
         raise NotImplementedError()
 
 
@@ -459,7 +437,8 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         # elements after name resolution is complete (i.e. in the calback
         # function _config_ctrls_finish)
         logging.debug('ServiceABC._config_ctrls()')
-        configured_controllers = remove_excluded(conf.SvcConf().get_controllers())
+        configured_controllers = [trid.TID(controller) for controller in conf.SvcConf().get_controllers()]
+        configured_controllers = remove_excluded(configured_controllers)
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
     def _read_lkc(self):

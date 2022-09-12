@@ -19,6 +19,9 @@ class TestController(ctrl.Controller):
     def _on_nvme_event(self, nvme_event):
         pass
 
+    def reload_hdlr(self):
+        pass
+
 
 class Test(TestCase):
     '''Unit tests for class Controller'''
@@ -75,14 +78,23 @@ class Test(TestCase):
         )
         self.assertEqual(controller.device, 'nvme?')
         self.assertEqual(
-            str(controller.controller_id_dict()),
-            "{'transport': 'tcp', 'traddr': '10.10.10.10', 'trsvcid': '8009', 'host-traddr': '1.2.3.4', 'host-iface': 'wlp0s20f3', 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8', 'device': 'nvme?'}",
+            controller.controller_id_dict(),
+            {
+                'transport': 'tcp',
+                'traddr': '10.10.10.10',
+                'trsvcid': '8009',
+                'host-traddr': '1.2.3.4',
+                'host-iface': 'wlp0s20f3',
+                'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
+                'device': 'nvme?',
+            },
         )
         self.assertEqual(
             controller.details(),
             {
                 'dctype': '',
                 'cntrltype': '',
+                'connected': 'False',
                 'transport': 'tcp',
                 'traddr': '10.10.10.10',
                 'trsvcid': '8009',
@@ -103,6 +115,7 @@ class Test(TestCase):
             {
                 'dctype': '',
                 'cntrltype': '',
+                'connected': 'False',
                 'transport': 'tcp',
                 'traddr': '10.10.10.10',
                 'trsvcid': '8009',

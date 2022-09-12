@@ -18,6 +18,16 @@ from staslib import conf, gutil, trid, udev, stas
 DC_KATO_DEFAULT = 30  # seconds
 
 
+def get_eflags(dlpe):
+    '''@brief Return eflags field of dlpe'''
+    return int(dlpe.get('eflags', 0)) if dlpe else 0
+
+
+def get_ncc(eflags: int):
+    '''@brief Return True if Not Connected to CDC bit is asserted, False otherwise'''
+    return 0 != (eflags & nvme.NVMF_DISC_EFLAGS_NCC)
+
+
 # ******************************************************************************
 class Controller(stas.ControllerABC):
     '''@brief Base class used to manage the connection to a controller.'''
@@ -52,6 +62,10 @@ class Controller(stas.ControllerABC):
 
         return self._device or 'nvme?'
 
+    def connected(self):
+        '''@brief Return whether a connection is established'''
+        return self._ctrl and self._ctrl.connected()
+
     def controller_id_dict(self) -> dict:
         '''@brief return the controller ID as a dict.'''
         cid = super().controller_id_dict()
@@ -64,6 +78,7 @@ class Controller(stas.ControllerABC):
         details.update(
             self._udev.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial', 'dctype', 'cntrltype'))
         )
+        details['connected'] = str(self.connected())
         return details
 
     def info(self) -> dict:
@@ -216,13 +231,14 @@ class Controller(stas.ControllerABC):
                 self._retry_connect_tmr.set_timeout(self.CONNECT_RETRY_PERIOD_SEC)
                 logging.error('%s Failed to connect to controller. %s %s', self.id, err.domain, err.message)
 
-            logging.debug(
-                'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
-                self.id,
-                err,
-                self._retry_connect_tmr.get_timeout(),
-            )
-            self._retry_connect_tmr.start()
+            if self._should_try_to_reconnect():
+                logging.debug(
+                    'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
+                    self.id,
+                    err,
+                    self._retry_connect_tmr.get_timeout(),
+                )
+                self._retry_connect_tmr.start()
         else:
             logging.debug(
                 'Controller._on_connect_fail()      - %s Received event on dead object. %s %s',
@@ -306,6 +322,10 @@ class Dc(Controller):
             self._register_op.kill()
             self._register_op = None
 
+    def reload_hdlr(self):
+        '''@brief This is called when a "reload" signal is received.'''
+        pass  # pylint: disable=unnecessary-pass
+
     def info(self) -> dict:
         '''@brief Get the controller info for this object'''
         info = super().info()
@@ -330,6 +350,11 @@ class Dc(Controller):
     def referrals(self) -> list:
         '''@brief Return the list of referrals'''
         return [page for page in self._log_pages if page['subtype'] == 'referral']
+
+    def register(self):
+        '''@brief Send DIM command to DC'''
+        if self._register_op:
+            self._register_op.run_async()
 
     def _on_aen(self, aen: int):
         if aen == self.DLP_CHANGED and self._get_log_op:
@@ -499,6 +524,7 @@ class Ioc(Controller):
 
     def __init__(self, stac, root, host, tid: trid.TID):
         self._stac = stac
+        self._dlpe = None
         super().__init__(root, host, tid)
 
     def _release_resources(self):
@@ -522,3 +548,42 @@ class Ioc(Controller):
 
     def _on_nvme_event(self, nvme_event):
         pass
+
+    def reload_hdlr(self):
+        '''@brief This is called when a "reload" signal is received.'''
+        if not self.connected() and self._retry_connect_tmr.time_remaining() == 0:
+            self._try_to_connect_deferred.schedule()
+
+    @property
+    def eflags(self):
+        '''@brief Return the eflag field of the DLPE'''
+        return get_eflags(self._dlpe)
+
+    @property
+    def ncc(self):
+        '''@brief Return Not Connected to CDC status'''
+        return get_ncc(self.eflags)
+
+    def details(self) -> dict:
+        '''@brief return detailed debug info about this controller'''
+        details = super().details()
+        details['dlpe'] = str(self._dlpe)
+        details['dlpe.eflags.ncc'] = str(self.ncc)
+        return details
+
+    def update_dlpe(self, dlpe):
+        '''@brief This method is called when a new DLPE associated
+        with this controller is received.'''
+        new_ncc    = get_ncc(get_eflags(dlpe))
+        old_ncc    = self.ncc
+        self._dlpe = dlpe
+
+        if old_ncc and not new_ncc:  # NCC bit cleared?
+            if not self.connected():
+                self._connect_attempts = 0
+                self._try_to_connect_deferred.schedule()
+
+    def _should_try_to_reconnect(self):
+        '''@brief This is used to determine when it's time to stop trying toi connect'''
+        max_connect_attempts = conf.SvcConf().connect_attempts_on_ncc if self.ncc else 0
+        return max_connect_attempts == 0 or self._connect_attempts < max_connect_attempts

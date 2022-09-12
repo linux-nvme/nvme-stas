@@ -15,7 +15,7 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.2-rc1</span><hr><div class="refentry"><a name="stacd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd.conf — 
+  </style><a>   </a><span style="float:right">nvme-stas 1.2-rc3</span><hr><div class="refentry"><a name="stacd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd.conf — 
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
             configuration file
         </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><p>
@@ -171,8 +171,8 @@
                             that <code class="code">udevd</code> will not react to AENs. This 
                             prevents the race condition from happening by default 
                             and error messages will not be printed to the syslog.
-                        </p></dd></dl></div></div><div class="refsect2"><a name="idm136"></a><h3>[I/O controller disconnect policy] section</h3><p>
-                Connectivity between hosts and subssystems in a fabric is
+                        </p></dd></dl></div></div><div class="refsect2"><a name="idm136"></a><h3>[I/O controller connection management] section</h3><p>
+                Connectivity between hosts and subsystems in a fabric is
                 controlled by Fabric Zoning. Entities that share a common
                 zone (i.e., are zoned together) are allowed to discover each
                 other and establish connections between them. Fabric Zoning is
@@ -351,6 +351,43 @@
                                             Audit Fibre Channel connections.
                                         </p></dd></dl></div></div><p>
                             Defaults to <em class="parameter"><code>tcp</code></em>.
+                        </p></dd><dt><span class="term"><code class="varname">connect-attempts-on-ncc=</code></span></dt><dd><p>
+                            The NCC bit (Not Connected to CDC) is a bit returned
+                            by the CDC in the EFLAGS field of the DLPE. Only CDCs
+                            will set the NCC bit. DDCs will always clear NCC to
+                            0. The NCC bit is a way for the CDC to let hosts
+                            know that the subsystem is currently not reachable
+                            by the CDC. This may indicate that the subsystem is
+                            currently down or that there is an outage on the
+                            section of the network connecting the CDC to the
+                            subsystem.
+                        </p><p>
+                            If a host is currently failing to connect to an I/O
+                            controller and if the NCC bit associated with that
+                            I/O controller is asserted, the host can decide to
+                            stop trying to connect to that subsystem until
+                            connectivity is restored. This will be indicated by
+                            the CDC when it clears the NCC bit.
+                        </p><p>
+                            The parameter <code class="varname">connect-attempts-on-ncc=</code>
+                            controls whether <code class="code">stacd</code> will take the
+                            NCC bit into account when attempting to connect to
+                            an I/O Controller. Setting <code class="varname">connect-attempts-on-ncc=</code>
+                            to 0 means that <code class="code">stacd</code> will ignore
+                            the NCC bit and will keep trying to connect. Setting
+                            <code class="varname">connect-attempts-on-ncc=</code> to a
+                            non-zero value indicates the number of connection
+                            attempts that will be made before <code class="code">stacd</code>
+                            gives up trying. Note that this value should be set
+                            to a value greater than 1. In fact, when set to 1,
+                            <code class="code">stacd</code> will automatically use 2 instead.
+                            The reason for this is simple. It is possible that a
+                            first connect attempt may fail especially if
+                            <code class="code">nvme-cli</code>'s udev rule is enabled (see
+                            race condition discussion under the
+                            <code class="varname">udev-rule=</code> parameter above).
+                        </p><p>
+                            Defaults to <em class="parameter"><code>0</code></em>.
                         </p></dd></dl></div></div><div class="refsect2"><a name="controller"></a><h3>[Controllers] section</h3><p>The following options are available in the
             "<code class="literal">[Controllers]</code>" section:</p><dt><span class="term"><code class="varname">controller=</code></span></dt><dd><p><a name="controller-text"></a>
                     Controllers are specified with the <code class="varname">controller</code>
@@ -358,7 +395,7 @@
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm341"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm359"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
@@ -478,6 +515,6 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </p><pre class="programlisting">exclude = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
 exclude = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm423"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm441"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
         </p></div></div></body></html>

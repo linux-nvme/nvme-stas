@@ -77,8 +77,9 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
-            ('I/O controller disconnect policy', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller disconnect policy', 'disconnect-trtypes'): ['tcp'],
+            ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
+            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
+            ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
         self._conf_file = conf_file
         self.reload()
@@ -142,34 +143,34 @@ class SvcConf(metaclass=singleton.Singleton):
     @property
     def disconnect_scope(self):
         '''@brief return the disconnect scope (i.e. which connections are affected by DLPE removal)'''
-        disconnect_scope = self.__get_value('I/O controller disconnect policy', 'disconnect-scope')[0]
+        disconnect_scope = self.__get_value('I/O controller connection management', 'disconnect-scope')[0]
         if disconnect_scope not in (
             'only-stas-connections',
             'all-connections-matching-disconnect-trtypes',
             'no-disconnect',
         ):
             logging.warning(
-                'File:%s, Section: [I/O controller disconnect policy] - Invalid "disconnect-scope": %s',
+                'File:%s, Section: [I/O controller connection management] - Invalid "disconnect-scope": %s',
                 self.conf_file,
                 disconnect_scope,
             )
 
-            disconnect_scope = self._defaults[('I/O controller disconnect policy', 'disconnect-scope')]
+            disconnect_scope = self._defaults[('I/O controller connection management', 'disconnect-scope')]
         return disconnect_scope
 
     @property
     def disconnect_trtypes(self):
         '''@brief return the type(s) of transport that will be audited
-        as part of I/O controller disconnect policy, when "disconnect-scope" is set to
+        as part of I/O controller connection management, when "disconnect-scope" is set to
         "all-connections-matching-disconnect-trtypes"'''
-        attr = self.__get_value('I/O controller disconnect policy', 'disconnect-trtypes')[0]
-        attr = set(attr.split('+'))  # Use set() to eliminate potential duplicates
+        value = self.__get_value('I/O controller connection management', 'disconnect-trtypes')[0]
+        value = set(value.split('+'))  # Use set() to eliminate potential duplicates
 
         trtypes = []
-        for trtype in attr:
+        for trtype in value:
             if trtype not in ('tcp', 'rdma', 'fc'):
                 logging.warning(
-                    'File:%s, Section: [I/O controller disconnect policy], Invalid "disconnect-trtypes": %s',
+                    'File:%s, Section: [I/O controller connection management], Invalid "disconnect-trtypes": %s',
                     self.conf_file,
                     trtype,
                 )
@@ -177,9 +178,28 @@ class SvcConf(metaclass=singleton.Singleton):
                 trtypes.append(trtype)
 
         if len(trtypes) == 0:
-            trtypes = self._defaults[('I/O controller disconnect policy', 'disconnect-trtypes')]
+            trtypes = self._defaults[('I/O controller connection management', 'disconnect-trtypes')]
 
         return trtypes
+
+    @property
+    def connect_attempts_on_ncc(self):
+        '''@brief Return the number of connection attempts that will be made
+        when the NCC bit (Not Connected to CDC) is asserted.'''
+        try:
+            value = int(self.__get_value('I/O controller connection management', 'connect-attempts-on-ncc')[0])
+        except ValueError as ex:
+            logging.warning(
+                'File:%s, Section: [I/O controller connection management], Parameter "connect-attempts-on-ncc": %s',
+                self.conf_file,
+                ex,
+            )
+            value = self._defaults[('I/O controller connection management', 'connect-attempts-on-ncc')]
+
+        if value == 1:  # 1 is invalid. A minimum of 2 is required (with the exception of 0, which is valid).
+            value = 2
+
+        return value
 
     @property
     def kato(self):

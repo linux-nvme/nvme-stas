@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.53.0',
-    version: '1.2-rc2',
+    version: '1.2-rc3',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -35,30 +35,34 @@ want_html = get_option('html')
 libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
 
 # Check that we have all the right Python3 dependencies
-python3 = import('python').find_installation('python3')
+py_modules = ['dasbus', 'pyudev', 'systemd', 'gi']
+if want_man or want_html
+    py_modules += ['lxml']
+endif
+python3 = import('python').find_installation('python3', modules:py_modules)
 python_version = python3.language_version()
 python_version_req = '>=3.6'
 if not python_version.version_compare(python_version_req)
     error('Python @0@ required. Found @1@ instead'.format(python_version_req, python_version))
 endif
 
-check_pymodules = get_option('check_pymodules')
-if check_pymodules
-    py_modules_reqd = [
-        ['dasbus',    'Install python3-dasbus (rpm) OR pip3 install dasbus'],
-        ['pyudev',    'Install python3-pyudev (deb/rpm)'],
-        ['systemd',   'Install python3-systemd (deb/rpm)'],
-        ['gi',        'Install python3-gi (deb) OR python3-gobject (rpm)'],
-    ]
-    if want_man or want_html
-        py_modules_reqd += [['lxml', 'Install python3-lxml (deb/rpm)']]
-    endif
-    foreach p : py_modules_reqd
-        if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
-            error('Required python3 module "@0@" not found. @1@'.format(p[0], p[1]))
-        endif
-    endforeach
-endif
+#check_pymodules = get_option('check_pymodules')
+#if check_pymodules
+#    py_modules_reqd = [
+#        ['dasbus',    'Install python3-dasbus (deb/rpm) OR pip3 install dasbus'],
+#        ['pyudev',    'Install python3-pyudev (deb/rpm)'],
+#        ['systemd',   'Install python3-systemd (deb/rpm)'],
+#        ['gi',        'Install python3-gi (deb) OR python3-gobject (rpm)'],
+#    ]
+#    if want_man or want_html
+#        py_modules_reqd += [['lxml', 'Install python3-lxml (deb/rpm)']]
+#    endif
+#    foreach p : py_modules_reqd
+#        if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
+#            error('Required python3 module "@0@" not found. @1@'.format(p[0], p[1]))
+#        endif
+#    endforeach
+#endif
 
 #===============================================================================
 conf = configuration_data()
