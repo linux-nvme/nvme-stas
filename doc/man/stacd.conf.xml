@@ -216,10 +216,10 @@
                         </para>
 
                         <para>
-                            Defaults to <parameter>disabled</parameter>, which means
-                            that <code>udevd</code> will not react to AENs. This 
-                            prevents the race condition from happening by default 
-                            and error messages will not be printed to the syslog.
+                            Defaults to <parameter>enabled</parameter>, which means
+                            that <code>udevd</code> will react to AENs and there
+                            may be race conditions between <code>nvme-cli</code>
+                            and <code>nvme-stas</code>.
                         </para>
                     </listitem>
                 </varlistentry>
