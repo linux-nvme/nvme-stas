@@ -73,7 +73,7 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Global', 'kato'): None,
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'udev-rule'): 'disabled',
+            ('Global', 'udev-rule'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
@@ -243,6 +243,11 @@ class SvcConf(metaclass=singleton.Singleton):
         }
         '''
         controller_list = self.__get_value('Controllers', 'exclude')
+
+        # 2022-09-20: Look for "blacklist". This is for backwards compatibility
+        # with releases 1.0 to 1.1.6. This is to be phased out (i.e. remove by 2024)
+        controller_list += self.__get_value('Controllers', 'blacklist')
+
         excluded = [parse_controller(controller) for controller in controller_list]
         for controller in excluded:
             controller.pop('host-traddr', None)  # remove host-traddr
