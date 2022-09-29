@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.53.0',
-    version: '1.2-rc3',
+    version: '2.0-rc1',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -31,11 +31,23 @@ cnfdir  = join_paths(etcdir, 'stas')
 want_man  = get_option('man')
 want_html = get_option('html')
 
+# Until python3-libnvme is widely available from distros, we need to manually
+# pull libnvme source from Github and build as a subproject (see fallback below).
+# Once python3-libnvme is available, we can remove the fallback code indicated
+# by use_libnvme_fallback=true.
+use_libnvme_fallback = true
+
 # Check for libnvme availability
-libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
+if use_libnvme_fallback
+    libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
+endif
 
 # Check that we have all the right Python3 dependencies
-py_modules = ['dasbus', 'pyudev', 'systemd', 'gi']
+if use_libnvme_fallback
+    py_modules = ['dasbus', 'pyudev', 'systemd', 'gi']
+else
+    py_modules = ['libnvme', 'dasbus', 'pyudev', 'systemd', 'gi']
+endif
 if want_man or want_html
     py_modules += ['lxml']
 endif
@@ -137,7 +149,7 @@ install_subdir(
 #===============================================================================
 # Make a list of modules to lint
 if libnvme_dep.found()
-    modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
 else
     warning('Install the libnvme Python package to run the tests.')
     modules_to_lint = []

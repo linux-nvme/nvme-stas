@@ -15,7 +15,7 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.2-rc3</span><hr><div class="refentry"><a name="stacd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd.conf — 
+  </style><a>   </a><span style="float:right">nvme-stas 2.0-rc1</span><hr><div class="refentry"><a name="stacd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd.conf — 
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
             configuration file
         </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><p>
@@ -167,11 +167,11 @@
                             Instead, only <code class="code">stafd</code>/<code class="code">stacd</code> 
                             will be allowed to react to AENs and set up IOC connections.
                         </p><p>
-                            Defaults to <em class="parameter"><code>disabled</code></em>, which means
-                            that <code class="code">udevd</code> will not react to AENs. This 
-                            prevents the race condition from happening by default 
-                            and error messages will not be printed to the syslog.
-                        </p></dd></dl></div></div><div class="refsect2"><a name="idm136"></a><h3>[I/O controller connection management] section</h3><p>
+                            Defaults to <em class="parameter"><code>enabled</code></em>, which means
+                            that <code class="code">udevd</code> will react to AENs and there
+                            may be race conditions between <code class="code">nvme-cli</code>
+                            and <code class="code">nvme-stas</code>.
+                        </p></dd></dl></div></div><div class="refsect2"><a name="idm138"></a><h3>[I/O controller connection management] section</h3><p>
                 Connectivity between hosts and subsystems in a fabric is
                 controlled by Fabric Zoning. Entities that share a common
                 zone (i.e., are zoned together) are allowed to discover each
@@ -184,7 +184,7 @@
                 by a Fabric Zoning configuration change, it will be notified of
                 the connectivity configuration change by the DC via Asynchronous
                 Event Notifications (AEN).
-            </p><div class="table"><a name="idm140"></a><p class="title"><b>Table 1. List of terms used in this section:</b></p><div class="table-contents"><table class="table" summary="List of terms used in this section:" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Term</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left">AEN</td><td align="left">Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. AENs are used by DCs to notify hosts that a change (e.g., a connectivity configuration change) has occurred.</td></tr><tr><td align="left">DC</td><td align="left">Discovery Controller.</td></tr><tr><td align="left">DLP</td><td align="left">Discovery Log Page. A host will issue a Get Log Page command to retrieve the list of controllers it may connect to.</td></tr><tr><td align="left">DLPE</td><td align="left"><p>
+            </p><div class="table"><a name="idm142"></a><p class="title"><b>Table 1. List of terms used in this section:</b></p><div class="table-contents"><table class="table" summary="List of terms used in this section:" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Term</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left">AEN</td><td align="left">Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. AENs are used by DCs to notify hosts that a change (e.g., a connectivity configuration change) has occurred.</td></tr><tr><td align="left">DC</td><td align="left">Discovery Controller.</td></tr><tr><td align="left">DLP</td><td align="left">Discovery Log Page. A host will issue a Get Log Page command to retrieve the list of controllers it may connect to.</td></tr><tr><td align="left">DLPE</td><td align="left"><p>
                                        Discovery Log Page Entry. The response
                                        to a Get Log Page command contains a list of DLPEs identifying
                                        each controller that the host is allowed to connect with.
@@ -271,7 +271,7 @@
                             termination happens. If a host was in the middle of writing
                             to a storage subsystem, there is a chance that outstanding
                             I/O operations may not successfully complete.
-                        </p><div class="refsect3"><a name="idm237"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>only-stas-connections</code></em></span></dt><dd><p>
+                        </p><div class="refsect3"><a name="idm239"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>only-stas-connections</code></em></span></dt><dd><p>
                                             Only remove connections previously made by <code class="code">stacd</code>.
                                         </p><p>
                                             In this mode, when a DLPE is removed as a result of
@@ -343,7 +343,7 @@
                             a combination thereof by separating them with a plus (+) sign.
                             For example: <em class="parameter"><code>tcp+fc</code></em>. No spaces
                             are allowed between values and the plus (+) sign.
-                        </p><div class="refsect3"><a name="idm310"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>tcp</code></em></span></dt><dd><p>
+                        </p><div class="refsect3"><a name="idm312"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>tcp</code></em></span></dt><dd><p>
                                             Audit TCP connections.
                                         </p></dd><dt><span class="term"><em class="parameter"><code>rdma</code></em></span></dt><dd><p>
                                             Audit RDMA connections.
@@ -395,7 +395,7 @@
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm359"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm361"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
@@ -515,6 +515,6 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </p><pre class="programlisting">exclude = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
 exclude = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm441"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm443"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
         </p></div></div></body></html>
