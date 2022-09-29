@@ -1,6 +1,14 @@
 # STorage Appliance Services (STAS)
 
-## Changes with release 1.2
+## Changes with release 2.0
+
+Because of incompatibilities between 1.1.6 and 1.2 (ref. `sticky-connections`), it was decided to skip release 1.2 and have a 2.0 release instead. Release 2.0 contains everything listed in 1.2 (below) plus the following:
+
+* Add support for PLEO - Port-Local Entries Only, see TP8010.
+  * Add new configuration parameter to stafd.conf: `pleo=[enabled|disabled]`
+  * This requires `libnvme` 1.2 or later.
+
+## ~~Changes with release 1.2~~ (never released - use 2.0 instead)
 
 - In `stacd.conf`, add a new configuration section, `[I/O controller connection management]`.
   - This is to replace `sticky-connections` by `disconnect-scope` and `disconnect-trtypes`, which is needed so that hosts can better react to Fabric Zoning changes at the CDC.

@@ -74,6 +74,7 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
             ('Global', 'udev-rule'): 'enabled',
+            ('Global', 'pleo'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
@@ -134,6 +135,11 @@ class SvcConf(metaclass=singleton.Singleton):
             return (6,)
 
         return (4, 6)
+
+    @property
+    def pleo_enabled(self):
+        '''@brief return the "pleo" config parameter'''
+        return self.__get_value('Global', 'pleo')[0] == 'enabled'
 
     @property
     def udev_rule_enabled(self):

@@ -15,7 +15,7 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.2-rc3</span><hr><div class="refentry"><a name="stafd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd.conf — 
+  </style><a>   </a><span style="float:right">nvme-stas 2.0-rc1</span><hr><div class="refentry"><a name="stafd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd.conf — 
             <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
             configuration file
         </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><p>
@@ -100,7 +100,30 @@
                             default.
                         </p><p>
                             Defaults to <em class="parameter"><code>false</code></em>.
-                        </p></dd></dl></div></div><div class="refsect2"><a name="idm104"></a><h3>[Service Discovery] section</h3><p>
+                        </p></dd><dt><span class="term"><code class="varname">pleo=</code></span></dt><dd><p>
+                            Takes a string argument <em class="parameter"><code>enabled</code></em> or
+                            <em class="parameter"><code>disabled</code></em>. This option is sent in
+                            the LSP field (Log SPecific) of the Get Discovery Log
+                            Page (DLP) command. It is used by <code class="code">stafd</code> to
+                            tell Discovery Controllers (DC) whether the response to
+                            a Get DLP command should contain all the NVM subsystems
+                            or only those reachable by the host on the interface
+                            where the Get DLP command was issued by the host.
+                        </p><p>
+                            This parameter was introduced in TP8010. When
+                            <code class="varname">pleo=</code><em class="parameter"><code>enabled</code></em>,
+                            then the DC shall return records for only NVM subsystem
+                            ports that are presented through the same NVM subsystem
+                            port that received the Get Log Page command. When
+                            <code class="varname">pleo=</code><em class="parameter"><code>disabled</code></em>,
+                            then the DC may return all the NVM subsystem ports
+                            that it holds, even those that can only be reached
+                            on NVM subsystem ports that did not receive the Get
+                            Log Page command. In other words, the host may not
+                            even be able to reach those subsystems.
+                        </p><p>
+                            Defaults to <em class="parameter"><code>enabled</code></em>.
+                        </p></dd></dl></div></div><div class="refsect2"><a name="idm119"></a><h3>[Service Discovery] section</h3><p>
                 The following options are available in the
                 "<code class="literal">[Service Discovery]</code>" section:
             </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="varname">zeroconf=</code></span></dt><dd><p>
@@ -123,7 +146,7 @@
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm132"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm147"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
@@ -243,6 +266,6 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </p><pre class="programlisting">exclude = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
 exclude = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm214"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm229"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
         </p></div></div></body></html>

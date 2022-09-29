@@ -24,12 +24,12 @@ The next table shows different features that were added to the NVMe driver and i
 | **TP8013 Support** - Discovery Controller (DC) Unique NQN. Allow the creation of connections to DC with a NQN other than the default `nqn.2014-08.org.nvmexpress.discovery` | 5.16                         |
 | **Query supported options** - Allow user-space applications to query which options the NVMe driver supports | 5.17                         |
 | **TP8010 Support** - Ability for a Host to register with a Discovery Controller. This version of the kernel introduces a new event to indicate to user-space apps (e.g. nvme-stas) when a connection to a DC is restored. This is used to trigger a re-registration of the host. This kernel also exposes the DC Type (dctype) attribute through the sysfs, which is needed to determine whether registration is supported. | 5.18                         |
+| - Print actual source IP address (`src_addr`) through sysfs "address" attr. This is needed to verify that TCP connections were made on the right interface.<br />- Consider also `host_iface` when checking IP options.<br />- Send a rediscover uevent when a persistent discovery controller reconnects. | 6.1                          |
 
 nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with. 
 
 | Library                                         | Min version | stafd         | stacd         | How to determine the  currently installed version            |
 | ----------------------------------------------- | ----------- | ------------- | ------------- | ------------------------------------------------------------ |
-| libnvme                                         | 1.0         | **Mandatory** | **Mandatory** | N/A                                                          |
 | python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** | pip list \| grep dasbus                                      |
 | python3-pyudev                                  | 0.22.0      | **Mandatory** | **Mandatory** | `python3 -c 'import pyudev; print(f"{pyudev.__version__}")'` |
 | python3-systemd                                 | 240         | **Mandatory** | **Mandatory** | `systemd --version`                                          |
@@ -37,6 +37,7 @@ nvme-stas also depends on the following run-time libraries and modules. Note tha
 | nvme-tcp (kernel module)                        | 5.18 *      | **Mandatory** | **Mandatory** | N/A                                                          |
 | dbus-daemon                                     | 1.12.2      | **Mandatory** | **Mandatory** | `dbus-daemon --version`                                      |
 | avahi-daemon                                    | 0.7         | **Mandatory** | Not required  | `avahi-daemon --version`                                     |
+| python3-libnvme                                 | 1.2         | **Mandatory** | **Mandatory** | `python3 -c 'import libnvme; print(f"{libnvme.__version__}")'` |
 
 * Kernel 5.18 provides full functionality. nvme-stas can work with older kernels, but with limited functionality, unless the kernels contain back-ported features (see Addendum for the list of kernel patches that could be back-ported to an older kernel). 
 
@@ -80,9 +81,17 @@ Care should be taken during upgrades to preserve customer configuration and not 
 
 Lastly, the two daemons, `stafd` and `stacd`, should be enabled (e.g. `systemctl enable stafd.service stacd.service`) and started (e.g. `systemctl start stafd.service stacd.service`).
 
+# Compatibility between nvme-stas and nvme-cli
+
+Udev rules are installed along with `nvme-cli`. These udev rules allow `nvme-cli` to perform tasks similar to those performed by `stacd`. However, the udev rules in `nvme-cli` version 2.1.2 and prior drop the `host-iface` parameter when making TCP connections to I/O controllers. `nvme-stas`, on the other hand, always makes sure that TCP connections to I/O controllers are made over the right interface using the `host-iface` parameter. This causes a discrepancy between TCP connections made by `nvme-cli` and `nvme-stas`. Worse, TCP connections made by `nvme-cli` (2.1.2 and earlier) may end up on the wrong interface. 
+
+We basically have a race condition between `nvme-stas` and the udev rules installed with `nvme-cli`. Both try to perform the same task in parallel, which is to connect to I/O controllers over TCP. Because `nvme-stas` is written in Python and the udevd daemon (i.e. the process running the udev rules) in C, `nvme-stas` usually loses the race and TCP connections are made by the udev rules without specifying the `host-iface`.
+
+`nvme-stas` provides a way to avoid this conflicts with `nvme-cli`. In `stacd.conf`, one can set `udev-rule=disabled` to completely disable the udev rules that come with `nvme-cli`. This, however, will impact all transport types and not just TCP. The udev rules have been fixed post 2.1.2 `nvme-cli` so that the `host-iface` will now be taken into consideration when making TCP connections to I/O controllers, eliminating the need to disable the udev rules.
+
 # Addendum
 
-## Kernel patches
+## Kernel patches for nvme-stas 1.x
 
 Here's the list of kernel patches (added in kernels 5.14 to 5.18) that will enable all features of nvme-stas.
 
@@ -302,5 +311,82 @@ Date:   Thu May 20 15:09:34 2021 -0400
     Reviewed-by: Sagi Grimberg <sagi@grimberg.me>
     Reviewed-by: Hannes Reinecke <hare@suse.de>
     Signed-off-by: Christoph Hellwig <hch@lst.de>
+```
+
+## Kernel patches for nvme-stas 2.x
+
+These patches are not essential for nvme-stas 2.x, but they allow nvme-stas to operate better.
+
+```
+commit f46ef9e87c9e8941b7acee45611c7c6a322592bb
+Author: Sagi Grimberg <sagi@grimberg.me>
+Date:   Thu Sep 22 11:15:37 2022 +0300
+
+    nvme: send a rediscover uevent when a persistent discovery controller reconnects
+    
+    When a discovery controller is disconnected, no AENs will arrive to
+    notify the host about discovery log change events.
+    
+    In order to solve this, send a uevent notification when a
+    persistent discovery controller reconnects. We add a new ctrl
+    flag NVME_CTRL_STARTED_ONCE that will be set on the first
+    start, and consecutive calls will find it set, and send the
+    event to userspace if the controller is a discovery controller.
+    
+    Upon the event reception, userspace will re-read the discovery
+    log page and will act upon changes as it sees fit.
+    
+    Signed-off-by: Sagi Grimberg <sagi@grimberg.me>
+    Reviewed-by: Daniel Wagner <dwagner@suse.de>
+    Reviewed-by: James Smart <jsmart2021@gmail.com>
+    Signed-off-by: Christoph Hellwig <hch@lst.de>
+
+commit 02c57a82c0081141abc19150beab48ef47f97f18 (tag: nvme-6.1-2022-09-20)
+Author: Martin Belanger <martin.belanger@dell.com>
+Date:   Wed Sep 7 08:27:37 2022 -0400
+
+    nvme-tcp: print actual source IP address through sysfs "address" attr
+    
+    TCP transport relies on the routing table to determine which source
+    address and interface to use when making a connection. Currently, there
+    is no way to tell from userspace where a connection was made. This
+    patch exposes the actual source address using a new field named
+    "src_addr=" in the "address" attribute.
+    
+    This is needed to diagnose and identify connectivity issues. With the
+    source address we can infer the interface associated with each
+    connection.
+    
+    This was tested with nvme-cli 2.0 to verify it does not have any
+    adverse effect. The new "src_addr=" field will simply be displayed in
+    the output of the "list-subsys" or "list -v" commands as shown here.
+    
+    $ nvme list-subsys
+    nvme-subsys0 - NQN=nqn.2014-08.org.nvmexpress.discovery
+    \
+     +- nvme0 tcp traddr=192.168.56.1,trsvcid=8009,src_addr=192.168.56.101 live
+    
+    Signed-off-by: Martin Belanger <martin.belanger@dell.com>
+    Reviewed-by: Sagi Grimberg <sagi@grimberg.me>
+    Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
+    Signed-off-by: Christoph Hellwig <hch@lst.de>
+    
+commit 4cde03d82e2d0056d20fd5af6a264c7f5e6a3e76
+Author: Daniel Wagner <dwagner@suse.de>
+Date:   Fri Jul 29 16:26:30 2022 +0200
+
+    nvme: consider also host_iface when checking ip options
+    
+    It's perfectly fine to use the same traddr and trsvcid more than once
+    as long we use different host interface. This is used in setups where
+    the host has more than one interface but the target exposes only one
+    traddr/trsvcid combination.
+    
+    Use the same acceptance rules for host_iface as we have for
+    host_traddr.
+    
+    Signed-off-by: Daniel Wagner <dwagner@suse.de>
+    Reviewed-by: Chao Leng <lengchao@huawei.com>
+    Signed-off-by: Christoph Hellwig <hch@lst.de>    
 ```
 

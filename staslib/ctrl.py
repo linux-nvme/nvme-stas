@@ -28,14 +28,26 @@ def get_ncc(eflags: int):
     return 0 != (eflags & nvme.NVMF_DISC_EFLAGS_NCC)
 
 
+def dlp_supp_opts_as_string(dlp_supp_opts):
+    '''@brief Return the list of options supported by the Get
+    discovery log page command.
+    '''
+    data = {
+        nvme.NVMF_LOG_DISC_LID_EXTDLPES: "EXTDLPES",
+        nvme.NVMF_LOG_DISC_LID_PLEOS: "PLEOS",
+        nvme.NVMF_LOG_DISC_LID_ALLSUBES: "ALLSUBES",
+    }
+    return [txt for msk, txt in data.items() if dlp_supp_opts & msk]
+
+
 # ******************************************************************************
 class Controller(stas.ControllerABC):
     '''@brief Base class used to manage the connection to a controller.'''
 
     def __init__(self, root, host, tid: trid.TID, discovery_ctrl=False):
-        self._udev       = udev.UDEV
-        self._device     = None  # Refers to the nvme device (e.g. /dev/nvme[n])
-        self._ctrl       = None  # libnvme's nvme.ctrl object
+        self._udev = udev.UDEV
+        self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
+        self._ctrl = None  # libnvme's nvme.ctrl object
         self._connect_op = None
 
         super().__init__(root, host, tid, discovery_ctrl)
@@ -114,7 +126,7 @@ class Controller(stas.ControllerABC):
                 self._on_ctrl_removed(udev_obj)
             else:
                 logging.debug(
-                    'Controller._on_udev_notification() - %s | %s - Received "%s" notification.',
+                    'Controller._on_udev_notification() - %s | %s - Received "%s" event',
                     self.id,
                     udev_obj.sys_name,
                     udev_obj.action,
@@ -277,7 +289,7 @@ class Controller(stas.ControllerABC):
         GLib.idle_add(disconnected_cb, self, True)
 
     def _on_disconn_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
-        logging.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
+        logging.debug('Controller._on_disconn_fail()      - %s | %s - %s', self.id, self.device, err)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback
         # cannot be called directly as the current Controller object is in the
@@ -298,12 +310,14 @@ class Dc(Controller):
         (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
     )  # 0x70f002
     GET_LOG_PAGE_RETRY_RERIOD_SEC = 20
-    REGISTRATION_RETRY_RERIOD_SEC = 10
+    REGISTRATION_RETRY_RERIOD_SEC = 5
+    GET_SUPPORTED_RETRY_RERIOD_SEC = 5
 
     def __init__(self, staf, root, host, tid: trid.TID, log_pages=None):  # pylint: disable=too-many-arguments
         super().__init__(root, host, tid, discovery_ctrl=True)
         self._staf = staf
         self._register_op = None
+        self._get_supported_op = None
         self._get_log_op = None
         self._log_pages = log_pages if log_pages else list()  # Log pages cache
 
@@ -321,6 +335,9 @@ class Dc(Controller):
         if self._register_op:
             self._register_op.kill()
             self._register_op = None
+        if self._get_supported_op:
+            self._get_supported_op.kill()
+            self._get_supported_op = None
 
     def reload_hdlr(self):
         '''@brief This is called when a "reload" signal is received.'''
@@ -333,6 +350,8 @@ class Dc(Controller):
             info['get log page operation'] = self._get_log_op.as_dict()
         if self._register_op:
             info['register operation'] = self._register_op.as_dict()
+        if self._get_supported_op:
+            info['get supported log page operation'] = self._get_supported_op.as_dict()
         return info
 
     def cancel(self):
@@ -342,6 +361,8 @@ class Dc(Controller):
             self._get_log_op.cancel()
         if self._register_op:
             self._register_op.cancel()
+        if self._get_supported_op:
+            self._get_supported_op.cancel()
 
     def log_pages(self) -> list:
         '''@brief Get the cached log pages for this object'''
@@ -353,19 +374,26 @@ class Dc(Controller):
 
     def register(self):
         '''@brief Send DIM command to DC'''
+        logging.debug('Dc.register()                      - %s | %s', self.id, self.device)
         if self._register_op:
             self._register_op.run_async()
+
+    def _is_ddc(self):
+        return self._ctrl and self._ctrl.dctype == 'ddc'
 
     def _on_aen(self, aen: int):
         if aen == self.DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
 
     def _on_nvme_event(self, nvme_event: str):
-        if nvme_event == 'connected':
+        if nvme_event in ('connected', 'rediscover'):
             # This event indicates that the kernel
             # driver re-connected to the DC.
+            logging.debug('Dc._on_nvme_event()                - %s | %s - Received "connected" event', self.id, self.device)
             if self._register_op:
                 self._register_op.run_async()
+            elif self._get_supported_op:
+                self._get_supported_op.run_async()
             elif self._get_log_op:
                 self._get_log_op.run_async()
 
@@ -376,6 +404,18 @@ class Dc(Controller):
 
     def _find_existing_connection(self):
         return self._udev.find_nvme_dc_device(self.tid)
+
+    def _post_registration_actions(self):
+        if conf.SvcConf().pleo_enabled and self._is_ddc():
+            self._get_supported_op = gutil.AsyncOperationWithRetry(
+                self._on_get_supported_success, self._on_get_supported_fail, self._ctrl.supported_log_pages
+            )
+            self._get_supported_op.run_async()
+        else:
+            self._get_log_op = gutil.AsyncOperationWithRetry(
+                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
+            )
+            self._get_log_op.run_async()
 
     # --------------------------------------------------------------------------
     def _on_connect_success(self, op_obj, data):
@@ -394,10 +434,7 @@ class Dc(Controller):
                 )
                 self._register_op.run_async()
             else:
-                self._get_log_op = gutil.AsyncOperationWithRetry(
-                    self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
-                )
-                self._get_log_op.run_async()
+                self._post_registration_actions()
 
     # --------------------------------------------------------------------------
     def _on_registration_success(self, op_obj, data):  # pylint: disable=unused-argument
@@ -414,10 +451,8 @@ class Dc(Controller):
                 logging.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
             else:
                 logging.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
-            self._get_log_op = gutil.AsyncOperationWithRetry(
-                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
-            )
-            self._get_log_op.run_async()
+
+            self._post_registration_actions()
         else:
             logging.debug(
                 'Dc._on_registration_success()      - %s | %s Received event on dead object.', self.id, self.device
@@ -430,7 +465,7 @@ class Dc(Controller):
         '''
         if self._alive():
             logging.debug(
-                'Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec',
+                'Dc._on_registration_fail()         - %s | %s - %s. Retry in %s sec',
                 self.id,
                 self.device,
                 err,
@@ -438,10 +473,75 @@ class Dc(Controller):
             )
             if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
                 logging.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
-            # op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
+            op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
         else:
             logging.debug(
                 'Dc._on_registration_fail()         - %s | %s Received event on dead object. %s',
+                self.id,
+                self.device,
+                err,
+            )
+            op_obj.kill()
+
+    # --------------------------------------------------------------------------
+    def _on_get_supported_success(self, op_obj, data):  # pylint: disable=unused-argument
+        '''@brief Function called when we successfully retrieved the supported
+        log pages from the Discovery Controller. See self._get_supported_op object
+        for details.
+
+        NOTE: The name _on_get_supported_success() may be misleading. "success"
+        refers to the fact that a successful exchange was made with the DC.
+        It doesn't mean that the Get Supported Log Page itself succeeded.
+        '''
+        if self._alive():
+            try:
+                dlp_supp_opts = data[nvme.NVME_LOG_LID_DISCOVER] >> 16
+            except (TypeError, IndexError):
+                dlp_supp_opts = 0
+
+            logging.debug(
+                'Dc._on_get_supported_success()     - %s | %s - supported options = 0x%04X = %s',
+                self.id,
+                self.device,
+                dlp_supp_opts,
+                dlp_supp_opts_as_string(dlp_supp_opts),
+            )
+
+            lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
+
+            self._get_log_op = gutil.AsyncOperationWithRetry(
+                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
+            )
+            self._get_log_op.run_async()
+        else:
+            logging.debug(
+                'Dc._on_get_supported_success()     - %s | %s Received event on dead object.', self.id, self.device
+            )
+
+    def _on_get_supported_fail(self, op_obj, err, fail_cnt):
+        '''@brief Function called when we fail to retrieve the supported log
+        page from the Discovery Controller. See self._get_supported_op object
+        for details.
+        '''
+        if self._alive():
+            logging.debug(
+                'Dc._on_get_supported_fail()        - %s | %s - %s. Retry in %s sec',
+                self.id,
+                self.device,
+                err,
+                Dc.GET_SUPPORTED_RETRY_RERIOD_SEC,
+            )
+            if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
+                logging.error(
+                    '%s | %s - Failed to Get supported log pages from Discovery Controller. %s',
+                    self.id,
+                    self.device,
+                    err,
+                )
+            op_obj.retry(Dc.GET_SUPPORTED_RETRY_RERIOD_SEC)
+        else:
+            logging.debug(
+                'Dc._on_get_supported_fail()        - %s | %s Received event on dead object. %s',
                 self.id,
                 self.device,
                 err,
@@ -456,8 +556,8 @@ class Dc(Controller):
         '''
         if self._alive():
             # Note that for historical reasons too long to explain, the CDC may
-            # return invalid addresses ("0.0.0.0", "::", or ""). Those need to be
-            # filtered out.
+            # return invalid addresses ('0.0.0.0', '::', or ''). Those need to
+            # be filtered out.
             referrals_before = self.referrals()
             self._log_pages = (
                 [
@@ -499,7 +599,7 @@ class Dc(Controller):
         '''
         if self._alive():
             logging.debug(
-                'Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec',
+                'Dc._on_get_log_fail()              - %s | %s - %s. Retry in %s sec',
                 self.id,
                 self.device,
                 err,
@@ -574,8 +674,8 @@ class Ioc(Controller):
     def update_dlpe(self, dlpe):
         '''@brief This method is called when a new DLPE associated
         with this controller is received.'''
-        new_ncc    = get_ncc(get_eflags(dlpe))
-        old_ncc    = self.ncc
+        new_ncc = get_ncc(get_eflags(dlpe))
+        old_ncc = self.ncc
         self._dlpe = dlpe
 
         if old_ncc and not new_ncc:  # NCC bit cleared?
