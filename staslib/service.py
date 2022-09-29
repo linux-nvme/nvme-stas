@@ -50,12 +50,41 @@ class Service(stas.ServiceABC):
 
 
 # ******************************************************************************
+OVERRIDE_TCP_UDEV_RULE = r'''
+ACTION!="change", GOTO="autoconnect_end"
+
+ENV{NVME_HOST_IFACE}=="", ENV{NVME_HOST_IFACE}="none"
+
+ACTION=="change", SUBSYSTEM=="nvme", ENV{NVME_AEN}=="0x70f002", \
+  ENV{NVME_TRTYPE}!="tcp", ENV{NVME_TRADDR}=="*", \
+  ENV{NVME_TRSVCID}=="*", ENV{NVME_HOST_TRADDR}=="*", ENV{NVME_HOST_IFACE}=="*", \
+  RUN+="@SYSTEMCTL@ --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
+
+ACTION=="change", SUBSYSTEM=="fc", ENV{FC_EVENT}=="nvmediscovery", \
+  ENV{NVMEFC_HOST_TRADDR}=="*",  ENV{NVMEFC_TRADDR}=="*", \
+  RUN+="@SYSTEMCTL@ --no-block start nvmf-connect@--device=none\t--transport=fc\t--traddr=$env{NVMEFC_TRADDR}\t--trsvcid=none\t--host-traddr=$env{NVMEFC_HOST_TRADDR}.service"
+
+ACTION=="change", SUBSYSTEM=="nvme", ENV{NVME_EVENT}=="rediscover", ATTR{cntrltype}=="discovery", \
+  ENV{NVME_TRTYPE}!="tcp", ENV{NVME_TRADDR}=="*", \
+  ENV{NVME_TRSVCID}=="*", ENV{NVME_HOST_TRADDR}=="*", ENV{NVME_HOST_IFACE}=="*", \
+  RUN+="@SYSTEMCTL@ --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
+
+LABEL="autoconnect_end"
+'''
+
+
 def udev_rule_ctrl(enable):
-    '''@brief We add an empty udev rule to /run/udev/rules.d to suppress
-    nvme-cli's udev rule that is used to tell udevd to automatically
-    connect to I/O controller. This is to avoid race conditions between
+    '''@brief We override the standard udev rule installed by nvme-cli, i.e.
+    '/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules', with a copy into
+    /run/udev/rules.d. The goal is to suppress the udev rule that controls TCP
+    connections to I/O controllers. This is to avoid race conditions between
     stacd and udevd. This is configurable. See "udev-rule" in stacd.conf
     for details.
+
+    @param enable: When True, override nvme-cli's udev rule and prevent TCP I/O
+    Controller connections by nvme-cli. When False, allow nvme-cli's udev rule
+    to make TCP I/O connections.
+    @type enable: bool
     '''
     udev_rule_suppress = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
     if enable:
@@ -66,7 +95,15 @@ def udev_rule_ctrl(enable):
     else:
         if not udev_rule_suppress.exists():
             pathlib.Path('/run/udev/rules.d').mkdir(parents=True, exist_ok=True)
-            udev_rule_suppress.symlink_to('/dev/null')
+
+            udev_rule_original = pathlib.Path('/usr/lib/udev/rules.d', '70-nvmf-autoconnect.rules')
+            if udev_rule_original.exists():
+                # Copy original file and suppress udev rule for TCP only
+                text = udev_rule_original.read_text()  # pylint: disable=unspecified-encoding
+                text = text.replace('ENV{NVME_TRTYPE}=="*"', 'ENV{NVME_TRTYPE}!="tcp"')
+            else:
+                text = OVERRIDE_TCP_UDEV_RULE
+            udev_rule_suppress.write_text(text)  # pylint: disable=unspecified-encoding
 
 
 # ******************************************************************************

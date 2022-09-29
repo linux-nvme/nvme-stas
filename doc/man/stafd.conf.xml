@@ -141,7 +141,8 @@
                     <term><varname>pleo=</varname></term>
                     <listitem>
                         <para>
-                            Takes a string argument <parameter>enabled</parameter> or
+                            Port Local Entries Only. Takes a string argument
+                            <parameter>enabled</parameter> or
                             <parameter>disabled</parameter>. This option is sent in
                             the LSP field (Log SPecific) of the Get Discovery Log
                             Page (DLP) command. It is used by <code>stafd</code> to
