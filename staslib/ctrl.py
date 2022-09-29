@@ -389,7 +389,9 @@ class Dc(Controller):
         if nvme_event in ('connected', 'rediscover'):
             # This event indicates that the kernel
             # driver re-connected to the DC.
-            logging.debug('Dc._on_nvme_event()                - %s | %s - Received "connected" event', self.id, self.device)
+            logging.debug(
+                'Dc._on_nvme_event()                - %s | %s - Received "connected" event', self.id, self.device
+            )
             if self._register_op:
                 self._register_op.run_async()
             elif self._get_supported_op:
