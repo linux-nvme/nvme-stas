@@ -125,53 +125,106 @@
                         </p></dd><dt><span class="term"><code class="varname">udev-rule=</code></span></dt><dd><p>
                             Takes a string argument <em class="parameter"><code>enabled</code></em> or
                             <em class="parameter"><code>disabled</code></em>. This option determines
-                            whether <code class="code">nvme-cli</code>'s udev rule will be executed
-                            or ignored.
+                            whether <code class="code">nvme-cli</code>'s udev rules for TCP connections
+                            will be executed or ignored.
                         </p><p>
-                            A udev rule gets installed with <code class="code">nvme-cli</code>
+                            A set of udev rules get installed with <code class="code">nvme-cli</code>
                             that tells the udev daemon (<code class="code">udevd</code>) to look
                             for Asynchronous Event Notifications (AEN) indicating
-                            a change of Discovery Log Page Entries (DPLE). The
-                            udev rule is typically installed as: 
+                            a change of Discovery Log Page Entries (DPLE). These
+                            udev rules are typically installed as:
                             <code class="filename">/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules</code>
                         </p><p>
-                            When an AEN is detected, <code class="code">udevd</code> simply
-                            instructs <code class="code">systemd</code> to start a one-shot
-                            service that will retrieve the changed DPLEs and
-                            connect to all the I/O Controllers (IOC) listed in
-                            the DPLEs. This is basically the same as performing
-                            <code class="code">nvme-cli</code>'s "<code class="code">connect-all</code>"
-                            command.
+                            When an AEN is detected, <code class="code">udevd</code> instructs
+                            <code class="code">systemd</code> to start a service that invokes
+                            <code class="code">nvme-cli</code>'s <code class="code">connect-all</code>
+                            command. This command retrieves the DLPEs from the
+                            Discovery Controller (DC) that sent the AEN and
+                            connects to all the I/O Controllers (IOC) listed
+                            in the DPLEs.
                         </p><p>
                             Unfortunately, <code class="code">stafd</code> and <code class="code">stacd</code>
                             also perform the same operations when an AEN is received.
                             This results in a race condition between <code class="code">udevd</code>
-                            and <code class="code">stafd</code>/<code class="code">stacd</code>.
+                            and <code class="code">nvme-stas</code>. <code class="code">nvme-stas</code>
+                            is written in Python and runs slower than <code class="code">nvme-cli</code>
+                            written in C. In other words, <code class="code">nvme-stas</code>
+                            usually loses the race.
                         </p><p>
-                            This is not really a problem. <code class="code">stafd</code> and
-                            <code class="code">stacd</code> are designed to handle this type
-                            of race condition and will conclude, eventually, that
-                            the connections succeeded. The only downside is that
-                            there may be error messages printed to the syslog
-                            when the race condition happens. These messages are
-                            printed by the kernel because two processes are trying
-                            to connect to the same IOC at the same time. One of
-                            them will be rejected by the kernel, but the other
-                            will succeed. A typical error message from the kernel
-                            may look something like this: 
+                            This can be a problem for TCP connections because
+                            <code class="code">nvme-cli</code> traditionally doesn't specify
+                            the interface (<code class="code">host-iface</code>) when making
+                            TCP connections and leaves it to the kernel (and the
+                            routing table) to select the best interface.
+                            <code class="code">nvme-stas</code>, on the other hand, always
+                            tries to make connections on a specific interface
+                            (per configuration). Note that a fix was added to
+                            <code class="code">nvme-cli</code> so that TCP connections to IOCs
+                            will now be made with <code class="code">host-iface</code> specified.
+                            That, however, will only be available in post-2.1.2
+                            versions of <code class="code">nvme-cli</code>.
+                        </p><p>
+                            To add insult to injury, when a connection is made
+                            without specifying the <code class="code">host-iface</code>, and
+                            therefore the kernel decides which interface to use,
+                            there is no way to tell from user space (i.e. by
+                            <code class="code">nvme-stas</code>) which interface the kernel
+                            actually used. A fix was made to the kernel to make
+                            TCP connection's interface available to user space
+                            applications, but that will only be available in
+                            Linux 6.1 (or later).
+                        </p><p>
+                            Being able to identify the interface (<code class="code">host-iface</code>)
+                            is important to <code class="code">nvme-stas</code>. That's because it
+                            uses a Transport Identifier (TID) containing all the
+                            parameters (including the <code class="code">host-iface</code>)
+                            needed to make connections (see table below).
+                            The TID parameters can be retrieved from the
+                            <code class="code">sysfs</code> under <code class="code">/sys/class/nvme/</code>.
+
+                            </p><div class="table"><a name="idm141"></a><p class="title"><b>Table 1. Transport Identifier</b></p><div class="table-contents"><table class="table" summary="Transport Identifier" border="1"><colgroup><col><col></colgroup><tbody><tr><td>trtype</td><td>Transport type (tcp, rdma, fc, loop)</td></tr><tr><td>traddr</td><td>
+                                             Transport address (e.g. IP address)
+                                         </td></tr><tr><td>trsvcid</td><td>
+                                             Transport service ID (e.g. IP port)
+                                         </td></tr><tr><td>subnqn</td><td>
+                                             Subsystem NQN
+                                         </td></tr><tr><td>host-traddr</td><td>
+                                             Host transport address (e.g. source IP address)
+                                         </td></tr><tr><td>host-iface</td><td>
+                                             Host interface (e.g. eth1)
+                                         </td></tr></tbody></table></div></div><p><br class="table-break">
+                        </p><p>
+                            When <code class="code">nvme-stas</code> makes a connection, it
+                            first looks for an existing connection that matches
+                            the TID (including a matching <code class="code">host-iface</code>).
+                            Since connections made by <code class="code">nvme-cli</code> lack
+                            the <code class="code">host-iface</code>, <code class="code">nvme-stas</code>
+                            does not find a match. Therefore, <code class="code">nvme-stas</code>
+                            will try to make a new connection, which will often
+                            be refused by the kernel because a connection already
+                            exists.
+                        </p><p>
+                            Suffice it to say that issues may arise when both
+                            <code class="code">nvme-stas</code> and <code class="code">nvme-cli</code>
+                            operate in parallel. These issues may vary depending
+                            on your version of Linux, <code class="code">nvme-cli</code>,
+                            <code class="code">nvme-stas</code>, and/or <code class="code">libnvme</code>.
+                            These issues will often result in messages printed
+                            by the kernel to the <code class="code">syslog</code>. A typical
+                            error message from the kernel may look something like this:
                             "<code class="computeroutput">[...] failed to connect controller, error 1006</code>".
                         </p><p>
                             The <code class="code">udev-rule</code> option allows a user to
-                            disable <code class="code">nvme-cli</code>'s udev rule so that 
-                            <code class="code">udevd</code> will not act on received AENs. 
-                            Instead, only <code class="code">stafd</code>/<code class="code">stacd</code> 
-                            will be allowed to react to AENs and set up IOC connections.
+                            disable <code class="code">nvme-cli</code>'s udev rule for TCP
+                            connections. Only TCP connections rely on the
+                            <code class="code">host-iface</code> parameter, and therefore the
+                            udev rule need only be disabled for this type of transport.
                         </p><p>
-                            Defaults to <em class="parameter"><code>enabled</code></em>, which means
-                            that <code class="code">udevd</code> will react to AENs and there
-                            may be race conditions between <code class="code">nvme-cli</code>
-                            and <code class="code">nvme-stas</code>.
-                        </p></dd></dl></div></div><div class="refsect2"><a name="idm138"></a><h3>[I/O controller connection management] section</h3><p>
+                            Defaults to <em class="parameter"><code>disabled</code></em>, which means
+                            that <code class="code">udevd</code> will not react to AENs for TCP
+                            transport. This way, only <code class="code">stacd</code> will react
+                            to AENs and make TCP connections to IOCs.
+                        </p></dd></dl></div></div><div class="refsect2"><a name="idm186"></a><h3>[I/O controller connection management] section</h3><p>
                 Connectivity between hosts and subsystems in a fabric is
                 controlled by Fabric Zoning. Entities that share a common
                 zone (i.e., are zoned together) are allowed to discover each
@@ -184,7 +237,7 @@
                 by a Fabric Zoning configuration change, it will be notified of
                 the connectivity configuration change by the DC via Asynchronous
                 Event Notifications (AEN).
-            </p><div class="table"><a name="idm142"></a><p class="title"><b>Table 1. List of terms used in this section:</b></p><div class="table-contents"><table class="table" summary="List of terms used in this section:" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Term</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left">AEN</td><td align="left">Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. AENs are used by DCs to notify hosts that a change (e.g., a connectivity configuration change) has occurred.</td></tr><tr><td align="left">DC</td><td align="left">Discovery Controller.</td></tr><tr><td align="left">DLP</td><td align="left">Discovery Log Page. A host will issue a Get Log Page command to retrieve the list of controllers it may connect to.</td></tr><tr><td align="left">DLPE</td><td align="left"><p>
+            </p><div class="table"><a name="idm190"></a><p class="title"><b>Table 2. List of terms used in this section:</b></p><div class="table-contents"><table class="table" summary="List of terms used in this section:" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Term</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left">AEN</td><td align="left">Asynchronous Event Notification. A CQE (Completion Queue Entry) for an Asynchronous Event Request that was previously transmitted by the host to a Discovery Controller. AENs are used by DCs to notify hosts that a change (e.g., a connectivity configuration change) has occurred.</td></tr><tr><td align="left">DC</td><td align="left">Discovery Controller.</td></tr><tr><td align="left">DLP</td><td align="left">Discovery Log Page. A host will issue a Get Log Page command to retrieve the list of controllers it may connect to.</td></tr><tr><td align="left">DLPE</td><td align="left"><p>
                                        Discovery Log Page Entry. The response
                                        to a Get Log Page command contains a list of DLPEs identifying
                                        each controller that the host is allowed to connect with.
@@ -271,7 +324,7 @@
                             termination happens. If a host was in the middle of writing
                             to a storage subsystem, there is a chance that outstanding
                             I/O operations may not successfully complete.
-                        </p><div class="refsect3"><a name="idm239"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>only-stas-connections</code></em></span></dt><dd><p>
+                        </p><div class="refsect3"><a name="idm287"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>only-stas-connections</code></em></span></dt><dd><p>
                                             Only remove connections previously made by <code class="code">stacd</code>.
                                         </p><p>
                                             In this mode, when a DLPE is removed as a result of
@@ -343,7 +396,7 @@
                             a combination thereof by separating them with a plus (+) sign.
                             For example: <em class="parameter"><code>tcp+fc</code></em>. No spaces
                             are allowed between values and the plus (+) sign.
-                        </p><div class="refsect3"><a name="idm312"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>tcp</code></em></span></dt><dd><p>
+                        </p><div class="refsect3"><a name="idm360"></a><h4>Values:</h4><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>tcp</code></em></span></dt><dd><p>
                                             Audit TCP connections.
                                         </p></dd><dt><span class="term"><em class="parameter"><code>rdma</code></em></span></dt><dd><p>
                                             Audit RDMA connections.
@@ -395,13 +448,13 @@
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm361"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm409"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
                                     <em class="parameter"><code>trtype</code></em> values understood
                                     are:
-                                </p><div class="table"><a name="transport-types"></a><p class="title"><b>Table 2. Transport type</b></p><div class="table-contents"><table class="table" summary="Transport type" border="1"><colgroup><col><col></colgroup><thead><tr><th>trtype</th><th>Definition</th></tr></thead><tbody><tr><td>rdma</td><td>
+                                </p><div class="table"><a name="transport-types"></a><p class="title"><b>Table 3. Transport type</b></p><div class="table-contents"><table class="table" summary="Transport type" border="1"><colgroup><col><col></colgroup><thead><tr><th>trtype</th><th>Definition</th></tr></thead><tbody><tr><td>rdma</td><td>
                                                     The network fabric is an rdma network (RoCE, iWARP, Infiniband, basic rdma, etc)
                                                 </td></tr><tr><td>fc</td><td>
                                                     The network fabric is a Fibre Channel network.
@@ -515,6 +568,6 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </p><pre class="programlisting">exclude = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
 exclude = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm443"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm491"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
         </p></div></div></body></html>
