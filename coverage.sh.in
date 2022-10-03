@@ -156,7 +156,7 @@ cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 kato=10
-udev-rule=disabled
+udev-rule=enabled
 
 [I/O controller connection management]
 disconnect-scope=all-connections-matching-disconnect-trtypes

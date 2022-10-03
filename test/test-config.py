@@ -44,7 +44,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertFalse(service_conf.hdr_digest)
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)
-        self.assertTrue(service_conf.udev_rule_enabled)
+        self.assertFalse(service_conf.udev_rule_enabled)
         self.assertEqual(service_conf.disconnect_scope, 'only-stas-connections')
         self.assertEqual(service_conf.disconnect_trtypes, ['tcp'])
         self.assertFalse(service_conf.ignore_iface)
