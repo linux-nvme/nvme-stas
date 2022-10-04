@@ -341,7 +341,7 @@ class Dc(Controller):
 
     def reload_hdlr(self):
         '''@brief This is called when a "reload" signal is received.'''
-        pass  # pylint: disable=unnecessary-pass
+        self._resync_with_controller()
 
     def info(self) -> dict:
         '''@brief Get the controller info for this object'''
@@ -385,6 +385,15 @@ class Dc(Controller):
         if aen == self.DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
 
+    def _resync_with_controller(self):
+        '''Communicate with DC to resync the states'''
+        if self._register_op:
+            self._register_op.run_async()
+        elif self._get_supported_op:
+            self._get_supported_op.run_async()
+        elif self._get_log_op:
+            self._get_log_op.run_async()
+
     def _on_nvme_event(self, nvme_event: str):
         if nvme_event in ('connected', 'rediscover'):
             # This event indicates that the kernel
@@ -392,12 +401,7 @@ class Dc(Controller):
             logging.debug(
                 'Dc._on_nvme_event()                - %s | %s - Received "connected" event', self.id, self.device
             )
-            if self._register_op:
-                self._register_op.run_async()
-            elif self._get_supported_op:
-                self._get_supported_op.run_async()
-            elif self._get_log_op:
-                self._get_log_op.run_async()
+            self._resync_with_controller()
 
     def _on_ctrl_removed(self, obj):
         super()._on_ctrl_removed(obj)
