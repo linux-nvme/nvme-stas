@@ -218,9 +218,9 @@ class Stac(Service):
         return GLib.SOURCE_REMOVE
 
     def _config_connections_audit(self):
-        '''This function checks the "sticky_connections" parameter to determine
+        '''This function checks the "disconnect_scope" parameter to determine
         whether audits should be performed. Audits are enabled when
-        "sticky_connections" is disabled.
+        "disconnect_scope == all-connections-matching-disconnect-trtypes".
         '''
         svc_conf = conf.SvcConf()
         if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':

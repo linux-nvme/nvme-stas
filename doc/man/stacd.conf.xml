@@ -186,10 +186,10 @@
                         </para>
 
                         <para>
-                            Unfortunately, <code>stafd</code> and <code>stacd</code>
-                            also perform the same operations when an AEN is received.
-                            This results in a race condition between <code>udevd</code>
-                            and <code>nvme-stas</code>. <code>nvme-stas</code>
+                            In parallel, <code>stafd</code> and <code>stacd</code>
+                            react to the AEN in the same way. This results in a
+                            race condition between <code>udevd</code> and
+                            <code>nvme-stas</code>. <code>nvme-stas</code>
                             is written in Python and runs slower than <code>nvme-cli</code>
                             written in C. In other words, <code>nvme-stas</code>
                             usually loses the race.
@@ -228,8 +228,8 @@
                             uses a Transport Identifier (TID) containing all the
                             parameters (including the <code>host-iface</code>)
                             needed to make connections (see table below).
-                            The TID parameters can be retrieved from the
-                            <code>sysfs</code> under <code>/sys/class/nvme/</code>.
+                            The parameters that compose the TID can be retrieved
+                            from the <code>sysfs</code> under <code>/sys/class/nvme/</code>.
 
                             <table>
                                 <title>Transport Identifier</title>
@@ -297,8 +297,13 @@
                             <code>nvme-stas</code>, and/or <code>libnvme</code>.
                             These issues will often result in messages printed
                             by the kernel to the <code>syslog</code>. A typical
-                            error message from the kernel may look something like this:
-                            "<computeroutput>[...] failed to connect controller, error 1006</computeroutput>".
+                            error message from the kernel may look something like these:
+                            <para>
+                                "<computeroutput>[...] failed to connect controller, error 1006</computeroutput>".
+                                "<computeroutput>[...] failed to connect socket: -111</computeroutput>".
+                                "<computeroutput>[...] failed to write to nvme-fabrics device</computeroutput>".
+                                "<computeroutput>[...] Failed to write to /dev/nvme-fabrics: Connection refused</computeroutput>".
+                            </para>
                         </para>
 
                         <para>
@@ -310,10 +315,7 @@
                         </para>
 
                         <para>
-                            Defaults to <parameter>disabled</parameter>, which means
-                            that <code>udevd</code> will not react to AENs for TCP
-                            transport. This way, only <code>stacd</code> will react
-                            to AENs and make TCP connections to IOCs.
+                            Defaults to <parameter>disabled</parameter>.
                         </para>
                     </listitem>
                 </varlistentry>
