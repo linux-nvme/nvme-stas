@@ -341,6 +341,7 @@ class Dc(Controller):
 
     def reload_hdlr(self):
         '''@brief This is called when a "reload" signal is received.'''
+        logging.debug('Dc.reload_hdlr()                   - %s | %s', self.id, self.device)
         self._resync_with_controller()
 
     def info(self) -> dict:
@@ -371,12 +372,6 @@ class Dc(Controller):
     def referrals(self) -> list:
         '''@brief Return the list of referrals'''
         return [page for page in self._log_pages if page['subtype'] == 'referral']
-
-    def register(self):
-        '''@brief Send DIM command to DC'''
-        logging.debug('Dc.register()                      - %s | %s', self.id, self.device)
-        if self._register_op:
-            self._register_op.run_async()
 
     def _is_ddc(self):
         return self._ctrl and self._ctrl.dctype == 'ddc'

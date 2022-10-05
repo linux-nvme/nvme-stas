@@ -418,11 +418,8 @@ class Staf(Service):
         self._avahi.config_stypes(service_cnf.get_stypes())
         self._cfg_soak_tmr.start()
 
-        if self._host.hostsymname != conf.SysConf().hostsymname:
-            self._host.set_symname(conf.SysConf().hostsymname)
-            for controller in self._controllers.values():
-                controller.reload_hdlr()
-                controller.register()
+        for controller in self._controllers.values():
+            controller.reload_hdlr()
 
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
