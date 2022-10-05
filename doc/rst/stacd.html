@@ -15,7 +15,7 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stacd"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd — STorage Appliance Connector</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stacd</code>  [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm45724078846816"></a><h2>Description</h2><p>
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="stacd"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd — STorage Appliance Connector</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stacd</code>  [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm22"></a><h2>Description</h2><p>
             <span class="command"><strong>stacd</strong></span>
             is a system daemon that can be used to automatically connect to
             NVMe-oF I/O Controllers using the discovery log pages collected by
@@ -23,7 +23,7 @@
             <span class="citerefentry"><span class="refentrytitle">stacd.conf</span>(5)</span>
             to connect to I/O Controllers that otherwise cannot be found
             automatically.
-        </p></div><div class="refsect1"><a name="idm45724078812416"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
+        </p></div><div class="refsect1"><a name="idm32"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
     </p></dd><dt><a name="version"></a><span class="term"><code class="option">--version</code></span></dt><dd><p><a name="version-text"></a>Print the version string and exit.</p></dd></dl></div><dt><span class="term"><code class="option">-fFILE</code>, </span><span class="term"><code class="option">--conf-file=FILE</code></span></dt><dd><p>
                     Specify a different configuration file than
                     <span class="citerefentry"><span class="refentrytitle">stacd.conf</span>(5)</span>
@@ -31,12 +31,12 @@
                 </p></dd><dt><span class="term"><code class="option">-s</code>, </span><span class="term"><code class="option">--syslog</code></span></dt><dd><p>
                     Send messages to syslog instead of stdout. Use this when
                     running stacd as a daemon. (default: "<code class="literal">false</code>").
-                </p></dd><dt><span class="term"><code class="option">--tron</code></span></dt><dd><p>Trace ON. (default: "<code class="literal">false</code>")</p></dd><dt><span class="term"><code class="option">--idl=FILE</code></span></dt><dd><p>Print D-Bus IDL to FILE and exit.</p></dd></div><div class="refsect1"><a name="idm45724078981952"></a><h2>Exit status</h2><p>
+                </p></dd><dt><span class="term"><code class="option">--tron</code></span></dt><dd><p>Trace ON. (default: "<code class="literal">false</code>")</p></dd><dt><span class="term"><code class="option">--idl=FILE</code></span></dt><dd><p>Print D-Bus IDL to FILE and exit.</p></dd></div><div class="refsect1"><a name="idm78"></a><h2>Exit status</h2><p>
             On success, 0 is returned, a non-zero failure code otherwise.
-        </p></div><div class="refsect1"><a name="idm45724078980768"></a><h2>Daemonization</h2><p>
+        </p></div><div class="refsect1"><a name="idm81"></a><h2>Daemonization</h2><p>
             stacd is managed by <code class="code">systemd</code>. The following
             operations are supported:
-        </p><div class="table"><a name="idm45724078979168"></a><p class="title"><b>Table 1. </b></p><div class="table-contents"><table class="table" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Command</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left"><pre class="programlisting">$ systemctl start stacd </pre></td><td align="left">Start daemon.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl stop stacd </pre></td><td align="left">Stop daemon. The <code class="code">SIGTERM</code> signal is used to tell the daemon to stop.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl restart stacd </pre></td><td align="left">Effectively a <code class="code">stop</code> + <code class="code">start</code>.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl reload stacd </pre></td><td align="left">Reload configuration. This is done in real time without restarting the daemon. The <code class="code">SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code class="code">kato</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</td></tr></tbody></table></div></div><br class="table-break"></div><div class="refsect1"><a name="idm45724078953232"></a><h2>Design</h2><p>
+        </p><div class="table"><a name="idm85"></a><p class="title"><b>Table 1. </b></p><div class="table-contents"><table class="table" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Command</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left"><pre class="programlisting">$ systemctl start stacd </pre></td><td align="left">Start daemon.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl stop stacd </pre></td><td align="left">Stop daemon. The <code class="code">SIGTERM</code> signal is used to tell the daemon to stop.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl restart stacd </pre></td><td align="left">Effectively a <code class="code">stop</code> + <code class="code">start</code>.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl reload stacd </pre></td><td align="left">Reload configuration. This is done in real time without restarting the daemon. The <code class="code">SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code class="code">kato</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</td></tr></tbody></table></div></div><br class="table-break"></div><div class="refsect1"><a name="idm113"></a><h2>Design</h2><p>
           <span class="command"><strong>stacd</strong></span> use the <code class="code">GLib</code> main loop.
           The <code class="code">GLib</code> Python module provides several low-level
           building blocks that <span class="command"><strong>stacd</strong></span> requires. In
@@ -44,7 +44,7 @@
           such as <code class="code">dasbus</code> (D-Bus package) and <code class="code">pyudev</code>
           (UDev package). <code class="code">GLib</code> also provides additional components
           such as timers, signal handlers, and much more.
-      </p></div><div class="refsect1"><a name="idm45724078947824"></a><h2>Configuration</h2><p>
+      </p></div><div class="refsect1"><a name="idm124"></a><h2>Configuration</h2><p>
             <span class="command"><strong>stacd</strong></span> can automatically set up the I/O
             connections to discovered storage subsystems. However,
             <span class="command"><strong>stacd</strong></span> can also operate in a non-automatic
@@ -53,12 +53,12 @@
             <code class="filename">/etc/stas/stacd.conf</code>.
             This configuration file also provides additional parameters,
             as log-level attributes used for debugging purposes.
-        </p></div><div class="refsect1"><a name="idm45724078944256"></a><h2>D-Bus API</h2><p>
+        </p></div><div class="refsect1"><a name="idm130"></a><h2>D-Bus API</h2><p>
             The interface to <span class="command"><strong>stacd</strong></span> is D-Bus.
             This allows other programs, such as <span class="command"><strong>stacctl</strong></span>,
             to communicate with <span class="command"><strong>stacd</strong></span>. The D-Bus address
             is <code class="code">org.nvmexpress.stac</code>.
-        </p></div><div class="refsect1"><a name="idm45724078941808"></a><h2>See Also</h2><p>
+        </p></div><div class="refsect1"><a name="idm137"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stacd.conf</span>(5)</span>,
             <span class="citerefentry"><span class="refentrytitle">stacd.service</span>(8)</span>,
             <span class="citerefentry"><span class="refentrytitle">stacctl</span>(1)</span>,

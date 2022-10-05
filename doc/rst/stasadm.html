@@ -15,7 +15,7 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stasadm"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stasadm — STorage Appliance Services admin functions</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stasadm</code>  [OPTIONS...] {COMMAND} [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm46210542353952"></a><h2>Description</h2><p>
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="stasadm"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stasadm — STorage Appliance Services admin functions</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stasadm</code>  [OPTIONS...] {COMMAND} [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm24"></a><h2>Description</h2><p>
             <span class="command"><strong>stasadm</strong></span> is used to configure <code class="code">nvme-stas</code>. The
             configuration is saved to <code class="filename">/etc/stas/sys.conf</code>.
         </p><p>
@@ -31,7 +31,7 @@
             respectively. To tell <code class="code">nvme-stas</code> that you want to use the
             those files, simply use <span class="command"><strong>stasadm</strong></span>'s
             <code class="option">--file=FILE</code> option.
-        </p></div><div class="refsect1"><a name="idm46210542533184"></a><h2>Commands</h2><p>The following commands are understood:</p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><span class="command"><strong>hostnqn</strong></span></span></dt><dd><p>
+        </p></div><div class="refsect1"><a name="idm44"></a><h2>Commands</h2><p>The following commands are understood:</p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><span class="command"><strong>hostnqn</strong></span></span></dt><dd><p>
                         Generate the Host NQN. This is typically used as a post
                         installation step to generate <code class="filename">/etc/nvme/hostnqn</code>.
                     </p><p>
@@ -56,7 +56,7 @@
                         used for explicit registration with a discovery controller.
                     </p></dd><dt><span class="term"><span class="command"><strong>clear-symname</strong></span></span></dt><dd><p>
                         Clear the host symbolic name.
-                    </p></dd></dl></div></div><div class="refsect1"><a name="idm46210542518832"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
+                    </p></dd></dl></div></div><div class="refsect1"><a name="idm76"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
     </p></dd><dt><a name="version"></a><span class="term"><code class="option">--version</code></span></dt><dd><p><a name="version-text"></a>Print the version string and exit.</p></dd><dt><span class="term"><code class="option">-fFILE</code>, </span><span class="term"><code class="option">--file=FILE</code></span></dt><dd><p>
                         By default, <span class="command"><strong>hostnqn</strong></span> and <span class="command"><strong>hostid</strong></span> 
                         save the values to <code class="filename">/etc/stas/sys.conf</code>.
@@ -69,9 +69,9 @@
                         <code class="option">--file=FILE</code> option can be
                         used to tell <code class="code">nvme-stas</code> that it should
                         use those same configuration files.
-                    </p></dd></dl></div></div><div class="refsect1"><a name="idm46210542494736"></a><h2>Exit status</h2><p>
+                    </p></dd></dl></div></div><div class="refsect1"><a name="idm109"></a><h2>Exit status</h2><p>
             On success, 0 is returned; otherwise, a non-zero failure code is
             returned.
-        </p></div><div class="refsect1"><a name="idm46210542493424"></a><h2>Examples</h2><div class="example"><a name="idm46210542492752"></a><p class="title"><b>Example 1. Generate <code class="filename">/etc/nvme/hostnqn</code></b></p><div class="example-contents"><pre class="programlisting">$ stasadm hostnqn --file /etc/nvme/hostnqn</pre></div></div><br class="example-break"><div class="example"><a name="idm46210542490736"></a><p class="title"><b>Example 2. Generate <code class="filename">/etc/nvme/hostid</code></b></p><div class="example-contents"><pre class="programlisting">$ stasadm hostid -f /etc/nvme/hostid</pre></div></div><br class="example-break"><div class="example"><a name="idm46210542488672"></a><p class="title"><b>Example 3. Configure the host's symbolic name</b></p><div class="example-contents"><pre class="programlisting">$ stasadm set-symname LukeSkywalker</pre></div></div><br class="example-break"></div><div class="refsect1"><a name="idm46210542487024"></a><h2>See Also</h2><p>
+        </p></div><div class="refsect1"><a name="idm112"></a><h2>Examples</h2><div class="example"><a name="idm114"></a><p class="title"><b>Example 1. Generate <code class="filename">/etc/nvme/hostnqn</code></b></p><div class="example-contents"><pre class="programlisting">$ stasadm hostnqn --file /etc/nvme/hostnqn</pre></div></div><br class="example-break"><div class="example"><a name="idm118"></a><p class="title"><b>Example 2. Generate <code class="filename">/etc/nvme/hostid</code></b></p><div class="example-contents"><pre class="programlisting">$ stasadm hostid -f /etc/nvme/hostid</pre></div></div><br class="example-break"><div class="example"><a name="idm122"></a><p class="title"><b>Example 3. Configure the host's symbolic name</b></p><div class="example-contents"><pre class="programlisting">$ stasadm set-symname LukeSkywalker</pre></div></div><br class="example-break"></div><div class="refsect1"><a name="idm125"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">nvme-stas</span>(7)</span>
         </p></div></div></body></html>

@@ -15,18 +15,18 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stafctl"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafctl — STorage Appliance Finder (STAF) utility program</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stafctl</code>  [OPTIONS...] {COMMAND} [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm45619019185696"></a><h2>Description</h2><p>
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="stafctl"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafctl — STorage Appliance Finder (STAF) utility program</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stafctl</code>  [OPTIONS...] {COMMAND} [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm24"></a><h2>Description</h2><p>
             <span class="command"><strong>stafctl</strong></span> is a tool that can be used to communicate
             with the <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span> daemon to retrieve
             operational data.
-        </p></div><div class="refsect1"><a name="idm45619019228832"></a><h2>Commands</h2><p>The following commands are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="tron"></a><span class="term"><span class="command"><strong>tron</strong></span></span></dt><dd><p>Trace ON. Enable code tracing, which is to say that lots of
+        </p></div><div class="refsect1"><a name="idm31"></a><h2>Commands</h2><p>The following commands are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="tron"></a><span class="term"><span class="command"><strong>tron</strong></span></span></dt><dd><p>Trace ON. Enable code tracing, which is to say that lots of
                 debug information will be printed to the syslog
                 (e.g. systemd-journal).</p></dd><dt><a name="troff"></a><span class="term"><span class="command"><strong>troff</strong></span></span></dt><dd><p>Trace OFF. Disable code tracing.</p></dd><dt><a name="status"></a><span class="term"><span class="command"><strong>status</strong></span></span></dt><dd><p>Show runtime status information.</p></dd><dt><span class="term"><span class="command"><strong>ls</strong></span></span></dt><dd><p>
                         Show the list of discovery controllers. This will list
                         all the controllers configured in
                         <span class="citerefentry"><span class="refentrytitle">stafd.conf</span>(5)</span> as well as those
                         discovered with mDNS service discovery.
-                    </p></dd><dt><span class="term"><span class="command"><strong>dlp</strong></span></span></dt><dd><p>Show discovery log pages.</p></dd><dt><span class="term"><span class="command"><strong>adlp</strong></span></span></dt><dd><p>Show all discovery log pages.</p></dd></dl></div></div><div class="refsect1"><a name="idm45619019362672"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
+                    </p></dd><dt><span class="term"><span class="command"><strong>dlp</strong></span></span></dt><dd><p>Show discovery log pages.</p></dd><dt><span class="term"><span class="command"><strong>adlp</strong></span></span></dt><dd><p>Show all discovery log pages.</p></dd></dl></div></div><div class="refsect1"><a name="idm68"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
     </p></dd><dt><a name="version"></a><span class="term"><code class="option">--version</code></span></dt><dd><p><a name="version-text"></a>Print the version string and exit.</p></dd><dt><a name="detailed"></a><span class="term"><code class="option">-d</code>, </span><span class="term"><code class="option">--detailed</code></span></dt><dd><p>Print additional details.</p></dd><dt><a name="transport"></a><span class="term"><code class="option">-tTRTYPE</code>, </span><span class="term"><code class="option">--transport=TRTYPE</code></span></dt><dd><p>NVMe-over-Fabrics fabric type (default: "tcp").</p></dd><dt><a name="traddr"></a><span class="term"><code class="option">-aTRADDR</code>, </span><span class="term"><code class="option">--traddr=TRADDR</code></span></dt><dd><p>Discovery controller's network address.</p></dd><dt><a name="trsvcid"></a><span class="term"><code class="option">-sTRSVCID</code>, </span><span class="term"><code class="option">--trsvcid=TRSVCID</code></span></dt><dd><p>
               Transport service id (for IP addressing, e.g. tcp, rdma,
               this field is the port number).
@@ -41,21 +41,21 @@
               Discovery Controller's NVMe Qualified Name.
               If not specified, this will default to the
               well-known DC NQN: "<code class="literal">nqn.2014-08.org.nvmexpress.discovery</code>".
-          </p></dd></dl></div></div><div class="refsect1"><a name="idm45619019353888"></a><h2>Values</h2><div class="variablelist"><dl class="variablelist"><dt><a name="TRTYPE-value"></a><span class="term"><em class="replaceable"><code>TRTYPE</code></em></span></dt><dd><p>rdma, fc, tcp, loop.</p></dd><dt><a name="TRADDR-value"></a><span class="term"><em class="replaceable"><code>TRADDR</code></em></span></dt><dd><p>IP or Fibre Channel address. E.g. 10.10.0.100.</p></dd><dt><a name="TRSVCID-value"></a><span class="term"><em class="replaceable"><code>TRSVCID</code></em></span></dt><dd><p>E.g., 8009.</p></dd><dt><a name="IFACE-value"></a><span class="term"><em class="replaceable"><code>IFACE</code></em></span></dt><dd><p>
+          </p></dd></dl></div></div><div class="refsect1"><a name="idm134"></a><h2>Values</h2><div class="variablelist"><dl class="variablelist"><dt><a name="TRTYPE-value"></a><span class="term"><em class="replaceable"><code>TRTYPE</code></em></span></dt><dd><p>rdma, fc, tcp, loop.</p></dd><dt><a name="TRADDR-value"></a><span class="term"><em class="replaceable"><code>TRADDR</code></em></span></dt><dd><p>IP or Fibre Channel address. E.g. 10.10.0.100.</p></dd><dt><a name="TRSVCID-value"></a><span class="term"><em class="replaceable"><code>TRSVCID</code></em></span></dt><dd><p>E.g., 8009.</p></dd><dt><a name="IFACE-value"></a><span class="term"><em class="replaceable"><code>IFACE</code></em></span></dt><dd><p>
               Network interface name. E.g., eth1, enp0s8, wlp0s20f3.
           </p></dd><dt><a name="NQN-value"></a><span class="term"><em class="replaceable"><code>NQN</code></em></span></dt><dd><p>
               NVMe Qualified Name.
-          </p></dd></dl></div></div><div class="refsect1"><a name="idm45619019336736"></a><h2>Exit status</h2><p>
+          </p></dd></dl></div></div><div class="refsect1"><a name="idm162"></a><h2>Exit status</h2><p>
             On success, 0 is returned; otherwise, a non-zero failure code is
             returned.
-        </p></div><div class="refsect1"><a name="idm45619019335424"></a><h2>Examples</h2><div class="example"><a name="idm45619019334752"></a><p class="title"><b>Example 1. List all the discovery controllers</b></p><div class="example-contents"><pre class="programlisting">$ stafctl ls
+        </p></div><div class="refsect1"><a name="idm165"></a><h2>Examples</h2><div class="example"><a name="idm167"></a><p class="title"><b>Example 1. List all the discovery controllers</b></p><div class="example-contents"><pre class="programlisting">$ stafctl ls
 [{'device':      'nvme0',
   'host-iface':  '',
   'host-traddr': '',
   'subsysnqn':   'nqn.2014-08.org.nvmexpress.discovery',
   'traddr':      '::1',
   'transport':   'tcp',
-  'trsvcid':     '8009'}]</pre></div></div><br class="example-break"><div class="example"><a name="idm45619019333280"></a><p class="title"><b>Example 2. Enable tracing</b></p><div class="example-contents"><pre class="programlisting">$ stafctl tron</pre></div></div><br class="example-break"><div class="example"><a name="idm45619019331792"></a><p class="title"><b>Example 3. 
+  'trsvcid':     '8009'}]</pre></div></div><br class="example-break"><div class="example"><a name="idm170"></a><p class="title"><b>Example 2. Enable tracing</b></p><div class="example-contents"><pre class="programlisting">$ stafctl tron</pre></div></div><br class="example-break"><div class="example"><a name="idm173"></a><p class="title"><b>Example 3. 
                 Show discovery log pages from a specific discovery controller
             </b></p><div class="example-contents"><pre class="programlisting">$ stafctl dlp --transport tcp --traddr ::1 --trsvcid 8009
 [{'adrfam':  'ipv6',
@@ -87,7 +87,7 @@
   'traddr':  '::1',
   'treq':    'disable sqflow',
   'trsvcid': '8009',
-  'trtype':  'tcp'}]</pre></div></div><br class="example-break"></div><div class="refsect1"><a name="idm45619019329168"></a><h2>See Also</h2><p>
+  'trtype':  'tcp'}]</pre></div></div><br class="example-break"></div><div class="refsect1"><a name="idm176"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stafd.conf</span>(5)</span>,
             <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
             <span class="citerefentry"></span>

@@ -15,22 +15,22 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stacd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd.conf — 
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="stacd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stacd.conf — 
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
             configuration file
         </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><p>
             <code class="filename">/etc/stas/stacd.conf</code>
-        </p></div><div class="refsect1"><a name="idm46420434211888"></a><h2>Description</h2><p>
+        </p></div><div class="refsect1"><a name="idm24"></a><h2>Description</h2><p>
             When <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span> starts up, it reads its
             configuration from <code class="filename">stacd.conf</code>.
-        </p></div><div class="refsect1"><a name="idm46420434208752"></a><h2>Configuration File Format</h2><p>
+        </p></div><div class="refsect1"><a name="idm31"></a><h2>Configuration File Format</h2><p>
             <code class="filename">stacd.conf</code> is a plain text file divided into
             sections, with configuration entries in the style
             <em class="replaceable"><code>key</code></em>=<em class="replaceable"><code>value</code></em>.
-            Whitespace immediately before or after the "<code class="literal">=</code>" is
+            A space immediately before or after the "<code class="literal">=</code>" is
             ignored. Empty lines and lines starting with "<code class="literal">#</code>"
             are ignored, which may be used for commenting.
-        </p></div><div class="refsect1"><a name="idm46420434250528"></a><h2>Options</h2><div class="refsect2"><a name="idm46420434249856"></a><h3>[Global] section</h3><p>
+        </p></div><div class="refsect1"><a name="idm39"></a><h2>Options</h2><div class="refsect2"><a name="idm41"></a><h3>[Global] section</h3><p>
                 The following options are available in the
                 "<code class="literal">[Global]</code>"section:
             </p><div class="variablelist"><dl class="variablelist"><dt><a name="tron"></a><span class="term"><code class="varname">tron=</code></span></dt><dd><p><a name="tron-text"></a>
@@ -122,20 +122,173 @@
                             stafd.
                         </p><p>
                             Defaults to "<code class="literal">false</code>".
-                        </p></dd></dl></div></div><div class="refsect2"><a name="controller"></a><h3>[Controllers] section</h3><p>The following options are available in the
+                        </p></dd><dt><span class="term"><code class="varname">udev-rule=</code></span></dt><dd><p>
+                            Takes a string argument "<code class="literal">enabled</code>" or
+                            "<code class="literal">disabled</code>". This option determines
+                            whether <code class="code">nvme-cli</code>'s udev rule will be executed
+                            or ignored.
+                        </p><p>
+                            A udev rule gets installed with <code class="code">nvme-cli</code>
+                            that tells the udev daemon (<code class="code">udevd</code>) to look
+                            for Asynchronous Event Notifications (AEN) indicating
+                            a change of Discovery Log Page Entries (DPLE). The
+                            udev rule is installed as: <code class="filename">/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules</code>
+                        </p><p>
+                            When an AEN is detected, <code class="code">udevd</code> simply
+                            instructs <code class="code">systemd</code> to start a one-shot
+                            service that will retrieve the changed DPLEs and
+                            connect to all the I/O Controllers (IOC) listed in
+                            the DPLEs. This is basically the same as performing
+                            <code class="code">nvme-cli</code>'s "<code class="code">connect-all</code>"
+                            command.
+                        </p><p>
+                            Unfortunately, <code class="code">stafd</code> and <code class="code">stacd</code>
+                            also perform the same operations when an AEN is received.
+                            This results in a race condition between <code class="code">udevd</code>
+                            and <code class="code">stafd</code>/<code class="code">stacd</code>.
+                        </p><p>
+                            This is not really a problem. <code class="code">stafd</code> and
+                            <code class="code">stacd</code> are designed to handle this type
+                            of race condition and will conclude, eventually, that
+                            the connections succeeded. The only downside is that
+                            there may be error messages printed to the syslog
+                            when the race condition happens. These messages are
+                            printed by the kernel because two processes are trying
+                            to connect to the same IOC at the same time. One of
+                            them will be rejected by the kernel, but the other
+                            will succeed.
+                        </p><p>
+                            The <code class="code">udev-rule</code> option allows a user to
+                            disable <code class="code">nvme-cli</code>'s udev rule so that <code class="code">udevd</code> will
+                            not act on received AENs. Instead, only
+                            <code class="code">stafd</code>/<code class="code">stacd</code> will be allowed
+                            to react to AENs and set up IOC connections.
+                        </p><p>
+                            Defaults to "<code class="literal">enabled</code>", which means
+                            that <code class="code">udevd</code> and <code class="code">stafd</code>/<code class="code">stacd</code>
+                            will react to AENs. It also means that the race condition
+                            will happen by default and error messages will be
+                            printed to the syslog.
+                        </p></dd><dt><span class="term"><code class="varname">sticky-connections=</code></span></dt><dd><p>
+                            Keep existing connections to I/O controllers (IOC).
+                            Takes a string argument "<code class="literal">enabled</code>" or
+                            "<code class="literal">disabled</code>".
+                        </p><p>
+                            The parameter <code class="code">sticky-connections</code>
+                            determines how <code class="code">stacd</code> reacts to the
+                            removal of an IOC Discovery Page Entry (DLPE) or the
+                            removal of a "<code class="literal">controller=</code>" entry in
+                            <code class="filename">/etc/stas/stacd.conf</code>. In other
+                            words, whether it should immediately disconnect
+                            from IOC when the DPLE/"<code class="literal">controller=</code>"
+                            is removed, or whether it should maintain the connection.
+                        </p><div class="table"><a name="idm149"></a><p class="title"><b>Table 1. List of terms used in the following text:</b></p><div class="table-contents"><table class="table" summary="List of terms used in the following text:" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Term</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left">Manual Config</td><td align="left">Refers to manually adding entries to <code class="filename">stacd.conf</code></td></tr><tr><td align="left">Automatic Config</td><td align="left">Refers to receiving configuration from a Discovery Controller (DC) as DLPEs</td></tr><tr><td align="left">External Config</td><td align="left">Refers to configuration done outside of the <code class="code">nvme-stas</code> framework, for example using <code class="code">nvme-cli</code> commands</td></tr></tbody></table></div></div><br class="table-break"><p><b>IOC connection creation. </b>
+                                There are 3 ways to configure IOC connections on a host:
+                            </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                                        Manual Config by adding "<code class="literal">controller=</code>" entries
+                                        to the "<code class="literal">[Controllers]</code>" section (see below).
+                                    </p></li><li class="listitem"><p>
+                                        Automatic Config received in the form of
+                                        DLPEs from a remote DC.
+                                    </p></li><li class="listitem"><p>
+                                        External Config using <code class="code">nvme-cli</code> (e.g. "<code class="code">nvme connect</code>")
+                                    </p></li></ol></div><p><b>Zoning and DLPEs. </b>
+                                Zoning configuration is performed at Discovery
+                                Controllers (DC). A zone is used to specify the list
+                                of IOC that a host is allowed to access.
+                                The zone contains a list of hosts and the IOC
+                                that these hosts can access. Users can add or
+                                remove IOC and/or hosts from zones.
+                            </p><p>
+                                DCs notify hosts of zoning configuration changes by
+                                sending Asynchronous Event Notifications (AEN)
+                                indicating a "Change of Discovery Log Page (DLP)".
+                                The host uses these AENs as a trigger to retrieve the
+                                new list of DLPEs by issuing a Get DLP command.
+                                This happens in real time, which means that a host
+                                that was previously connected to an IOC may
+                                suddenly be told that it is no longer allowed to
+                                connect to that IOC and should disconnect from it.
+                            </p><p><b>IOC connection removal. </b>
+                                There are 3 ways to remove controller connections to an IOC:
+                            </p><div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><p>
+                                        Manual Config.
+                                        </p><div class="orderedlist"><ol class="orderedlist" type="i"><li class="listitem"><p>
+                                                    by adding "<code class="literal">blacklist=</code>" entries to
+                                                    the "<code class="literal">[Controllers]</code>" section (see below).
+                                                </p></li><li class="listitem"><p>
+                                                    by removing "<code class="literal">controller=</code>" entries
+                                                    from the "<code class="literal">[Controllers]</code>" section.
+                                                </p></li></ol></div><p>
+                                    </p></li><li class="listitem"><p>
+                                        Automatic Config. As explained above, changing
+                                        zoning at a DC will result in the host getting
+                                        a new list of DLPEs. On DLPE removal, the host
+                                        should remove the connection to the IOC matching
+                                        that DLPE.
+                                    </p></li><li class="listitem"><p>
+                                        External Config using <code class="code">nvme-cli</code> (e.g. "<code class="code">nvme
+                                        disconnect</code>" or "<code class="code">nvme disconnect-all</code>")
+                                    </p></li></ol></div><p>
+                            Some users may prefer for the IOC to be "sticky" and
+                            only be removed manually (<code class="code">nvme-cli</code> or "<code class="literal">blacklist=</code>") or
+                            removed by a system reboot. They don't want for IOC
+                            connections to be removed unexpectedly on DLPE
+                            removal. This is where <code class="code">sticky-connections=</code>
+                            comes into play.
+                        </p><p>
+                            <code class="code">sticky-connections=</code> tells <code class="code">stacd</code>
+                            whether to keep connections to IOC even if their
+                            DPLEs have been removed or the "<code class="literal">controller=</code>"
+                            entries in <code class="filename">stacd.conf</code> have been removed.
+                        </p><p><b>With <code class="code">sticky-connections=disabled</code>. </b>
+                                <code class="code">stacd</code> immediately disconnects from
+                                a previously connected IOC if the response to a
+                                Get DLP command no longer contains a DLPE matching
+                                that IOC or a "<code class="literal">controller=</code>"
+                                entry in <code class="filename">stacd.conf</code> is removed.
+                            </p><p>
+                                Ongoing I/O transactions will be terminated immediately
+                                as well. There is no way to tell what happens to
+                                the data being exchanged when such an abrupt
+                                termination happens. If a host was in the middle
+                                of writing to a storage subsystem, there is a good
+                                chance that incomplete and potentially corrupt data
+                                will be left on the remote storage.
+                            </p><p><b><span class="emphasis"><em>NOTE</em></span>. </b>
+                                    This mode implies that <code class="code">nvme-stas</code> will
+                                    only allow Manually Configured or Automatically
+                                    Configured IOC connections to exist. Externally
+                                    Configured connections using <code class="code">nvme-cli</code>
+                                    that do not match any Manual Config
+                                    (<code class="filename">stacd.conf</code>)
+                                    or Automatic Config (DLPEs) will get deleted
+                                    immediately by <code class="code">stacd</code>.
+                                </p><p><b>With <code class="code">sticky-connections=enabled (default)</code>. </b>
+                                <code class="code">stacd</code> does not disconnect from IOCs
+                                when a DPLE is removed or a "<code class="literal">controller=</code>"
+                                entry is removed from <code class="filename">stacd.conf</code>.
+                            
+                                Instead, users can issue the <code class="code">nvme-cli</code>
+                                command "<code class="code">nvme disconnect</code>", add a
+                                "<code class="literal">blacklist=</code>" entry to
+                                <code class="filename">stacd.conf</code>, or wait
+                                until the next system reboot at which time all
+                                connections will be removed.
+                            </p></dd></dl></div></div><div class="refsect2"><a name="controller"></a><h3>[Controllers] section</h3><p>The following options are available in the
             "<code class="literal">[Controllers]</code>" section:</p><dt><span class="term"><code class="varname">controller=</code></span></dt><dd><p><a name="controller-text"></a>
                     Controllers are specified with the "<code class="literal">controller</code>"
                     option. This option may be specified more than once to specify
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm46420434453280"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm257"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
                                     "<code class="literal">trtype</code>" values understood
                                     are:
-                                </p><div class="table"><a name="transport-types"></a><p class="title"><b>Table 1. Transport type</b></p><div class="table-contents"><table class="table" summary="Transport type" border="1"><colgroup><col><col></colgroup><thead><tr><th>trtype</th><th>Definition</th></tr></thead><tbody><tr><td>rdma</td><td>
+                                </p><div class="table"><a name="transport-types"></a><p class="title"><b>Table 2. Transport type</b></p><div class="table-contents"><table class="table" summary="Transport type" border="1"><colgroup><col><col></colgroup><thead><tr><th>trtype</th><th>Definition</th></tr></thead><tbody><tr><td>rdma</td><td>
                                                     The network fabric is an rdma network (RoCE, iWARP, Infiniband, basic rdma, etc)
                                                 </td></tr><tr><td>fc</td><td>
                                                     The network fabric is a Fibre Channel network.
@@ -247,6 +400,6 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </p><pre class="programlisting">blacklist = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
 blacklist = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm46420434380768"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm338"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stacd</span>(8)</span>
         </p></div></div></body></html>

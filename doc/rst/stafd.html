@@ -15,7 +15,7 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stafd"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd — STorage Appliance Finder</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stafd</code>  [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm45615556797280"></a><h2>Description</h2><p>
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="stafd"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd — STorage Appliance Finder</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><div class="cmdsynopsis"><p><code class="command">stafd</code>  [OPTIONS...]</p></div></div><div class="refsect1"><a name="idm22"></a><h2>Description</h2><p>
             <span class="command"><strong>stafd</strong></span>
             is a system daemon that can be used to automatically locate and
             connect to NVMe-oF Discovery Controllers using mDNS service discovery.
@@ -23,7 +23,7 @@
             <span class="citerefentry"><span class="refentrytitle">stafd.conf</span>(5)</span>
             to connect to Discovery Controllers that cannot be located using
             mDNS.
-        </p></div><div class="refsect1"><a name="idm45615556794048"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
+        </p></div><div class="refsect1"><a name="idm29"></a><h2>Options</h2><p>The following options are understood:</p><div class="variablelist"><dl class="variablelist"><dt><a name="help"></a><span class="term"><code class="option">-h</code>, </span><span class="term"><code class="option">--help</code></span></dt><dd><p><a name="help-text"></a>Print the help text and exit.
     </p></dd><dt><a name="version"></a><span class="term"><code class="option">--version</code></span></dt><dd><p><a name="version-text"></a>Print the version string and exit.</p></dd></dl></div><dt><span class="term"><code class="option">-fFILE</code>, </span><span class="term"><code class="option">--conf-file=FILE</code></span></dt><dd><p>
                     Specify a different configuration file than
                     <span class="citerefentry"><span class="refentrytitle">stafd.conf</span>(5)</span>
@@ -31,12 +31,12 @@
                 </p></dd><dt><span class="term"><code class="option">-s</code>, </span><span class="term"><code class="option">--syslog</code></span></dt><dd><p>
                     Send messages to syslog instead of stdout. Use this when
                     running stafd as a daemon. (default: "<code class="literal">false</code>").
-                </p></dd><dt><span class="term"><code class="option">--tron</code></span></dt><dd><p>Trace ON. (default: "<code class="literal">false</code>")</p></dd><dt><span class="term"><code class="option">--idl=FILE</code></span></dt><dd><p>Print D-Bus IDL to FILE and exit.</p></dd></div><div class="refsect1"><a name="idm45615556933520"></a><h2>Exit status</h2><p>
+                </p></dd><dt><span class="term"><code class="option">--tron</code></span></dt><dd><p>Trace ON. (default: "<code class="literal">false</code>")</p></dd><dt><span class="term"><code class="option">--idl=FILE</code></span></dt><dd><p>Print D-Bus IDL to FILE and exit.</p></dd></div><div class="refsect1"><a name="idm75"></a><h2>Exit status</h2><p>
             On success, 0 is returned, a non-zero failure code otherwise.
-        </p></div><div class="refsect1"><a name="idm45615556932336"></a><h2>Daemonization</h2><p>
+        </p></div><div class="refsect1"><a name="idm78"></a><h2>Daemonization</h2><p>
             stafd is managed by <code class="code">systemd</code>. The following
             operations are supported:
-        </p><div class="table"><a name="idm45615556930736"></a><p class="title"><b>Table 1. </b></p><div class="table-contents"><table class="table" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Command</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left"><pre class="programlisting">$ systemctl start stafd </pre></td><td align="left">Start daemon.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl stop stafd </pre></td><td align="left">Stop daemon. The <code class="code">SIGTERM</code> signal is used to tell the daemon to stop.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl restart stafd </pre></td><td align="left">Effectively a <code class="code">stop</code> + <code class="code">start</code>.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl reload stafd </pre></td><td align="left">Reload configuration. This is done in real time without restarting the daemon. The <code class="code">SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code class="code">kato</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</td></tr></tbody></table></div></div><br class="table-break"></div><div class="refsect1"><a name="idm45615556905008"></a><h2>Design</h2><p>
+        </p><div class="table"><a name="idm82"></a><p class="title"><b>Table 1. </b></p><div class="table-contents"><table class="table" border="1"><colgroup><col><col></colgroup><thead><tr><th align="left">Command</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left"><pre class="programlisting">$ systemctl start stafd </pre></td><td align="left">Start daemon.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl stop stafd </pre></td><td align="left">Stop daemon. The <code class="code">SIGTERM</code> signal is used to tell the daemon to stop.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl restart stafd </pre></td><td align="left">Effectively a <code class="code">stop</code> + <code class="code">start</code>.</td></tr><tr><td align="left"><pre class="programlisting">$ systemctl reload stafd </pre></td><td align="left">Reload configuration. This is done in real time without restarting the daemon. The <code class="code">SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code class="code">kato</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</td></tr></tbody></table></div></div><br class="table-break"></div><div class="refsect1"><a name="idm110"></a><h2>Design</h2><p>
           <span class="command"><strong>stafd</strong></span> use the <code class="code">GLib</code> main loop.
           The <code class="code">GLib</code> Python module provides several low-level
           building blocks that <span class="command"><strong>stafd</strong></span> requires. In
@@ -56,7 +56,7 @@
           Once a connection to a DC is established, <span class="command"><strong>stafd</strong></span>
           can retrieve the <span class="emphasis"><em>discovery log pages</em></span> from
           that DC and cache them in memory.
-      </p></div><div class="refsect1"><a name="idm45615556894064"></a><h2>Configuration</h2><p>
+      </p></div><div class="refsect1"><a name="idm131"></a><h2>Configuration</h2><p>
             <span class="command"><strong>stafd</strong></span> can automatically locate discovery
             controllers (DC) with the help of Avahi and connect to them. However,
             <span class="command"><strong>stafd</strong></span> can also operate in a non-automatic
@@ -65,12 +65,12 @@
             <code class="filename">/etc/stas/stafd.conf</code>.
             This configuration file also provides additional parameters, such
             as log-level attributes used for debugging purposes.
-        </p></div><div class="refsect1"><a name="idm45615556890464"></a><h2>D-Bus API</h2><p>
+        </p></div><div class="refsect1"><a name="idm137"></a><h2>D-Bus API</h2><p>
             The interface to <span class="command"><strong>stafd</strong></span> is D-Bus.
             This allows other programs, such as <span class="command"><strong>stafctl</strong></span>,
             to communicate with <span class="command"><strong>stafd</strong></span>. The D-Bus address
             is <code class="code">org.nvmexpress.staf</code>.
-        </p></div><div class="refsect1"><a name="idm45615551886064"></a><h2>See Also</h2><p>
+        </p></div><div class="refsect1"><a name="idm144"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stafd.conf</span>(5)</span>,
             <span class="citerefentry"><span class="refentrytitle">stafd.service</span>(8)</span>,
             <span class="citerefentry"><span class="refentrytitle">stafctl</span>(1)</span>,
