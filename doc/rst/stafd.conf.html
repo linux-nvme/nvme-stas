@@ -15,22 +15,22 @@
     h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, dt:hover > a.headerlink {
       visibility: visible;
     }
-  </style><a>   </a><span style="float:right">nvme-stas 1.0</span><hr><div class="refentry"><a name="stafd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd.conf — 
+  </style><a>   </a><span style="float:right">nvme-stas 1.1.6</span><hr><div class="refentry"><a name="stafd.conf"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>stafd.conf — 
             <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
             configuration file
         </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><p>
             <code class="filename">/etc/stas/stafd.conf</code>
-        </p></div><div class="refsect1"><a name="idm46377465181232"></a><h2>Description</h2><p>
+        </p></div><div class="refsect1"><a name="idm24"></a><h2>Description</h2><p>
             When <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span> starts up, it reads its
             configuration from <code class="filename">stafd.conf</code>.
-        </p></div><div class="refsect1"><a name="idm46377465178096"></a><h2>Configuration File Format</h2><p>
+        </p></div><div class="refsect1"><a name="idm31"></a><h2>Configuration File Format</h2><p>
             <code class="filename">stafd.conf</code> is a plain text file divided into
             sections, with configuration entries in the style
             <em class="replaceable"><code>key</code></em>=<em class="replaceable"><code>value</code></em>.
-            Whitespace immediately before or after the "<code class="literal">=</code>" is
+            A space immediately before or after the "<code class="literal">=</code>" is
             ignored. Empty lines and lines starting with "<code class="literal">#</code>"
             are ignored, which may be used for commenting.
-        </p></div><div class="refsect1"><a name="idm46377465219872"></a><h2>Options</h2><div class="refsect2"><a name="idm46377465219200"></a><h3>[Global] section</h3><p>
+        </p></div><div class="refsect1"><a name="idm39"></a><h2>Options</h2><div class="refsect2"><a name="idm41"></a><h3>[Global] section</h3><p>
                 The following options are available in the
                 "<code class="literal">[Global]</code>" section:
             </p><div class="variablelist"><dl class="variablelist"><dt><a name="tron"></a><span class="term"><code class="varname">tron=</code></span></dt><dd><p><a name="tron-text"></a>
@@ -100,7 +100,7 @@
                             default.
                         </p><p>
                             Defaults to "<code class="literal">false</code>".
-                        </p></dd></dl></div></div><div class="refsect2"><a name="idm46377465349136"></a><h3>[Service Discovery] section</h3><p>
+                        </p></dd></dl></div></div><div class="refsect2"><a name="idm103"></a><h3>[Service Discovery] section</h3><p>
                 The following options are available in the
                 "<code class="literal">[Service Discovery]</code>" section:
             </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="varname">zeroconf=</code></span></dt><dd><p>
@@ -123,7 +123,7 @@
                     more than one controller. The format is one line per Controller
                     composed of a series of fields separated by semi-colons as follows:
                 </p><pre class="programlisting">controller=transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr],host-iface=[iface];nqn=[nqn]
-                </pre><div class="refsect3"><a name="idm46377465422512"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
+                </pre><div class="refsect3"><a name="idm131"></a><h4>Fields</h4><div class="variablelist"><dl class="variablelist"><dt><a name="transport"></a><span class="term"><code class="varname">transport=</code></span></dt><dd><p><a name="transport-text"></a>
                                     This is a mandatory field that specifies the
                                     network fabric being used for a
                                     NVMe-over-Fabrics network. Current
@@ -241,6 +241,6 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                     </p><pre class="programlisting">blacklist = transport=tcp;traddr=fe80::2c6e:dee7:857:26bb # Eliminate a specific address
 blacklist = host-iface=enp0s8                             # Eliminate everything on this interface
                     </pre><p>
-                </p></dd></div></div><div class="refsect1"><a name="idm46377465327792"></a><h2>See Also</h2><p>
+                </p></dd></div></div><div class="refsect1"><a name="idm212"></a><h2>See Also</h2><p>
             <span class="citerefentry"><span class="refentrytitle">stafd</span>(8)</span>
         </p></div></div></body></html>
