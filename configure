@@ -12,6 +12,6 @@ BUILD_DIR="${BUILD_DIR:-.build}"
 if [ ! -d ${BUILD_DIR} ]; then
     exec meson ${BUILD_DIR} "$@"
 else
-    echo "Project already configured. Remove ${BUILD_DIR} directory to clear previous configuration."
+    exec meson configure ${BUILD_DIR} "$@"
 fi
 
