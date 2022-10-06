@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.53.0',
-    version: '2.0-rc2',
+    version: '2.0-rc3',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -30,27 +30,38 @@ cnfdir  = join_paths(etcdir, 'stas')
 
 want_man  = get_option('man')
 want_html = get_option('html')
+readthedocs = get_option('readthedocs')
 
-# Until python3-libnvme is widely available from distros, we need to manually
-# pull libnvme source from Github and build as a subproject (see fallback below).
-# Once python3-libnvme is available, we can remove the fallback code indicated
-# by use_libnvme_fallback=true.
-use_libnvme_fallback = true
-
-# Check for libnvme availability
-if use_libnvme_fallback
-    libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
-endif
-
-# Check that we have all the right Python3 dependencies
-if use_libnvme_fallback
-    py_modules = ['dasbus', 'pyudev', 'systemd', 'gi']
+if readthedocs
+    want_html = true
+    py_modules = ['lxml']
+    libnvme_dep = declare_dependency() # dummy dependency
 else
-    py_modules = ['libnvme', 'dasbus', 'pyudev', 'systemd', 'gi']
+    # Until python3-libnvme is widely available from distros, we need to manually
+    # pull libnvme source from Github and build as a subproject (see fallback below).
+    # Once python3-libnvme is available, we can remove the fallback code indicated
+    # by use_libnvme_fallback=true.
+    use_libnvme_fallback = true
+
+    # Check for libnvme availability
+    if use_libnvme_fallback
+        libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
+    else
+        libnvme_dep = declare_dependency() # dummy dependency
+    endif
+
+    # Check that we have all the right Python3 dependencies
+    if use_libnvme_fallback
+        py_modules = ['dasbus', 'pyudev', 'systemd', 'gi']
+    else
+        py_modules = ['libnvme', 'dasbus', 'pyudev', 'systemd', 'gi']
+    endif
+
+    if want_man or want_html
+        py_modules += ['lxml']
+    endif
 endif
-if want_man or want_html
-    py_modules += ['lxml']
-endif
+
 python3 = import('python').find_installation('python3', modules:py_modules)
 python_version = python3.language_version()
 python_version_req = '>=3.6'
@@ -111,18 +122,17 @@ stafd = configure_file(
     install_dir: sbindir,
     copy: true,
 )
+stacd = configure_file(
+    input: 'stacd.py',
+    output: conf.get('STACD_PROCNAME'),
+    install_dir: sbindir,
+    copy: true,
+)
 
 stafctl = configure_file(
     input: 'stafctl.py',
     output: 'stafctl',
     install_dir: bindir,
-    copy: true,
-)
-
-stacd = configure_file(
-    input: 'stacd.py',
-    output: conf.get('STACD_PROCNAME'),
-    install_dir: sbindir,
     copy: true,
 )
 
@@ -140,22 +150,13 @@ stasadm = configure_file(
     copy: true,
 )
 
-#===============================================================================
+#===========================================================================
 install_subdir(
     'etc/stas',
     install_dir: etcdir,
 )
 
-#===============================================================================
-# Make a list of modules to lint
-if libnvme_dep.found()
-modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
-else
-    warning('Install the libnvme Python package to run the tests.')
-    modules_to_lint = []
-endif
-
-#===============================================================================
+#===========================================================================
 foreach component : [ 'nvme-stas.spec', '.coveragerc', 'coverage.sh', ]
     configure_file(
         input:         component + '.in',
@@ -164,12 +165,22 @@ foreach component : [ 'nvme-stas.spec', '.coveragerc', 'coverage.sh', ]
     )
 endforeach
 
-#===============================================================================
+#===========================================================================
+# Make a list of modules to lint
+if libnvme_dep.found()
+    modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+else
+    warning('Install the libnvme Python package to run the tests.')
+    modules_to_lint = []
+endif
+
+#===========================================================================
 subdir('staslib')
 subdir('etc/dbus-1/system.d')
 subdir('usr/lib/systemd/system')
-subdir('doc/man')
 subdir('test')
+subdir('doc')
+subdir('doc/man')
 
 if meson.version().version_compare('>=0.57.0')
     summary = [
