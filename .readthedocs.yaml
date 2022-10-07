@@ -19,19 +19,13 @@ build:
     python: "3"
   apt_packages:
     - meson
-    - python3-dasbus
-    - python3-gi
     - python3-lxml
-    - python3-pyudev
-    - python3-systemd
     - docbook-xsl
     - xsltproc
   jobs:
     pre_build:
-      - pip3 install dasbus pyudev systemd-python PyGObject
-      - meson .build -Dhtml=true
+      - meson .build -Dreadthedocs=true
       - ninja -C .build
 
 sphinx:
   configuration: .build/doc/conf.py
-  builder: html
