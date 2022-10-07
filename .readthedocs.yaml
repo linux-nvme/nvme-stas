@@ -9,9 +9,9 @@
 
 version: 2
 
-python:
-  install:
-    - requirements: doc/requirements.txt
+#python:
+#  install:
+#    - requirements: doc/requirements.txt
 
 build:
   os: ubuntu-22.04
@@ -19,15 +19,16 @@ build:
     python: "3"
   apt_packages:
     - meson
-#    - python3-dasbus
-#    - python3-gi
-#    - python3-lxml
-#    - python3-pyudev
-#    - python3-systemd
+    - python3-dasbus
+    - python3-gi
+    - python3-lxml
+    - python3-pyudev
+    - python3-systemd
     - docbook-xsl
     - xsltproc
   jobs:
     pre_build:
+      - apt install -y python3-dasbus python3-pyudev python3-systemd python3-gi xsltproc docbook-xsl
       - meson .build -Dhtml=true
       - ninja -C .build
 
