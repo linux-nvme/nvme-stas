@@ -24,8 +24,10 @@ build:
   jobs:
     pre_build:
       - pip install lxml
-      - meson .build -Dreadthedocs=true
-      - ninja -C .build
+      - python3 -c 'from lxml import etree'
+      - meson .build --debug --errorlogs -Dreadthedocs=true
+      - meson compile --verbose -C .build
+      #- ninja -C .build
 
 sphinx:
   configuration: .build/doc/conf.py
