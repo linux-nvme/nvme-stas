@@ -26,8 +26,8 @@ build:
       - pip3 install lxml
       - python3 -c "import lxml"
       - meson .build --debug --errorlogs -Dreadthedocs=true
-      - meson compile --verbose -C .build
-      #- ninja -C .build
+      - cat .build/meson-logs/meson-log.txt
+      - ninja -C .build
 
 sphinx:
   configuration: .build/doc/conf.py
