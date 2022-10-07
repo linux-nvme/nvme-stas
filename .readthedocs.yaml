@@ -28,7 +28,7 @@ build:
     - xsltproc
   jobs:
     pre_build:
-      - sudo apt install -y python3-dasbus python3-pyudev python3-systemd python3-gi xsltproc docbook-xsl
+      - pip3 install dasbus pyudev systemd-python PyGObject
       - meson .build -Dhtml=true
       - ninja -C .build
 
