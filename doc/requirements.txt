@@ -1,0 +1,5 @@
+dasbus
+gobject
+lxml
+systemd
+pyudev
