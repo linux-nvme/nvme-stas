@@ -19,14 +19,11 @@ build:
   apt_packages:
     - meson
     - python3-lxml
-    - python3-gi
-    - python3-pyudev
-    - python3-systemd
-    - python3-dasbus
     - docbook-xsl
     - xsltproc
   jobs:
     pre_build:
+      - pip install lxml
       - meson .build -Dreadthedocs=true
       - ninja -C .build
 
