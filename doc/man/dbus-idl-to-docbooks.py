@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 import sys
+import pathlib
 import tempfile
 import subprocess
 from argparse import ArgumentParser
@@ -38,8 +39,7 @@ def parse_args():
 
 ARGS = parse_args()
 
-if not os.path.exists(ARGS.output_directory):
-    os.makedirs(ARGS.output_directory, exist_ok=True)
+pathlib.Path(ARGS.output_directory).mkdir(parents=True, exist_ok=True)
 
 REF_ENTRY_INFO = '''\
   <refentryinfo>
@@ -86,6 +86,7 @@ def add_missing_info(fname, stem):
 FILE_PREFIX = 'nvme-stas'
 FINAL_PREFIX = FILE_PREFIX + '-'
 
+pathlib.Path(ARGS.tmp).mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
     idl_file = os.path.join(tmpdirname, 'dbus.idl')
     try:
