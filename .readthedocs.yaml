@@ -24,9 +24,8 @@ build:
   jobs:
     pre_build:
       - pip3 install lxml
-      - ./doc/man/dbus-idl-to-docbooks.py --executable stafd.py --output-directory .build/man-tmp --tmp .build/doc/man
-      - meson .build --debug --errorlogs -Dreadthedocs=true
-      - cat .build/meson-logs/meson-log.txt
+      - ./doc/man/dbus-idl-to-docbooks.py --executable /home/docs/checkouts/readthedocs.org/user_builds/nvme-stas/checkouts/latest/stafd.py --output-directory /home/docs/checkouts/readthedocs.org/user_builds/nvme-stas/checkouts/latest/.build/man-tmp --tmp /home/docs/checkouts/readthedocs.org/user_builds/nvme-stas/checkouts/latest/.build/doc/man
+      - meson .build -Dreadthedocs=true
       - ninja -C .build
 
 sphinx:
