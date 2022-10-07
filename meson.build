@@ -34,7 +34,7 @@ readthedocs = get_option('readthedocs')
 
 if readthedocs
     want_html = true
-    py_modules = ['lxml']
+    py_modules = []
 else
     # Until python3-libnvme is widely available from distros, we need to manually
     # pull libnvme source from Github and build as a subproject (see fallback below).
