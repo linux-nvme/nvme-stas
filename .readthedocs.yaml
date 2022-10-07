@@ -23,8 +23,8 @@ build:
     - xsltproc
   jobs:
     pre_build:
-      - pip install lxml
-      - python3 -c 'from lxml import etree'
+      - pip3 install lxml
+      - python3 -c "import lxml"
       - meson .build --debug --errorlogs -Dreadthedocs=true
       - meson compile --verbose -C .build
       #- ninja -C .build
