@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.53.0',
-    version: '2.0-rc2',
+    version: '2.0-rc3',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -168,6 +168,7 @@ endforeach
 subdir('staslib')
 subdir('etc/dbus-1/system.d')
 subdir('usr/lib/systemd/system')
+subdir('doc')
 subdir('doc/man')
 subdir('test')
 

@@ -4,10 +4,10 @@
 
 # You can set these variables from the command line, and also
 # from the environment for the first two.
-SPHINXOPTS    ?=
-SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = .
-BUILDDIR      = _build
+SPHINXOPTS  ?=
+SPHINXBUILD ?= sphinx-build
+SOURCEDIR   = .
+BUILDDIR    = _build
 
 # Put it first so that "make" without argument is like "make help".
 .PHONY: help
@@ -19,12 +19,4 @@ help:
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 .PHONY: Makefile
 %: Makefile
-ifeq (,$(strip $(filter $(MAKECMDGOALS),clean help)))
-	@if test -f ../.build/build.ninja; then \
-		cd .. && meson configure .build -Dhtml=true && cd -; \
-	else \
-		cd .. && meson .build -Dhtml=true && cd -; \
-	fi
-	@ninja -C ../.build
-endif
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

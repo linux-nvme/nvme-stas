@@ -1,0 +1,32 @@
+# Copyright (c) 2022, Dell Inc. or its subsidiaries.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# See the LICENSE file for details.
+#
+# This file is part of NVMe STorage Appliance Services (nvme-stas).
+#
+# Authors: Martin Belanger <Martin.Belanger@dell.com>
+#
+
+version: 2
+
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3"
+  apt_packages:
+    - meson
+    - python3-dasbus
+    - python3-gi
+    - python3-lxml
+    - python3-pyudev
+    - python3-systemd
+    - docbook-xsl
+    - xsltproc
+  jobs:
+    pre_build:
+      - meson .build -Dhtml=true
+      - ninja -C .build
+
+sphinx:
+  configuration: .build/doc/conf.py
+  builder: html
