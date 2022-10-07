@@ -9,9 +9,8 @@
 
 version: 2
 
-#python:
-#  install:
-#    - requirements: doc/requirements.txt
+python:
+  system_packages: true
 
 build:
   os: ubuntu-22.04
@@ -20,6 +19,10 @@ build:
   apt_packages:
     - meson
     - python3-lxml
+    - python3-gi
+    - python3-pyudev
+    - python3-systemd
+    - python3-dasbus
     - docbook-xsl
     - xsltproc
   jobs:
