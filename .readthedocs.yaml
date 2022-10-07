@@ -24,7 +24,7 @@ build:
   jobs:
     pre_build:
       - pip3 install lxml
-      - python3 -c "import lxml"
+      - ./doc/man/dbus-idl-to-docbooks.py --executable stafd.py --output-directory .build/man-tmp --tmp .build/doc/man
       - meson .build --debug --errorlogs -Dreadthedocs=true
       - cat .build/meson-logs/meson-log.txt
       - ninja -C .build
