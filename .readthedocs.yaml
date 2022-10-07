@@ -25,6 +25,7 @@ build:
     post_install:
       - pip3 install lxml
     pre_build:
+      - cd /home/docs/checkouts/readthedocs.org/user_builds/nvme-stas/checkouts/latest && ./doc/man/dbus-idl-to-docbooks.py --executable .build/stafd --output-directory .build/man-tmp --tmp .build/doc/man
       - meson .build -Dreadthedocs=true
       - ninja -C .build
 
