@@ -39,7 +39,7 @@ def parse_args():
 ARGS = parse_args()
 
 if not os.path.exists(ARGS.output_directory):
-    os.mkdir(ARGS.output_directory)
+    os.makedirs(ARGS.output_directory, exist_ok=True)
 
 REF_ENTRY_INFO = '''\
   <refentryinfo>
