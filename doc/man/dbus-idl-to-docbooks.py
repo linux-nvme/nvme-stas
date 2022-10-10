@@ -7,6 +7,10 @@ import subprocess
 from argparse import ArgumentParser
 from lxml import etree
 
+print('===============================================================')
+print('\n'.join(sys.path))
+print('===============================================================')
+
 
 def parse_args():
     parser = ArgumentParser(description='Extract D-Bus IDL from executable and genarate DocBook documentation.')
