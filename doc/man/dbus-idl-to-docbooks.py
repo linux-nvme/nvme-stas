@@ -39,6 +39,16 @@ def parse_args():
 
 ARGS = parse_args()
 
+if not os.path.exists(ARGS.executable):
+    print(f'Executable does not exist: {ARGS.executable}')
+
+if not os.path.exists(ARGS.output_directory):
+    print(f'Output dir does not exist: {ARGS.output_directory}')
+
+if not os.path.exists(ARGS.tmp):
+    print(f'Temp. dir does not exist: {ARGS.tmp}')
+
+
 pathlib.Path(ARGS.output_directory).mkdir(parents=True, exist_ok=True)
 
 REF_ENTRY_INFO = '''\
@@ -60,7 +70,12 @@ REF_ENTRY_INFO = '''\
 
 MANVOLNUM = '<manvolnum>5</manvolnum>'
 
-PARSER = etree.XMLParser(remove_blank_text=True)
+try:
+    PARSER = etree.XMLParser(remove_blank_text=True)
+except Exception as ex:
+    print(f'Failed to create PARSER: {ex}')
+    raise
+
 
 
 def add_missing_info(fname, stem):
@@ -86,28 +101,35 @@ def add_missing_info(fname, stem):
 FILE_PREFIX = 'nvme-stas'
 FINAL_PREFIX = FILE_PREFIX + '-'
 
-pathlib.Path(ARGS.tmp).mkdir(parents=True, exist_ok=True)
-with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
-    idl_file = os.path.join(tmpdirname, 'dbus.idl')
-    try:
-        subprocess.run([ARGS.executable, '--idl', idl_file], check=True)
-    except subprocess.CalledProcessError as ex:
-        sys.exit(f'Failed to generate IDL file. {ex}')
+try:
+    pathlib.Path(ARGS.tmp).mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
+        idl_file = os.path.join(tmpdirname, 'dbus.idl')
+        try:
+            subprocess.run([ARGS.executable, '--idl', idl_file], check=True)
+        except subprocess.CalledProcessError as ex:
+            print(f'Error: {ex}')
+            sys.exit(f'Failed to generate IDL file. {ex}')
 
-    try:
-        subprocess.run(['gdbus-codegen', '--output-directory', tmpdirname, '--generate-docbook', FILE_PREFIX, idl_file])
-    except subprocess.CalledProcessError as ex:
-        sys.exit(f'Failed to generate DocBook file. {ex}')
+        try:
+            subprocess.run(['gdbus-codegen', '--output-directory', tmpdirname, '--generate-docbook', FILE_PREFIX, idl_file])
+        except subprocess.CalledProcessError as ex:
+            print(f'Error: {ex}')
+            sys.exit(f'Failed to generate DocBook file. {ex}')
 
-    stems = []
-    with os.scandir(tmpdirname) as it:
-        for entry in it:
-            if entry.is_file() and entry.name.endswith('.xml') and entry.name.startswith(FINAL_PREFIX):
-                fname = entry.name[len(FINAL_PREFIX) :]  # Strip prefix
-                stem = fname[0:-4]  # Strip '.xml' suffix
-                stems.append(stem)
-                tmp_file = os.path.join(tmpdirname, entry.name)
-                add_missing_info(tmp_file, stem)
-                os.replace(tmp_file, os.path.join(ARGS.output_directory, fname))
+        stems = []
+        with os.scandir(tmpdirname) as it:
+            for entry in it:
+                if entry.is_file() and entry.name.endswith('.xml') and entry.name.startswith(FINAL_PREFIX):
+                    fname = entry.name[len(FINAL_PREFIX) :]  # Strip prefix
+                    stem = fname[0:-4]  # Strip '.xml' suffix
+                    stems.append(stem)
+                    tmp_file = os.path.join(tmpdirname, entry.name)
+                    add_missing_info(tmp_file, stem)
+                    os.replace(tmp_file, os.path.join(ARGS.output_directory, fname))
 
-    print(';'.join(stems))
+        print(';'.join(stems))
+except Exception as ex:
+    print(f'Fail to run main loop: {ex}')
+    raise
+
