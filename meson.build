@@ -126,60 +126,58 @@ stacd = configure_file(
     copy: true,
 )
 
-#===============================================================================
+stafctl = configure_file(
+    input: 'stafctl.py',
+    output: 'stafctl',
+    install_dir: bindir,
+    copy: true,
+)
+
+stacctl = configure_file(
+    input: 'stacctl.py',
+    output: 'stacctl',
+    install_dir: bindir,
+    copy: true,
+)
+
+stasadm = configure_file(
+    input: 'stasadm.py',
+    output: 'stasadm',
+    install_dir: bindir,
+    copy: true,
+)
+
+#===========================================================================
+install_subdir(
+    'etc/stas',
+    install_dir: etcdir,
+)
+
+#===========================================================================
+foreach component : [ 'nvme-stas.spec', '.coveragerc', 'coverage.sh', ]
+    configure_file(
+        input:         component + '.in',
+        output:        component,
+        configuration: conf,
+    )
+endforeach
+
+#===========================================================================
+# Make a list of modules to lint
 if not readthedocs
-    stafctl = configure_file(
-        input: 'stafctl.py',
-        output: 'stafctl',
-        install_dir: bindir,
-        copy: true,
-    )
-
-    stacctl = configure_file(
-        input: 'stacctl.py',
-        output: 'stacctl',
-        install_dir: bindir,
-        copy: true,
-    )
-
-    stasadm = configure_file(
-        input: 'stasadm.py',
-        output: 'stasadm',
-        install_dir: bindir,
-        copy: true,
-    )
-
-    #===========================================================================
-    install_subdir(
-        'etc/stas',
-        install_dir: etcdir,
-    )
-
-    #===========================================================================
-    foreach component : [ 'nvme-stas.spec', '.coveragerc', 'coverage.sh', ]
-        configure_file(
-            input:         component + '.in',
-            output:        component,
-            configuration: conf,
-        )
-    endforeach
-
-    #===========================================================================
-    # Make a list of modules to lint
     if libnvme_dep.found()
-    modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+        modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
     else
         warning('Install the libnvme Python package to run the tests.')
         modules_to_lint = []
     endif
-
-    #===========================================================================
-    subdir('staslib')
-    subdir('etc/dbus-1/system.d')
-    subdir('usr/lib/systemd/system')
-    subdir('test')
 endif
 
+#===========================================================================
+subdir('staslib')
+subdir('etc/dbus-1/system.d')
+subdir('usr/lib/systemd/system')
+subdir('test')
 subdir('doc')
 subdir('doc/man')
 
