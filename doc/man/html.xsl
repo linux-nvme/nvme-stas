@@ -8,6 +8,17 @@
 
 <xsl:import href="http://docbook.sourceforge.net/release/xsl/current/html/docbook.xsl"/>
 
+<xsl:template match="citerefentry[not(@project)]">
+  <a>
+    <xsl:attribute name="href">
+      <xsl:value-of select="refentrytitle"/>
+      <xsl:text>.html#</xsl:text>
+      <xsl:value-of select="refentrytitle/@target"/>
+    </xsl:attribute>
+    <xsl:call-template name="inline.charseq"/>
+  </a>
+</xsl:template>
+
 <xsl:template name="user.header.content">
   <style>
     a.headerlink {
