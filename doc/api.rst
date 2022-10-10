@@ -14,22 +14,22 @@ stafd
 Daemon
 ~~~~~~
 .. raw:: html
-   :file: doc/man/stafd.html
+   :file: man/stafd.html
 
 systemd service file
 ~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/stafd.service.html
+   :file: man/stafd.service.html
 
 Configuration file
 ~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/stafd.conf.html
+   :file: man/stafd.conf.html
 
 stafctl utility
 ~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/stafctl.html
+   :file: man/stafctl.html
 
 stacd
 -----
@@ -37,30 +37,30 @@ stacd
 Daemon
 ~~~~~~
 .. raw:: html
-   :file: doc/man/stacd.html
+   :file: man/stacd.html
 
 systemd service file
 ~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/stacd.service.html
+   :file: man/stacd.service.html
 
 Configuration file
 ~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/stacd.conf.html
+   :file: man/stacd.conf.html
 
 stacctl utility
 ~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/stacctl.html
+   :file: man/stacctl.html
 
 stasadm
 -------
 .. raw:: html
-   :file: doc/man/stasadm.html
+   :file: man/stasadm.html
 
 .. raw:: html
-   :file: doc/man/sys.conf.html
+   :file: man/sys.conf.html
 
 
 D-Bus API
@@ -69,21 +69,21 @@ D-Bus API
 org.nvmexpress.staf.debug.html
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/org.nvmexpress.staf.debug.html
+   :file: man/org.nvmexpress.staf.debug.html
 
 org.nvmexpress.staf.html
 ~~~~~~~~~~~~~~~~~~~~~~~~
 This is the control API for stafd
 
 .. raw:: html
-   :file: doc/man/org.nvmexpress.staf.html
+   :file: man/org.nvmexpress.staf.html
 
 org.nvmexpress.stac.debug.html
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/org.nvmexpress.stac.debug.html
+   :file: man/org.nvmexpress.stac.debug.html
 
 org.nvmexpress.stac.html
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: doc/man/org.nvmexpress.stac.html
+   :file: man/org.nvmexpress.stac.html
