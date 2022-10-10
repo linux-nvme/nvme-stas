@@ -35,6 +35,7 @@ readthedocs = get_option('readthedocs')
 if readthedocs
     want_html = true
     py_modules = ['lxml']
+    libnvme_dep = declare_dependency() # dummy dependency
 else
     # Until python3-libnvme is widely available from distros, we need to manually
     # pull libnvme source from Github and build as a subproject (see fallback below).
@@ -45,6 +46,8 @@ else
     # Check for libnvme availability
     if use_libnvme_fallback
         libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
+    else
+        libnvme_dep = declare_dependency() # dummy dependency
     endif
 
     # Check that we have all the right Python3 dependencies
@@ -164,13 +167,11 @@ endforeach
 
 #===========================================================================
 # Make a list of modules to lint
-if not readthedocs
-    if libnvme_dep.found()
-        modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
-    else
-        warning('Install the libnvme Python package to run the tests.')
-        modules_to_lint = []
-    endif
+if libnvme_dep.found()
+    modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+else
+    warning('Install the libnvme Python package to run the tests.')
+    modules_to_lint = []
 endif
 
 #===========================================================================
@@ -181,7 +182,7 @@ subdir('test')
 subdir('doc')
 subdir('doc/man')
 
-if not readthedocs and meson.version().version_compare('>=0.57.0')
+if meson.version().version_compare('>=0.57.0')
     summary = [
         '',
         '------------------------------------------------------------',
