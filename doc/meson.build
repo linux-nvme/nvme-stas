@@ -7,10 +7,17 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 
-if want_man or want_html
+if readthedocs
     configure_file(
         input:         'conf.py.in',
         output:        'conf.py',
         configuration: conf,
     )
+    foreach component : [ 'api.rst', 'index.rst', 'installation.rst', 'Makefile', 'quickstart.rst' ]
+        configure_file(
+            input:         component,
+            output:        component,
+            configuration: conf,
+        )
+    endforeach
 endif

@@ -14,22 +14,22 @@ stafd
 Daemon
 ~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stafd.html
+   :file: doc/man/stafd.html
 
 systemd service file
 ~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stafd.service.html
+   :file: doc/man/stafd.service.html
 
 Configuration file
 ~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stafd.conf.html
+   :file: doc/man/stafd.conf.html
 
 stafctl utility
 ~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stafctl.html
+   :file: doc/man/stafctl.html
 
 stacd
 -----
@@ -37,30 +37,30 @@ stacd
 Daemon
 ~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stacd.html
+   :file: doc/man/stacd.html
 
 systemd service file
 ~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stacd.service.html
+   :file: doc/man/stacd.service.html
 
 Configuration file
 ~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stacd.conf.html
+   :file: doc/man/stacd.conf.html
 
 stacctl utility
 ~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/stacctl.html
+   :file: doc/man/stacctl.html
 
 stasadm
 -------
 .. raw:: html
-   :file: ../.build/doc/man/stasadm.html
+   :file: doc/man/stasadm.html
 
 .. raw:: html
-   :file: ../.build/doc/man/sys.conf.html
+   :file: doc/man/sys.conf.html
 
 
 D-Bus API
@@ -69,21 +69,21 @@ D-Bus API
 org.nvmexpress.staf.debug.html
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/org.nvmexpress.staf.debug.html
+   :file: doc/man/org.nvmexpress.staf.debug.html
 
 org.nvmexpress.staf.html
 ~~~~~~~~~~~~~~~~~~~~~~~~
 This is the control API for stafd
 
 .. raw:: html
-   :file: ../.build/doc/man/org.nvmexpress.staf.html
+   :file: doc/man/org.nvmexpress.staf.html
 
 org.nvmexpress.stac.debug.html
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/org.nvmexpress.stac.debug.html
+   :file: doc/man/org.nvmexpress.stac.debug.html
 
 org.nvmexpress.stac.html
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. raw:: html
-   :file: ../.build/doc/man/org.nvmexpress.stac.html
+   :file: doc/man/org.nvmexpress.stac.html
