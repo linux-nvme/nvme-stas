@@ -28,7 +28,7 @@ build:
     pre_build:
       - meson .build -Dreadthedocs=true || cat .build/meson-logs/meson-log.txt
       - ninja -C .build
-      - for FILENAME in .build/doc/man/*.html; do pandoc -f html -t rst -o "${FILENAME/.html/.rst}" "$FILENAME"; done
+      - bash -c 'for FILENAME in .build/doc/man/*.html; do pandoc -f html -t rst -o "${FILENAME/.html/.rst}" "$FILENAME"; done'
 
 sphinx:
   configuration: .build/doc/conf.py
