@@ -2,5 +2,5 @@
 
 option('man',             type: 'boolean', value: false, description: 'build and install man pages')
 option('html',            type: 'boolean', value: false, description: 'build and install html pages')
-option('readthedocs',     type: 'boolean', value: false,  description: 'Only build documentation for Read The Docs')
+option('readthedocs',     type: 'boolean', value: false,  description: 'to be used by Read-The-Docs documentation builder')
 #option('check_pymodules', type: 'boolean', value: true,  description: 'whether to look for missing python module')

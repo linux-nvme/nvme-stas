@@ -13,6 +13,10 @@ if want_man or want_html
     docbklst = find_program('genlist-from-docbooks.py')
     dbusgen  = find_program('gdbus-codegen')
 
+    #if readthedocs
+    #    pandoc = find_program('pandoc')
+    #endif
+
     if xsltproc.found()
         manpage_style = 'http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl'
         if run_command(xsltproc, '--nonet', manpage_style, check: false).returncode() != 0
@@ -101,7 +105,7 @@ if want_man or want_html
 
         if want_html
             html = stem + '.html'
-            custom_target(
+            html_file = custom_target(
                 html,
                 input: file,
                 output: html,
@@ -110,6 +114,25 @@ if want_man or want_html
                 install: want_html,
                 install_dir: join_paths(docdir, 'html')
             )
+
+            # Convert HTML to RST
+            #if readthedocs
+            #    rst = stem + '.rst'
+            #    custom_target(
+            #        rst,
+            #        input: html_file,
+            #        output: rst,
+            #        build_by_default: true,
+            #        command: [
+            #            pandoc,
+            #            '-f', 'html',
+            #            '-t', 'rst',
+            #            '-o', '@OUTPUT@',
+            #            '@INPUT@'
+            #        ]
+            #    )
+            #endif
         endif
     endforeach
 endif
+
