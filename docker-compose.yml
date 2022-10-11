@@ -7,6 +7,7 @@ x-stas: &default-stas
     volumes:
         - /run/dbus:/run/dbus
         - /etc/nvme:/etc/nvme
+        - stas_data:/run/stas
     privileged: true
     network_mode: host
 
@@ -14,14 +15,17 @@ services:
   stafd:
     <<: *default-stas
     environment:
-      RUNTIME_DIRECTORY: /run/stafd
+      RUNTIME_DIRECTORY: /run/stas
       XDG_CACHE_HOME: /var/cache/stafd
       PYTHONUNBUFFERED: 1
     command: -u /usr/sbin/stafd
   stacd:
     <<: *default-stas
     environment:
-      RUNTIME_DIRECTORY: /run/stacd
+      RUNTIME_DIRECTORY: /run/stas
       XDG_CACHE_HOME: /var/cache/stacd
       PYTHONUNBUFFERED: 1
     command: -u /usr/sbin/stacd
+
+volumes:
+    stas_data:
