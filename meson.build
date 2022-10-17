@@ -34,58 +34,41 @@ readthedocs = get_option('readthedocs')
 
 if readthedocs
     want_html = true
-    py_modules = ['lxml']
-    libnvme_dep = declare_dependency() # dummy dependency
-else
-    # Until python3-libnvme is widely available from distros, we need to manually
-    # pull libnvme source from Github and build as a subproject (see fallback below).
-    # Once python3-libnvme is available, we can remove the fallback code indicated
-    # by use_libnvme_fallback=true.
-    use_libnvme_fallback = true
-
-    # Check for libnvme availability
-    if use_libnvme_fallback
-        libnvme_dep = dependency('libnvme', fallback : ['libnvme', 'libnvme_dep'])
-    else
-        libnvme_dep = declare_dependency() # dummy dependency
-    endif
-
-    # Check that we have all the right Python3 dependencies
-    if use_libnvme_fallback
-        py_modules = ['dasbus', 'pyudev', 'systemd', 'gi']
-    else
-        py_modules = ['libnvme', 'dasbus', 'pyudev', 'systemd', 'gi']
-    endif
-
-    if want_man or want_html
-        py_modules += ['lxml']
-    endif
 endif
 
-python3 = import('python').find_installation('python3', modules:py_modules)
+buildtime_modules = []
+if want_man or want_html
+    buildtime_modules += ['lxml']
+endif
+
+python3 = import('python').find_installation('python3', modules:buildtime_modules)
 python_version = python3.language_version()
 python_version_req = '>=3.6'
 if not python_version.version_compare(python_version_req)
     error('Python @0@ required. Found @1@ instead'.format(python_version_req, python_version))
 endif
 
-#check_pymodules = get_option('check_pymodules')
-#if check_pymodules
-#    py_modules_reqd = [
-#        ['dasbus',    'Install python3-dasbus (deb/rpm) OR pip3 install dasbus'],
-#        ['pyudev',    'Install python3-pyudev (deb/rpm)'],
-#        ['systemd',   'Install python3-systemd (deb/rpm)'],
-#        ['gi',        'Install python3-gi (deb) OR python3-gobject (rpm)'],
-#    ]
-#    if want_man or want_html
-#        py_modules_reqd += [['lxml', 'Install python3-lxml (deb/rpm)']]
-#    endif
-#    foreach p : py_modules_reqd
-#        if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
-#            error('Required python3 module "@0@" not found. @1@'.format(p[0], p[1]))
-#        endif
-#    endforeach
-#endif
+# Check if the runtime Python modules are present. These are not needed
+# to build nvme-stas, but will be needed to run the tests.
+missing_modules = false
+py_modules_reqd = [
+    ['libnvme', 'Install python3-libnvme (deb/rpm)'],
+    ['dasbus',  'Install python3-dasbus (deb/rpm) OR pip3 install dasbus'],
+    ['pyudev',  'Install python3-pyudev (deb/rpm)'],
+    ['systemd', 'Install python3-systemd (deb/rpm)'],
+    ['gi',      'Install python3-gi (deb) OR python3-gobject (rpm)'],
+]
+foreach p : py_modules_reqd
+    if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
+        warning('Missing runtime module "@0@". @1@'.format(p[0], p[1]))
+        missing_modules = true
+    endif
+endforeach
+
+if missing_modules and get_option('rt_pymods_reqd')
+    error('Please install missing runtime modules')
+endif
+
 
 #===============================================================================
 conf = configuration_data()
@@ -167,12 +150,7 @@ endforeach
 
 #===========================================================================
 # Make a list of modules to lint
-if libnvme_dep.found()
-    modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
-else
-    warning('Install the libnvme Python package to run the tests.')
-    modules_to_lint = []
-endif
+modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
 
 #===========================================================================
 subdir('staslib')

@@ -25,7 +25,7 @@ def get_eflags(dlpe):
 
 def get_ncc(eflags: int):
     '''@brief Return True if Not Connected to CDC bit is asserted, False otherwise'''
-    return 0 != (eflags & nvme.NVMF_DISC_EFLAGS_NCC)
+    return eflags & nvme.NVMF_DISC_EFLAGS_NCC != 0
 
 
 def dlp_supp_opts_as_string(dlp_supp_opts):
