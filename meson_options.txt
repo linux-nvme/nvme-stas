@@ -1,6 +1,6 @@
 # -*- mode: meson -*-
 
-option('man',             type: 'boolean', value: false, description: 'build and install man pages')
-option('html',            type: 'boolean', value: false, description: 'build and install html pages')
-option('readthedocs',     type: 'boolean', value: false,  description: 'to be used by Read-The-Docs documentation builder')
-#option('check_pymodules', type: 'boolean', value: true,  description: 'whether to look for missing python module')
+option('man',         type: 'boolean', value: false, description: 'build and install man pages')
+option('html',        type: 'boolean', value: false, description: 'build and install html pages')
+option('readthedocs', type: 'boolean', value: false,  description: 'to be used by Read-The-Docs documentation builder')
+option('rt_pymods_reqd', type: 'boolean', value: false,  description: 'Make sure all runti python modules are installed')

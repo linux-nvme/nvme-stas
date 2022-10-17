@@ -24,6 +24,8 @@ test_env.prepend('PYTHONPATH', PYTHONPATH)
 
 # pylint and pyflakes
 if modules_to_lint.length() != 0
+    #libnvme_dep = dependency('python3-libnvme', fallback : ['libnvme', 'libnvme_dep'], version : '>= 1.2')
+    libnvme_dep = dependency('python3-libnvme', fallback : ['libnvme', 'libnvme_dep'])
     pylint = find_program('pylint', required: false)
     pyflakes = find_program('pyflakes3', required: false)
     if not pyflakes.found()
@@ -63,20 +65,20 @@ foreach thing: things_to_test
     msg = thing[0]
 
     # Check whether all dependencies can be found
-    deps_found = true
+    missing_deps = []
     deps = thing[2]
     foreach dep : deps
         if run_command(python3, '-c', 'import @0@'.format(dep), check: false).returncode() != 0
-            deps_found = false
-            warning('"@0@" requires python module "@1@"'.format(msg, dep))
-            break
+            missing_deps += [dep]
         endif
     endforeach
 
-    # Run the test if all dependencies are available
-    if deps_found
+    if missing_deps.length() == 0
+        # Run the test if all dependencies are available
         script = join_paths(meson.current_source_dir(), thing[1])
         test(msg, python3, args: script, env: test_env)
+    else
+        warning('"@0@" requires python module "@1@"'.format(msg, missing_deps))
     endif
 endforeach
 

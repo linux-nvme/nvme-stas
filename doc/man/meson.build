@@ -11,7 +11,11 @@ if want_man or want_html
     xsltproc = find_program('xsltproc')
     dbus2doc = find_program('dbus-idl-to-docbooks.py')
     docbklst = find_program('genlist-from-docbooks.py')
-    dbusgen  = find_program('gdbus-codegen')
+    dbusgen  = find_program('gdbus-codegen', required : false)
+
+    if not dbusgen.found()
+        error('gdbus-codegen missing: Install libglib2.0-dev (deb) / glib2-devel (rpm)')
+    endif
 
     #if readthedocs
     #    pandoc = find_program('pandoc')

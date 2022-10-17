@@ -12,24 +12,24 @@ BuildRequires: glib2-devel
 #BuildRequires: libnvme-devel
 BuildRequires: libxslt
 BuildRequires: docbook-style-xsl
-BuildRequires: systemd-devel
+#BuildRequires: systemd-devel
 BuildRequires: systemd-rpm-macros
 
 BuildRequires: python3
 #BuildRequires: python3-devel
-BuildRequires: python3-pyflakes
-BuildRequires: python3-pylint
-BuildRequires: pylint
+#BuildRequires: python3-pyflakes
+#BuildRequires: python3-pylint
+#BuildRequires: pylint
 
 #BuildRequires: python3-libnvme
-BuildRequires: python3-dasbus
-BuildRequires: python3-pyudev
-BuildRequires: python3-systemd
-BuildRequires: python3-gobject-devel
+#BuildRequires: python3-dasbus
+#BuildRequires: python3-pyudev
+#BuildRequires: python3-systemd
+#BuildRequires: python3-gobject-devel
 BuildRequires: python3-lxml
 
 Requires:      avahi
-#Requires:      python3-libnvme
+Requires:      python3-libnvme
 Requires:      python3-dasbus
 Requires:      python3-pyudev
 Requires:      python3-systemd
