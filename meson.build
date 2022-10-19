@@ -153,6 +153,15 @@ endforeach
 # Make a list of modules to lint
 modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
 
+
+# Point Python Path to Current Build Dir.
+# This is used by other meson.build files.
+PYTHON_SEARCH_PATHS = [
+    conf.get('BUILD_DIR'),
+    join_paths(conf.get('BUILD_DIR'), 'subprojects', 'libnvme')
+]
+PYTHONPATH = ':'.join(PYTHON_SEARCH_PATHS)
+
 #===========================================================================
 subdir('staslib')
 subdir('etc/dbus-1/system.d')
