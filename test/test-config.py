@@ -21,6 +21,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[I/O controller connection management]\n',
             'disconnect-scope = joe\n',
             'disconnect-trtypes = bob\n',
+            'connect-attempts-on-ncc = 1\n',
             '\n',
             '[Controllers]\n',
             'controller=transport=tcp;traddr=100.100.100.100;host-iface=enp0s8\n',
@@ -59,11 +60,18 @@ class StasProcessConfUnitTest(unittest.TestCase):
         )
 
         self.assertEqual(service_conf.get_excluded(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
-
         self.assertEqual(service_conf.get_stypes(), ['_nvme-disc._tcp'])
-
         self.assertTrue(service_conf.zeroconf_enabled())
 
+        self.assertEqual(service_conf.connect_attempts_on_ncc, 2)
+        data = [
+            '[I/O controller connection management]\n',
+            'connect-attempts-on-ncc = hello\n',
+        ]
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+            f.writelines(data)
+        service_conf.reload()
+        self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
 
 class StasSysConfUnitTest(unittest.TestCase):
     '''Sys config unit tests'''

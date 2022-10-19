@@ -233,22 +233,22 @@ class Udev:
         @example:
             "address" attribute contains "trtype=tcp,traddr=10.10.1.100,trsvcid=4420,host_traddr=10.10.1.50"
         '''
-        address_attr = Udev._get_attribute(device, attr)
-        if not address_attr:
+        attr_str = Udev._get_attribute(device, attr)
+        if not attr_str:
             return ''
 
         if key[-1] != '=':
             key += '='
-        start = address_attr.find(key)
+        start = attr_str.find(key)
         if start < 0:
             return ''
         start += len(key)
 
-        end = address_attr.find(delim, start)
+        end = attr_str.find(delim, start)
         if end < 0:
-            return address_attr[start:]
+            return attr_str[start:]
 
-        return address_attr[start:end]
+        return attr_str[start:end]
 
     @staticmethod
     def _get_host_iface(device):

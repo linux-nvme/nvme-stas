@@ -48,17 +48,17 @@ endif
 
 # Unit tests
 things_to_test = [
-    ['Test Configuration', 'test-config.py',       []],
-    ['Test KernelVersion', 'test-version.py',      []],
-    ['Test NvmeOptions',   'test-nvme_options.py', ['pyfakefs']],
-    ['Test Controller',    'test-controller.py',   ['pyfakefs']],
-    ['Test Service',       'test-service.py',      ['pyfakefs']],
-    ['Test Udev',          'test-udev.py',         []],
-    ['Test GTimer',        'test-gtimer.py',       []],
     ['Test Avahi',         'test-avahi.py',        []],
-    ['Test TID',           'test-transport_id.py', []],
-    ['Test log',           'test-log.py',          ['pyfakefs']],
+    ['Test Configuration', 'test-config.py',       []],
+    ['Test Controller',    'test-controller.py',   ['pyfakefs']],
+    ['Test GTimer',        'test-gtimer.py',       []],
     ['Test iputil',        'test-iputil.py',       []],
+    ['Test KernelVersion', 'test-version.py',      []],
+    ['Test log',           'test-log.py',          ['pyfakefs']],
+    ['Test NvmeOptions',   'test-nvme_options.py', ['pyfakefs']],
+    ['Test Service',       'test-service.py',      ['pyfakefs']],
+    ['Test TID',           'test-transport_id.py', []],
+    ['Test Udev',          'test-udev.py',         []],
 ]
 
 foreach thing: things_to_test

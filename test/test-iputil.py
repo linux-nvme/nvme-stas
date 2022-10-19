@@ -4,7 +4,7 @@ import json
 import logging
 import unittest
 import subprocess
-from staslib import iputil, log
+from staslib import iputil, log, trid
 
 
 class Test(unittest.TestCase):
@@ -25,13 +25,31 @@ class Test(unittest.TestCase):
         except subprocess.CalledProcessError:
             self.ifaces = []
 
-    def test_iputil(self):
-        '''Check coner cases'''
+    def test_get_interface(self):
+        '''Check that get_interface() returns the right info'''
         for iface in self.ifaces:
             for addr_entry in iface['addr_info']:
                 self.assertEqual(iface['ifname'], iputil.get_interface(addr_entry['local']))
 
         self.assertEqual('', iputil.get_interface('255.255.255.255'))
+
+    def test_remove_invalid_addresses(self):
+        good_tcp = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': '', 'trsvcid': '8009'})
+        bad_tcp  = trid.TID({'transport': 'tcp', 'traddr': '555.555.555.555', 'subsysnqn': '', 'trsvcid': '8009'})
+        any_fc   = trid.TID({'transport': 'fc', 'traddr': 'blah', 'subsysnqn': ''})
+        bad_trtype = trid.TID({'transport': 'whatever', 'traddr': 'blah', 'subsysnqn': ''})
+
+
+        l1 = [ good_tcp, bad_tcp, any_fc, bad_trtype, ]
+        l2 = iputil.remove_invalid_addresses(l1)
+
+        self.assertNotEqual(l1, l2)
+
+        self.assertIn(good_tcp, l2)
+        self.assertIn(any_fc, l2)  # We currently don't check for invalid FC (all FCs are allowed)
+
+        self.assertNotIn(bad_tcp, l2)
+        self.assertNotIn(bad_trtype, l2)
 
 
 if __name__ == "__main__":
