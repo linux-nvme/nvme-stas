@@ -80,6 +80,7 @@ conf.set('KERNEL_IFACE_MIN_VERSION', '5.14')
 conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
 conf.set('BUILD_DIR', meson.current_build_dir())
 conf.set('SRCE_ROOT', meson.current_source_dir())
+conf.set('LIBNVME_VER_FOR_PLEO', '1.2')
 
 foreach component : [ ['staf', 'STorage Appliance Finder'],
                       ['stac', 'STorage Appliance Connector'] ]

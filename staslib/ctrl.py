@@ -12,7 +12,7 @@ Dc (Discovery Controller) and Ioc (I/O Controller) objects are derived.'''
 import logging
 from gi.repository import GLib
 from libnvme import nvme
-from staslib import conf, gutil, trid, udev, stas
+from staslib import conf, defs, gutil, trid, udev, stas
 
 
 DC_KATO_DEFAULT = 30  # seconds
@@ -28,7 +28,7 @@ def get_ncc(eflags: int):
     return eflags & nvme.NVMF_DISC_EFLAGS_NCC != 0
 
 
-def dlp_supp_opts_as_string(dlp_supp_opts):
+def dlp_supp_opts_as_string(dlp_supp_opts: int):
     '''@brief Return the list of options supported by the Get
     discovery log page command.
     '''
@@ -374,7 +374,7 @@ class Dc(Controller):
         return [page for page in self._log_pages if page['subtype'] == 'referral']
 
     def _is_ddc(self):
-        return self._ctrl and self._ctrl.dctype == 'ddc'
+        return self._ctrl and self._ctrl.dctype != 'cdc'
 
     def _on_aen(self, aen: int):
         if aen == self.DLP_CHANGED and self._get_log_op:
@@ -508,11 +508,22 @@ class Dc(Controller):
                 dlp_supp_opts_as_string(dlp_supp_opts),
             )
 
-            lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
-
-            self._get_log_op = gutil.AsyncOperationWithRetry(
-                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
-            )
+            if defs.PLEO_SUPPORTED:
+                lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
+                self._get_log_op = gutil.AsyncOperationWithRetry(
+                    self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
+                )
+            else:
+                logging.warning(
+                    '%s | %s - Current libnvme-%s does not support PLEO (libnvme-%s or later required)',
+                    self.id,
+                    self.device,
+                    defs.LIBNVME_VERSION,
+                    defs.LIBNVME_VERSION_PLEO_SUPPORT,
+                )
+                self._get_log_op = gutil.AsyncOperationWithRetry(
+                    self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
+                )
             self._get_log_op.run_async()
         else:
             logging.debug(
