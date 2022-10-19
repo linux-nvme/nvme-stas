@@ -414,26 +414,28 @@ log "Remove ${stafd_conf_fname} and ${stacd_conf_fname}"
 rm "${stafd_conf_fname}"
 rm "${stacd_conf_fname}"
 
-log "Run unit test: test-udev"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-udev.py
 log "Run unit test: test-avahi"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-avahi.py
-log "Run unit test: test-gtimer"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-gtimer.py
-log "Run unit test: test-version"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py
-log "Run unit test: test-transport_id"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-transport_id.py
 log "Run unit test: test-config"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-config.py
 log "Run unit test: test-controller"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-controller.py
-log "Run unit test: test-service"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-service.py
+log "Run unit test: test-gtimer"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-gtimer.py
+log "Run unit test: test-iputil"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-iputil.py
+log "Run unit test: test-version"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py
 log "Run unit test: test-log"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-log.py
 log "Run unit test: test-nvme_options"
 sudo PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-nvme_options.py
+log "Run unit test: test-service"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-service.py
+log "Run unit test: test-transport_id"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-transport_id.py
+log "Run unit test: test-udev"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-udev.py
 
 ################################################################################
 # Stop nvme target simulator

@@ -154,6 +154,20 @@ class Test(TestCase):
         )
         self.assertEqual(controller._connect_attempts, 1)
 
+    def test_dlp_supp_opts_as_string(self):
+        dlp_supp_opts = 0x7
+        opts = ctrl.dlp_supp_opts_as_string(dlp_supp_opts)
+        self.assertEqual(['EXTDLPES', 'PLEOS', 'ALLSUBES'], opts)
+
+    def test_ncc(self):
+        dlpe = {'eflags': '4'}
+        ncc = ctrl.get_ncc(ctrl.get_eflags(dlpe))
+        self.assertTrue(ncc)
+
+        dlpe = {}
+        ncc = ctrl.get_ncc(ctrl.get_eflags(dlpe))
+        self.assertFalse(ncc)
+
 
 if __name__ == '__main__':
     GLib.idle_add(unittest.main)

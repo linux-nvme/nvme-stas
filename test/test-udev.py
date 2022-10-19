@@ -20,6 +20,20 @@ class Test(unittest.TestCase):
     def test_get_bad_device(self):
         self.assertIsNone(udev.UDEV.get_nvme_device('bozo'))
 
+    def test_get_key_from_attr(self):
+        device = udev.UDEV.get_nvme_device('null')
+
+        devname = udev.UDEV.get_key_from_attr(device, 'uevent', 'DEVNAME=', '\n')
+        self.assertEqual(devname, 'null')
+
+        devname = udev.UDEV.get_key_from_attr(device, 'uevent', 'DEVNAME', '\n')
+        self.assertEqual(devname, 'null')
+
+        devmode = udev.UDEV.get_key_from_attr(device, 'uevent', 'DEVMODE', '\n')
+        self.assertEqual(devmode, '0666')
+
+        bogus = udev.UDEV.get_key_from_attr(device, 'bogus', 'BOGUS', '\n')
+        self.assertEqual(bogus, '')
 
 if __name__ == '__main__':
     unittest.main()

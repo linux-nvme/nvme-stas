@@ -6,19 +6,6 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-if meson.version().version_compare('>=0.56.0')
-    TEST_DIR_ROOT = meson.project_build_root()
-else
-    TEST_DIR_ROOT = fs.parent(meson.current_build_dir())
-endif
-
-PYTHON_SEARCH_PATHS = [
-    TEST_DIR_ROOT,
-    join_paths(TEST_DIR_ROOT, 'subprojects', 'libnvme')
-]
-
-PYTHONPATH = ':'.join(PYTHON_SEARCH_PATHS)
-
 test_env = environment({'MALLOC_PERTURB_': '0'})
 test_env.prepend('PYTHONPATH', PYTHONPATH)
 
@@ -48,17 +35,17 @@ endif
 
 # Unit tests
 things_to_test = [
-    ['Test Configuration', 'test-config.py',       []],
-    ['Test KernelVersion', 'test-version.py',      []],
-    ['Test NvmeOptions',   'test-nvme_options.py', ['pyfakefs']],
-    ['Test Controller',    'test-controller.py',   ['pyfakefs']],
-    ['Test Service',       'test-service.py',      ['pyfakefs']],
-    ['Test Udev',          'test-udev.py',         []],
-    ['Test GTimer',        'test-gtimer.py',       []],
     ['Test Avahi',         'test-avahi.py',        []],
-    ['Test TID',           'test-transport_id.py', []],
-    ['Test log',           'test-log.py',          ['pyfakefs']],
+    ['Test Configuration', 'test-config.py',       []],
+    ['Test Controller',    'test-controller.py',   ['pyfakefs']],
+    ['Test GTimer',        'test-gtimer.py',       []],
     ['Test iputil',        'test-iputil.py',       []],
+    ['Test KernelVersion', 'test-version.py',      []],
+    ['Test log',           'test-log.py',          ['pyfakefs']],
+    ['Test NvmeOptions',   'test-nvme_options.py', ['pyfakefs']],
+    ['Test Service',       'test-service.py',      ['pyfakefs']],
+    ['Test TID',           'test-transport_id.py', []],
+    ['Test Udev',          'test-udev.py',         []],
 ]
 
 foreach thing: things_to_test

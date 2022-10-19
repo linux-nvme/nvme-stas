@@ -3,4 +3,4 @@ Quickstart
 ==========
 
 .. raw:: html
-   :file: rst/nvme-stas.html
+   :file: man/nvme-stas.html

@@ -54,8 +54,8 @@ if want_man or want_html
     tmp_dir = conf.get('BUILD_DIR') / 'man-tmp'
 
     # Generate DocBooks from IDL queried directly from the D-Bus services.
+    env = environment({'PYTHONPATH': PYTHONPATH})
     dbus_services = [ stafd, stacd ]
-    env = environment({'PYTHONPATH': conf.get('BUILD_DIR')})
     foreach service : dbus_services
         rr = run_command(
             dbus2doc,
