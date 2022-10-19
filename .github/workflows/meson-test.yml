@@ -35,8 +35,9 @@ jobs:
         if: failure()
         with:
           name: Linux_Meson_Testlog
-          path: .build/meson-logs/meson-log.txt
-          path: .build/meson-logs/testlog.txt
+          path: |
+            .build/meson-logs/meson-log.txt
+            .build/meson-logs/testlog.txt
 
       - name: Generate coverage report
         run: |
