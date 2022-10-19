@@ -74,7 +74,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             f.writelines(data)
         service_conf.reload()
         self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
-        self.assertEqual(service_conf.disconnect_trtypes, ['tcp', 'rdma', 'fc'])
+        self.assertEqual(set(service_conf.disconnect_trtypes), set(['fc', 'tcp', 'rdma']))
 
 
         data = [
