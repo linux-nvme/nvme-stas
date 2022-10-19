@@ -79,7 +79,7 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
+            ('I/O controller connection management', 'disconnect-trtypes'): {'tcp'},
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
         self._conf_file = conf_file
@@ -172,7 +172,7 @@ class SvcConf(metaclass=singleton.Singleton):
         value = self.__get_value('I/O controller connection management', 'disconnect-trtypes')[0]
         value = set(value.split('+'))  # Use set() to eliminate potential duplicates
 
-        trtypes = []
+        trtypes = set()
         for trtype in value:
             if trtype not in ('tcp', 'rdma', 'fc'):
                 logging.warning(
@@ -181,12 +181,12 @@ class SvcConf(metaclass=singleton.Singleton):
                     trtype,
                 )
             else:
-                trtypes.append(trtype)
+                trtypes.add(trtype)
 
         if len(trtypes) == 0:
             trtypes = self._defaults[('I/O controller connection management', 'disconnect-trtypes')]
 
-        return trtypes
+        return list(trtypes)
 
     @property
     def connect_attempts_on_ncc(self):
