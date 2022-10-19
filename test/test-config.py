@@ -45,6 +45,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertFalse(service_conf.hdr_digest)
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)
+        self.assertTrue(service_conf.pleo_enabled)
         self.assertFalse(service_conf.udev_rule_enabled)
         self.assertEqual(service_conf.disconnect_scope, 'only-stas-connections')
         self.assertEqual(service_conf.disconnect_trtypes, ['tcp'])
@@ -66,12 +67,45 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertEqual(service_conf.connect_attempts_on_ncc, 2)
         data = [
             '[I/O controller connection management]\n',
+            'disconnect-trtypes = tcp+rdma+fc\n',
             'connect-attempts-on-ncc = hello\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
             f.writelines(data)
         service_conf.reload()
         self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
+        self.assertEqual(service_conf.disconnect_trtypes, ['tcp', 'rdma', 'fc'])
+
+
+        data = [
+            '[Global]\n',
+            'ip-family=ipv4\n',
+        ]
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+            f.writelines(data)
+        service_conf.reload()
+        self.assertIn(4, service_conf.ip_family)
+        self.assertNotIn(6, service_conf.ip_family)
+
+        data = [
+            '[Global]\n',
+            'ip-family=ipv4+ipv6\n',
+        ]
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+            f.writelines(data)
+        service_conf.reload()
+        self.assertIn(4, service_conf.ip_family)
+        self.assertIn(6, service_conf.ip_family)
+
+        data = [
+            '[Global]\n',
+            'ip-family=ipv6+ipv4\n',
+        ]
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+            f.writelines(data)
+        service_conf.reload()
+        self.assertIn(4, service_conf.ip_family)
+        self.assertIn(6, service_conf.ip_family)
 
 class StasSysConfUnitTest(unittest.TestCase):
     '''Sys config unit tests'''
