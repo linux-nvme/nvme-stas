@@ -9,10 +9,12 @@
 '''This module defines the base Controller object from which the
 Dc (Discovery Controller) and Ioc (I/O Controller) objects are derived.'''
 
+import inspect
 import logging
+import libnvme
 from gi.repository import GLib
 from libnvme import nvme
-from staslib import conf, defs, gutil, trid, udev, stas
+from staslib import conf, gutil, trid, udev, stas
 
 
 DC_KATO_DEFAULT = 30  # seconds
@@ -407,7 +409,18 @@ class Dc(Controller):
         return self._udev.find_nvme_dc_device(self.tid)
 
     def _post_registration_actions(self):
-        if conf.SvcConf().pleo_enabled and self._is_ddc():
+        # Need to check that supported_log_pages() is available (introduced in libnvme 1.2)
+        has_supported_log_pages = hasattr(self._ctrl, 'supported_log_pages')
+
+        if not has_supported_log_pages:
+            logging.warning(
+                '%s | %s - libnvme-%s does not support "Get supported log pages". Please upgrade libnvme.',
+                self.id,
+                self.device,
+                libnvme.__version__,
+            )
+
+        if conf.SvcConf().pleo_enabled and self._is_ddc() and has_supported_log_pages:
             self._get_supported_op = gutil.AsyncOperationWithRetry(
                 self._on_get_supported_success, self._on_get_supported_fail, self._ctrl.supported_log_pages
             )
@@ -508,18 +521,17 @@ class Dc(Controller):
                 dlp_supp_opts_as_string(dlp_supp_opts),
             )
 
-            if defs.PLEO_SUPPORTED:
+            if 'lsp' in inspect.signature(self._ctrl.discover).parameters:
                 lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
                 self._get_log_op = gutil.AsyncOperationWithRetry(
                     self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
                 )
             else:
                 logging.warning(
-                    '%s | %s - Current libnvme-%s does not support PLEO (libnvme-%s or later required)',
+                    '%s | %s - libnvme-%s does not support setting PLEO bit. Please upgrade.',
                     self.id,
                     self.device,
-                    defs.LIBNVME_VERSION,
-                    defs.LIBNVME_VERSION_PLEO_SUPPORT,
+                    libnvme.__version__,
                 )
                 self._get_log_op = gutil.AsyncOperationWithRetry(
                     self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
