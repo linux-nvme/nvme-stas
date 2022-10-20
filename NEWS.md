@@ -6,7 +6,7 @@ Because of incompatibilities between 1.1.6 and 1.2 (ref. `sticky-connections`), 
 
 * Add support for PLEO - Port-Local Entries Only, see TP8010.
   * Add new configuration parameter to stafd.conf: `pleo=[enabled|disabled]`
-  * This requires `libnvme` 1.2 or later.
+  * This requires `libnvme` 1.2 or later although nvme-stas can stil operate with 1.1 (but PLEO will not be supported).
 
 ## ~~Changes with release 1.2~~ (never released - use 2.0 instead)
 
