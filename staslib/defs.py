@@ -11,8 +11,6 @@
 import os
 import sys
 import platform
-import libnvme
-from pkg_resources import parse_version
 from staslib.version import KernelVersion
 
 VERSION           = '@VERSION@'
@@ -39,10 +37,6 @@ STAFD_CONFIG_FILE = '@STAFD_CONFIG_FILE@'
 KERNEL_VERSION = KernelVersion(platform.release())
 KERNEL_IFACE_MIN_VERSION  = KernelVersion('@KERNEL_IFACE_MIN_VERSION@')
 KERNEL_TP8013_MIN_VERSION = KernelVersion('@KERNEL_TP8013_MIN_VERSION@')
-
-LIBNVME_VERSION = parse_version(libnvme.__version__)
-LIBNVME_VERSION_PLEO_SUPPORT = parse_version('@LIBNVME_VER_FOR_PLEO@')
-PLEO_SUPPORTED = LIBNVME_VERSION >= LIBNVME_VERSION_PLEO_SUPPORT
 
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 

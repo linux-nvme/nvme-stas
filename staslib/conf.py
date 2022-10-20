@@ -79,7 +79,7 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): {'tcp'},
+            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
         self._conf_file = conf_file
