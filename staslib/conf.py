@@ -70,7 +70,7 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Global', 'persistent-connections'): 'true',
             ('Global', 'hdr-digest'): 'false',
             ('Global', 'data-digest'): 'false',
-            ('Global', 'kato'): None,
+            ('Global', 'kato'): None,  # None to let the driver decide the default
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
             ('Global', 'udev-rule'): 'disabled',
@@ -79,9 +79,12 @@ class SvcConf(metaclass=singleton.Singleton):
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
-            ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
+            ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
+            ('I/O controller connection management', 'connect-attempts-on-ncc'): '0',
         }
+
+        self.valid_sections = { default[0] for default in self._defaults }
+
         self._conf_file = conf_file
         self.reload()
 
@@ -127,7 +130,7 @@ class SvcConf(metaclass=singleton.Singleton):
         '''@brief return the "ip-family" config parameter.
         @rtype tuple
         '''
-        family = self.__get_value('Global', 'ip-family')[0]
+        family = self.__get_value('Global', 'ip-family')
 
         if family == 'ipv4':
             return (4,)
@@ -139,29 +142,21 @@ class SvcConf(metaclass=singleton.Singleton):
     @property
     def pleo_enabled(self):
         '''@brief return the "pleo" config parameter'''
-        return self.__get_value('Global', 'pleo')[0] == 'enabled'
+        return self.__get_value('Global', 'pleo') == 'enabled'
 
     @property
     def udev_rule_enabled(self):
         '''@brief return the "udev-rule" config parameter'''
-        return self.__get_value('Global', 'udev-rule')[0] == 'enabled'
+        return self.__get_value('Global', 'udev-rule') == 'enabled'
 
     @property
     def disconnect_scope(self):
         '''@brief return the disconnect scope (i.e. which connections are affected by DLPE removal)'''
-        disconnect_scope = self.__get_value('I/O controller connection management', 'disconnect-scope')[0]
-        if disconnect_scope not in (
-            'only-stas-connections',
-            'all-connections-matching-disconnect-trtypes',
-            'no-disconnect',
-        ):
-            logging.warning(
-                'File:%s, Section: [I/O controller connection management] - Invalid "disconnect-scope": %s',
-                self.conf_file,
-                disconnect_scope,
-            )
-
-            disconnect_scope = self._defaults[('I/O controller connection management', 'disconnect-scope')]
+        disconnect_scope = self.__get_value(
+            'I/O controller connection management',
+            'disconnect-scope',
+            ('only-stas-connections', 'all-connections-matching-disconnect-trtypes', 'no-disconnect'),
+        )
         return disconnect_scope
 
     @property
@@ -169,14 +164,14 @@ class SvcConf(metaclass=singleton.Singleton):
         '''@brief return the type(s) of transport that will be audited
         as part of I/O controller connection management, when "disconnect-scope" is set to
         "all-connections-matching-disconnect-trtypes"'''
-        value = self.__get_value('I/O controller connection management', 'disconnect-trtypes')[0]
+        value = self.__get_value('I/O controller connection management', 'disconnect-trtypes')
         value = set(value.split('+'))  # Use set() to eliminate potential duplicates
 
         trtypes = set()
         for trtype in value:
             if trtype not in ('tcp', 'rdma', 'fc'):
                 logging.warning(
-                    'File:%s, Section: [I/O controller connection management], Invalid "disconnect-trtypes": %s',
+                    'File:%s, Section: [I/O controller connection management], Invalid "disconnect-trtypes": %s. Default will be used',
                     self.conf_file,
                     trtype,
                 )
@@ -184,7 +179,8 @@ class SvcConf(metaclass=singleton.Singleton):
                 trtypes.add(trtype)
 
         if len(trtypes) == 0:
-            trtypes = self._defaults[('I/O controller connection management', 'disconnect-trtypes')]
+            value = self._defaults[('I/O controller connection management', 'disconnect-trtypes')]
+            trtypes = value.split('+')
 
         return list(trtypes)
 
@@ -193,14 +189,14 @@ class SvcConf(metaclass=singleton.Singleton):
         '''@brief Return the number of connection attempts that will be made
         when the NCC bit (Not Connected to CDC) is asserted.'''
         try:
-            value = int(self.__get_value('I/O controller connection management', 'connect-attempts-on-ncc')[0])
+            value = int(self.__get_value('I/O controller connection management', 'connect-attempts-on-ncc'))
         except ValueError as ex:
             logging.warning(
                 'File:%s, Section: [I/O controller connection management], Parameter "connect-attempts-on-ncc": %s',
                 self.conf_file,
                 ex,
             )
-            value = self._defaults[('I/O controller connection management', 'connect-attempts-on-ncc')]
+            value = int(self._defaults[('I/O controller connection management', 'connect-attempts-on-ncc')])
 
         if value == 1:  # 1 is invalid. A minimum of 2 is required (with the exception of 0, which is valid).
             value = 2
@@ -210,8 +206,12 @@ class SvcConf(metaclass=singleton.Singleton):
     @property
     def kato(self):
         '''@brief return the "kato" config parameter'''
-        kato = self.__get_value('Global', 'kato')[0]
-        return None if kato is None else int(kato)
+        try:
+            kato = int(self.__get_value('Global', 'kato'))
+        except (ValueError, TypeError):
+            kato = None  # Let driver decide
+
+        return kato
 
     def get_controllers(self):
         '''@brief Return the list of controllers in the config file.
@@ -226,7 +226,7 @@ class SvcConf(metaclass=singleton.Singleton):
             'subsysnqn':   [NQN],
         }
         '''
-        controller_list = self.__get_value('Controllers', 'controller')
+        controller_list = self.__get_list('Controllers', 'controller')
         controllers = [parse_controller(controller) for controller in controller_list]
         for controller in controllers:
             try:
@@ -248,11 +248,11 @@ class SvcConf(metaclass=singleton.Singleton):
             'subsysnqn':  [NQN],
         }
         '''
-        controller_list = self.__get_value('Controllers', 'exclude')
+        controller_list = self.__get_list('Controllers', 'exclude')
 
         # 2022-09-20: Look for "blacklist". This is for backwards compatibility
         # with releases 1.0 to 1.1.6. This is to be phased out (i.e. remove by 2024)
-        controller_list += self.__get_value('Controllers', 'blacklist')
+        controller_list += self.__get_list('Controllers', 'blacklist')
 
         excluded = [parse_controller(controller) for controller in controller_list]
         for controller in excluded:
@@ -269,7 +269,7 @@ class SvcConf(metaclass=singleton.Singleton):
         return ['_nvme-disc._tcp'] if self.zeroconf_enabled() else list()
 
     def zeroconf_enabled(self):  # pylint: disable=missing-function-docstring
-        return self.__get_value('Service Discovery', 'zeroconf')[0] == 'enabled'
+        return self.__get_value('Service Discovery', 'zeroconf') == 'enabled'
 
     def read_conf_file(self):
         '''@brief Read the configuration file if the file exists.'''
@@ -283,12 +283,38 @@ class SvcConf(metaclass=singleton.Singleton):
         )
         if self._conf_file and os.path.isfile(self._conf_file):
             config.read(self._conf_file)
+
+        invalid_sections = [section for section in config.sections() if section not in self.valid_sections]
+        if len(invalid_sections) != 0:
+            logging.error(
+                'File:%s, contains an invalid section(s) %s',
+                self.conf_file,
+                invalid_sections,
+            )
+
         return config
 
     def __get_bool(self, section, option):
-        return self.__get_value(section, option)[0] == 'true'
+        return self.__get_value(section, option) == 'true'
 
-    def __get_value(self, section, option):
+    def __get_value(self, section, option, expected_range=None):
+        lst = self.__get_list(section, option)
+        if len(lst) == 0:
+            return None
+
+        value = lst[0]
+        if expected_range is not None and value not in expected_range:
+            logging.warning(
+                'File:%s, Section:[%s], Option:%s - Invalid value:%s. Default will be used',
+                self.conf_file,
+                section,
+                option,
+                value,
+            )
+            value = self._defaults.get((section, option), None)
+        return value
+
+    def __get_list(self, section, option):
         try:
             value = self._config.get(section=section, option=option)
         except (configparser.NoSectionError, configparser.NoOptionError, KeyError):
