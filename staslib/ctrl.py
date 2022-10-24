@@ -268,7 +268,7 @@ class Controller(stas.ControllerABC):
         callback will be added to the main loop's next idle slot to be executed
         ASAP.
         '''
-        logging.debug('Controller.disconnect()            - %s | %s', self.id, self.device)
+        logging.debug('Controller.disconnect()            - %s | %s: keep_connection=%s', self.id, self.device, keep_connection)
         self._kill_ops()
         if self._ctrl and self._ctrl.connected() and not keep_connection:
             logging.info('%s | %s - Disconnect initiated', self.id, self.device)

@@ -301,6 +301,12 @@ class Stac(Service):
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
+                logging.debug(
+                    'Stac._config_ctrls_finish()        - no_disconnect=%s, match_trtypes=%s, svc_conf.disconnect_trtypes=%s',
+                    no_disconnect,
+                    match_trtypes,
+                    svc_conf.disconnect_trtypes,
+                )
                 keep_connection = no_disconnect or (match_trtypes and tid.transport not in svc_conf.disconnect_trtypes)
                 controller.disconnect(self.remove_controller, keep_connection)
 
