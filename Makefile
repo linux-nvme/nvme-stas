@@ -64,7 +64,14 @@ coverage: stas
 
 ################################################################################
 # Debian (*.deb)
-# Use "DEB_BUILD_OPTIONS=nocheck make debian" to skip unit testing.
+# Use "DEB_BUILD_OPTIONS=nocheck make deb" to skip unit testing.
+# This requires: sudo apt install -y debhelper dh-python
+ifeq (deb,$(strip $(MAKECMDGOALS)))
+  ifneq (SUCCESS,$(shell dpkg -s debhelper dh-python > /dev/null 2>&1 && echo "SUCCESS" || echo "FAIL"))
+    $(error Missing packages. Run -> "sudo apt install -y debhelper dh-python")
+  endif
+endif
+
 .PHONY: deb
 deb: ${BUILD-DIR}
 	mkdir -p ${DEB-PKG-DIR}
