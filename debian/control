@@ -11,7 +11,7 @@ Standards-Version: 4.4.1
 
 Package: nvme-stas
 Architecture: all
-Depends: ${python3:Depends}, ${misc:Depends}, python3-pyudev, python3-systemd, python3-gi
+Depends: ${python3:Depends}, ${misc:Depends}, python3-pyudev, python3-systemd, python3-gi python3-dasbus python3-libnvme
 Description: NVMe STorage Appliance Services
  This package provides two daemons, stafd and stacd. The STorage Appliance
  Finder Daemon (stafd) automatically discovers NVMe-oF Discovery Controllers (DC)
