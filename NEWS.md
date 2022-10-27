@@ -6,7 +6,12 @@ Because of incompatibilities between 1.1.6 and 1.2 (ref. `sticky-connections`), 
 
 * Add support for PLEO - Port-Local Entries Only, see TP8010.
   * Add new configuration parameter to stafd.conf: `pleo=[enabled|disabled]`
-  * This requires `libnvme` 1.2 or later although nvme-stas can stil operate with 1.1 (but PLEO will not be supported).
+  * This requires `libnvme` 1.2 or later although nvme-stas can still operate with 1.1 (but PLEO will not be supported).
+  * Although `blacklist=` is deprecated, keep supporting it for a while.
+  * Target `udev-rule=` at TCP connections only.
+  * Read-the-docs will now build directly from source (instead of using a possibly stale copy)
+  * More unit tests were added
+  * Refactored the code that handles pyudev events in an effort to fix spurious lost events.
 
 ## ~~Changes with release 1.2~~ (never released - use 2.0 instead)
 
