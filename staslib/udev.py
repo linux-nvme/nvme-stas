@@ -10,13 +10,11 @@
 
 import os
 import logging
+from functools import partial
 import pyudev
+from gi.repository import GLib
 from staslib import defs, iputil, trid
 
-try:
-    from pyudev.glib import MonitorObserver
-except (ModuleNotFoundError, AttributeError):
-    from staslib.glibudev import MonitorObserver  # pylint: disable=ungrouped-imports
 
 # ******************************************************************************
 class Udev:
@@ -31,22 +29,25 @@ class Udev:
         self._context = pyudev.Context()
         self._monitor = pyudev.Monitor.from_netlink(self._context)
         self._monitor.filter_by(subsystem='nvme')
-        self._observer = MonitorObserver(self._monitor)
-        self._sig_id = self._observer.connect('device-event', self._device_event)
+        self._event_source = GLib.io_add_watch(
+            self._monitor.fileno(),
+            GLib.PRIORITY_DEFAULT,
+            GLib.IO_IN,
+            self._process_udev_event,
+        )
         self._monitor.start()
 
     def release_resources(self):
         '''Release all resources used by this object'''
-        if self._observer and self._sig_id is not None:
-            self._observer.disconnect(self._sig_id)
+        if self._event_source is not None:
+            GLib.source_remove(self._event_source)
 
         if self._monitor is not None:
             self._monitor.remove_filter()
 
-        self._sig_id = None
+        self._event_source = None
         self._monitor = None
         self._context = None
-        self._observer = None
         self._device_event_registry = None
         self._action_event_registry = None
 
@@ -199,14 +200,28 @@ class Udev:
 
         return tids
 
-    def _device_event(self, _observer, device):
-        user_cback = self._action_event_registry.get(device.action, None)
-        if user_cback is not None:
-            user_cback(device)
+    def _process_udev_event(self, event_source, condition):  # pylint: disable=unused-argument
+        if condition == GLib.IO_IN:
+            read_device = partial(self._monitor.poll, timeout=0)
+            for device in iter(read_device, None):
+                if device is None:  # This should never happen, but better safe than sorry...
+                    break
+                self._device_event(device)
+        return GLib.SOURCE_CONTINUE
 
-        user_cback = self._device_event_registry.get(device.sys_name, None)
-        if user_cback is not None:
-            user_cback(device)
+    def _device_event(self, device):
+        action_cback = self._action_event_registry.get(device.action, None)
+        device_cback = self._device_event_registry.get(device.sys_name, None)
+
+        logging.debug('Udev._device_event()               - %s: %-6s action-handler: %s, device-handler: %s',
+                        device.sys_name, device.action,
+                        action_cback is not None, device_cback is not None)
+
+        if action_cback is not None:
+            action_cback(device)
+
+        if device_cback is not None:
+            device_cback(device)
 
     @staticmethod
     def _get_property(device, prop, default=''):
