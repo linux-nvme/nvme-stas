@@ -213,9 +213,13 @@ class Udev:
         action_cback = self._action_event_registry.get(device.action, None)
         device_cback = self._device_event_registry.get(device.sys_name, None)
 
-        logging.debug('Udev._device_event()               - %s: %-6s action-handler: %s, device-handler: %s',
-                        device.sys_name, device.action,
-                        action_cback is not None, device_cback is not None)
+        logging.debug(
+            'Udev._device_event()               - %s: %-6s action-handler: %s, device-handler: %s',
+            device.sys_name,
+            device.action,
+            action_cback is not None,
+            device_cback is not None,
+        )
 
         if action_cback is not None:
             action_cback(device)
