@@ -21,7 +21,6 @@ files_to_copy = [
     'avahi.py',
     'conf.py',
     'ctrl.py',
-    'glibudev.py',
     'gutil.py',
     'iputil.py',
     'log.py',
@@ -50,11 +49,8 @@ python3.install_sources(
 
 #===============================================================================
 # Make a list of modules to lint
-skip = ['glibudev.py']
 foreach file: files_to_install
     fname = fs.name('@0@'.format(file))
-    if fname not in skip
-        modules_to_lint += file
-    endif
+    modules_to_lint += file
 endforeach
 

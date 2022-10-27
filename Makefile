@@ -11,6 +11,10 @@ BUILD-DIR         := .build
 DEB-PKG-DIR       := ${BUILD-DIR}/deb-pkg
 RPM-BUILDROOT-DIR := ${BUILD-DIR}/rpmbuild
 
+.PHONY: update-subprojects
+update-subprojects:
+	meson subprojects update
+
 ${BUILD-DIR}:
 	BUILD_DIR=${BUILD-DIR} ./configure
 	@echo "Configuration located in: $@"
@@ -34,7 +38,7 @@ endif
 
 .PHONY: install
 install: stas
-	sudo meson $@ -C ${BUILD-DIR}
+	sudo meson $@ -C ${BUILD-DIR} --skip-subprojects
 
 .PHONY: uninstall
 uninstall: ${BUILD-DIR}
