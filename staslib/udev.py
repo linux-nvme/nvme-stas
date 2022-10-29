@@ -10,7 +10,6 @@
 
 import os
 import logging
-from functools import partial
 import pyudev
 from gi.repository import GLib
 from staslib import defs, iputil, trid
@@ -202,30 +201,39 @@ class Udev:
 
     def _process_udev_event(self, event_source, condition):  # pylint: disable=unused-argument
         if condition == GLib.IO_IN:
-            read_device = partial(self._monitor.poll, timeout=0)
-            for device in iter(read_device, None):
-                if device is None:  # This should never happen, but better safe than sorry...
+            event_count = 0
+            while True:
+                try:
+                    device = self._monitor.poll(timeout=0)
+                except EnvironmentError:
+                    logging.debug('Udev._process_udev_event()         - EnvironmentError')
+                    device = None
+
+                if device is None:
                     break
-                self._device_event(device)
+
+                event_count += 1
+                self._device_event(device, event_count)
+
         return GLib.SOURCE_CONTINUE
 
-    def _device_event(self, device):
+    def _device_event(self, device, event_count):
         action_cback = self._action_event_registry.get(device.action, None)
         device_cback = self._device_event_registry.get(device.sys_name, None)
 
         logging.debug(
-            'Udev._device_event()               - %s: %-6s action-handler: %s, device-handler: %s',
-            device.sys_name,
+            'Udev._device_event()               - %-8s %-6s  %-8s  %s',
+            f'{device.sys_name}:',
             device.action,
-            action_cback is not None,
-            device_cback is not None,
+            f'{event_count:2}:{device.sequence_number}',
+            '/'.join([cback.__name__ + '()' for cback in (action_cback, device_cback) if cback is not None]),
         )
 
         if action_cback is not None:
-            action_cback(device)
+            GLib.idle_add(action_cback, device)
 
         if device_cback is not None:
-            device_cback(device)
+            GLib.idle_add(device_cback, device)
 
     @staticmethod
     def _get_property(device, prop, default=''):
