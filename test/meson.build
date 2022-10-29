@@ -6,8 +6,7 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-#libnvme_dep = dependency('python3-libnvme', fallback: ['libnvme', 'libnvme_dep'], version : '>= 1.2', required: false)  # Only required to run the tests
-libnvme_dep = dependency('python3-libnvme', fallback: ['libnvme', 'libnvme_dep'], required: false)  # Only required to run the tests
+libnvme_dep = dependency('python3-libnvme', fallback: ['libnvme', 'libnvme_dep'], version : '>= 1.2', required: false)  # Only required to run the tests
 
 if libnvme_dep.found()
     test_env = environment({'MALLOC_PERTURB_': '0'})
