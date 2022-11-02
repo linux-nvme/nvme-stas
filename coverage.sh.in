@@ -220,7 +220,7 @@ ip-family=ipv4
 kato=10
 
 [Controllers]
-controller=transport=tcp;traddr=localhost
+controller = transport = tcp ; traddr = localhost ; ; ;
 controller=transport=tcp;traddr=1.1.1.1
 controller=transport=tcp;traddr=2.2.2.2
 controller=transport=tcp;traddr=555.555.555.555
