@@ -31,17 +31,17 @@ class TID:  # pylint: disable=too-many-instance-attributes
             'host-iface':  str, # [optional]
         }
         '''
-        self._transport = cid.get('transport', '')
-        self._traddr    = cid.get('traddr', '')
+        self._transport = cid.get('transport', '').strip()
+        self._traddr    = cid.get('traddr', '').strip()
         self._trsvcid   = ''
         if self._transport in ('tcp', 'rdma'):
             trsvcid = cid.get('trsvcid', None)
             self._trsvcid = (
-                trsvcid if trsvcid else (TID.RDMA_IP_PORT if self._transport == 'rdma' else TID.DISC_IP_PORT)
+                trsvcid.strip() if trsvcid else (TID.RDMA_IP_PORT if self._transport == 'rdma' else TID.DISC_IP_PORT)
             )
-        self._host_traddr = cid.get('host-traddr', '')
-        self._host_iface  = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
-        self._subsysnqn   = cid.get('subsysnqn', '')
+        self._host_traddr = cid.get('host-traddr', '').strip()
+        self._host_iface  = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '').strip()
+        self._subsysnqn   = cid.get('subsysnqn', '').strip()
         self._shortkey    = (self._transport, self._traddr, self._trsvcid, self._subsysnqn, self._host_traddr)
         self._key         = (self._transport, self._traddr, self._trsvcid, self._subsysnqn, self._host_traddr, self._host_iface)
         self._hash        = int.from_bytes(hashlib.md5(''.join(self._key).encode('utf-8')).digest(), 'big')  # We need a consistent hash between restarts

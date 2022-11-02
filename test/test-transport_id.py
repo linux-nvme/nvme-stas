@@ -83,5 +83,27 @@ class Test(unittest.TestCase):
         self.assertNotEqual(self.tid, 'hello')
 
 
+    def test_white_spaces(self):
+        '''Check that white spaces get stripped'''
+
+        cid = {
+            'transport': ' tcp ',
+            'traddr': ' 0.0.0.0   ',
+            'subsysnqn': ' hello ',
+            'trsvcid': ' 8009 ',
+            'host-traddr': ' 1.1.1.1 ',
+            'host-iface': ' eth1234 ',
+        }
+
+        tid = trid.TID(cid)
+
+        self.assertEqual(tid.transport, 'tcp')
+        self.assertEqual(tid.traddr, '0.0.0.0')
+        self.assertEqual(tid.subsysnqn, 'hello')
+        self.assertEqual(tid.trsvcid, '8009')
+        self.assertEqual(tid.host_traddr, '1.1.1.1')
+        self.assertEqual(tid.host_iface, 'eth1234')
+
+
 if __name__ == '__main__':
     unittest.main()
