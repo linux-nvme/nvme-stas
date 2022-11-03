@@ -172,7 +172,7 @@ class Controller(stas.ControllerABC):
             # A device already exists.
             self._device = udev_obj.sys_name
             logging.debug(
-                'Controller._try_to_connect()       - %s Found existing control device: %s', self.id, udev_obj.sys_name
+                'Controller._do_connect()           - %s Found existing control device: %s', self.id, udev_obj.sys_name
             )
             self._connect_op = gutil.AsyncOperationWithRetry(
                 self._on_connect_success, self._on_connect_fail, self._ctrl.init, self._host, int(udev_obj.sys_number)
@@ -193,7 +193,7 @@ class Controller(stas.ControllerABC):
                 cfg['keep_alive_tmo'] = DC_KATO_DEFAULT
 
             logging.debug(
-                'Controller._try_to_connect()       - %s Connecting to nvme control with cfg=%s', self.id, cfg
+                'Controller._do_connect()           - %s Connecting to nvme control with cfg=%s', self.id, cfg
             )
             self._connect_op = gutil.AsyncOperationWithRetry(
                 self._on_connect_success, self._on_connect_fail, self._ctrl.connect, self._host, cfg
@@ -268,7 +268,9 @@ class Controller(stas.ControllerABC):
         callback will be added to the main loop's next idle slot to be executed
         ASAP.
         '''
-        logging.debug('Controller.disconnect()            - %s | %s: keep_connection=%s', self.id, self.device, keep_connection)
+        logging.debug(
+            'Controller.disconnect()            - %s | %s: keep_connection=%s', self.id, self.device, keep_connection
+        )
         self._kill_ops()
         if self._ctrl and self._ctrl.connected() and not keep_connection:
             logging.info('%s | %s - Disconnect initiated', self.id, self.device)

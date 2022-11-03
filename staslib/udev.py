@@ -205,8 +205,8 @@ class Udev:
             while True:
                 try:
                     device = self._monitor.poll(timeout=0)
-                except EnvironmentError:
-                    logging.debug('Udev._process_udev_event()         - EnvironmentError')
+                except EnvironmentError as ex:
+                    logging.debug('Udev._process_udev_event()         - %s', ex)
                     device = None
 
                 if device is None:

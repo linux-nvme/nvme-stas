@@ -171,11 +171,13 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         # the source of the deferred is still good.
         source = GLib.main_current_source()
         if source and source.is_destroyed():
-            return
+            return GLib.SOURCE_REMOVE
 
         self._connect_attempts += 1
 
         self._do_connect()
+
+        return GLib.SOURCE_REMOVE
 
     @abc.abstractmethod
     def _do_connect(self):
