@@ -149,7 +149,7 @@ class Test(TestCase):
             captured.records[0]
             .getMessage()
             .startswith(
-                "Controller._try_to_connect()       - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={'hdr_digest': False, 'data_digest': False"
+                "Controller._do_connect()           - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={'hdr_digest': False, 'data_digest': False"
             )
         )
         self.assertEqual(controller._connect_attempts, 1)
