@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# USAGE: stafctl ls | ./mk-discovery-conf.py
+
 import sys
 
 KEYS = [
