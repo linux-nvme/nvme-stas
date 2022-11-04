@@ -10,13 +10,10 @@
 test_env = environment({'MALLOC_PERTURB_': '0'})
 test_env.prepend('PYTHONPATH', PYTHONPATH)
 
-subproject('libnvme')
+subproject('libnvme', required: false)
 
-# The libnvme subproject (see above) builds the python bindings conditionally.
-# It depends whether the build platform has all the required tools like "swig".
-# Therefore, we need to make sure that we can import the libnvme package before
-# proceeding with the tests.
-if run_command(python3, '-c', 'import libnvme', check: false, env: test_env).returncode() != 0
+rr = run_command(python3, '-c', 'import libnvme', check: false, env: test_env)
+if rr.returncode() != 0
     warning('Missing runtime package needed to run the tests: python3-libnvme.')
 else
     #---------------------------------------------------------------------------
