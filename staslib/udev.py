@@ -9,6 +9,7 @@
 '''This module provides functions to access nvme devices using the pyudev module'''
 
 import os
+import time
 import logging
 import pyudev
 from gi.repository import GLib
@@ -23,6 +24,8 @@ class Udev:
     '''
 
     def __init__(self):
+        self._log_event_soak_time = 0
+        self._log_event_count = 0
         self._device_event_registry = dict()
         self._action_event_registry = dict()
         self._context = pyudev.Context()
@@ -206,8 +209,15 @@ class Udev:
                 try:
                     device = self._monitor.poll(timeout=0)
                 except EnvironmentError as ex:
-                    logging.debug('Udev._process_udev_event()         - %s', ex)
                     device = None
+                    # This event seems to happen in bursts.  So, let's suppress
+                    # logging for 2 seconds to avoid filling the syslog.
+                    self._log_event_count += 1
+                    now = time.time()
+                    if now > self._log_event_soak_time:
+                        logging.debug('Udev._process_udev_event()         - %s [%s]', ex, self._log_event_count)
+                        self._log_event_soak_time = now + 2
+                        self._log_event_count = 0
 
                 if device is None:
                     break
