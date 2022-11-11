@@ -241,6 +241,6 @@ UDEV = Udev()  # Singleton
 
 def shutdown():
     '''Destroy the UDEV singleton'''
-    global UDEV  # pylint: disable=global-statement
+    global UDEV  # pylint: disable=global-statement,global-variable-not-assigned
     UDEV.release_resources()
     del UDEV

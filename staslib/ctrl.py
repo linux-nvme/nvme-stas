@@ -428,9 +428,9 @@ class Dc(Controller):
             referrals_before = self.referrals()
             self._log_pages = (
                 [
-                    {k: str(v) for k, v in dictionary.items()}
+                    {k.strip(): str(v).strip() for k, v in dictionary.items()}
                     for dictionary in data
-                    if dictionary.get('traddr') not in ('0.0.0.0', '::', '')
+                    if dictionary.get('traddr','').strip() not in ('0.0.0.0', '::', '')
                 ]
                 if data
                 else list()

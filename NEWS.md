@@ -1,5 +1,10 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.1.7
+
+- Trim white spaces from Discovery Log Pages Entries (DLPE) and Configuration parameters.
+  - Parameters such as traddr, trsvcid, etc. may be padded with white spaces. These white spaces need to be trimmed off before sending to the kernel driver.
+
 ## Changes with release 1.1.6
 
 - Fix issues with I/O controller connection audits

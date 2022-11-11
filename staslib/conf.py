@@ -32,7 +32,7 @@ def parse_controller(controller):
         if token:
             try:
                 option, val = __OPTION_RE.split(token)
-                options[option] = val
+                options[option.strip()] = val.strip()
             except ValueError:
                 pass
 
