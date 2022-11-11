@@ -408,11 +408,11 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         service = (interface, protocol, name, stype, domain)
         if service in self._services:
             self._services[service]['data'] = {
-                'transport':  txt.get('p', 'tcp'),
-                'traddr':     address,
-                'trsvcid':    str(port),
-                'host-iface': socket.if_indextoname(interface),
-                'subsysnqn':  txt.get('NQN', defs.WELL_KNOWN_DISC_NQN)
+                'transport':  txt.get('p', 'tcp').strip(),
+                'traddr':     address.strip(),
+                'trsvcid':    str(port).strip(),
+                'host-iface': socket.if_indextoname(interface).strip(),
+                'subsysnqn':  txt.get('NQN', defs.WELL_KNOWN_DISC_NQN).strip()
                               if conf.NvmeOptions().discovery_supp
                               else defs.WELL_KNOWN_DISC_NQN,
             }
