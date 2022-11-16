@@ -1,6 +1,6 @@
 # .coveragerc to control coverage.py for combined stafd/stacd coverage
 [run]
-data_file = coverage/@PROJECT_NAME@
+data_file = coverage/nvme-stas
 parallel=True
 concurrency=thread
 
@@ -31,4 +31,4 @@ skip_empty = True
 
 [html]
 directory = coverage
-title = @PROJECT_NAME@ coverage report
+title = nvme-stas coverage report

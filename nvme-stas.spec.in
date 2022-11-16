@@ -1,4 +1,4 @@
-Name: @PROJECT_NAME@
+Name: nvme-stas
 Summary: NVMe STorage Appliance Services
 Version: @VERSION@
 Release: 1%{?dist}

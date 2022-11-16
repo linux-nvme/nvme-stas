@@ -6,14 +6,19 @@ import tempfile
 import subprocess
 from argparse import ArgumentParser
 from lxml import etree
-
+try:
+    # Python 3.10 or later
+    from importlib.resources import files
+except ImportError:
+    # Earlier versions of Python
+    from importlib_resources import files
 
 def parse_args():
-    parser = ArgumentParser(description='Extract D-Bus IDL from executable and genarate DocBook documentation.')
+    parser = ArgumentParser(description='Generate DocBook documentation from D-Bus IDL.')
     parser.add_argument(
-        '--executable',
+        '--idl',
         action='store',
-        help='Executable from which to get the IDL (must provide an --idl option)',
+        help='IDL file',
         required=True,
         type=str,
         metavar='FILE',
@@ -89,12 +94,7 @@ FINAL_PREFIX = FILE_PREFIX + '-'
 
 pathlib.Path(ARGS.tmp).mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
-    idl_file = os.path.join(tmpdirname, 'dbus.idl')
-    try:
-        subprocess.run([ARGS.executable, '--idl', idl_file], check=True)
-    except subprocess.CalledProcessError as ex:
-        sys.exit(f'Failed to generate IDL file. {ex}')
-
+    idl_file =  files('staslib').joinpath(f'{ARGS.idl}')
     try:
         subprocess.run(['gdbus-codegen', '--output-directory', tmpdirname, '--generate-docbook', FILE_PREFIX, idl_file])
     except subprocess.CalledProcessError as ex:

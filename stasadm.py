@@ -192,7 +192,7 @@ def get_parser():  # pylint: disable=missing-function-docstring
 PARSER = get_parser()
 ARGS = PARSER.parse_args()
 if ARGS.version:
-    print(f'{defs.PROJECT_NAME} {defs.VERSION}')
+    print(f'nvme-stas {defs.VERSION}')
     sys.exit(0)
 
 try:

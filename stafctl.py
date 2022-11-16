@@ -87,7 +87,7 @@ def adlp(args):
     print(pprint.pformat(info, width=120))
 
 
-PARSER = ArgumentParser(description=f'{defs.STAF_DESCRIPTION} ({defs.STAF_ACRONYM})')
+PARSER = ArgumentParser(description='STorage Appliance Finder (STAF)')
 PARSER.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
 
 SUBPARSER = PARSER.add_subparsers(title='Commands')
@@ -98,7 +98,7 @@ PRSR.set_defaults(func=tron)
 PRSR = SUBPARSER.add_parser('troff', help='Trace OFF')
 PRSR.set_defaults(func=troff)
 
-PRSR = SUBPARSER.add_parser('status', help=f'Show runtime status information about {defs.STAFD_PROCNAME}')
+PRSR = SUBPARSER.add_parser('status', help='Show runtime status information about stafd')
 PRSR.set_defaults(func=status)
 
 PRSR = SUBPARSER.add_parser('ls', help='List discovery controllers')
@@ -175,10 +175,10 @@ PRSR.set_defaults(func=adlp)
 
 ARGS = PARSER.parse_args()
 if ARGS.version:
-    print(f'{defs.PROJECT_NAME} {defs.VERSION}')
+    print(f'nvme-stas {defs.VERSION}')
     sys.exit(0)
 
 try:
     ARGS.func(ARGS)
 except dasbus.error.DBusError:
-    sys.exit(f'Unable to communicate with {defs.STAFD_PROCNAME} over D-Bus. Is {defs.STAFD_PROCNAME} running?')
+    sys.exit('Unable to communicate with stafd over D-Bus. Is stafd running?')

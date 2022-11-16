@@ -1,0 +1,27 @@
+<node>
+    <interface name="@STACD_DBUS_NAME@.debug">
+        <property name="tron" type="b" access="readwrite"/>
+        <property name="log_level" type="s" access="read"/>
+        <method name="process_info">
+            <arg direction="out" type="s" name="info_json"/>
+        </method>
+        <method name="controller_info">
+            <arg direction="in" type="s" name="transport"/>
+            <arg direction="in" type="s" name="traddr"/>
+            <arg direction="in" type="s" name="trsvcid"/>
+            <arg direction="in" type="s" name="host_traddr"/>
+            <arg direction="in" type="s" name="host_iface"/>
+            <arg direction="in" type="s" name="subsysnqn"/>
+            <arg direction="out" type="s" name="info_json"/>
+        </method>
+    </interface>
+
+    <interface name="@STACD_DBUS_NAME@">
+        <method name="list_controllers">
+            <arg direction="in" type="b" name="detailed"/>
+            <arg direction="out" type="aa{ss}" name="controller_list"/>
+        </method>
+    </interface>
+</node>
+
+

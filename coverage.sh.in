@@ -135,8 +135,8 @@ log "nvme disconnect-all"
 sudo nvme disconnect-all
 
 ################################################################################
-# Create a dummy config file for @STAFD_PROCNAME@
-file=/tmp/@STAFD_PROCNAME@.conf.XXXXXX
+# Create a dummy config file for stafd
+file=/tmp/stafd.conf.XXXXXX
 log "Create dummy config file $file"
 stafd_conf_fname=$(mktemp $file)
 cat > "${stafd_conf_fname}" <<'EOF'
@@ -145,11 +145,14 @@ tron=true
 kato=10
 persistent-connections=false
 ip-family=ipv6
+
+[Hello]
+hello = bye
 EOF
 
 ################################################################################
-# Create a dummy config file for @STACD_PROCNAME@
-file=/tmp/@STACD_PROCNAME@.conf.XXXXXX
+# Create a dummy config file for stacd
+file=/tmp/stacd.conf.XXXXXX
 log "Create dummy config file $file"
 stacd_conf_fname=$(mktemp $file)
 cat > "${stacd_conf_fname}" <<'EOF'
@@ -171,24 +174,24 @@ sudo systemctl mask avahi-daemon.socket
 sleep 1
 
 
-log "Invoking @STAFD_CTLNAME@ status while @STAFD_PROCNAME@ is not running"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls >/dev/null 2>&1
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ invalid-command >/dev/null 2>&1
+log "Invoking stafctl status while stafd is not running"
+coverage run --rcfile=.coveragerc stafctl ls >/dev/null 2>&1
+coverage run --rcfile=.coveragerc stafctl invalid-command >/dev/null 2>&1
 
-log "Invoking @STACD_CTLNAME@ status while @STACD_PROCNAME@ is not running"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls >/dev/null 2>&1
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ invalid-command >/dev/null 2>&1
+log "Invoking stacctl status while stacd is not running"
+coverage run --rcfile=.coveragerc stacctl ls >/dev/null 2>&1
+coverage run --rcfile=.coveragerc stacctl invalid-command >/dev/null 2>&1
 
 ################################################################################
-# Start @STAFD_PROCNAME@ and @STACD_PROCNAME@
-sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
-sd_start "@STACD_PROCNAME@" "@STACD_DBUS_NAME@" "${stacd_conf_fname}"
+# Start stafd and stacd
+sd_start "stafd" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
+sd_start "stacd" "@STACD_DBUS_NAME@" "${stacd_conf_fname}"
 sleep 3
 
-log "Invoking @STAFD_CTLNAME@ status"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
+log "Invoking stafctl status"
+coverage run --rcfile=.coveragerc stafctl status  >/dev/null 2>&1
 
-reload_cfg "@STAFD_PROCNAME@"
+reload_cfg "stafd"
 sleep 1
 
 log "Restart Avahi daemon"
@@ -207,7 +210,7 @@ persistent-connections=false
 [Service Discovery]
 zeroconf=enabled
 EOF
-reload_cfg "@STAFD_PROCNAME@"
+reload_cfg "stafd"
 
 sleep 1
 
@@ -233,7 +236,7 @@ controller=transport=XM;traddr=2.2.2.2
 exclude=transport=tcp;traddr=1.1.1.1
 exclude=transport=tcp;traddr=1000.1000.1000.1000
 EOF
-reload_cfg "@STAFD_PROCNAME@"
+reload_cfg "stafd"
 
 
 log "Change stacd config: tron=true, udev-rule=disabled, sticky-connections=disabled"
@@ -246,11 +249,11 @@ udev-rule=disabled
 disconnect-scope=blah-blah
 disconnect-trtypes=boing-boing
 EOF
-reload_cfg "@STACD_PROCNAME@"
+reload_cfg "stacd"
 sleep 3
 
-log "Invoking @STAFD_CTLNAME@ status"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
+log "Invoking stafctl status"
+coverage run --rcfile=.coveragerc stafctl status  >/dev/null 2>&1
 
 ################################################################################
 # Fake mDNS packets from a CDC
@@ -268,66 +271,62 @@ sudo ../utils/nvmet/nvmet.py clean
 sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf
 sleep 2
 
-reload_cfg "@STAFD_PROCNAME@"
-reload_cfg "@STACD_PROCNAME@"
+reload_cfg "stafd"
+reload_cfg "stacd"
 sleep 3
 
 ################################################################################
-log "Invoking @STAFD_PROCNAME@ --version"
-coverage run --rcfile=.coveragerc @STAFD_PROCNAME@ --version
-log "Invoking @STAFD_PROCNAME@ --idl"
-coverage run --rcfile=.coveragerc @STAFD_PROCNAME@ --idl /tmp/@STAFD_PROCNAME@.idl
+log "Invoking stafd --version"
+coverage run --rcfile=.coveragerc stafd --version
 
-log "Invoking @STACD_PROCNAME@ --version"
-coverage run --rcfile=.coveragerc @STACD_PROCNAME@ --version
-log "Invoking @STACD_PROCNAME@ --idl"
-coverage run --rcfile=.coveragerc @STACD_PROCNAME@ --idl /tmp/@STACD_PROCNAME@.idl
+log "Invoking stacd --version"
+coverage run --rcfile=.coveragerc stacd --version
 
 ################################################################################
 # Stimulate D-Bus activity
-log "Invoking @STAFD_CTLNAME@ --version"
-sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ --version
-log "Invoking @STAFD_CTLNAME@ with a bad command"
-sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ blah
-log "Invoking @STAFD_CTLNAME@ troff"
-sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ troff
-log "Invoking @STAFD_CTLNAME@ status"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ status  >/dev/null 2>&1
-log "Invoking @STAFD_CTLNAME@ tron"
-sudo coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ tron
-log "Invoking @STAFD_CTLNAME@ ls"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ ls -d   >/dev/null 2>&1
-log "Invoking @STAFD_CTLNAME@ adlp"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ adlp -d >/dev/null 2>&1
-log "Invoking @STAFD_CTLNAME@ dlp"
-coverage run --rcfile=.coveragerc @STAFD_CTLNAME@ dlp -t tcp -a ::1 -s 8009 >/dev/null 2>&1
+log "Invoking stafctl --version"
+sudo coverage run --rcfile=.coveragerc stafctl --version
+log "Invoking stafctl with a bad command"
+sudo coverage run --rcfile=.coveragerc stafctl blah
+log "Invoking stafctl troff"
+sudo coverage run --rcfile=.coveragerc stafctl troff
+log "Invoking stafctl status"
+coverage run --rcfile=.coveragerc stafctl status  >/dev/null 2>&1
+log "Invoking stafctl tron"
+sudo coverage run --rcfile=.coveragerc stafctl tron
+log "Invoking stafctl ls"
+coverage run --rcfile=.coveragerc stafctl ls -d   >/dev/null 2>&1
+log "Invoking stafctl adlp"
+coverage run --rcfile=.coveragerc stafctl adlp -d >/dev/null 2>&1
+log "Invoking stafctl dlp"
+coverage run --rcfile=.coveragerc stafctl dlp -t tcp -a ::1 -s 8009 >/dev/null 2>&1
 
-log "Invoking @STACD_CTLNAME@ --version"
-sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ --version
-log "Invoking @STACD_CTLNAME@ with a bad command"
-sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ blah
-log "Invoking @STACD_CTLNAME@ troff"
-sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ troff
-log "Invoking @STACD_CTLNAME@ status"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ status >/dev/null 2>&1
-log "Invoking @STACD_CTLNAME@ tron"
-sudo coverage run --rcfile=.coveragerc @STACD_CTLNAME@ tron
-log "Invoking @STACD_CTLNAME@ ls"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
+log "Invoking stacctl --version"
+sudo coverage run --rcfile=.coveragerc stacctl --version
+log "Invoking stacctl with a bad command"
+sudo coverage run --rcfile=.coveragerc stacctl blah
+log "Invoking stacctl troff"
+sudo coverage run --rcfile=.coveragerc stacctl troff
+log "Invoking stacctl status"
+coverage run --rcfile=.coveragerc stacctl status >/dev/null 2>&1
+log "Invoking stacctl tron"
+sudo coverage run --rcfile=.coveragerc stacctl tron
+log "Invoking stacctl ls"
+coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
 
 ################################################################################
 # Stimulate AENs activity by removing/restoring namespaces
 log "Remove namespace: klingons"
 sudo ../utils/nvmet/nvmet.py unlink -p 1 -s klingons
 sleep 2
-log "Invoking @STACD_CTLNAME@ ls"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
+log "Invoking stacctl ls"
+coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
 
 log "Restore namespace: klingons"
 sudo ../utils/nvmet/nvmet.py link -p 1 -s klingons
 sleep 2
-log "Invoking @STACD_CTLNAME@ ls"
-coverage run --rcfile=.coveragerc @STACD_CTLNAME@ ls -d >/dev/null 2>&1
+log "Invoking stacctl ls"
+coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
 
 ################################################################################
 # Stop Avahi Publisher
@@ -341,8 +340,8 @@ sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -
 sleep 2
 
 ################################################################################
-# Make config changes for @STAFD_PROCNAME@
-log "Empty configuration and disable zeroconf for @STAFD_PROCNAME@"
+# Make config changes for stafd
+log "Empty configuration and disable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -351,12 +350,12 @@ persistent-connections=false
 [Service Discovery]
 zeroconf=disabled
 EOF
-reload_cfg "@STAFD_PROCNAME@"
+reload_cfg "stafd"
 sleep 1
 
 ################################################################################
-# Make more config changes for @STAFD_PROCNAME@
-log "Add single controller (::1) and re-enable zeroconf for @STAFD_PROCNAME@"
+# Make more config changes for stafd
+log "Add single controller (::1) and re-enable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -365,7 +364,7 @@ persistent-connections=false
 [Controllers]
 controller=transport=tcp;traddr=::1;trsvcid=8009
 EOF
-reload_cfg "@STAFD_PROCNAME@"
+reload_cfg "stafd"
 sleep 2
 
 ################################################################################
@@ -382,23 +381,23 @@ sleep 2
 
 
 ################################################################################
-sd_restart "@STAFD_PROCNAME@"
-sd_restart "@STACD_PROCNAME@"
+sd_restart "stafd"
+sd_restart "stacd"
 sleep 1
 
-log "Create invalid conditions for saving/loading @STAFD_PROCNAME@'s last known config"
-rm -rf "/tmp/@STAFD_PROCNAME@"
-sd_stop "@STAFD_PROCNAME@"
-sd_restart "@STACD_PROCNAME@"
-mkdir -p "/tmp/@STAFD_PROCNAME@"
-sd_start "@STAFD_PROCNAME@" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
+log "Create invalid conditions for saving/loading stafd's last known config"
+rm -rf "/tmp/stafd"
+sd_stop "stafd"
+sd_restart "stacd"
+mkdir -p "/tmp/stafd"
+sd_start "stafd" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
 sleep 2
 
 ################################################################################
 # Stop everything and collect coverage stats
-log "Stop @STAFD_PROCNAME@ and @STACD_PROCNAME@"
-sd_stop "@STAFD_PROCNAME@"
-sd_stop "@STACD_PROCNAME@"
+log "Stop stafd and stacd"
+sd_stop "stafd"
+sd_stop "stacd"
 sleep 1
 
 ################################################################################

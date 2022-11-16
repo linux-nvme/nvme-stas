@@ -5,8 +5,8 @@
 # This file is part of NVMe STorage Appliance Services (nvme-stas).
 #
 [Unit]
-Description=@STAC_DESCRIPTION@ (@STAC_ACRONYM@)
-Documentation=man:@STACD_PROCNAME@.service(8) man:@STACD_PROCNAME@(8)
+Description=STorage Appliance Connector (STAC)
+Documentation=man:stacd.service(8) man:stacd(8)
 Wants=modprobe@nvme_fabrics.service modprobe@nvme_tcp.service network.target stas-config.target
 After=modprobe@nvme_fabrics.service modprobe@nvme_tcp.service network.target stas-config.target
 
@@ -17,15 +17,15 @@ AssertPathExists=/dev/nvme-fabrics
 [Service]
 Type=dbus
 BusName=@STACD_DBUS_NAME@
-SyslogIdentifier=@STACD_PROCNAME@
+SyslogIdentifier=stacd
 
-ExecStart=/usr/bin/python3 -u @STACD_EXECUTABLE@ --syslog
+ExecStart=/usr/bin/python3 -u /usr/sbin/stacd --syslog
 ExecReload=/bin/kill -HUP $MAINPID
 
-# Run-time directory: /run/@STACD_PROCNAME@
-# Cache directory: /var/cache/@STACD_PROCNAME@
-RuntimeDirectory=@STACD_PROCNAME@
-CacheDirectory=@STACD_PROCNAME@
+# Run-time directory: /run/stacd
+# Cache directory: /var/cache/stacd
+RuntimeDirectory=stacd
+CacheDirectory=stacd
 RuntimeDirectoryPreserve=yes
 
 [Install]

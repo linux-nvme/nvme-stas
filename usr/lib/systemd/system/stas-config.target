@@ -5,9 +5,9 @@
 # This file is part of NVMe STorage Appliance Services (nvme-stas).
 #
 [Unit]
-Description=Configuration generator for @STACD_PROCNAME@.service and @STAFD_PROCNAME@.service
+Description=Configuration generator for stacd.service and stafd.service
 Documentation=man:stas-config.target(8)
 Wants=stas-config@hostnqn.service
 Wants=stas-config@hostid.service
-PartOf=@STACD_PROCNAME@.service
-PartOf=@STAFD_PROCNAME@.service
+PartOf=stacd.service
+PartOf=stafd.service

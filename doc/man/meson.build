@@ -51,23 +51,23 @@ if want_man or want_html
         endforeach
     endif
 
-    tmp_dir = conf.get('BUILD_DIR') / 'man-tmp'
+    out_dir = conf.get('BUILD_DIR') / 'man-tmp'
 
     # Generate DocBooks from IDL queried directly from the D-Bus services.
     env = environment({'PYTHONPATH': PYTHONPATH})
-    dbus_services = [ stafd, stacd ]
-    foreach service : dbus_services
+    idls = [ 'stafd.idl', 'stacd.idl' ]
+    foreach idl : idls
         rr = run_command(
             dbus2doc,
-            '--executable', service,
-            '--output-directory', tmp_dir,
+            '--idl', idl,
+            '--output-directory', out_dir,
             '--tmp', meson.current_build_dir(),
             env: env,
             check: true)
         output = rr.stdout().strip()
         if output != ''
             foreach stem : output.split(';')
-                docbooks += [ [stem, '5', tmp_dir / stem + '.xml', []] ]
+                docbooks += [ [stem, '5', out_dir / stem + '.xml', []] ]
             endforeach
         endif
     endforeach
