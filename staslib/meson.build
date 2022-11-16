@@ -7,7 +7,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 
-files_to_configure = [ 'defs.py', '__init__.py' ]
+files_to_configure = [ 'defs.py', '__init__.py', 'stafd.idl', 'stacd.idl' ]
 configured_files = []
 foreach file : files_to_configure
     configured_files += configure_file(
@@ -49,8 +49,11 @@ python3.install_sources(
 
 #===============================================================================
 # Make a list of modules to lint
+skip = ['stafd.idl', 'stacd.idl']
 foreach file: files_to_install
     fname = fs.name('@0@'.format(file))
-    modules_to_lint += file
+    if fname not in skip
+        modules_to_lint += file
+    endif
 endforeach
 

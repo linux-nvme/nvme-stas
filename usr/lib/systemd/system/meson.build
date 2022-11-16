@@ -30,8 +30,8 @@ configure_file(
 )
 
 configure_file(
-    input: 'stas-config.in.target',
+    input: 'stas-config.target',
     output: 'stas-config.target',
     install_dir: sd_service_file_dir,
-    configuration: conf,
+    copy: true,
 )

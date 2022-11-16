@@ -70,7 +70,7 @@ def ls(args):
     print(pprint.pformat(info, width=120))
 
 
-PARSER = ArgumentParser(description=f'{defs.STAC_DESCRIPTION} ({defs.STAC_ACRONYM})')
+PARSER = ArgumentParser(description='STorage Appliance Connector (STAC)')
 PARSER.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
 
 SUBPARSER = PARSER.add_subparsers(title='Commands')
@@ -81,7 +81,7 @@ PRSR.set_defaults(func=tron)
 PRSR = SUBPARSER.add_parser('troff', help='Trace OFF')
 PRSR.set_defaults(func=troff)
 
-PRSR = SUBPARSER.add_parser('status', help=f'Show runtime status information about {defs.STACD_PROCNAME}')
+PRSR = SUBPARSER.add_parser('status', help='Show runtime status information about stacd')
 PRSR.set_defaults(func=status)
 
 PRSR = SUBPARSER.add_parser('ls', help='List I/O controllers')
@@ -92,10 +92,10 @@ PRSR.set_defaults(func=ls)
 
 ARGS = PARSER.parse_args()
 if ARGS.version:
-    print(f'{defs.PROJECT_NAME} {defs.VERSION}')
+    print(f'nvme-stas {defs.VERSION}')
     sys.exit(0)
 
 try:
     ARGS.func(ARGS)
 except dasbus.error.DBusError:
-    sys.exit(f'Unable to communicate with {defs.STACD_PROCNAME} over D-Bus. Is {defs.STACD_PROCNAME} running?')
+    sys.exit('Unable to communicate with stacd over D-Bus. Is stacd running?')

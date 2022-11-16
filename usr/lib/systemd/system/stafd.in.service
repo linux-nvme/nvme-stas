@@ -8,8 +8,8 @@
 # Note that stafd can run w/o the avahi-daemon. However, if the avahi-daemon
 # is present, stafd should start after it for proper process sequencing.
 [Unit]
-Description=@STAF_DESCRIPTION@ (@STAF_ACRONYM@)
-Documentation=man:@STAFD_PROCNAME@.service(8) man:@STAFD_PROCNAME@(8)
+Description=STorage Appliance Finder (STAF)
+Documentation=man:stafd.service(8) man:stafd(8)
 Wants=modprobe@nvme_fabrics.service modprobe@nvme_tcp.service network.target stas-config.target
 After=modprobe@nvme_fabrics.service modprobe@nvme_tcp.service network.target stas-config.target avahi-daemon.service
 
@@ -20,15 +20,15 @@ AssertPathExists=/dev/nvme-fabrics
 [Service]
 Type=dbus
 BusName=@STAFD_DBUS_NAME@
-SyslogIdentifier=@STAFD_PROCNAME@
+SyslogIdentifier=stafd
 
-ExecStart=/usr/bin/python3 -u @STAFD_EXECUTABLE@ --syslog
+ExecStart=/usr/bin/python3 -u /usr/sbin/stafd --syslog
 ExecReload=/bin/kill -HUP $MAINPID
 
-# Run-time directory: /run/@STAFD_PROCNAME@
-# Cache directory: /var/cache/@STAFD_PROCNAME@
-RuntimeDirectory=@STAFD_PROCNAME@
-CacheDirectory=@STAFD_PROCNAME@
+# Run-time directory: /run/stafd
+# Cache directory: /var/cache/stafd
+RuntimeDirectory=stafd
+CacheDirectory=stafd
 RuntimeDirectoryPreserve=yes
 
 [Install]

@@ -12,39 +12,19 @@
 import sys
 from argparse import ArgumentParser
 from staslib import defs
+try:
+    # Python 3.10 or later
+    from importlib.resources import files
+except ImportError:
+    # Earlier versions of Python
+    from importlib_resources import files
 
-DBUS_IDL = f'''
-<node>
-    <interface name="{defs.STACD_DBUS_NAME}.debug">
-        <property name="tron" type="b" access="readwrite"/>
-        <property name="log_level" type="s" access="read"/>
-        <method name="process_info">
-            <arg direction="out" type="s" name="info_json"/>
-        </method>
-        <method name="controller_info">
-            <arg direction="in" type="s" name="transport"/>
-            <arg direction="in" type="s" name="traddr"/>
-            <arg direction="in" type="s" name="trsvcid"/>
-            <arg direction="in" type="s" name="host_traddr"/>
-            <arg direction="in" type="s" name="host_iface"/>
-            <arg direction="in" type="s" name="subsysnqn"/>
-            <arg direction="out" type="s" name="info_json"/>
-        </method>
-    </interface>
-
-    <interface name="{defs.STACD_DBUS_NAME}">
-        <method name="list_controllers">
-            <arg direction="in" type="b" name="detailed"/>
-            <arg direction="out" type="aa{{ss}}" name="controller_list"/>
-        </method>
-    </interface>
-</node>
-'''
+DBUS_IDL = files('staslib').joinpath('stacd.idl').read_text()  # pylint: disable=unspecified-encoding
 
 # ******************************************************************************
 def parse_args(conf_file: str):  # pylint: disable=missing-function-docstring
     parser = ArgumentParser(
-        description=f'{defs.STAC_DESCRIPTION} ({defs.STAC_ACRONYM}). Must be root to run this program.'
+        description='STorage Appliance Connector (STAC). Must be root to run this program.'
     )
     parser.add_argument(
         '-f',
@@ -64,25 +44,19 @@ def parse_args(conf_file: str):  # pylint: disable=missing-function-docstring
     )
     parser.add_argument('--tron', action='store_true', help='Trace ON. (default: %(default)s)', default=False)
     parser.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
-    parser.add_argument('--idl', action='store', help='Print D-Bus IDL, then exit', type=str, metavar='FILE')
     return parser.parse_args()
 
 
-ARGS = parse_args(defs.STACD_CONFIG_FILE)
+ARGS = parse_args('/etc/stas/stacd.conf')
 
 if ARGS.version:
-    print(f'{defs.PROJECT_NAME} {defs.VERSION}')
+    print(f'nvme-stas {defs.VERSION}')
     try:
         import libnvme
 
         print(f'libnvme {libnvme.__version__}')
     except (AttributeError, ModuleNotFoundError):
         pass
-    sys.exit(0)
-
-if ARGS.idl:
-    with open(ARGS.idl, 'w') as f:  # pylint: disable=unspecified-encoding
-        print(f'{DBUS_IDL}', file=f)
     sys.exit(0)
 
 

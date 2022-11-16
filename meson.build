@@ -73,42 +73,26 @@ endif
 #===============================================================================
 conf = configuration_data()
 
-conf.set('PROJECT_NAME', meson.project_name())
 conf.set('VERSION', meson.project_version())
 conf.set('LICENSE', meson.project_license()[0])
 conf.set('KERNEL_IFACE_MIN_VERSION', '5.14')
 conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
 conf.set('BUILD_DIR', meson.current_build_dir())
-conf.set('SRCE_ROOT', meson.current_source_dir())
-conf.set('LIBNVME_VER_FOR_PLEO', '1.2')
-
-foreach component : [ ['staf', 'STorage Appliance Finder'],
-                      ['stac', 'STorage Appliance Connector'] ]
-    COMPONENT   = component[0].to_upper()
-    daemon_name = component[0] + 'd'
-    ctl_name    = component[0] + 'ctl'
-    DAEMON_NAME = daemon_name.to_upper()
-    conf.set(DAEMON_NAME + '_CONFIG_FILE', join_paths(cnfdir, daemon_name + '.conf'))
-    conf.set(DAEMON_NAME + '_DBUS_NAME', 'org.nvmexpress.' + component[0])
-    conf.set(DAEMON_NAME + '_DBUS_PATH', '/org/nvmexpress/' + component[0])
-    conf.set(DAEMON_NAME + '_EXECUTABLE', join_paths(sbindir, daemon_name))
-    conf.set(DAEMON_NAME + '_CTL', join_paths(bindir, ctl_name))
-    conf.set(DAEMON_NAME + '_PROCNAME', daemon_name)
-    conf.set(DAEMON_NAME + '_CTLNAME', ctl_name)
-    conf.set(COMPONENT + '_ACRONYM', COMPONENT)
-    conf.set(COMPONENT + '_DESCRIPTION', component[1])
-endforeach
+conf.set('STAFD_DBUS_NAME', 'org.nvmexpress.staf')
+conf.set('STAFD_DBUS_PATH', '/org/nvmexpress/staf')
+conf.set('STACD_DBUS_NAME', 'org.nvmexpress.stac')
+conf.set('STACD_DBUS_PATH', '/org/nvmexpress/stac')
 
 #===============================================================================
 stafd = configure_file(
     input: 'stafd.py',
-    output: conf.get('STAFD_PROCNAME'),
+    output: 'stafd',
     install_dir: sbindir,
     copy: true,
 )
 stacd = configure_file(
     input: 'stacd.py',
-    output: conf.get('STACD_PROCNAME'),
+    output: 'stacd',
     install_dir: sbindir,
     copy: true,
 )
