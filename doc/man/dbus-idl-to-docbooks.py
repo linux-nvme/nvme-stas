@@ -6,12 +6,7 @@ import tempfile
 import subprocess
 from argparse import ArgumentParser
 from lxml import etree
-try:
-    # Python 3.10 or later
-    from importlib.resources import files
-except ImportError:
-    # Earlier versions of Python
-    from importlib_resources import files
+
 
 def parse_args():
     parser = ArgumentParser(description='Generate DocBook documentation from D-Bus IDL.')
@@ -94,9 +89,8 @@ FINAL_PREFIX = FILE_PREFIX + '-'
 
 pathlib.Path(ARGS.tmp).mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(dir=ARGS.tmp) as tmpdirname:
-    idl_file =  files('staslib').joinpath(f'{ARGS.idl}')
     try:
-        subprocess.run(['gdbus-codegen', '--output-directory', tmpdirname, '--generate-docbook', FILE_PREFIX, idl_file])
+        subprocess.run(['gdbus-codegen', '--output-directory', tmpdirname, '--generate-docbook', FILE_PREFIX, ARGS.idl])
     except subprocess.CalledProcessError as ex:
         sys.exit(f'Failed to generate DocBook file. {ex}')
 

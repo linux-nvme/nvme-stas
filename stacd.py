@@ -12,20 +12,11 @@
 import sys
 from argparse import ArgumentParser
 from staslib import defs
-try:
-    # Python 3.10 or later
-    from importlib.resources import files
-except ImportError:
-    # Earlier versions of Python
-    from importlib_resources import files
 
-DBUS_IDL = files('staslib').joinpath('stacd.idl').read_text()  # pylint: disable=unspecified-encoding
 
 # ******************************************************************************
 def parse_args(conf_file: str):  # pylint: disable=missing-function-docstring
-    parser = ArgumentParser(
-        description='STorage Appliance Connector (STAC). Must be root to run this program.'
-    )
+    parser = ArgumentParser(description='STorage Appliance Connector (STAC). Must be root to run this program.')
     parser.add_argument(
         '-f',
         '--conf-file',
@@ -74,7 +65,7 @@ if __name__ == '__main__':
         communicate with stacd.
         '''
 
-        __dbus_xml__ = DBUS_IDL
+        __dbus_xml__ = stas.load_idl('stacd.idl')
 
         @property
         def tron(self):

@@ -20,6 +20,49 @@ import dasbus.connection
 from gi.repository import Gio, GLib
 from staslib import conf, defs, gutil, log, trid
 
+try:
+    # Python 3.9 or later
+    # This is the preferred way, but may not be available before Python 3.9
+    from importlib.resources import files
+except ImportError:
+    try:
+        # Pre Python 3.9 backport of importlib.resources (if installed)
+        from importlib_resources import files
+    except ImportError:
+        # Less efficient, but avalable on older versions of Python
+        import pkg_resources
+
+        def load_idl(idl_fname):
+            '''@brief Load D-Bus Interface Description Language File'''
+            try:
+                return pkg_resources.resource_string('staslib', idl_fname).decode()
+            except (FileNotFoundError, AttributeError):
+                pass
+
+            return ''
+
+    else:
+
+        def load_idl(idl_fname):
+            '''@brief Load D-Bus Interface Description Language File'''
+            try:
+                return files('staslib').joinpath(idl_fname).read_text()  # pylint: disable=unspecified-encoding
+            except FileNotFoundError:
+                pass
+
+            return ''
+
+else:
+
+    def load_idl(idl_fname):
+        '''@brief Load D-Bus Interface Description Language File'''
+        try:
+            return files('staslib').joinpath(idl_fname).read_text()  # pylint: disable=unspecified-encoding
+        except FileNotFoundError:
+            pass
+
+        return ''
+
 
 # ******************************************************************************
 def check_if_allowed_to_continue():

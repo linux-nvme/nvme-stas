@@ -59,7 +59,7 @@ if want_man or want_html
     foreach idl : idls
         rr = run_command(
             dbus2doc,
-            '--idl', idl,
+            '--idl', join_paths(conf.get('BUILD_DIR'), 'staslib', idl),
             '--output-directory', out_dir,
             '--tmp', meson.current_build_dir(),
             env: env,
