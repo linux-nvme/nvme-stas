@@ -223,6 +223,6 @@ Note that the Python coverage package has trouble tracking code executed in thre
 
 Also note, that some of the code (e.g. explicit registration per TP8010) only gets executed when connected to a CDC (not a DDC). So, depending on your environment you will most likely get different coverage result. The above test was done on a system where mDNS discovery with a CDC was available, which provides more coverage than using the `nvmet` driver alone.
 
-An HTML output is also available where you can click on each file and which lines of code got executed and which ones were missed. In your when browser, simply type `file:///[$STAS_DIR]/.build/coverage/index.html`  (you must replace `[$STAS_DIR]` by the actual location of the nvme-stas repo where `make coverage` was run) . You should get something like this:
+An HTML output is also available where you can click on each file and which lines of code got executed and which ones were missed. In your web browser, simply type `file:///[$STAS_DIR]/.build/coverage/index.html`  (you must replace `[$STAS_DIR]` by the actual location of the nvme-stas repo where `make coverage` was run) . You should get something like this:
 
 ![](./doc/images/Coverage.png)

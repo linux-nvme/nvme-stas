@@ -4,17 +4,26 @@ This document contains information about the packaging of nvme-stas.
 
 ## Compile-time dependencies
 
-nvme-stas is a Python 3 project and does not require compile-time libraries per se. However, we use the meson build system for installation and testing. With regards to testing, nvme-stas provides static code analysis (pylint, pyflakes), which can be run with "`meson test`".
+nvme-stas is a Python 3 project and does not require compile-time libraries per se. However, we use the meson build system for installation and testing. 
 
 | Library / Program | Purpose                                           | Mandatory / Optional |
 | ----------------- | ------------------------------------------------- | -------------------- |
 | meson             | Project configuration, installation, and testing. | Mandatory            |
-| pylint            | Static code analysis                              | Optional             |
-| python3-pyflakes  | Static code analysis                              | Optional             |
+
+## Unit tests dependencies
+
+nvme-stas provides static code analysis (pylint, pyflakes), which can be run with "`meson test`".
+
+| Library / Program | Purpose                                                      | Mandatory / Optional |
+| ----------------- | ------------------------------------------------------------ | -------------------- |
+| pylint            | Static code analysis                                         | Optional             |
+| python3-pyflakes  | Static code analysis                                         | Optional             |
+| python3-pyfakefs  | Static code analysis                                         | Optional             |
+| vermin            | Check that code meets minimum Python version requirement (3.6) | Optional             |
 
 ## Run-time dependencies
 
-nvme-stas is built on top of libnvme, which is used to interact with the kernel's NVMe driver (i.e. `drivers/nvme/host/`). To support all the features of nvme-stas, several changes to the Linux kernel are required. nvme-stas can also operate with older kernels, but with limited functionality. Kernel 5.18 provides all the features needed by nvme-stas. nvme-stas can also work with older kernels that include back-ported changes to the NVMe driver.
+Python 3.6 is the minimum version required to run nvme-stas. nvme-stas is built on top of libnvme, which is used to interact with the kernel's NVMe driver (i.e. `drivers/nvme/host/`). To support all the features of nvme-stas, several changes to the Linux kernel are required. nvme-stas can also operate with older kernels, but with limited functionality. Kernel 5.18 provides all the features needed by nvme-stas. nvme-stas can also work with older kernels that include back-ported changes to the NVMe driver.
 
 The next table shows different features that were added to the NVMe driver and in which version of the Linux kernel they were added (the list of git patches can be found in addendum). Note that the ability to query the NVMe driver to determine what options it supports was added in 5.17. This is needed if nvme-stas is to make the right decision on whether a feature is supported. Otherwise, nvme-stas can only rely on the kernel version to decide what is supported. This can greatly limit the features supported on back-ported kernels.
 
@@ -28,16 +37,18 @@ The next table shows different features that were added to the NVMe driver and i
 
 nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with. 
 
-| Library                                         | Min version | stafd         | stacd         | How to determine the  currently installed version            |
-| ----------------------------------------------- | ----------- | ------------- | ------------- | ------------------------------------------------------------ |
-| python3-dasbus                                  | 1.6         | **Mandatory** | **Mandatory** | pip list \| grep dasbus                                      |
-| python3-pyudev                                  | 0.22.0      | **Mandatory** | **Mandatory** | `python3 -c 'import pyudev; print(f"{pyudev.__version__}")'` |
-| python3-systemd                                 | 240         | **Mandatory** | **Mandatory** | `systemd --version`                                          |
-| python3-gi (Debian) OR python3-gobject (Fedora) | 3.36.0      | **Mandatory** | **Mandatory** | `python3 -c 'import gi; print(f"{gi.__version__}")'`         |
-| nvme-tcp (kernel module)                        | 5.18 *      | **Mandatory** | **Mandatory** | N/A                                                          |
-| dbus-daemon                                     | 1.12.2      | **Mandatory** | **Mandatory** | `dbus-daemon --version`                                      |
-| avahi-daemon                                    | 0.7         | **Mandatory** | Not required  | `avahi-daemon --version`                                     |
-| python3-libnvme                                 | 1.2         | **Mandatory** | **Mandatory** | `python3 -c 'import libnvme; print(f"{libnvme.__version__}")'` |
+| Package / Module                                           | Min version | stafd         | stacd         | How to determine the  currently installed version            |
+| ---------------------------------------------------------- | ----------- | ------------- | ------------- | ------------------------------------------------------------ |
+| python3                                                    | 3.6         | **Mandatory** | **Mandatory** | `nvme-stas` requires Python 3.6 as a minimum.                |
+| python3-dasbus                                             | 1.6         | **Mandatory** | **Mandatory** | pip list \| grep dasbus                                      |
+| python3-pyudev                                             | 0.22.0      | **Mandatory** | **Mandatory** | `python3 -c 'import pyudev; print(f"{pyudev.__version__}")'` |
+| python3-systemd                                            | 240         | **Mandatory** | **Mandatory** | `systemd --version`                                          |
+| python3-gi (Debian) OR python3-gobject (Fedora)            | 3.36.0      | **Mandatory** | **Mandatory** | `python3 -c 'import gi; print(f"{gi.__version__}")'`         |
+| nvme-tcp (kernel module)                                   | 5.18 *      | **Mandatory** | **Mandatory** | N/A                                                          |
+| dbus-daemon                                                | 1.12.2      | **Mandatory** | **Mandatory** | `dbus-daemon --version`                                      |
+| avahi-daemon                                               | 0.7         | **Mandatory** | Not required  | `avahi-daemon --version`                                     |
+| python3-libnvme                                            | 1.2         | **Mandatory** | **Mandatory** | `python3 -c 'import libnvme; print(f"{libnvme.__version__}")'` |
+| importlib.resources.files() OR importlib_resources.files() | ***         | Optional      | Optional      | `importlib.resources.files()` was introduced in Python 3.9 and backported to earlier versions as `importlib_resources.files()`. If neither modules can be found, `nvme-stas` will default to using the less efficient `pkg_resources.resource_string()` instead. When `nvme-stas` is no longer required to support Python 3.6 and is allowed a minimum of 3.9 or later, only `importlib.resources.files()` will be required. |
 
 * Kernel 5.18 provides full functionality. nvme-stas can work with older kernels, but with limited functionality, unless the kernels contain back-ported features (see Addendum for the list of kernel patches that could be back-ported to an older kernel). 
 

@@ -80,7 +80,7 @@ endif
 #-------------------------------------------------------------------------------
 # Make sure code complies with minimum Python version requirement.
 tools = [
-    join_paths(meson.current_source_dir(), '../man'),
+    join_paths(meson.current_source_dir(), '../doc'),
     join_paths(meson.current_source_dir(), '../utils'),
 ]
 vermin = find_program('vermin', required: false)
