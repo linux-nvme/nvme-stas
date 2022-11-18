@@ -30,4 +30,4 @@ build:
       - ninja -C .build
 
 sphinx:
-  configuration: .build/doc/conf.py
+  configuration: .build/doc/readthedocs/conf.py

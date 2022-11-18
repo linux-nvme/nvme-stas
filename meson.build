@@ -30,14 +30,10 @@ cnfdir  = join_paths(etcdir, 'stas')
 
 want_man  = get_option('man')
 want_html = get_option('html')
-readthedocs = get_option('readthedocs')
-
-if readthedocs
-    want_html = true
-endif
+want_readthedocs = get_option('readthedocs')
 
 buildtime_modules = []
-if want_man or want_html
+if want_man or want_html or want_readthedocs
     buildtime_modules += ['lxml']
 endif
 
@@ -152,7 +148,6 @@ subdir('etc/dbus-1/system.d')
 subdir('usr/lib/systemd/system')
 subdir('test')
 subdir('doc')
-subdir('doc/man')
 
 if meson.version().version_compare('>=0.57.0')
     summary = [

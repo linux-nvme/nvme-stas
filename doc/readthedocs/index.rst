@@ -14,8 +14,13 @@ What does nvme-stas provide?
    :caption: Contents:
 
    installation.rst
-   quickstart.rst
-   api.rst
+   nvme-stas.rst
+   stafd-index.rst
+   stacd-index.rst
+   stasadm.rst
+   sys.conf.rst
+   stas-config.target.rst
+   stas-config@.service.rst
 
 Indices and tables
 ==================
