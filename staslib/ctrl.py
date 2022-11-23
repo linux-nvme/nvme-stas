@@ -419,7 +419,7 @@ class Dc(Controller):
                 '%s | %s - libnvme-%s does not support "Get supported log pages". Please upgrade libnvme.',
                 self.id,
                 self.device,
-                libnvme.__version__,
+                getattr(libnvme, '__version__', '?.?'),
             )
 
         if conf.SvcConf().pleo_enabled and self._is_ddc() and has_supported_log_pages:
@@ -533,7 +533,7 @@ class Dc(Controller):
                     '%s | %s - libnvme-%s does not support setting PLEO bit. Please upgrade.',
                     self.id,
                     self.device,
-                    libnvme.__version__,
+                    getattr(libnvme, '__version__', '?.?'),
                 )
                 self._get_log_op = gutil.AsyncOperationWithRetry(
                     self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover

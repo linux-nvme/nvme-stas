@@ -59,31 +59,31 @@ if want_man or want_html or want_readthedocs
         endif
     endforeach
 
-    if want_man or want_html or want_readthedocs
-        xsltproc = find_program('xsltproc')
-        if xsltproc.found()
-            manpage_style = 'http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl'
-            if run_command(xsltproc, '--nonet', manpage_style, check: false).returncode() != 0
-                error('Docbook style sheet missing: Install docbook-xsl (deb) / docbook-style-xsl (rpm)')
-            endif
+
+    xsltproc = find_program('xsltproc')
+    if xsltproc.found()
+        manpage_style = 'http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl'
+        if run_command(xsltproc, '--nonet', manpage_style, check: false).returncode() != 0
+            error('Docbook style sheet missing: Install docbook-xsl (deb) / docbook-style-xsl (rpm)')
         endif
-
-        xslt_cmd = [
-          xsltproc,
-          '--nonet',
-          '--xinclude',
-          '--stringparam', 'man.output.quietly', '1',
-          '--stringparam', 'funcsynopsis.style', 'ansi',
-          '--stringparam', 'man.th.extra1.suppress', '1',
-          '--stringparam', 'man.authors.section.enabled', '0',
-          '--stringparam', 'man.copyright.section.enabled', '0',
-          '--stringparam', 'nvme-stas.version', '@0@'.format(meson.project_version()),
-          '-o', '@OUTPUT@',
-        ]
-
-        man_xsl  = files('man.xsl')
-        html_xsl = files('html.xsl')
     endif
+
+    xslt_cmd = [
+      xsltproc,
+      '--nonet',
+      '--xinclude',
+      '--stringparam', 'man.output.quietly', '1',
+      '--stringparam', 'funcsynopsis.style', 'ansi',
+      '--stringparam', 'man.th.extra1.suppress', '1',
+      '--stringparam', 'man.authors.section.enabled', '0',
+      '--stringparam', 'man.copyright.section.enabled', '0',
+      '--stringparam', 'nvme-stas.version', '@0@'.format(meson.project_version()),
+      '-o', '@OUTPUT@',
+    ]
+
+    man_xsl  = files('man.xsl')
+    html_xsl = files('html.xsl')
+
 
     html_files = [] # Will be used as input to readthedocs
     foreach tuple: docbooks
@@ -121,4 +121,6 @@ if want_man or want_html or want_readthedocs
     endforeach
 endif
 
-subdir('readthedocs')
+if want_readthedocs
+    subdir('readthedocs')
+endif
