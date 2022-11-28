@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import unittest
+import ipaddress
 import subprocess
 from staslib import iputil, log, trid
 
@@ -29,7 +30,9 @@ class Test(unittest.TestCase):
         '''Check that get_interface() returns the right info'''
         for iface in self.ifaces:
             for addr_entry in iface['addr_info']:
-                self.assertEqual(iface['ifname'], iputil.get_interface(addr_entry['local']))
+                addr = ipaddress.ip_address(addr_entry['local'])
+                if not addr.is_link_local:  # Link local addresses may appear on more than one interface and therefore cannot be used.
+                    self.assertEqual(iface['ifname'], iputil.get_interface(str(addr)))
 
         self.assertEqual('', iputil.get_interface('255.255.255.255'))
 
