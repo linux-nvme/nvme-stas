@@ -26,12 +26,12 @@ from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, trid, udev
 class Service(stas.ServiceABC):
     '''@brief Base class used to manage a STorage Appliance Service'''
 
-    def __init__(self, args, reload_hdlr):
+    def __init__(self, args, default_conf, reload_hdlr):
         sysconf = conf.SysConf()
         self._root = nvme.root()
         self._host = nvme.host(self._root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
 
-        super().__init__(args, reload_hdlr)
+        super().__init__(args, default_conf, reload_hdlr)
 
         self._root.log_level("debug" if self._tron else "err")
 
@@ -114,7 +114,30 @@ class Stac(Service):
     ADD_EVENT_SOAK_TIME_SEC = 1
 
     def __init__(self, args, dbus):
-        super().__init__(args, self._reload_hdlr)
+        default_conf = {
+            ('Global', 'tron'): 'false',
+            ('Global', 'hdr-digest'): 'false',
+            ('Global', 'data-digest'): 'false',
+            ('Global', 'kato'): None,  # None to let the driver decide the default
+            ('Global', 'nr-io-queues'): None,  # None to let the driver decide the default
+            ('Global', 'nr-write-queues'): None,  # None to let the driver decide the default
+            ('Global', 'nr-poll-queues'): None,  # None to let the driver decide the default
+            ('Global', 'queue-size'): None,  # None to let the driver decide the default
+            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
+            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
+            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
+            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
+            ('Global', 'ignore-iface'): 'false',
+            ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'udev-rule'): 'disabled',
+            ('Controllers', 'controller'): list(),
+            ('Controllers', 'exclude'): list(),
+            ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
+            ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
+            ('I/O controller connection management', 'connect-attempts-on-ncc'): '0',
+        }
+
+        super().__init__(args, default_conf, self._reload_hdlr)
 
         self._udev = udev.UDEV
 
@@ -375,7 +398,27 @@ class Staf(Service):
     '''STorage Appliance Finder (STAF)'''
 
     def __init__(self, args, dbus):
-        super().__init__(args, self._reload_hdlr)
+        default_conf = {
+            ('Global', 'tron'): 'false',
+            ('Global', 'hdr-digest'): 'false',
+            ('Global', 'data-digest'): 'false',
+            ('Global', 'kato'): None,  # None to let the driver decide the default
+            ('Global', 'queue-size'): None,  # None to let the driver decide the default
+            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
+            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
+            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
+            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
+            ('Global', 'persistent-connections'): 'true',
+            ('Global', 'ignore-iface'): 'false',
+            ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'udev-rule'): 'disabled',
+            ('Global', 'pleo'): 'enabled',
+            ('Service Discovery', 'zeroconf'): 'enabled',
+            ('Controllers', 'controller'): list(),
+            ('Controllers', 'exclude'): list(),
+        }
+
+        super().__init__(args, default_conf, self._reload_hdlr)
 
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
         self._avahi.config_stypes(conf.SvcConf().get_stypes())
