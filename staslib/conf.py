@@ -61,7 +61,7 @@ class OrderedMultisetDict(dict):
         return value
 
 
-class SvcConf(metaclass=singleton.Singleton):
+class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public-methods
     '''Read and cache configuration file.'''
 
     def __init__(self, default_conf=None, conf_file='/dev/null'):
@@ -186,6 +186,86 @@ class SvcConf(metaclass=singleton.Singleton):
 
         if value == 1:  # 1 is invalid. A minimum of 2 is required (with the exception of 0, which is valid).
             value = 2
+
+        return value
+
+    @property
+    def nr_io_queues(self):
+        '''@brief return the "Number of I/O queues" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'nr-io-queues'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def nr_write_queues(self):
+        '''@brief return the "Number of write queues" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'nr-write-queues'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def nr_poll_queues(self):
+        '''@brief return the "Number of poll queues" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'nr-poll-queues'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def queue_size(self):
+        '''@brief return the "Queue size" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'queue-size'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def reconnect_delay(self):
+        '''@brief return the "Reconnect delay" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'reconnect-delay'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def ctrl_loss_tmo(self):
+        '''@brief return the "Controller loss timeout" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'ctrl-loss-tmo'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def duplicate_connect(self):
+        '''@brief return the "Duplicate connections" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'duplicate-connect'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def disable_sqflow(self):
+        '''@brief return the "Disable sqflow" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'disable-sqflow'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
 
         return value
 

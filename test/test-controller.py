@@ -89,29 +89,24 @@ class Test(TestCase):
                 'device': 'nvme?',
             },
         )
+
         self.assertEqual(
-            controller.details(),
+            controller.info(),
             {
-                'dctype': '',
-                'cntrltype': '',
-                'connected': 'False',
                 'transport': 'tcp',
                 'traddr': '10.10.10.10',
+                'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'trsvcid': '8009',
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
-                'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
-                'hostid': '',
-                'hostnqn': '',
-                'model': '',
-                'serial': '',
+                'connect operation': {'fail count': 0}
             },
         )
         self.assertEqual(
-            controller.info(),
+            controller.details(),
             {
                 'dctype': '',
                 'cntrltype': '',

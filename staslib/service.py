@@ -310,10 +310,10 @@ class Stac(Service):
         controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list)
         controllers = iputil.remove_invalid_addresses(controllers)
 
-        new_controller_ids = set(controllers)
-        cur_controller_ids = set(self._controllers.keys())
-        controllers_to_add = new_controller_ids - cur_controller_ids
-        controllers_to_del = cur_controller_ids - new_controller_ids
+        new_controller_tids = set(controllers)
+        cur_controller_tids = set(self._controllers.keys())
+        controllers_to_add = new_controller_tids - cur_controller_tids
+        controllers_to_del = cur_controller_tids - new_controller_tids
 
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
@@ -440,14 +440,30 @@ class Staf(Service):
             self._avahi = None
 
     def _dump_last_known_config(self, controllers):
-        config = {tid: dc.log_pages() for tid, dc in controllers.items()}
+        config = {tid: {'log_pages': dc.log_pages(), 'origin': dc.origin} for tid, dc in controllers.items()}
         logging.debug('Staf._dump_last_known_config()     - DC count = %s', len(config))
         self._write_lkc(config)
 
     def _load_last_known_config(self):
         config = self._read_lkc() or dict()
         logging.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
-        return {tid: ctrl.Dc(self, self._root, self._host, tid, log_pages) for tid, log_pages in config.items()}
+
+        controllers = {}
+        for tid, data in config.items():
+            if isinstance(data, dict):
+                log_pages = data.get('log_pages')
+                origin = data.get('origin')
+            else:
+                log_pages = data
+                origin = None
+
+            # Regenerate the TID (in case of soft. upgrade and TID object
+            # has changed internally)
+            tid = trid.TID(tid.as_dict())
+            controllers[tid] = ctrl.Dc(self, self._root, self._host, tid, log_pages)
+            controllers[tid].origin = origin
+
+        return controllers
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
@@ -526,24 +542,55 @@ class Staf(Service):
         logging.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
 
-        controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
+        all_controllers = configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list
+        controllers = stas.remove_excluded(all_controllers)
         controllers = iputil.remove_invalid_addresses(controllers)
 
-        new_controller_ids = set(controllers)
-        cur_controller_ids = set(self._controllers.keys())
-        controllers_to_add = new_controller_ids - cur_controller_ids
-        controllers_to_del = cur_controller_ids - new_controller_ids
+        new_controller_tids = set(controllers)
+        cur_controller_tids = set(self._controllers.keys())
+        controllers_to_add = new_controller_tids - cur_controller_tids
+        controllers_to_del = cur_controller_tids - new_controller_tids
+
+        # Remove Avahi-discovered DCs from controllers_to_del if the connection
+        # to these DCs is still up. This is for the case where mDNS discovery is
+        # momentarily disabled (e.g. Avahi daemon restarts). We don't want to
+        # delete connections because of temporary mDNS impairments.
+        must_remove_list = set(all_controllers) - new_controller_tids  # List of excluded or invalid controllers
+        logging.debug('Staf._config_ctrls_finish()        - must_remove_list     = %s', list(must_remove_list))
+        controllers_to_del = [
+            tid
+            for tid in controllers_to_del
+            if tid in must_remove_list
+            or self._controllers[tid].origin != 'discovered'
+            or (self._controllers[tid].origin == 'discovered' and not self._controllers[tid].connected())
+        ]
 
         logging.debug('Staf._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
         logging.debug('Staf._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
+        # Delete controllers
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, conf.SvcConf().persistent_connections)
+                controller.disconnect(self.remove_controller, keep_connection=False)
 
+        # Add controllers
         for tid in controllers_to_add:
             self._controllers[tid] = ctrl.Dc(self, self._root, self._host, tid)
+
+        # Update "origin" on all DC objects
+        for tid, controller in self._controllers.items():
+            origin = (
+                'configured'
+                if tid in configured_ctrl_list
+                else 'referral'
+                if tid in referral_ctrl_list
+                else 'discovered'
+                if tid in discovered_ctrl_list
+                else None
+            )
+            if origin is not None:
+                controller.origin = origin
 
         self._dump_last_known_config(self._controllers)
 

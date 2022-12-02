@@ -174,14 +174,14 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     def details(self) -> dict:
         '''@brief return detailed debug info about this controller'''
-        details = self.controller_id_dict()
-        details['connect attempts'] = str(self._connect_attempts)
-        details['retry connect timer'] = str(self._retry_connect_tmr)
-        return details
+        return self.info()
 
     def info(self) -> dict:
         '''@brief Get the controller info for this object'''
-        return self.details()
+        info = self.controller_id_dict()
+        info['connect attempts'] = str(self._connect_attempts)
+        info['retry connect timer'] = str(self._retry_connect_tmr)
+        return info
 
     def cancel(self):
         '''@brief Used to cancel pending operations.'''

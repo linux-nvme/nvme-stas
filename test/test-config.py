@@ -69,6 +69,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
         service_conf.set_conf_file(StasProcessConfUnitTest.FNAME)
         self.assertEqual(service_conf.conf_file, StasProcessConfUnitTest.FNAME)
         self.assertTrue(service_conf.tron)
+        self.assertTrue(getattr(service_conf, 'tron'))
         self.assertFalse(service_conf.hdr_digest)
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)

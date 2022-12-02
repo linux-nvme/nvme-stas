@@ -192,6 +192,20 @@ class Controller(stas.ControllerABC):
                 # persistent DC connections (i.e. 30 sec).
                 cfg['keep_alive_tmo'] = DC_KATO_DEFAULT
 
+            for option in (
+                'nr_io_queues',
+                'nr_write_queues',
+                'nr_poll_queues',
+                'queue_size',
+                'reconnect_delay',
+                'ctrl_loss_tmo',
+                'duplicate_connect',
+                'disable_sqflow',
+            ):
+                value = getattr(service_conf, option, None)
+                if value is not None:
+                    cfg[option] = value
+
             logging.debug(
                 'Controller._do_connect()           - %s Connecting to nvme control with cfg=%s', self.id, cfg
             )
@@ -323,6 +337,7 @@ class Dc(Controller):
         self._register_op = None
         self._get_supported_op = None
         self._get_log_op = None
+        self._origin = None
         self._log_pages = log_pages if log_pages else list()  # Log pages cache
 
     def _release_resources(self):
@@ -343,6 +358,22 @@ class Dc(Controller):
             self._get_supported_op.kill()
             self._get_supported_op = None
 
+    @property
+    def origin(self):
+        '''@brief Return how this controller came into existance. Was it
+        "discovered" through mDNS service discovery (TP8009), was it manually
+        "configured" in stafd.conf, or was it a "referral".
+        '''
+        return self._origin
+
+    @origin.setter
+    def origin(self, value):
+        '''@brief Set the origin of this controller.'''
+        if value in ('discovered', 'configured', 'referral'):
+            self._origin = value
+        else:
+            logging.error('%s | %s - Trying to set invalid origin to %s', self.id, self.device, value)
+
     def reload_hdlr(self):
         '''@brief This is called when a "reload" signal is received.'''
         logging.debug('Dc.reload_hdlr()                   - %s | %s', self.id, self.device)
@@ -351,12 +382,13 @@ class Dc(Controller):
     def info(self) -> dict:
         '''@brief Get the controller info for this object'''
         info = super().info()
+        info['origin'] = self._origin
         if self._get_log_op:
-            info['get log page operation'] = self._get_log_op.as_dict()
+            info['get log page operation'] = str(self._get_log_op.as_dict())
         if self._register_op:
-            info['register operation'] = self._register_op.as_dict()
+            info['register operation'] = str(self._register_op.as_dict())
         if self._get_supported_op:
-            info['get supported log page operation'] = self._get_supported_op.as_dict()
+            info['get supported log page operation'] = str(self._get_supported_op.as_dict())
         return info
 
     def cancel(self):
@@ -589,7 +621,7 @@ class Dc(Controller):
                 [
                     {k.strip(): str(v).strip() for k, v in dictionary.items()}
                     for dictionary in data
-                    if dictionary.get('traddr','').strip() not in ('0.0.0.0', '::', '')
+                    if dictionary.get('traddr', '').strip() not in ('0.0.0.0', '::', '')
                 ]
                 if data
                 else list()
