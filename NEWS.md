@@ -1,5 +1,9 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.1.8
+
+- Fix handling of TXT field containing NQN specified with lowercase "nqn" key. TP8009 says that the key for the Discovery Controller's NQN should be specified with the lowercase string "nqn". However, some DC may send an uppercase "NQN". nvme-stas will now support either uppercase "NQN" or lowercase "nqn".
+
 ## Changes with release 1.1.7
 
 - Trim white spaces from Discovery Log Pages Entries (DLPE) and Configuration parameters.
