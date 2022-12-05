@@ -523,7 +523,7 @@ class Staf(Service):
         hostnames (if any) have been resolved.
         @param configured_ctrl_list: List of TIDs
         '''
-        # Eliminate invalid entries
+        # Eliminate invalid entries from manual configuration list
         controllers = list()
         for tid in configured_ctrl_list:
             if '' in (tid.transport, tid.traddr, tid.trsvcid):
@@ -536,14 +536,15 @@ class Staf(Service):
                 controllers.append(tid)
         configured_ctrl_list = controllers
 
+        # Get the Avahi-discovered list and the referrals.
         discovered_ctrl_list = [trid.TID(cid) for cid in self._avahi.get_controllers()]
         referral_ctrl_list = self._referrals()
         logging.debug('Staf._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
 
-        all_controllers = configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list
-        controllers = stas.remove_excluded(all_controllers)
+        all_ctrls = configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list
+        controllers = stas.remove_excluded(all_ctrls)
         controllers = iputil.remove_invalid_addresses(controllers)
 
         new_controller_tids = set(controllers)
@@ -551,18 +552,19 @@ class Staf(Service):
         controllers_to_add = new_controller_tids - cur_controller_tids
         controllers_to_del = cur_controller_tids - new_controller_tids
 
-        # Remove Avahi-discovered DCs from controllers_to_del if the connection
-        # to these DCs is still up. This is for the case where mDNS discovery is
-        # momentarily disabled (e.g. Avahi daemon restarts). We don't want to
-        # delete connections because of temporary mDNS impairments.
-        must_remove_list = set(all_controllers) - new_controller_tids  # List of excluded or invalid controllers
+        # Do not remove Avahi-discovered DCs from controllers_to_del unless
+        # marked as "must-be-removed" (must_remove_list). This is to account for
+        # the case where mDNS discovery is momentarily disabled (e.g. Avahi
+        # daemon restarts). We don't want to delete connections because of
+        # temporary mDNS impairments. Removal of Avahi-discovered DCs will be
+        # handled differently and only if the connection cannot be established
+        # for a long period of time.
+        must_remove_list = set(all_ctrls) - new_controller_tids  # List of excluded or invalid controllers
         logging.debug('Staf._config_ctrls_finish()        - must_remove_list     = %s', list(must_remove_list))
         controllers_to_del = [
             tid
             for tid in controllers_to_del
-            if tid in must_remove_list
-            or self._controllers[tid].origin != 'discovered'
-            or (self._controllers[tid].origin == 'discovered' and not self._controllers[tid].connected())
+            if tid in must_remove_list or self._controllers[tid].origin != 'discovered'
         ]
 
         logging.debug('Staf._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
