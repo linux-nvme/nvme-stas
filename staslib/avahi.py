@@ -30,7 +30,7 @@ def _txt2dict(txt: list):
         try:
             string = functools.reduce(lambda accumulator, c: accumulator + chr(c), list_of_chars, '')
             key, val = string.split("=")
-            the_dict[key] = val
+            the_dict[key.lower()] = val
         except Exception:  # pylint: disable=broad-except
             pass
 
@@ -412,7 +412,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                 'traddr':     address.strip(),
                 'trsvcid':    str(port).strip(),
                 'host-iface': socket.if_indextoname(interface).strip(),
-                'subsysnqn':  txt.get('NQN', defs.WELL_KNOWN_DISC_NQN).strip()
+                'subsysnqn':  txt.get('nqn', defs.WELL_KNOWN_DISC_NQN).strip()
                               if conf.NvmeOptions().discovery_supp
                               else defs.WELL_KNOWN_DISC_NQN,
             }

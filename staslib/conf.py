@@ -61,29 +61,15 @@ class OrderedMultisetDict(dict):
         return value
 
 
-class SvcConf(metaclass=singleton.Singleton):
+class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public-methods
     '''Read and cache configuration file.'''
 
-    def __init__(self, conf_file='/dev/null'):
-        self._defaults = {
-            ('Global', 'tron'): 'false',
-            ('Global', 'persistent-connections'): 'true',
-            ('Global', 'hdr-digest'): 'false',
-            ('Global', 'data-digest'): 'false',
-            ('Global', 'kato'): None,  # None to let the driver decide the default
-            ('Global', 'ignore-iface'): 'false',
-            ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'udev-rule'): 'disabled',
-            ('Global', 'pleo'): 'enabled',
-            ('Service Discovery', 'zeroconf'): 'enabled',
-            ('Controllers', 'controller'): list(),
-            ('Controllers', 'exclude'): list(),
-            ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
-            ('I/O controller connection management', 'connect-attempts-on-ncc'): '0',
-        }
+    def __init__(self, default_conf=None, conf_file='/dev/null'):
+        self._defaults = default_conf if default_conf else {}
 
-        self.valid_sections = { default[0] for default in self._defaults }
+        self._valid_conf = {}
+        for section, option in self._defaults:
+            self._valid_conf.setdefault(section, set()).add(option)
 
         self._conf_file = conf_file
         self.reload()
@@ -204,6 +190,86 @@ class SvcConf(metaclass=singleton.Singleton):
         return value
 
     @property
+    def nr_io_queues(self):
+        '''@brief return the "Number of I/O queues" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'nr-io-queues'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def nr_write_queues(self):
+        '''@brief return the "Number of write queues" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'nr-write-queues'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def nr_poll_queues(self):
+        '''@brief return the "Number of poll queues" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'nr-poll-queues'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def queue_size(self):
+        '''@brief return the "Queue size" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'queue-size'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def reconnect_delay(self):
+        '''@brief return the "Reconnect delay" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'reconnect-delay'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def ctrl_loss_tmo(self):
+        '''@brief return the "Controller loss timeout" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'ctrl-loss-tmo'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def duplicate_connect(self):
+        '''@brief return the "Duplicate connections" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'duplicate-connect'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
+    def disable_sqflow(self):
+        '''@brief return the "Disable sqflow" config parameter'''
+        try:
+            value = int(self.__get_value('Global', 'disable-sqflow'))
+        except (ValueError, TypeError):
+            value = None  # Let driver decide
+
+        return value
+
+    @property
     def kato(self):
         '''@brief return the "kato" config parameter'''
         try:
@@ -284,10 +350,28 @@ class SvcConf(metaclass=singleton.Singleton):
         if self._conf_file and os.path.isfile(self._conf_file):
             config.read(self._conf_file)
 
-        invalid_sections = [section for section in config.sections() if section not in self.valid_sections]
+        # Configuration validation.
+        invalid_sections = set()
+        for section in config.sections():
+            if section not in self._valid_conf:
+                invalid_sections.add(section)
+            else:
+                invalid_options = set()
+                for option in config.options(section):
+                    if option not in self._valid_conf.get(section, []):
+                        invalid_options.add(option)
+
+                if len(invalid_options) != 0:
+                    logging.error(
+                        'File:%s, section [%s] contains invalid options: %s',
+                        self.conf_file,
+                        section,
+                        invalid_options,
+                    )
+
         if len(invalid_sections) != 0:
             logging.error(
-                'File:%s, contains an invalid section(s) %s',
+                'File:%s, contains invalid sections: %s',
                 self.conf_file,
                 invalid_sections,
             )

@@ -50,7 +50,7 @@ class Test(TestCase):
         self.assertRaises(TypeError, lambda: Service(Args(), reload_hdlr=lambda x: x))
 
     def test_get_controller(self):
-        srv = TestService(Args(), reload_hdlr=lambda x: x)
+        srv = TestService(Args(), default_conf={}, reload_hdlr=lambda x: x)
 
         self.assertEqual(list(srv.get_controllers()), list())
         self.assertEqual(

@@ -26,12 +26,12 @@ from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, trid, udev
 class Service(stas.ServiceABC):
     '''@brief Base class used to manage a STorage Appliance Service'''
 
-    def __init__(self, args, reload_hdlr):
+    def __init__(self, args, default_conf, reload_hdlr):
         sysconf = conf.SysConf()
         self._root = nvme.root()
         self._host = nvme.host(self._root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
 
-        super().__init__(args, reload_hdlr)
+        super().__init__(args, default_conf, reload_hdlr)
 
         self._root.log_level("debug" if self._tron else "err")
 
@@ -114,7 +114,30 @@ class Stac(Service):
     ADD_EVENT_SOAK_TIME_SEC = 1
 
     def __init__(self, args, dbus):
-        super().__init__(args, self._reload_hdlr)
+        default_conf = {
+            ('Global', 'tron'): 'false',
+            ('Global', 'hdr-digest'): 'false',
+            ('Global', 'data-digest'): 'false',
+            ('Global', 'kato'): None,  # None to let the driver decide the default
+            ('Global', 'nr-io-queues'): None,  # None to let the driver decide the default
+            ('Global', 'nr-write-queues'): None,  # None to let the driver decide the default
+            ('Global', 'nr-poll-queues'): None,  # None to let the driver decide the default
+            ('Global', 'queue-size'): None,  # None to let the driver decide the default
+            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
+            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
+            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
+            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
+            ('Global', 'ignore-iface'): 'false',
+            ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'udev-rule'): 'disabled',
+            ('Controllers', 'controller'): list(),
+            ('Controllers', 'exclude'): list(),
+            ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
+            ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
+            ('I/O controller connection management', 'connect-attempts-on-ncc'): '0',
+        }
+
+        super().__init__(args, default_conf, self._reload_hdlr)
 
         self._udev = udev.UDEV
 
@@ -287,10 +310,10 @@ class Stac(Service):
         controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list)
         controllers = iputil.remove_invalid_addresses(controllers)
 
-        new_controller_ids = set(controllers)
-        cur_controller_ids = set(self._controllers.keys())
-        controllers_to_add = new_controller_ids - cur_controller_ids
-        controllers_to_del = cur_controller_ids - new_controller_ids
+        new_controller_tids = set(controllers)
+        cur_controller_tids = set(self._controllers.keys())
+        controllers_to_add = new_controller_tids - cur_controller_tids
+        controllers_to_del = cur_controller_tids - new_controller_tids
 
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
@@ -375,7 +398,27 @@ class Staf(Service):
     '''STorage Appliance Finder (STAF)'''
 
     def __init__(self, args, dbus):
-        super().__init__(args, self._reload_hdlr)
+        default_conf = {
+            ('Global', 'tron'): 'false',
+            ('Global', 'hdr-digest'): 'false',
+            ('Global', 'data-digest'): 'false',
+            ('Global', 'kato'): None,  # None to let the driver decide the default
+            ('Global', 'queue-size'): None,  # None to let the driver decide the default
+            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
+            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
+            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
+            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
+            ('Global', 'persistent-connections'): 'true',
+            ('Global', 'ignore-iface'): 'false',
+            ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'udev-rule'): 'disabled',
+            ('Global', 'pleo'): 'enabled',
+            ('Service Discovery', 'zeroconf'): 'enabled',
+            ('Controllers', 'controller'): list(),
+            ('Controllers', 'exclude'): list(),
+        }
+
+        super().__init__(args, default_conf, self._reload_hdlr)
 
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
         self._avahi.config_stypes(conf.SvcConf().get_stypes())
@@ -397,14 +440,30 @@ class Staf(Service):
             self._avahi = None
 
     def _dump_last_known_config(self, controllers):
-        config = {tid: dc.log_pages() for tid, dc in controllers.items()}
+        config = {tid: {'log_pages': dc.log_pages(), 'origin': dc.origin} for tid, dc in controllers.items()}
         logging.debug('Staf._dump_last_known_config()     - DC count = %s', len(config))
         self._write_lkc(config)
 
     def _load_last_known_config(self):
         config = self._read_lkc() or dict()
         logging.debug('Staf._load_last_known_config()     - DC count = %s', len(config))
-        return {tid: ctrl.Dc(self, self._root, self._host, tid, log_pages) for tid, log_pages in config.items()}
+
+        controllers = {}
+        for tid, data in config.items():
+            if isinstance(data, dict):
+                log_pages = data.get('log_pages')
+                origin = data.get('origin')
+            else:
+                log_pages = data
+                origin = None
+
+            # Regenerate the TID (in case of soft. upgrade and TID object
+            # has changed internally)
+            tid = trid.TID(tid.as_dict())
+            controllers[tid] = ctrl.Dc(self, self._root, self._host, tid, log_pages)
+            controllers[tid].origin = origin
+
+        return controllers
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
@@ -464,7 +523,7 @@ class Staf(Service):
         hostnames (if any) have been resolved.
         @param configured_ctrl_list: List of TIDs
         '''
-        # Eliminate invalid entries
+        # Eliminate invalid entries from manual configuration list
         controllers = list()
         for tid in configured_ctrl_list:
             if '' in (tid.transport, tid.traddr, tid.trsvcid):
@@ -477,30 +536,63 @@ class Staf(Service):
                 controllers.append(tid)
         configured_ctrl_list = controllers
 
+        # Get the Avahi-discovered list and the referrals.
         discovered_ctrl_list = [trid.TID(cid) for cid in self._avahi.get_controllers()]
         referral_ctrl_list = self._referrals()
         logging.debug('Staf._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
         logging.debug('Staf._config_ctrls_finish()        - referral_ctrl_list   = %s', referral_ctrl_list)
 
-        controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list)
+        all_ctrls = configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list
+        controllers = stas.remove_excluded(all_ctrls)
         controllers = iputil.remove_invalid_addresses(controllers)
 
-        new_controller_ids = set(controllers)
-        cur_controller_ids = set(self._controllers.keys())
-        controllers_to_add = new_controller_ids - cur_controller_ids
-        controllers_to_del = cur_controller_ids - new_controller_ids
+        new_controller_tids = set(controllers)
+        cur_controller_tids = set(self._controllers.keys())
+        controllers_to_add = new_controller_tids - cur_controller_tids
+        controllers_to_del = cur_controller_tids - new_controller_tids
+
+        # Do not remove Avahi-discovered DCs from controllers_to_del unless
+        # marked as "must-be-removed" (must_remove_list). This is to account for
+        # the case where mDNS discovery is momentarily disabled (e.g. Avahi
+        # daemon restarts). We don't want to delete connections because of
+        # temporary mDNS impairments. Removal of Avahi-discovered DCs will be
+        # handled differently and only if the connection cannot be established
+        # for a long period of time.
+        must_remove_list = set(all_ctrls) - new_controller_tids  # List of excluded or invalid controllers
+        logging.debug('Staf._config_ctrls_finish()        - must_remove_list     = %s', list(must_remove_list))
+        controllers_to_del = [
+            tid
+            for tid in controllers_to_del
+            if tid in must_remove_list or self._controllers[tid].origin != 'discovered'
+        ]
 
         logging.debug('Staf._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
         logging.debug('Staf._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
+        # Delete controllers
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, conf.SvcConf().persistent_connections)
+                controller.disconnect(self.remove_controller, keep_connection=False)
 
+        # Add controllers
         for tid in controllers_to_add:
             self._controllers[tid] = ctrl.Dc(self, self._root, self._host, tid)
+
+        # Update "origin" on all DC objects
+        for tid, controller in self._controllers.items():
+            origin = (
+                'configured'
+                if tid in configured_ctrl_list
+                else 'referral'
+                if tid in referral_ctrl_list
+                else 'discovered'
+                if tid in discovered_ctrl_list
+                else None
+            )
+            if origin is not None:
+                controller.origin = origin
 
         self._dump_last_known_config(self._controllers)
 

@@ -108,7 +108,7 @@ prerun_install() {
     sudo systemctl reload dbus.service
 }
 
-postrun_cleaup() {
+postrun_cleanup() {
     for file in staf stac; do
         if [ -f "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf" ]; then
             if [ "$(stat -c %h -- "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf")" -gt 1 ]; then
@@ -145,6 +145,7 @@ tron=true
 kato=10
 persistent-connections=false
 ip-family=ipv6
+johnny=be-good
 
 [Hello]
 hello = bye
@@ -163,7 +164,7 @@ udev-rule=enabled
 
 [I/O controller connection management]
 disconnect-scope=all-connections-matching-disconnect-trtypes
-disconnect-trtype=tcp+rdma
+disconnect-trtypes=tcp+rdma
 EOF
 
 log "Stop & Mask Avahi daemon"
@@ -453,6 +454,6 @@ coverage html -i --rcfile=.coveragerc
 
 log "All done!!!"
 
-postrun_cleaup
+postrun_cleanup
 log "FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED"
 

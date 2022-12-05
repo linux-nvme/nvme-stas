@@ -38,10 +38,38 @@ class StasProcessConfUnitTest(unittest.TestCase):
 
     def test_config(self):
         '''Check we can read the temporary configuration file'''
-        service_conf = conf.SvcConf()
+
+        default_conf = {
+            ('Global', 'tron'): 'false',
+            ('Global', 'hdr-digest'): 'false',
+            ('Global', 'data-digest'): 'false',
+            ('Global', 'kato'): None,  # None to let the driver decide the default
+            ('Global', 'nr-io-queues'): None,  # None to let the driver decide the default
+            ('Global', 'nr-write-queues'): None,  # None to let the driver decide the default
+            ('Global', 'nr-poll-queues'): None,  # None to let the driver decide the default
+            ('Global', 'queue-size'): None,  # None to let the driver decide the default
+            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
+            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
+            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
+            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
+            ('Global', 'ignore-iface'): 'false',
+            ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'udev-rule'): 'disabled',
+            ('Global', 'persistent-connections'): 'true',
+            ('Global', 'pleo'): 'enabled',
+            ('Service Discovery', 'zeroconf'): 'enabled',
+            ('Controllers', 'controller'): list(),
+            ('Controllers', 'exclude'): list(),
+            ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
+            ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
+            ('I/O controller connection management', 'connect-attempts-on-ncc'): '0',
+        }
+
+        service_conf = conf.SvcConf(default_conf=default_conf)
         service_conf.set_conf_file(StasProcessConfUnitTest.FNAME)
         self.assertEqual(service_conf.conf_file, StasProcessConfUnitTest.FNAME)
         self.assertTrue(service_conf.tron)
+        self.assertTrue(getattr(service_conf, 'tron'))
         self.assertFalse(service_conf.hdr_digest)
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)

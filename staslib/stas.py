@@ -174,14 +174,14 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     def details(self) -> dict:
         '''@brief return detailed debug info about this controller'''
-        details = self.controller_id_dict()
-        details['connect attempts'] = str(self._connect_attempts)
-        details['retry connect timer'] = str(self._retry_connect_tmr)
-        return details
+        return self.info()
 
     def info(self) -> dict:
         '''@brief Get the controller info for this object'''
-        return self.details()
+        info = self.controller_id_dict()
+        info['connect attempts'] = str(self._connect_attempts)
+        info['retry connect timer'] = str(self._retry_connect_tmr)
+        return info
 
     def cancel(self):
         '''@brief Used to cancel pending operations.'''
@@ -269,9 +269,9 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     CONF_STABILITY_SOAK_TIME_SEC = 1.5
 
-    def __init__(self, args, reload_hdlr):
+    def __init__(self, args, default_conf, reload_hdlr):
 
-        service_conf = conf.SvcConf()
+        service_conf = conf.SvcConf(default_conf=default_conf)
         service_conf.set_conf_file(args.conf_file)  # reload configuration
         self._tron = args.tron or service_conf.tron
         log.set_level_from_tron(self._tron)
