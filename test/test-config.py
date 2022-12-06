@@ -55,7 +55,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
             ('Global', 'udev-rule'): 'disabled',
-            ('Global', 'persistent-connections'): 'true',
+            ('Discovery controller connection management', 'persistent-connections'): 'true',
             ('Global', 'pleo'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),

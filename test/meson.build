@@ -52,6 +52,7 @@ else
         ['Test Service',       'test-service.py',      ['pyfakefs']],
         ['Test TID',           'test-transport_id.py', []],
         ['Test Udev',          'test-udev.py',         []],
+        ['Test timeparse',     'test-timeparse.py',    []],
     ]
 
     foreach thing: things_to_test

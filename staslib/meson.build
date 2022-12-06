@@ -27,6 +27,7 @@ files_to_copy = [
     'service.py',
     'singleton.py',
     'stas.py',
+    'timeparse.py',
     'trid.py',
     'udev.py',
     'version.py'

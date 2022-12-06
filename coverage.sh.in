@@ -143,9 +143,12 @@ cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 kato=10
-persistent-connections=false
 ip-family=ipv6
 johnny=be-good
+
+[Discovery controller connection management]
+persistent-connections=false
+zeroconf-connections-persistence=1d
 
 [Hello]
 hello = bye
@@ -206,7 +209,10 @@ log "Change stafd config: tron=true, persistent-connections=false, zeroconf=enab
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
+
+[Discovery controller connection management]
 persistent-connections=false
+zeroconf-connections-persistence=0.5
 
 [Service Discovery]
 zeroconf=enabled
@@ -219,9 +225,12 @@ log "Change stafd config: ip-family=ipv4, kato=10, adding multiple controllers"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
-persistent-connections=false
 ip-family=ipv4
 kato=10
+
+[Discovery controller connection management]
+persistent-connections=false
+zeroconf-connections-persistence=1:01
 
 [Controllers]
 controller = transport = tcp ; traddr = localhost ; ; ;
@@ -240,7 +249,7 @@ EOF
 reload_cfg "stafd"
 
 
-log "Change stacd config: tron=true, udev-rule=disabled, sticky-connections=disabled"
+log "Change stacd config: tron=true, udev-rule=disabled, disconnect-scope=blah-blah, disconnect-trtypes=boing-boing"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -346,7 +355,10 @@ log "Empty configuration and disable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
+
+[Discovery controller connection management]
 persistent-connections=false
+zeroconf-connections-persistence=0.5
 
 [Service Discovery]
 zeroconf=disabled
@@ -360,7 +372,10 @@ log "Add single controller (::1) and re-enable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
+
+[Discovery controller connection management]
 persistent-connections=false
+zeroconf-connections-persistence=-1
 
 [Controllers]
 controller=transport=tcp;traddr=::1;trsvcid=8009
@@ -424,18 +439,20 @@ log "Run unit test: test-gtimer"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-gtimer.py
 log "Run unit test: test-iputil"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-iputil.py
-log "Run unit test: test-version"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py
 log "Run unit test: test-log"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-log.py
 log "Run unit test: test-nvme_options"
 sudo PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-nvme_options.py
 log "Run unit test: test-service"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-service.py
+log "Run unit test: test-timeparse"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-timeparse.py
 log "Run unit test: test-transport_id"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-transport_id.py
 log "Run unit test: test-udev"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-udev.py
+log "Run unit test: test-version"
+PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py
 
 ################################################################################
 # Stop nvme target simulator

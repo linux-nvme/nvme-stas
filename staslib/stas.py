@@ -351,15 +351,12 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
     def info(self) -> dict:
         '''@brief Get the status info for this object (used for debug)'''
         nvme_options = conf.NvmeOptions()
-        return {
-            'last known config file': self._lkc_file,
-            'config soak timer': str(self._cfg_soak_tmr),
-            'kernel support': {
-                'TP8013': nvme_options.discovery_supp,
-                'host_iface': nvme_options.host_iface_supp,
-            },
-            'system config': conf.SysConf().as_dict(),
-        }
+        info = conf.SysConf().as_dict()
+        info['last known config file'] = self._lkc_file
+        info['config soak timer'] = str(self._cfg_soak_tmr)
+        info['kernel support.TP8013'] = str(nvme_options.discovery_supp)
+        info['kernel support.host_iface'] = str(nvme_options.host_iface_supp)
+        return info
 
     def get_controllers(self) -> dict:
         '''@brief return the list of controller objects'''

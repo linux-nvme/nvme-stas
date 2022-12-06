@@ -1,5 +1,20 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.1
+
+* Bug fixes:
+  * Immediately remove existing connection to Discovery Controllers (DC) discovered through zeroconf (mDNS) when added to `exclude=` in `stafd.conf`. Previously, adding DCs to `exclude=` would only take effect on new connections and would not apply to existing connections.
+  * When handling "key=value" pairs in the TXT field from Avahi, "keys" need to be case insensitive.
+  * Strip spaces from Discovery Log Page Entries (DLPE). Some DCs may append extra spaces to DLPEs (e.g. IP addresses with trailing spaces). The kernel driver does not expect extra spaces and therefore they need to be removed.
+* In `stafd.conf` and `stacd.conf`, added new configuration parameters to provide parity with `nvme-cli`:
+  * `nr-io-queues`, `nr-write-queues`, `nr-poll-queues`, `queue-size`, `reconnect-delay`, `ctrl-loss-tmo`, `duplicate-connect`, `disable-sqflow`
+* Changes to `stafd.conf`:
+  * Move  `persistent-connections` from the `[Global]` section to a new section named `[Discovery controller connection management]`.  `persistent-connections` will still be recognized from the `[Global]` section, but will be deprecated over time.
+  * Add new configuration parameter `zeroconf-connections-persistence` to section `[Discovery controller connection management]`. This parameter allows to age Discovery Controllers discovered through zeroconf (mDNS) when they are no longer reachable and should be purged from the configuration. 
+* Added more configuration validation to identify invalid Sections and Options in configuration files (`stafd.conf` and `stacd.conf`).
+* Improve dependencies in meson build environment so that missing subprojects won't prevent distros from packaging the `nvme-stas` (i.e. needed when invoking meson with the `--wrap-mode=nodownload`  option)
+* Improve Read-The-Docs documentation format.
+
 ## Changes with release 2.0
 
 Because of incompatibilities between 1.1.6 and 1.2 (ref. `sticky-connections`), it was decided to skip release 1.2 and have a 2.0 release instead. Release 2.0 contains everything listed in 1.2 (below) plus the following:

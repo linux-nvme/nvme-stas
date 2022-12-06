@@ -86,6 +86,66 @@
                 <xi:include href="standard-conf.xml" xpointer="ip-family"/>
 
                 <varlistentry>
+                    <term><varname>nr-io-queues=</varname></term>
+
+                    <listitem>
+                        <para>
+                            Takes a value in the range 1...N. Overrides the
+                            default number of I/O queues create by the driver.
+                        </para>
+
+                        <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+                        <para>
+                            Default: Depends on kernel and other run
+                            time factors (e.g. number of CPUs).
+                        </para>
+                    </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                    <term><varname>nr-write-queues=</varname></term>
+
+                    <listitem>
+                        <para>
+                            Takes a value in the range 1...N. Adds additional
+                            queues that will be used for write I/O.
+                        </para>
+
+                        <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+
+                        <para>
+                            Default: Depends on kernel and other run
+                            time factors (e.g. number of CPUs).
+                        </para>
+                    </listitem>
+                </varlistentry>
+
+                <varlistentry>
+                    <term><varname>nr-poll-queues=</varname></term>
+
+                    <listitem>
+                        <para>
+                            Takes a value in the range 1...N. Adds additional
+                            queues that will be used for polling latency
+                            sensitive I/O.
+                        </para>
+
+                        <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+
+                        <para>
+                            Default: Depends on kernel and other run
+                            time factors (e.g. number of CPUs).
+                        </para>
+                    </listitem>
+                </varlistentry>
+
+                <xi:include href="standard-conf.xml" xpointer="queue-size"/>
+                <xi:include href="standard-conf.xml" xpointer="reconnect-delay"/>
+                <xi:include href="standard-conf.xml" xpointer="ctrl-loss-tmo"/>
+                <xi:include href="standard-conf.xml" xpointer="duplicate-connect"/>
+                <xi:include href="standard-conf.xml" xpointer="disable-sqflow"/>
+
+                <varlistentry>
                     <term><varname>ignore-iface=</varname></term>
                     <listitem>
                         <para>
