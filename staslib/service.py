@@ -205,8 +205,9 @@ class Stac(Service):
         for that host or a manual "controller" entry exists in stcd.conf.
         A host should disconnect from an I/O controller when that I/O controller
         is removed from the zone or a manual "controller" entry is removed from
-        stacd.conf. stacd will audit connections if "sticky-connections=disabled".
-        stacd will delete any connection that is not supposed to exist.
+        stacd.conf. stacd will audit connections if "disconnect-scope=
+        all-connections-matching-disconnect-trtypes". stacd will delete any
+        connection that is not supposed to exist.
         '''
         logging.debug('Stac._audit_all_connections()      - tids = %s', tids)
         num_controllers = len(self._controllers)
@@ -408,7 +409,9 @@ class Staf(Service):
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
             ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'persistent-connections'): 'true',
+            ('Global', 'persistent-connections'): 'true',  # Deprecated use [Discovery controller connection management] instead.
+            ('Discovery controller connection management', 'persistent-connections'): 'true',
+            ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
             ('Global', 'udev-rule'): 'disabled',
@@ -460,8 +463,7 @@ class Staf(Service):
             # Regenerate the TID (in case of soft. upgrade and TID object
             # has changed internally)
             tid = trid.TID(tid.as_dict())
-            controllers[tid] = ctrl.Dc(self, self._root, self._host, tid, log_pages)
-            controllers[tid].origin = origin
+            controllers[tid] = ctrl.Dc(self, self._root, self._host, tid, log_pages, origin)
 
         return controllers
 
@@ -488,6 +490,15 @@ class Staf(Service):
 
         systemd.daemon.notify('READY=1')
         return GLib.SOURCE_CONTINUE
+
+    def is_avahi_reported(self, tid):
+        '''@brief Return whether @tid is being reported by the Avahi daemon.
+        @return: True if the Avahi daemon is reporting it, False otherwise.
+        '''
+        for cid in self._avahi.get_controllers():
+            if trid.TID(cid) == tid:
+                return True
+        return False
 
     def log_pages_changed(self, controller, device):
         '''@brief Function invoked when a controller's cached log pages

@@ -9,6 +9,7 @@
 '''This module defines the base Controller object from which the
 Dc (Discovery Controller) and Ioc (I/O Controller) objects are derived.'''
 
+import time
 import inspect
 import logging
 import libnvme
@@ -99,7 +100,7 @@ class Controller(stas.ControllerABC):
         '''@brief Get the controller info for this object'''
         info = super().info()
         if self._connect_op:
-            info['connect operation'] = self._connect_op.as_dict()
+            info['connect operation'] = str(self._connect_op.as_dict())
         return info
 
     def cancel(self):
@@ -317,7 +318,7 @@ class Controller(stas.ControllerABC):
 
 
 # ******************************************************************************
-class Dc(Controller):
+class Dc(Controller):  # pylint: disable=too-many-instance-attributes
     '''@brief This object establishes a connection to one Discover Controller (DC).
     It retrieves the discovery log pages and caches them.
     It also monitors udev events associated with that DC and updates
@@ -331,20 +332,32 @@ class Dc(Controller):
     REGISTRATION_RETRY_RERIOD_SEC = 5
     GET_SUPPORTED_RETRY_RERIOD_SEC = 5
 
-    def __init__(self, staf, root, host, tid: trid.TID, log_pages=None):  # pylint: disable=too-many-arguments
+    def __init__(self, staf, root, host, tid: trid.TID, log_pages=None, origin=None):  # pylint: disable=too-many-arguments
         super().__init__(root, host, tid, discovery_ctrl=True)
         self._staf = staf
         self._register_op = None
         self._get_supported_op = None
         self._get_log_op = None
-        self._origin = None
+        self._origin = origin
         self._log_pages = log_pages if log_pages else list()  # Log pages cache
+
+        # For Avahi-discovered DCs that are later lost, monitor the duration
+        # and if the controller does not come back for a configurable amount of
+        # time (_ctrl_lost_tmr), just remove that controller. Only Avahi-
+        # discovered controllers need this timeout-based cleanup.
+        self._ctrl_lost_time = None  # The time at which connectivity was lost
+        self._ctrl_lost_tmr = gutil.GTimer(0, self._on_ctrl_lost)
 
     def _release_resources(self):
         logging.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
         super()._release_resources()
+
+        if self._ctrl_lost_tmr is not None:
+            self._ctrl_lost_tmr.kill()
+
         self._log_pages = list()
         self._staf = None
+        self._ctrl_lost_tmr = None
 
     def _kill_ops(self):
         super()._kill_ops()
@@ -371,18 +384,25 @@ class Dc(Controller):
         '''@brief Set the origin of this controller.'''
         if value in ('discovered', 'configured', 'referral'):
             self._origin = value
+            self._handle_lost_controller()
         else:
             logging.error('%s | %s - Trying to set invalid origin to %s', self.id, self.device, value)
 
     def reload_hdlr(self):
         '''@brief This is called when a "reload" signal is received.'''
         logging.debug('Dc.reload_hdlr()                   - %s | %s', self.id, self.device)
+
+        self._handle_lost_controller()
         self._resync_with_controller()
 
     def info(self) -> dict:
         '''@brief Get the controller info for this object'''
+        timeout = conf.SvcConf().zeroconf_persistence_sec
         info = super().info()
         info['origin'] = self._origin
+        info['controller lost timer'] = str(self._ctrl_lost_tmr)
+        info['controller lost timeout'] = str(timeout) if timeout >= 0 else 'forever'
+        info['controller lost time'] = time.asctime(self._ctrl_lost_time) if self._ctrl_lost_time is not None else '---'
         if self._get_log_op:
             info['get log page operation'] = str(self._get_log_op.as_dict())
         if self._register_op:
@@ -416,6 +436,31 @@ class Dc(Controller):
         if aen == self.DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
 
+    def _handle_lost_controller(self):
+        if self.origin == 'discovered':  # Only apply to mDNS-discovered DCs
+            if not self._staf.is_avahi_reported(self.tid) and not self.connected():
+                timeout = conf.SvcConf().zeroconf_persistence_sec
+                if self._ctrl_lost_time is None and timeout >= 0:
+                    self._ctrl_lost_time = time.localtime()
+                    self._ctrl_lost_tmr.start(timeout)
+                    logging.info(
+                        '%s | %s - Controller is not responding. Will be removed by %s unless restored',
+                        self.id,
+                        self.device,
+                        time.ctime(time.mktime(self._ctrl_lost_time) + timeout),
+                    )
+                    return
+
+                logging.info(
+                    '%s | %s - Controller is not responding, but will keep trying forever',
+                    self.id,
+                    self.device,
+                )
+
+        self._ctrl_lost_time = None
+        self._ctrl_lost_tmr.stop()
+        self._ctrl_lost_tmr.set_timeout(0)
+
     def _resync_with_controller(self):
         '''Communicate with DC to resync the states'''
         if self._register_op:
@@ -438,6 +483,16 @@ class Dc(Controller):
         super()._on_ctrl_removed(obj)
         if self._try_to_connect_deferred:
             self._try_to_connect_deferred.schedule()
+
+    def _on_ctrl_lost(self):
+        logging.info(
+            '%s | %s - Removing controller that stopped responding on %s',
+            self.id,
+            self.device,
+            time.asctime(self._ctrl_lost_time),
+        )
+        # Defer removal of this object to the next main loop's idle period.
+        GLib.idle_add(self._staf.remove_controller, self, True)
 
     def _find_existing_connection(self):
         return self._udev.find_nvme_dc_device(self.tid)
@@ -473,6 +528,10 @@ class Dc(Controller):
         super()._on_connect_success(op_obj, data)
 
         if self._alive():
+            self._ctrl_lost_time = None
+            self._ctrl_lost_tmr.stop()
+            self._ctrl_lost_tmr.set_timeout(0)
+
             if self._ctrl.is_registration_supported():
                 self._register_op = gutil.AsyncOperationWithRetry(
                     self._on_registration_success,
@@ -483,6 +542,13 @@ class Dc(Controller):
                 self._register_op.run_async()
             else:
                 self._post_registration_actions()
+
+    def _on_connect_fail(self, op_obj, err, fail_cnt):  # pylint: disable=unused-argument
+        '''@brief Function called when we fail to connect to the Controller.'''
+        super()._on_connect_fail(op_obj, err, fail_cnt)
+
+        if self._alive():
+            self._handle_lost_controller()
 
     # --------------------------------------------------------------------------
     def _on_registration_success(self, op_obj, data):  # pylint: disable=unused-argument

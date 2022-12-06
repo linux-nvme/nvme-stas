@@ -13,11 +13,10 @@ import os
 import sys
 import logging
 import configparser
-from staslib import defs, singleton
+from staslib import defs, singleton, timeparse
 
 __TOKEN_RE = re.compile(r'\s*;\s*')
 __OPTION_RE = re.compile(r'\s*=\s*')
-
 
 def parse_controller(controller):
     '''@brief Parse a "controller" entry. Controller entries are strings
@@ -104,7 +103,15 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
     @property
     def persistent_connections(self):
         '''@brief return the "persistent-connections" config parameter'''
-        return self.__get_bool('Global', 'persistent-connections')
+        return self.__get_bool(
+            'Discovery controller connection management', 'persistent-connections'
+        ) or self.__get_bool('Global', 'persistent-connections')
+
+    @property
+    def zeroconf_persistence_sec(self):  # pylint: disable=invalid-name
+        '''@brief return the "zeroconf-connections-persistence" config parameter, in seconds'''
+        value = self.__get_value('Discovery controller connection management', 'zeroconf-connections-persistence')
+        return timeparse.timeparse(value)
 
     @property
     def ignore_iface(self):

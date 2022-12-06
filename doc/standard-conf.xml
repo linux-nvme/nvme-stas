@@ -90,6 +90,106 @@
                 </para>
             </listitem>
         </varlistentry>
+
+        <varlistentry id='queue-size'>
+            <term><varname>queue-size=</varname></term>
+
+            <listitem id='queue-size-text'>
+                <para>
+                    Takes a value in the range 16...1024.
+                </para>
+
+                <para>
+                    Overrides the default number of elements in the I/O queues
+                    created by the driver. This option will be ignored for
+                    discovery, but will be passed on to the subsequent connect
+                    call.
+                </para>
+
+                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+
+                <para>
+                    Defaults to <parameter>128</parameter>.
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry id='reconnect-delay'>
+            <term><varname>reconnect-delay=</varname></term>
+
+            <listitem id='reconnect-delay-text'>
+                <para>
+                    Takes a value in the range 1 to N seconds.
+                </para>
+
+                <para>
+                    Overrides the default delay before reconnect is attempted
+                    after a connect loss.
+                </para>
+
+                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+
+                <para>
+                    Defaults to <parameter>10</parameter>. Retry to connect every 10 seconds.
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry id='ctrl-loss-tmo'>
+            <term><varname>ctrl-loss-tmo=</varname></term>
+
+            <listitem id='ctrl-loss-tmo-text'>
+                <para>
+                    Takes a value in the range -1, 0, ..., N seconds. -1 means
+                    retry forever. 0 means do not retry.
+                </para>
+
+                <para>
+                    Overrides the default controller loss timeout period (in seconds).
+                </para>
+
+                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+
+                <para>
+                    Defaults to <parameter>600</parameter> seconds (10 minutes).
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry id='duplicate-connect'>
+            <term><varname>duplicate-connect=</varname></term>
+
+            <listitem id='duplicate-connect-text'>
+                <para>
+                    Takes a boolean argument. Allows duplicated connections
+                    between same transport host and subsystem port.
+                </para>
+
+                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+
+                <para>
+                    Defaults to <parameter>false</parameter>.
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry id='disable-sqflow'>
+            <term><varname>disable-sqflow=</varname></term>
+
+            <listitem id='disable-sqflow-text'>
+                <para>
+                    Takes a boolean argument. Disables SQ flow control to omit
+                    head doorbell update for submission queues when sending nvme
+                    completions.
+                </para>
+
+                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
+
+                <para>
+                    Defaults to <parameter>false</parameter>.
+                </para>
+            </listitem>
+        </varlistentry>
     </variablelist>
 
     <refsect2 id='controller'>

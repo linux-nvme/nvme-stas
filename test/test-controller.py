@@ -102,7 +102,7 @@ class Test(TestCase):
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
-                'connect operation': {'fail count': 0}
+                'connect operation': "{'fail count': 0}",
             },
         )
         self.assertEqual(
@@ -124,7 +124,7 @@ class Test(TestCase):
                 'hostnqn': '',
                 'model': '',
                 'serial': '',
-                'connect operation': {'fail count': 0},
+                'connect operation': "{'fail count': 0}",
             },
         )
 

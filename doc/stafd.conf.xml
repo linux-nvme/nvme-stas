@@ -85,21 +85,11 @@
                 <xi:include href="standard-conf.xml" xpointer="data-digest"/>
                 <xi:include href="standard-conf.xml" xpointer="kato"/>
                 <xi:include href="standard-conf.xml" xpointer="ip-family"/>
-
-                <varlistentry>
-                    <term><varname>persistent-connections=</varname></term>
-                    <listitem>
-                        <para>
-                            Takes a boolean argument. Whether connections to
-                            Discovery Controllers (DC) are persistent. When
-                            true, connections initiated by stafd will persists
-                            even when stafd is stopped. When
-                            <parameter>false</parameter>, <code>stafd</code>
-                            will disconnect from all DCs it is connected to on
-                            exit. Defaults to <parameter>false</parameter>.
-                        </para>
-                    </listitem>
-                </varlistentry>
+                <xi:include href="standard-conf.xml" xpointer="queue-size"/>
+                <xi:include href="standard-conf.xml" xpointer="reconnect-delay"/>
+                <xi:include href="standard-conf.xml" xpointer="ctrl-loss-tmo"/>
+                <xi:include href="standard-conf.xml" xpointer="duplicate-connect"/>
+                <xi:include href="standard-conf.xml" xpointer="disable-sqflow"/>
 
                 <varlistentry>
                     <term><varname>ignore-iface=</varname></term>
@@ -203,9 +193,77 @@
                             themselves over mDNS with the service type
                             <literal>_nvme-disc._tcp</literal>.
                         </para>
+                        <para>
+                            Defaults to <parameter>true</parameter>.
+                        </para>
                     </listitem>
                 </varlistentry>
             </variablelist>
+        </refsect2>
+
+        <refsect2>
+            <title>[Discovery controller connection management] section</title>
+
+            <para>
+                The following options are available in the
+                <literal>[Discovery controller connection management]</literal> section:
+            </para>
+
+            <varlistentry>
+                <term><varname>persistent-connections=</varname></term>
+                <listitem>
+                    <para>
+                        Takes a boolean argument. Whether connections to
+                        Discovery Controllers (DC) are persistent. When
+                        true, connections initiated by stafd will persists
+                        even when stafd is stopped. When
+                        <parameter>false</parameter>, <code>stafd</code>
+                        will disconnect from all DCs it is connected to on
+                        exit.
+                    </para>
+                    <para>
+                        Defaults to <parameter>false</parameter>.
+                    </para>
+                </listitem>
+            </varlistentry>
+
+            <varlistentry>
+                <term><varname>zeroconf-connections-persistence=</varname></term>
+                <listitem>
+                    <para>
+                        Takes a unit-less value in seconds, or a time span value
+                        such as "72hours" or "5days.  A value of 0 means no
+                        persistence. In other words, configuration acquired through
+                        zeroconf (mDNS service discovery) will be removed
+                        immediately when mDNS no longer reports the presence of
+                        a Discovery Controller (DC) and connectivity to that DC
+                        is lost. A value of -1 means that configuration acquired
+                        through zeroconf will persist forever.
+                    </para>
+
+                    <para>
+                        This is used for the case where a DC that was discovered
+                        through mDNS service discovery no longer advertises
+                        itself through mDNS and can no longer be connected to.
+                        For example, the DC had some catastrophic failure
+                        (e.g. power surge) and needs to be replaced. In that
+                        case, the connection to that DC can never be restored
+                        and a replacement DC will be needed. The replacement
+                        DC will likely have a different NQN (or IP address).
+                        In that scenario, the host won't be able to determine
+                        that the old DC is not coming back. It won't know either
+                        that a newly discovered DC is really the replacement for
+                        the old one. For that reason, the host needs a way to
+                        "age" zeroconf-acquired configuration  and remove it
+                        automatically after a certain amount of time. This is
+                        what this parameter is for.
+                    </para>
+
+                    <para>
+                        Defaults to <parameter>72hours</parameter>.
+                    </para>
+                </listitem>
+            </varlistentry>
         </refsect2>
 
         <xi:include href="standard-conf.xml" xpointer="controller"/>
