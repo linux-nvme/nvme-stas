@@ -11,8 +11,10 @@ access to GLib/Gio/Gobject resources.
 '''
 
 import logging
+import ipaddress
 from gi.repository import Gio, GLib, GObject
-from staslib import trid
+from staslib import conf, trid
+
 
 # ******************************************************************************
 class GTimer:
@@ -111,7 +113,7 @@ class NameResolver:  # pylint: disable=too-few-public-methods
     def __init__(self):
         self._resolver = Gio.Resolver.get_default()
 
-    def resolve_ctrl_async(self, cancellable, controllers: list, callback):
+    def resolve_ctrl_async(self, cancellable, controllers_in: list, callback):
         '''@brief The traddr fields may specify a hostname instead of an IP
         address. We need to resolve all the host names to addresses.
         Resolving hostnames may take a while as a DNS server may need
@@ -120,48 +122,85 @@ class NameResolver:  # pylint: disable=too-few-public-methods
 
         The callback @callback will be called once all hostnames have
         been resolved.
+
+        @param controllers: List of trid.TID
         '''
         pending_resolution_count = 0
+        controllers_out = []
 
-        def addr_resolved(resolver, result, indx):
-            cid = controllers[indx].as_dict()
-            hostname = cid['traddr']
-            traddr = hostname
+        def addr_resolved(resolver, result, controller):
             try:
-                addresses = resolver.lookup_by_name_finish(result)
-                if addresses:
-                    traddr = addresses[0].to_string()
-                else:
-                    logging.error('Cannot resolve traddr: %s', hostname)
+                addresses = resolver.lookup_by_name_finish(result)  # List of Gio.InetAddress objects
 
             except GLib.GError as err:
                 # We don't need to report "cancellation" errors.
                 if not err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
-                    logging.error('Cannot resolve traddr: %s. %s', hostname, err.message)  # pylint: disable=no-member
+                    logging.error('%s', err.message)  # pylint: disable=no-member
 
-            logging.debug('NameResolver.resolve_ctrl_async()  - resolved \'%s\' -> %s', hostname, traddr)
+                # if err.matches(Gio.resolver_error_quark(), Gio.ResolverError.TEMPORARY_FAILURE):
+                # elif err.matches(Gio.resolver_error_quark(), Gio.ResolverError.NOT_FOUND):
+                # elif err.matches(Gio.resolver_error_quark(), Gio.ResolverError.INTERNAL):
 
-            cid['traddr'] = traddr
-            controllers[indx] = trid.TID(cid)
+            else:
+                traddr = None
+
+                # If multiple addresses are returned (which is often the case),
+                # prefer IPv4 addresses over IPv6.
+                if 4 in conf.SvcConf().ip_family:
+                    for address in addresses:
+                        # There may be multiple IPv4 addresses. Pick 1st one.
+                        if address.get_family() == Gio.SocketFamily.IPV4:
+                            traddr = address.to_string()
+                            break
+
+                if traddr is None and 6 in conf.SvcConf().ip_family:
+                    for address in addresses:
+                        # There may be multiple IPv6 addresses. Pick 1st one.
+                        if address.get_family() == Gio.SocketFamily.IPV6:
+                            traddr = address.to_string()
+                            break
+
+                if traddr is not None:
+                    logging.debug(
+                        'NameResolver.resolve_ctrl_async()  - resolved \'%s\' -> %s', controller.traddr, traddr
+                    )
+                    cid = controller.as_dict()
+                    cid['traddr'] = traddr
+                    nonlocal controllers_out
+                    controllers_out.append(trid.TID(cid))
 
             # Invoke callback after all hostnames have been resolved
             nonlocal pending_resolution_count
             pending_resolution_count -= 1
             if pending_resolution_count == 0:
-                callback(controllers)
+                callback(controllers_out)
 
-        for indx, controller in enumerate(controllers):
+        for controller in controllers_in:
             if controller.transport in ('tcp', 'rdma'):
-                hostname = controller.traddr
-                if not hostname:
+                hostname_or_addr = controller.traddr
+                if not hostname_or_addr:
                     logging.error('Invalid traddr: %s', controller)
                 else:
-                    logging.debug('NameResolver.resolve_ctrl_async()  - resolving \'%s\'', hostname)
-                    pending_resolution_count += 1
-                    self._resolver.lookup_by_name_async(hostname, cancellable, addr_resolved, indx)
+                    try:
+                        # Try to convert to an ipaddress object. If this
+                        # succeeds, then we don't need to call the resolver.
+                        ip = ipaddress.ip_address(hostname_or_addr)
+                    except ValueError:
+                        logging.debug('NameResolver.resolve_ctrl_async()  - resolving \'%s\'', hostname_or_addr)
+                        pending_resolution_count += 1
+                        self._resolver.lookup_by_name_async(hostname_or_addr, cancellable, addr_resolved, controller)
+                    else:
+                        if ip.version in conf.SvcConf().ip_family:
+                            controllers_out.append(controller)
+                        else:
+                            logging.warning(
+                                'Excluding configured IP address %s based on "ip-family" setting', hostname_or_addr
+                            )
+            else:
+                controllers_out.append(controller)
 
         if pending_resolution_count == 0:  # No names are pending asynchronous resolution
-            callback(controllers)
+            callback(controllers_out)
 
 
 # ******************************************************************************
