@@ -282,6 +282,12 @@ class Controller(stas.ControllerABC):
         will be invoked. If a controller is already disconnected, then the
         callback will be added to the main loop's next idle slot to be executed
         ASAP.
+
+        @param disconnected_cb: Callback to be called when disconnect has
+        completed. the callback must have this signature:
+            def cback(controller: Controller, success: bool)
+        @param keep_connection: Whether the underlying connection should remain
+        in the kernel.
         '''
         logging.debug(
             'Controller.disconnect()            - %s | %s: keep_connection=%s', self.id, self.device, keep_connection
@@ -332,7 +338,9 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
     REGISTRATION_RETRY_RERIOD_SEC = 5
     GET_SUPPORTED_RETRY_RERIOD_SEC = 5
 
-    def __init__(self, staf, root, host, tid: trid.TID, log_pages=None, origin=None):  # pylint: disable=too-many-arguments
+    def __init__(
+        self, staf, root, host, tid: trid.TID, log_pages=None, origin=None
+    ):  # pylint: disable=too-many-arguments
         super().__init__(root, host, tid, discovery_ctrl=True)
         self._staf = staf
         self._register_op = None
@@ -401,7 +409,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         info = super().info()
         info['origin'] = self._origin
         info['controller lost timer'] = str(self._ctrl_lost_tmr)
-        info['controller lost timeout'] = str(timeout) if timeout >= 0 else 'forever'
+        info['controller lost timeout'] = f'{timeout} sec' if timeout >= 0 else 'forever'
         info['controller lost time'] = time.asctime(self._ctrl_lost_time) if self._ctrl_lost_time is not None else '---'
         if self._get_log_op:
             info['get log page operation'] = str(self._get_log_op.as_dict())
@@ -585,7 +593,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
                 err,
                 Dc.REGISTRATION_RETRY_RERIOD_SEC,
             )
-            if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
+            if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
                 logging.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
             op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
         else:
@@ -655,7 +663,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
                 err,
                 Dc.GET_SUPPORTED_RETRY_RERIOD_SEC,
             )
-            if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
+            if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
                 logging.error(
                     '%s | %s - Failed to Get supported log pages from Discovery Controller. %s',
                     self.id,
@@ -729,7 +737,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
                 err,
                 Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC,
             )
-            if fail_cnt == 1:  # Throttle the logs. Only print the first time we fail to connect
+            if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
                 logging.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
             op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
         else:
