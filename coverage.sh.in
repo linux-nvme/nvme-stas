@@ -145,10 +145,15 @@ tron=true
 kato=10
 ip-family=ipv6
 johnny=be-good
+queue-size=256
+reconnect-delay=1
+ctrl-loss-tmo=1
+duplicate-connect=false
+disable-sqflow=true
 
 [Discovery controller connection management]
 persistent-connections=false
-zeroconf-connections-persistence=1d
+zeroconf-connections-persistence=-1
 
 [Hello]
 hello = bye
@@ -164,6 +169,14 @@ cat > "${stacd_conf_fname}" <<'EOF'
 tron=true
 kato=10
 udev-rule=enabled
+nr-io-queues=4
+nr-write-queues=4
+nr-poll-queues=4
+queue-size=256
+reconnect-delay=1
+ctrl-loss-tmo=1
+duplicate-connect=false
+disable-sqflow=true
 
 [I/O controller connection management]
 disconnect-scope=all-connections-matching-disconnect-trtypes
@@ -227,6 +240,12 @@ cat > "${stafd_conf_fname}" <<'EOF'
 tron=true
 ip-family=ipv4
 kato=10
+queue-size=256
+reconnect-delay=1
+ctrl-loss-tmo=1
+duplicate-connect=false
+disable-sqflow=true
+
 
 [Discovery controller connection management]
 persistent-connections=false
@@ -234,15 +253,19 @@ zeroconf-connections-persistence=1:01
 
 [Controllers]
 controller = transport = tcp ; traddr = localhost ; ; ;
+controller=transport=tcp;traddr=::1
 controller=transport=tcp;traddr=1.1.1.1
 controller=transport=tcp;traddr=2.2.2.2
+controller=transport=tcp;traddr=3.3.3.3
 controller=transport=tcp;traddr=555.555.555.555
 controller=transport=tcp;traddr=abracadabra
+controller=transport=tcp;traddr=google.com
 controller=
 controller=trsvcid
 controller=transport=rdma;traddr=!@#$
 controller=transport=fc;traddr=21:00:00:00:00:00:00:00;host-traddr=20:00:00:00:00:00:00:00
 controller=transport=XM;traddr=2.2.2.2
+
 exclude=transport=tcp;traddr=1.1.1.1
 exclude=transport=tcp;traddr=1000.1000.1000.1000
 EOF
@@ -254,6 +277,14 @@ cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 udev-rule=disabled
+nr-io-queues=4
+nr-write-queues=4
+nr-poll-queues=4
+queue-size=256
+reconnect-delay=1
+ctrl-loss-tmo=1
+duplicate-connect=false
+disable-sqflow=true
 
 [I/O controller connection management]
 disconnect-scope=blah-blah
@@ -328,7 +359,7 @@ coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
 # Stimulate AENs activity by removing/restoring namespaces
 log "Remove namespace: klingons"
 sudo ../utils/nvmet/nvmet.py unlink -p 1 -s klingons
-sleep 2
+sleep 4
 log "Invoking stacctl ls"
 coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
 
@@ -355,6 +386,11 @@ log "Empty configuration and disable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
+queue-size=256
+reconnect-delay=1
+ctrl-loss-tmo=1
+duplicate-connect=false
+disable-sqflow=true
 
 [Discovery controller connection management]
 persistent-connections=false
@@ -372,10 +408,15 @@ log "Add single controller (::1) and re-enable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
+queue-size=256
+reconnect-delay=1
+ctrl-loss-tmo=0
+duplicate-connect=false
+disable-sqflow=true
 
 [Discovery controller connection management]
 persistent-connections=false
-zeroconf-connections-persistence=-1
+zeroconf-connections-persistence=0
 
 [Controllers]
 controller=transport=tcp;traddr=::1;trsvcid=8009
@@ -391,9 +432,43 @@ sleep 2
 
 ################################################################################
 # Remove one of the NVMe device's
-log "Remove (disconnect) nvme1"
-sudo nvme disconnect -d nvme1
-sleep 2
+file=/tmp/getdev-XXX.py
+getdev=$(mktemp $file)
+cat > "${getdev}" <<'EOF'
+import sys
+from dasbus.connection import SystemMessageBus
+
+bus = SystemMessageBus()
+iface = bus.get_proxy(sys.argv[1], sys.argv[2])
+controllers = iface.list_controllers(False)
+if len(controllers) > 0:
+    controller = controllers[0]
+    print(controller['device'])
+    sys.exit(0)
+sys.exit(1)
+EOF
+
+if dev=$(python3 ${getdev} @STAFD_DBUS_NAME@ @STAFD_DBUS_PATH@); then
+	log "Remove connection (disconnect) to Discovery Controller ${dev}"
+	sudo nvme disconnect -d ${dev}
+else
+	msg="Failed to find a connection to a Discovery Controller"
+	printf "%b[1;31m%s%b[0m\n" "\0033" "${msg}" "\0033"
+	sudo logger -i "@@@@@  COVERAGE -" -p 4 "${msg}"
+fi
+
+if dev=$(python3 ${getdev} @STACD_DBUS_NAME@ @STACD_DBUS_PATH@); then
+	log "Remove connection (disconnect) to I/O Controller ${dev}"
+	sudo nvme disconnect -d ${dev}
+else
+	msg="Failed to find a connection to an I/O Controller"
+	printf "%b[1;31m%s%b[0m\n" "\0033" "${msg}" "\0033"
+	sudo logger -i "@@@@@  COVERAGE -" -p 4 "${msg}"
+fi
+
+sleep 3
+
+rm "${getdev}"
 
 
 ################################################################################
@@ -434,7 +509,7 @@ PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-avahi.p
 log "Run unit test: test-config"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-config.py
 log "Run unit test: test-controller"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-controller.py
+sudo PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-controller.py
 log "Run unit test: test-gtimer"
 PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-gtimer.py
 log "Run unit test: test-iputil"
