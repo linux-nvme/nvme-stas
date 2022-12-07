@@ -232,7 +232,7 @@
                 <listitem>
                     <para>
                         Takes a unit-less value in seconds, or a time span value
-                        such as "72hours" or "5days.  A value of 0 means no
+                        such as "72hours" or "5days".  A value of 0 means no
                         persistence. In other words, configuration acquired through
                         zeroconf (mDNS service discovery) will be removed
                         immediately when mDNS no longer reports the presence of

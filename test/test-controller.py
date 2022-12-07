@@ -1,12 +1,9 @@
 #!/usr/bin/python3
 import logging
 import unittest
-from gi.repository import GLib
 from libnvme import nvme
-from staslib import conf, ctrl, trid
+from staslib import conf, ctrl, service, stas, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
-
-LOOP = GLib.MainLoop()
 
 
 class TestController(ctrl.Controller):
@@ -21,6 +18,76 @@ class TestController(ctrl.Controller):
 
     def reload_hdlr(self):
         pass
+
+
+class TestDc(ctrl.Dc):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._connected = True
+
+        class Ctrl:
+            def __init__(this):
+                this.name = 'nvme666'
+
+            def connected(this):
+                return self._connected
+
+            def disconnect(this):
+                pass
+
+        self._ctrl = Ctrl()
+
+    def _find_existing_connection(self):
+        pass
+
+    def _on_aen(self, aen: int):
+        pass
+
+    def _on_nvme_event(self, nvme_event):
+        pass
+
+    def reload_hdlr(self):
+        pass
+
+    def set_connected(self, value):
+        self._connected = value
+
+    def connected(self):
+        return self._connected
+
+
+class TestStaf:
+    def is_avahi_reported(self, tid):
+        return False
+
+
+stafd_conf_1 = '''
+[Global]
+tron=false
+hdr-digest=false
+data-digest=false
+kato=30
+queue-size=128
+reconnect-delay=10
+ctrl-loss-tmo=600
+duplicate-connect=true
+disable-sqflow=false
+ignore-iface=false
+ip-family=ipv4+ipv6
+pleo=enabled
+
+[Service Discovery]
+zeroconf=enabled
+
+[Discovery controller connection management]
+persistent-connections=true
+zeroconf-connections-persistence=10 seconds
+'''
+
+stafd_conf_2 = '''
+[Discovery controller connection management]
+zeroconf-connections-persistence=-1
+'''
 
 
 class Test(TestCase):
@@ -49,12 +116,43 @@ class Test(TestCase):
             }
         )
 
+        default_conf = {
+            ('Global', 'tron'): 'false',
+            ('Global', 'hdr-digest'): 'false',
+            ('Global', 'data-digest'): 'false',
+            ('Global', 'kato'): None,  # None to let the driver decide the default
+            ('Global', 'queue-size'): None,  # None to let the driver decide the default
+            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
+            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
+            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
+            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
+            ('Global', 'persistent-connections'): 'true',
+            ('Discovery controller connection management', 'persistent-connections'): 'true',
+            ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
+            ('Global', 'ignore-iface'): 'false',
+            ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'udev-rule'): 'disabled',
+            ('Global', 'pleo'): 'enabled',
+            ('Service Discovery', 'zeroconf'): 'enabled',
+            ('Controllers', 'controller'): list(),
+            ('Controllers', 'exclude'): list(),
+        }
+
+        self.stafd_conf_file1 = '/etc/stas/stafd1.conf'
+        self.fs.create_file(self.stafd_conf_file1, contents=stafd_conf_1)
+
+        self.stafd_conf_file2 = '/etc/stas/stafd2.conf'
+        self.fs.create_file(self.stafd_conf_file2, contents=stafd_conf_2)
+
+        self.svcconf = conf.SvcConf(default_conf=default_conf)
+        self.svcconf.set_conf_file(self.stafd_conf_file1)
+
         sysconf = conf.SysConf()
         self.root = nvme.root()
         self.host = nvme.host(self.root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
 
     def tearDown(self):
-        LOOP.quit()
+        pass
 
     def test_cannot_instantiate_concrete_classes_if_abstract_method_are_not_implemented(self):
         # Make sure we can't instantiate the ABC directly (Abstract Base Class).
@@ -131,7 +229,7 @@ class Test(TestCase):
         # print(controller._connect_op)
         self.assertEqual(controller.cancel(), None)
         self.assertEqual(controller.kill(), None)
-        # self.assertEqual(controller.disconnect(), 0)
+        self.assertIsNone(controller.disconnect(lambda *args: None, True))
 
     def test_connect(self):
         controller = TestController(root=self.root, host=self.host, tid=self.NVME_TID)
@@ -163,7 +261,43 @@ class Test(TestCase):
         ncc = ctrl.get_ncc(ctrl.get_eflags(dlpe))
         self.assertFalse(ncc)
 
+    def test_dc(self):
+        self.svcconf.set_conf_file(self.stafd_conf_file1)
+
+        controller = TestDc(TestStaf(), root=self.root, host=self.host, tid=self.NVME_TID)
+        controller.set_connected(True)
+        controller.origin = 'discovered'
+
+        with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+            controller.origin = 'blah'
+            self.assertEqual(len(captured.records), 1)
+            self.assertNotEqual(-1, captured.records[0].getMessage().find("Trying to set invalid origin to blah"))
+
+        controller.set_connected(False)
+        with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+            controller.origin = 'discovered'
+            self.assertEqual(len(captured.records), 1)
+            self.assertNotEqual(
+                -1, captured.records[0].getMessage().find("Controller is not responding. Will be removed by")
+            )
+
+        self.svcconf.set_conf_file(self.stafd_conf_file2)
+        with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+            controller.origin = 'discovered'
+            self.assertEqual(len(captured.records), 1)
+            self.assertNotEqual(
+                -1, captured.records[0].getMessage().find("Controller is not responding, but will keep trying forever")
+            )
+
+        controller.set_connected(True)
+        with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+            controller.disconnect(lambda *args: None, keep_connection=False)
+            self.assertEqual(len(captured.records), 2)
+            self.assertNotEqual(-1, captured.records[0].getMessage().find("nvme666: keep_connection=False"))
+            self.assertNotEqual(-1, captured.records[1].getMessage().find("nvme666 - Disconnect initiated"))
+
+    # def test_disconnect(self):
+
 
 if __name__ == '__main__':
-    GLib.idle_add(unittest.main)
-    LOOP.run()
+    unittest.main()
