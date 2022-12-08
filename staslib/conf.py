@@ -164,7 +164,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         for trtype in value:
             if trtype not in ('tcp', 'rdma', 'fc'):
                 logging.warning(
-                    'File:%s, Section: [I/O controller connection management], Invalid "disconnect-trtypes": %s. Default will be used',
+                    'File:%s, Section: [I/O controller connection management], Invalid "disconnect-trtypes=%s". Default will be used',
                     self.conf_file,
                     trtype,
                 )
@@ -181,15 +181,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
     def connect_attempts_on_ncc(self):
         '''@brief Return the number of connection attempts that will be made
         when the NCC bit (Not Connected to CDC) is asserted.'''
-        try:
-            value = int(self.__get_value('I/O controller connection management', 'connect-attempts-on-ncc'))
-        except ValueError as ex:
-            logging.warning(
-                'File:%s, Section: [I/O controller connection management], Parameter "connect-attempts-on-ncc": %s',
-                self.conf_file,
-                ex,
-            )
-            value = int(self._defaults[('I/O controller connection management', 'connect-attempts-on-ncc')])
+        value = self.__get_int('I/O controller connection management', 'connect-attempts-on-ncc')
 
         if value == 1:  # 1 is invalid. A minimum of 2 is required (with the exception of 0, which is valid).
             value = 2
@@ -199,92 +191,49 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
     @property
     def nr_io_queues(self):
         '''@brief return the "Number of I/O queues" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'nr-io-queues'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        return self.__get_int('Global', 'nr-io-queues')
 
     @property
     def nr_write_queues(self):
         '''@brief return the "Number of write queues" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'nr-write-queues'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        return self.__get_int('Global', 'nr-write-queues')
 
     @property
     def nr_poll_queues(self):
         '''@brief return the "Number of poll queues" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'nr-poll-queues'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        return self.__get_int('Global', 'nr-poll-queues')
 
     @property
     def queue_size(self):
         '''@brief return the "Queue size" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'queue-size'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        return self.__get_int('Global', 'queue-size', range(16,1025))
 
     @property
     def reconnect_delay(self):
         '''@brief return the "Reconnect delay" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'reconnect-delay'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        return self.__get_int('Global', 'reconnect-delay')
 
     @property
     def ctrl_loss_tmo(self):
         '''@brief return the "Controller loss timeout" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'ctrl-loss-tmo'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        return self.__get_int('Global', 'ctrl-loss-tmo')
 
     @property
     def duplicate_connect(self):
         '''@brief return the "Duplicate connections" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'duplicate-connect'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        value = self.__get_value('Global', 'duplicate-connect')
+        return value if value in ('true', 'false') else None
 
     @property
     def disable_sqflow(self):
         '''@brief return the "Disable sqflow" config parameter'''
-        try:
-            value = int(self.__get_value('Global', 'disable-sqflow'))
-        except (ValueError, TypeError):
-            value = None  # Let driver decide
-
-        return value
+        value = self.__get_value('Global', 'disable-sqflow')
+        return value if value in ('true', 'false') else None
 
     @property
     def kato(self):
         '''@brief return the "kato" config parameter'''
-        try:
-            kato = int(self.__get_value('Global', 'kato'))
-        except (ValueError, TypeError):
-            kato = None  # Let driver decide
-
-        return kato
+        return self.__get_int('Global', 'kato')
 
     def get_controllers(self):
         '''@brief Return the list of controllers in the config file.
@@ -386,7 +335,39 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         return config
 
     def __get_bool(self, section, option):
-        return self.__get_value(section, option) == 'true'
+        text = self.__get_value(section, option)
+        return text == 'true'
+
+    def __get_int(self, section, option, expected_range=None):
+        text = self.__get_value(section, option)
+        if text is None:
+            value = self._defaults.get((section, option), None)
+        else:
+            try:
+                value = int(text)
+            except (ValueError, TypeError):
+                logging.warning(
+                    'File:%s, Section: [%s], Invalid "%s=%s". Default will be used',
+                    self.conf_file,
+                    section,
+                    option,
+                    text,
+                )
+                value = self._defaults.get((section, option), None)
+            else:
+                if expected_range is not None and value not in expected_range:
+                    logging.warning(
+                        'File:%s, Section: [%s], %s=%s is not within range %s..%s',
+                        self.conf_file,
+                        section,
+                        option,
+                        value,
+                        min(expected_range),
+                        max(expected_range),
+                    )
+                    value = self._defaults.get((section, option), None)
+
+        return value
 
     def __get_value(self, section, option, expected_range=None):
         lst = self.__get_list(section, option)
@@ -396,7 +377,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         value = lst[0]
         if expected_range is not None and value not in expected_range:
             logging.warning(
-                'File:%s, Section:[%s], Option:%s - Invalid value:%s. Default will be used',
+                'File:%s, Section:[%s], Invalid "%s=%s". Default will be used',
                 self.conf_file,
                 section,
                 option,

@@ -62,7 +62,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
             ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
-            ('I/O controller connection management', 'connect-attempts-on-ncc'): '0',
+            ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
 
         service_conf = conf.SvcConf(default_conf=default_conf)
