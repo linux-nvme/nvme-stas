@@ -1,39 +1,5 @@
 #!/usr/bin/env bash
 
-# COVERAGE CURRENTLY ACHIEVED BY THIS SCRIPT:
-# THIS WAS RUN ON FEDORA 35
-
-# Results on Fedora 35 (5/3/2022) nvme-stas v1.1
-#Name                  Stmts   Miss  Cover
-#-----------------------------------------
-#stacctl                  55      3    95%
-#stacd                   160      6    96%
-#stafctl                  77      3    96%
-#stafd                   241     39    84%
-#staslib/avahi.py        185     28    85%
-#staslib/defs.py          21      0   100%
-#staslib/glibudev.py      32      3    91%
-#staslib/stas.py         791     76    90%
-#staslib/version.py       34      0   100%
-#-----------------------------------------
-#TOTAL                  1596    158    90%
-
-# Results on SLES 15 SP4 (6/10/2022) nvme-stas v1.1.3
-# nvme-stas connected to real CDC.
-#Name                 Stmts   Miss  Cover
-#----------------------------------------
-#stacctl                 55      3    95%
-#stacd                  192      6    97%
-#stafctl                 77      3    96%
-#stafd                  246     25    90%
-#staslib/avahi.py       186     23    88%
-#staslib/defs.py         22      0   100%
-#staslib/stas.py        864     64    93%
-#staslib/version.py      32      0   100%
-#----------------------------------------
-#TOTAL                 1674    124    93%
-
-
 PRIMARY_GRP=$( id -ng )
 PRIMARY_USR=$( id -nu )
 PYTHON_PATH=.:./subprojects/libnvme
@@ -137,17 +103,17 @@ sudo nvme disconnect-all
 ################################################################################
 # Create a dummy config file for stafd
 file=/tmp/stafd.conf.XXXXXX
-log "Create dummy config file $file"
 stafd_conf_fname=$(mktemp $file)
+log "Create dummy config file ${stafd_conf_fname}"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 kato=10
 ip-family=ipv6
 johnny=be-good
-queue-size=256
-reconnect-delay=1
-ctrl-loss-tmo=1
+queue-size=2000000
+reconnect-delay=NaN
+ctrl-loss-tmo=10
 duplicate-connect=false
 disable-sqflow=true
 
@@ -162,17 +128,17 @@ EOF
 ################################################################################
 # Create a dummy config file for stacd
 file=/tmp/stacd.conf.XXXXXX
-log "Create dummy config file $file"
 stacd_conf_fname=$(mktemp $file)
+log "Create dummy config file ${stacd_conf_fname}"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 kato=10
 udev-rule=enabled
 nr-io-queues=4
-nr-write-queues=4
-nr-poll-queues=4
-queue-size=256
+nr-write-queues=NaN
+nr-poll-queues=NaN
+queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=1
 duplicate-connect=false
@@ -240,7 +206,7 @@ cat > "${stafd_conf_fname}" <<'EOF'
 tron=true
 ip-family=ipv4
 kato=10
-queue-size=256
+queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=1
 duplicate-connect=false
@@ -280,7 +246,7 @@ udev-rule=disabled
 nr-io-queues=4
 nr-write-queues=4
 nr-poll-queues=4
-queue-size=256
+queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=1
 duplicate-connect=false
@@ -386,7 +352,7 @@ log "Empty configuration and disable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
-queue-size=256
+queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=1
 duplicate-connect=false
@@ -404,24 +370,25 @@ sleep 1
 
 ################################################################################
 # Make more config changes for stafd
-log "Add single controller (::1) and re-enable zeroconf for stafd"
+log "Add single controller (localhost), disable IPv4, and re-enable zeroconf for stafd"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
-queue-size=256
+queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=0
 duplicate-connect=false
 disable-sqflow=true
+ip-family=ipv6
 
 [Discovery controller connection management]
 persistent-connections=false
 zeroconf-connections-persistence=0
 
 [Controllers]
-controller=transport=tcp;traddr=::1;trsvcid=8009
+controller=transport=tcp;traddr=localhost;trsvcid=8009
 EOF
-reload_cfg "stafd"
+sd_restart "stafd"
 sleep 2
 
 ################################################################################

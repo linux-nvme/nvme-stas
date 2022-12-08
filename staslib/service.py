@@ -134,7 +134,7 @@ class Stac(Service):
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
             ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
-            ('I/O controller connection management', 'connect-attempts-on-ncc'): '0',
+            ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
 
         super().__init__(args, default_conf, self._reload_hdlr)
