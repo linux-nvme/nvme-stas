@@ -529,6 +529,14 @@ class Staf(Service):
             for dlpe in controller.referrals()
         ]
 
+    def remove_controller(self, controller, success):  # pylint: disable=unused-argument
+        '''@brief remove the specified controller object from the list of controllers
+        @param controller: the controller object
+        @param success: whether the disconnect was successful'''
+        logging.debug('Staf.remove_controller()')
+        self.log_pages_changed(controller, controller.device)
+        super().remove_controller(controller, success)
+
     def _config_ctrls_finish(self, configured_ctrl_list: list):
         '''@brief Finish discovery controllers configuration after
         hostnames (if any) have been resolved.

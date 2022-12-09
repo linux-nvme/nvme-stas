@@ -448,15 +448,17 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         if self.origin == 'discovered':  # Only apply to mDNS-discovered DCs
             if not self._staf.is_avahi_reported(self.tid) and not self.connected():
                 timeout = conf.SvcConf().zeroconf_persistence_sec
-                if self._ctrl_lost_time is None and timeout >= 0:
-                    self._ctrl_lost_time = time.localtime()
-                    self._ctrl_lost_tmr.start(timeout)
-                    logging.info(
-                        '%s | %s - Controller is not responding. Will be removed by %s unless restored',
-                        self.id,
-                        self.device,
-                        time.ctime(time.mktime(self._ctrl_lost_time) + timeout),
-                    )
+                if timeout >= 0:
+                    if self._ctrl_lost_time is None:
+                        self._ctrl_lost_time = time.localtime()
+                        self._ctrl_lost_tmr.start(timeout)
+                        logging.info(
+                            '%s | %s - Controller is not responding. Will be removed by %s unless restored',
+                            self.id,
+                            self.device,
+                            time.ctime(time.mktime(self._ctrl_lost_time) + timeout),
+                        )
+
                     return
 
                 logging.info(

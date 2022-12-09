@@ -117,7 +117,7 @@ def remove_excluded(controllers: list):
     '''
     excluded_ctrl_list = conf.SvcConf().get_excluded()
     if excluded_ctrl_list:
-        logging.debug('remove_excluded()                  - excluded_ctrl_list = %s', excluded_ctrl_list)
+        logging.debug('remove_excluded()                  - excluded_ctrl_list   = %s', excluded_ctrl_list)
         controllers = [
             controller for controller in controllers if not _excluded(excluded_ctrl_list, controller.as_dict())
         ]
