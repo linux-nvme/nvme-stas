@@ -3,242 +3,397 @@
 PRIMARY_GRP=$( id -ng )
 PRIMARY_USR=$( id -nu )
 PYTHON_PATH=.:./subprojects/libnvme
+AVAHI_PUBLISHER=mdns_publisher.service
+
+file=/tmp/stafd.conf.XXXXXX
+stafd_conf_fname=$(mktemp $file)
+
+file=/tmp/stacd.conf.XXXXXX
+stacd_conf_fname=$(mktemp $file)
+
+CYAN="[1;36m"
+RED="[1;31m"
+YELLOW="[1;33m"
+NORMAL="[0m"
 
 log() {
-    msg="$1"
-    printf "%b[1;36m%s%b[0m\n" "\0033" "${msg}" "\0033"
-    sudo logger -i "@@@@@  COVERAGE -" -p 4 "${msg}"
+	msg="$1"
+	printf "%b%s%s%b[0m\n" "\0033" ${CYAN} "${msg}" "\0033"
+	sudo logger -i "@@@@@  COVERAGE -" -p warning "${msg}"
+}
+
+log_file_contents() {
+	rc=$1
+	file=$2
+
+	if [ $rc -eq 0 ]; then
+		color=${NORMAL}
+		level="info"
+	else
+		color=${YELLOW}
+		level="error"
+	fi
+
+	while IFS= read -r line; do
+		msg="   ${line}"
+		printf "%b%s%s%b[0m\n" "\0033" ${color} "${msg}" "\0033"
+		sudo logger -i "@@@@@  COVERAGE -" -p ${level} "${msg}"
+	done < ${file}
+}
+
+systemctl-exists() {
+	unit="$1"
+	[ $(systemctl list-unit-files "${unit}" | wc -l) -gt 3 ]
 }
 
 sd_stop() {
-    app="$1"
-    unit="${app}"-cov.service
-    log "Stop ${app}"
-    sudo systemctl stop "${unit}" >/dev/null 2>&1
-    sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
-}
-
-sd_restart() {
-    app="$1"
-    unit="${app}"-cov.service
-    log "Restart ${app}"
-    sudo systemctl restart "${unit}" >/dev/null 2>&1
+	app="$1"
+	unit="${app}"-cov.service
+	if systemctl-exists "${unit}" >/dev/null 2>&1; then
+		log "Stop ${app}"
+		sudo systemctl stop "${unit}" >/tmp/output.txt 2>&1
+		if [ -s /tmp/output.txt ]; then
+			log_file_contents $? /tmp/output.txt
+		else
+			printf "   sudo systemctl stop ${unit}\n"
+		fi
+		sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
+		printf "\n"
+		sleep 1
+	fi
 }
 
 sd_start() {
-    app="$1"
-    dbus="$2"
-    conf="$3"
-    unit="${app}"-cov.service
+	app="$1"
+	dbus="$2"
+	conf="$3"
+	unit="${app}"-cov.service
 
-    if [ -z "${conf}" ]; then
-        cmd="${app} --syslog"
-    else
-        cmd="${app} --syslog -f ${conf}"
-    fi
+	if [ -z "${conf}" ]; then
+		cmd="${app} --syslog"
+	else
+		cmd="${app} --syslog -f ${conf}"
+	fi
 
-    log "Start ${app}"
+	RUNTIME_DIRECTORY=/tmp/${app}
+	rm -rf ${RUNTIME_DIRECTORY}
+	mkdir ${RUNTIME_DIRECTORY}
 
-    RUNTIME_DIRECTORY=/tmp/${app}
-    rm -rf ${RUNTIME_DIRECTORY}
-    mkdir ${RUNTIME_DIRECTORY}
+	# Clear previous failure status (if any)
+	sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
 
-    sd_stop "${app}" # make sure it's not running already
-    sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}
+	log "Start ${app}"
+	sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --property="ExecReload=/bin/kill -HUP \$MAINPID" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >/tmp/output.txt 2>&1
+	log_file_contents $? /tmp/output.txt
+	printf "\n"
+	sleep 1
+}
+
+sd_restart() {
+	app="$1"
+	unit="${app}"-cov.service
+
+	if systemctl is-active "${unit}" >/dev/null 2>&1; then
+		log "Restart ${app}"
+		sudo systemctl restart "${unit}" && printf "systemctl restart ${unit}\n"  >/tmp/output.txt 2>&1
+		log_file_contents $? /tmp/output.txt
+		sleep 1
+	else
+		msg="Cannot restart ${app}, which is not currently running."
+		printf "%b%s%s%b[0m\n\n" "\0033" ${RED} "${msg}" "\0033"
+	fi
+	printf "\n"
 }
 
 reload_cfg() {
-    app="$1"
-    unit="${app}"-cov.service
-    pid=$( systemctl show --property MainPID --value "${unit}" )
-    log "Reload config ${app}"
-    sudo kill -HUP "${pid}"
+	app="$1"
+	unit="${app}"-cov.service
+	log "Reload config ${app}"
+	sudo systemctl reload "${unit}" && printf "systemctl reload ${unit}\n" >/tmp/output.txt 2>&1
+	#pid=$( systemctl show --property MainPID --value "${unit}" )
+	#sudo kill -HUP "${pid}" >/tmp/output.txt 2>&1
+	log_file_contents $? /tmp/output.txt
+	printf "\n"
+	sleep 1
 }
 
-if [ ! -d coverage ]; then
-    mkdir coverage
-fi
+run_unit_test() {
+	input=$@
+	if [ "$1" == "sudo" ]; then
+		shift
+		COVERAGE="sudo coverage"
+	else
+		COVERAGE="coverage"
+	fi
+	test=$@
+	log "Run unit test: ${input}"
+	PYTHONPATH=${PYTHON_PATH} ${COVERAGE} run --rcfile=.coveragerc ../test/${test} >/dev/null 2>&1
+}
 
-prerun_install() {
-    for file in staf stac; do
-        if [ ! -f "/usr/share/dbus-1/system.d/org.nvmexpress.${file}.conf" -a \
-             ! -f "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf" ]; then
-            log "hardlink /etc/dbus-1/system.d/org.nvmexpress.${file}.conf -> @BUILD_DIR@/etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
-            sudo ln @BUILD_DIR@/etc/dbus-1/system.d/org.nvmexpress.${file}.conf /etc/dbus-1/system.d/org.nvmexpress.${file}.conf
-            if [ $? -ne 0 ]; then
-                log "hardlink failed"
-                exit
-            fi
-        fi
-    done
-    sudo systemctl reload dbus.service
+run_cmd_coverage() {
+	input=$@
+	if [ "$1" == "sudo" ]; then
+		shift
+		COVERAGE="sudo coverage"
+	else
+		COVERAGE="coverage"
+	fi
+	cmd="$@"
+	log "Invoke: ${input}"
+	${COVERAGE} run --rcfile=.coveragerc ${cmd} >/tmp/output.txt 2>&1
+	log_file_contents $? /tmp/output.txt
+	printf "\n"
+}
+
+run_cmd() {
+	cmd="$@"
+	${cmd} >/tmp/output.txt 2>&1
+	if [ -s /tmp/output.txt ]; then
+		log_file_contents $? /tmp/output.txt
+	else
+		printf "   ${cmd}\n"
+	fi
+}
+
+prerun_setup() {
+	if [ ! -d coverage ]; then
+		mkdir coverage
+	fi
+
+	for file in staf stac; do
+	if [ ! -f "/usr/share/dbus-1/system.d/org.nvmexpress.${file}.conf" -a \
+	     ! -f "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf" ]; then
+		log "hardlink /etc/dbus-1/system.d/org.nvmexpress.${file}.conf -> @BUILD_DIR@/etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
+		sudo ln @BUILD_DIR@/etc/dbus-1/system.d/org.nvmexpress.${file}.conf /etc/dbus-1/system.d/org.nvmexpress.${file}.conf
+		if [ $? -ne 0 ]; then
+			log "hardlink failed"
+			exit 1
+		fi
+	fi
+	done
+	sudo systemctl reload dbus.service
 }
 
 postrun_cleanup() {
-    for file in staf stac; do
-        if [ -f "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf" ]; then
-            if [ "$(stat -c %h -- "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf")" -gt 1 ]; then
-                log "Remove hardlink /etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
-                sudo rm "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
-            fi
-        fi
-    done
-    sudo systemctl reload dbus.service
+	sd_stop "stafd"
+	sd_stop "stacd"
+
+	log "Stop nvmet"
+	sudo ../utils/nvmet/nvmet.py clean >/tmp/output.txt 2>&1
+	log_file_contents $? /tmp/output.txt
+	printf "\n"
+
+	log "nvme disconnect-all"
+	run_cmd sudo nvme disconnect-all
+	printf "\n"
+
+	log "Remove ${stafd_conf_fname} and ${stacd_conf_fname}"
+	rm "${stafd_conf_fname}"
+	rm "${stacd_conf_fname}"
+	printf "\n"
+
+	for file in staf stac; do
+		if [ -f "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf" ]; then
+			if [ "$(stat -c %h -- "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf")" -gt 1 ]; then
+				log "Remove hardlink /etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
+				sudo rm "/etc/dbus-1/system.d/org.nvmexpress.${file}.conf"
+			fi
+		fi
+	done
+	sudo systemctl reload dbus.service
+
+	sudo systemctl unmask avahi-daemon.service
+	sudo systemctl unmask avahi-daemon.socket
+	sudo systemctl start avahi-daemon.service
+	sudo systemctl start avahi-daemon.socket
+
+	sudo systemctl stop ${AVAHI_PUBLISHER} >/dev/null 2>&1
+	sudo systemctl reset-failed ${AVAHI_PUBLISHER} >/dev/null 2>&1
+
+	log "All done!!!"
+	log "FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED"
 }
 
+trap postrun_cleanup EXIT
+trap postrun_cleanup SIGINT
+
+################################################################################
+################################################################################
+################################################################################
 
 log "START-START-START-START-START-START-START-START-START-START-START-START"
 
-prerun_install
+if systemctl is-active stafd.service >/dev/null 2>&1 || systemctl is-active stacd.service >/dev/null 2>&1; then
+	msg="Stopping because stafd and/or stacd is/are currently running."
+	printf "%b%s%s%b[0m\n" "\0033" ${RED} "${msg}" "\0033"
+	exit 1
+fi
 
+prerun_setup
 
-################################################################################
+#*******************************************************************************
 # Load nvme kernel module
 log "modprobe nvme-tcp"
-sudo /usr/sbin/modprobe nvme-tcp
+run_cmd sudo /usr/sbin/modprobe nvme-tcp
 
 log "nvme disconnect-all"
-sudo nvme disconnect-all
+run_cmd sudo nvme disconnect-all
+printf "\n"
 
-################################################################################
+sd_stop stafd # make sure it's not running already
+sd_stop stacd # make sure it's not running already
+
+#*******************************************************************************
 # Create a dummy config file for stafd
-file=/tmp/stafd.conf.XXXXXX
-stafd_conf_fname=$(mktemp $file)
 log "Create dummy config file ${stafd_conf_fname}"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
-tron=true
-kato=10
-ip-family=ipv6
-johnny=be-good
-queue-size=2000000
-reconnect-delay=NaN
-ctrl-loss-tmo=10
-duplicate-connect=false
-disable-sqflow=true
+tron              = true
+kato              = 10
+ip-family         = ipv6
+johnny            = be-good
+queue-size        = 2000000
+reconnect-delay   = NaN
+ctrl-loss-tmo     = 10
+duplicate-connect = false
+disable-sqflow    = true
 
 [Discovery controller connection management]
-persistent-connections=false
-zeroconf-connections-persistence=-1
+persistent-connections           = false
+zeroconf-connections-persistence = -1
 
 [Hello]
 hello = bye
 EOF
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
 
-################################################################################
+#*******************************************************************************
 # Create a dummy config file for stacd
-file=/tmp/stacd.conf.XXXXXX
-stacd_conf_fname=$(mktemp $file)
 log "Create dummy config file ${stacd_conf_fname}"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
-tron=true
-kato=10
-udev-rule=enabled
-nr-io-queues=4
-nr-write-queues=NaN
-nr-poll-queues=NaN
-queue-size=2000000
-reconnect-delay=1
-ctrl-loss-tmo=1
-duplicate-connect=false
-disable-sqflow=true
+tron              = true
+kato              = 10
+udev-rule         = enabled
+nr-io-queues      = 4
+nr-write-queues   = NaN
+nr-poll-queues    = NaN
+queue-size        = 2000000
+reconnect-delay   = 1
+ctrl-loss-tmo     = 1
+duplicate-connect = false
+disable-sqflow    = true
 
 [I/O controller connection management]
-disconnect-scope=all-connections-matching-disconnect-trtypes
-disconnect-trtypes=tcp+rdma
+disconnect-scope   = blah-blah
+disconnect-trtypes = boing-boing
 EOF
+log_file_contents 0 "${stacd_conf_fname}"
+printf "\n"
 
 log "Stop & Mask Avahi daemon"
-sudo systemctl stop avahi-daemon.service
-sudo systemctl stop avahi-daemon.socket
-sudo systemctl mask avahi-daemon.service
-sudo systemctl mask avahi-daemon.socket
+run_cmd sudo systemctl stop avahi-daemon.service
+run_cmd sudo systemctl stop avahi-daemon.socket
+run_cmd sudo systemctl mask avahi-daemon.service
+run_cmd sudo systemctl mask avahi-daemon.socket
+printf "\n"
 sleep 1
 
+log ">>>>>>>>>>>>>>>>>>>>> Marker [1] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
 
-log "Invoking stafctl status while stafd is not running"
-coverage run --rcfile=.coveragerc stafctl ls >/dev/null 2>&1
-coverage run --rcfile=.coveragerc stafctl invalid-command >/dev/null 2>&1
+run_cmd_coverage stafctl ls
+run_cmd_coverage stafctl invalid-command
+run_cmd_coverage stacctl ls
+run_cmd_coverage stacctl invalid-command
 
-log "Invoking stacctl status while stacd is not running"
-coverage run --rcfile=.coveragerc stacctl ls >/dev/null 2>&1
-coverage run --rcfile=.coveragerc stacctl invalid-command >/dev/null 2>&1
+#*******************************************************************************
+# Start nvme target simulator
+log "Start nvmet"
+sudo ../utils/nvmet/nvmet.py clean >/dev/null 2>&1
+sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf >/tmp/output.txt 2>&1
+log_file_contents $? /tmp/output.txt
+printf "\n"
 
-################################################################################
+sleep 2
+
+log ">>>>>>>>>>>>>>>>>>>>> Marker [2] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+#*******************************************************************************
 # Start stafd and stacd
 sd_start "stafd" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
 sd_start "stacd" "@STACD_DBUS_NAME@" "${stacd_conf_fname}"
-sleep 3
+sleep 2
 
-log "Invoking stafctl status"
-coverage run --rcfile=.coveragerc stafctl status  >/dev/null 2>&1
+run_cmd_coverage stafctl status
 
 reload_cfg "stafd"
 sleep 1
 
 log "Restart Avahi daemon"
-sudo systemctl unmask avahi-daemon.socket
-sudo systemctl unmask avahi-daemon.service
-sudo systemctl start avahi-daemon.socket
-sudo systemctl start avahi-daemon.service
+run_cmd sudo systemctl unmask avahi-daemon.socket
+run_cmd sudo systemctl unmask avahi-daemon.service
+run_cmd sudo systemctl start avahi-daemon.socket
+run_cmd sudo systemctl start avahi-daemon.service
+printf "\n"
 sleep 2
 
-log "Change stafd config: tron=true, persistent-connections=false, zeroconf=enable"
+log ">>>>>>>>>>>>>>>>>>>>> Marker [3] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+log "Change stafd config [1]:"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
-tron=true
+tron = true
 
 [Discovery controller connection management]
-persistent-connections=false
-zeroconf-connections-persistence=0.5
+persistent-connections           = false
+zeroconf-connections-persistence = 0.5
 
 [Service Discovery]
-zeroconf=enabled
+zeroconf = enabled
 EOF
-reload_cfg "stafd"
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
 
+reload_cfg "stafd"
 sleep 1
 
-log "Change stafd config: ip-family=ipv4, kato=10, adding multiple controllers"
+log "Change stafd config [2]:"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
-tron=true
-ip-family=ipv4
-kato=10
-queue-size=2000000
-reconnect-delay=1
-ctrl-loss-tmo=1
-duplicate-connect=false
-disable-sqflow=true
-
+tron              = true
+ip-family         = ipv4
+kato              = 10
+queue-size        = 2000000
+reconnect-delay   = 1
+ctrl-loss-tmo     = 1
+duplicate-connect = false
+disable-sqflow    = true
+pleo              = disable
 
 [Discovery controller connection management]
-persistent-connections=false
-zeroconf-connections-persistence=1:01
+persistent-connections            = false
+zeroconf-connections-persistence  = 1:01
 
 [Controllers]
 controller = transport = tcp ; traddr = localhost ; ; ;
-controller=transport=tcp;traddr=::1
 controller=transport=tcp;traddr=1.1.1.1
-controller=transport=tcp;traddr=2.2.2.2
-controller=transport=tcp;traddr=3.3.3.3
-controller=transport=tcp;traddr=555.555.555.555
-controller=transport=tcp;traddr=abracadabra
-controller=transport=tcp;traddr=google.com
-controller=
-controller=trsvcid
-controller=transport=rdma;traddr=!@#$
-controller=transport=fc;traddr=21:00:00:00:00:00:00:00;host-traddr=20:00:00:00:00:00:00:00
-controller=transport=XM;traddr=2.2.2.2
+controller=transport=tcp;traddr=100.100.100.100
+controller=transport=tcp;traddr=2607:f8b0:4002:c2c::71
 
 exclude=transport=tcp;traddr=1.1.1.1
-exclude=transport=tcp;traddr=1000.1000.1000.1000
 EOF
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
+
 reload_cfg "stafd"
+sleep 5
 
 
-log "Change stacd config: tron=true, udev-rule=disabled, disconnect-scope=blah-blah, disconnect-trtypes=boing-boing"
+log "Change stacd config [1]:"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -253,110 +408,98 @@ duplicate-connect=false
 disable-sqflow=true
 
 [I/O controller connection management]
-disconnect-scope=blah-blah
-disconnect-trtypes=boing-boing
+disconnect-scope=all-connections-matching-disconnect-trtypes
+disconnect-trtypes=tcp+rdma
 EOF
+log_file_contents 0 "${stacd_conf_fname}"
+printf "\n"
+
 reload_cfg "stacd"
-sleep 3
+sleep 5
 
-log "Invoking stafctl status"
-coverage run --rcfile=.coveragerc stafctl status  >/dev/null 2>&1
+log ">>>>>>>>>>>>>>>>>>>>> Marker [4] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
 
-################################################################################
+run_cmd_coverage stafctl status
+
+#*******************************************************************************
 # Fake mDNS packets from a CDC
 log "Start Avahi publisher"
-AVAHI_PUBLISHER=mdns_publisher.service
-sudo systemctl stop ${AVAHI_PUBLISHER} >/dev/null 2>&1
-sudo systemctl reset-failed ${AVAHI_PUBLISHER} >/dev/null 2>&1
-sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
+run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
+run_cmd sudo systemctl reset-failed ${AVAHI_PUBLISHER}
+run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
+printf "\n"
 sleep 1
 
-################################################################################
-# Start nvme target simulator
-log "Start nvmet"
-sudo ../utils/nvmet/nvmet.py clean
-sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf
-sleep 2
+#*******************************************************************************
+run_cmd_coverage stafd --version
+run_cmd_coverage stacd --version
 
-reload_cfg "stafd"
-reload_cfg "stacd"
-sleep 3
-
-################################################################################
-log "Invoking stafd --version"
-coverage run --rcfile=.coveragerc stafd --version
-
-log "Invoking stacd --version"
-coverage run --rcfile=.coveragerc stacd --version
-
-################################################################################
+#*******************************************************************************
 # Stimulate D-Bus activity
-log "Invoking stafctl --version"
-sudo coverage run --rcfile=.coveragerc stafctl --version
-log "Invoking stafctl with a bad command"
-sudo coverage run --rcfile=.coveragerc stafctl blah
-log "Invoking stafctl troff"
-sudo coverage run --rcfile=.coveragerc stafctl troff
-log "Invoking stafctl status"
-coverage run --rcfile=.coveragerc stafctl status  >/dev/null 2>&1
-log "Invoking stafctl tron"
-sudo coverage run --rcfile=.coveragerc stafctl tron
-log "Invoking stafctl ls"
-coverage run --rcfile=.coveragerc stafctl ls -d   >/dev/null 2>&1
-log "Invoking stafctl adlp"
-coverage run --rcfile=.coveragerc stafctl adlp -d >/dev/null 2>&1
-log "Invoking stafctl dlp"
-coverage run --rcfile=.coveragerc stafctl dlp -t tcp -a ::1 -s 8009 >/dev/null 2>&1
+run_cmd_coverage sudo stafctl --version
+run_cmd_coverage sudo stafctl blah
+run_cmd_coverage sudo stafctl troff
+run_cmd_coverage stafctl status
+run_cmd_coverage sudo stafctl tron
+run_cmd_coverage stafctl ls -d
+run_cmd_coverage stafctl adlp -d
+run_cmd_coverage stafctl dlp -t tcp -a ::1 -s 8009
 
-log "Invoking stacctl --version"
-sudo coverage run --rcfile=.coveragerc stacctl --version
-log "Invoking stacctl with a bad command"
-sudo coverage run --rcfile=.coveragerc stacctl blah
-log "Invoking stacctl troff"
-sudo coverage run --rcfile=.coveragerc stacctl troff
-log "Invoking stacctl status"
-coverage run --rcfile=.coveragerc stacctl status >/dev/null 2>&1
-log "Invoking stacctl tron"
-sudo coverage run --rcfile=.coveragerc stacctl tron
-log "Invoking stacctl ls"
-coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
+run_cmd_coverage sudo stacctl --version
+run_cmd_coverage sudo stacctl blah
+run_cmd_coverage sudo stacctl troff
+run_cmd_coverage stacctl status
+run_cmd_coverage sudo stacctl tron
+run_cmd_coverage stacctl ls -d
 
-################################################################################
+log ">>>>>>>>>>>>>>>>>>>>> Marker [5] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+#*******************************************************************************
 # Stimulate AENs activity by removing/restoring namespaces
 log "Remove namespace: klingons"
-sudo ../utils/nvmet/nvmet.py unlink -p 1 -s klingons
-sleep 4
-log "Invoking stacctl ls"
-coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
+run_cmd sudo ../utils/nvmet/nvmet.py unlink -p 1 -s klingons
+printf "\n"
+sleep 2
+run_cmd_coverage stacctl ls
 
 log "Restore namespace: klingons"
-sudo ../utils/nvmet/nvmet.py link -p 1 -s klingons
+run_cmd sudo ../utils/nvmet/nvmet.py link -p 1 -s klingons
+printf "\n"
 sleep 2
-log "Invoking stacctl ls"
-coverage run --rcfile=.coveragerc stacctl ls -d >/dev/null 2>&1
+run_cmd_coverage stacctl ls
 
-################################################################################
+log ">>>>>>>>>>>>>>>>>>>>> Marker [6] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+#*******************************************************************************
 # Stop Avahi Publisher
 log "Stop Avahi publisher"
-sudo systemctl stop ${AVAHI_PUBLISHER}
+run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
+printf "\n"
 sleep 1
 
-################################################################################
+#*******************************************************************************
 log "Restart Avahi publisher"
-sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
+run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
+printf "\n"
 sleep 2
 
-################################################################################
+log ">>>>>>>>>>>>>>>>>>>>> Marker [7] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+#*******************************************************************************
 # Make config changes for stafd
-log "Empty configuration and disable zeroconf for stafd"
+log "Change stafd config [3]:"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
-tron=true
-queue-size=2000000
-reconnect-delay=1
-ctrl-loss-tmo=1
-duplicate-connect=false
-disable-sqflow=true
+tron              = true
+queue-size        = 2000000
+reconnect-delay   = 1
+ctrl-loss-tmo     = 1
+duplicate-connect = false
+disable-sqflow    = true
 
 [Discovery controller connection management]
 persistent-connections=false
@@ -365,12 +508,15 @@ zeroconf-connections-persistence=0.5
 [Service Discovery]
 zeroconf=disabled
 EOF
-reload_cfg "stafd"
-sleep 1
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
 
-################################################################################
+reload_cfg "stafd"
+sleep 3
+
+#*******************************************************************************
 # Make more config changes for stafd
-log "Add single controller (localhost), disable IPv4, and re-enable zeroconf for stafd"
+log "Change stafd config [4]:"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -387,17 +533,35 @@ zeroconf-connections-persistence=0
 
 [Controllers]
 controller=transport=tcp;traddr=localhost;trsvcid=8009
+controller=transport=tcp;traddr=abracadabra
+controller=transport=tcp;traddr=google.com
+controller=
+controller=trsvcid
+controller=transport=rdma;traddr=!@#$
+controller=transport=fc;traddr=21:00:00:00:00:00:00:00;host-traddr=20:00:00:00:00:00:00:00
+controller=transport=XM;traddr=2.2.2.2
+controller=transport=tcp;traddr=555.555.555.555
 EOF
-sd_restart "stafd"
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
+
+log ">>>>>>>>>>>>>>>>>>>>> Marker [8] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+reload_cfg "stafd"
 sleep 2
 
-################################################################################
+#*******************************************************************************
 # Stop Avahi Publisher
 log "Stop Avahi publisher"
-sudo systemctl stop ${AVAHI_PUBLISHER}
+run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
+printf "\n"
 sleep 2
 
-################################################################################
+log ">>>>>>>>>>>>>>>>>>>>> Marker [9] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+#*******************************************************************************
 # Remove one of the NVMe device's
 file=/tmp/getdev-XXX.py
 getdev=$(mktemp $file)
@@ -415,22 +579,26 @@ if len(controllers) > 0:
 sys.exit(1)
 EOF
 
+# Find a Discovery Controller and issue a "nvme disconnect"
 if dev=$(python3 ${getdev} @STAFD_DBUS_NAME@ @STAFD_DBUS_PATH@); then
 	log "Remove connection (disconnect) to Discovery Controller ${dev}"
-	sudo nvme disconnect -d ${dev}
+	run_cmd sudo nvme disconnect -d ${dev}
+	printf "\n"
 else
 	msg="Failed to find a connection to a Discovery Controller"
-	printf "%b[1;31m%s%b[0m\n" "\0033" "${msg}" "\0033"
-	sudo logger -i "@@@@@  COVERAGE -" -p 4 "${msg}"
+	printf "%b%s%s%b[0m\n" "\0033" ${RED} "${msg}" "\0033"
+	sudo logger -i "@@@@@  COVERAGE -" -p warning "${msg}"
 fi
 
+# Find an I/O Controller and issue a "nvme disconnect"
 if dev=$(python3 ${getdev} @STACD_DBUS_NAME@ @STACD_DBUS_PATH@); then
 	log "Remove connection (disconnect) to I/O Controller ${dev}"
-	sudo nvme disconnect -d ${dev}
+	run_cmd sudo nvme disconnect -d ${dev}
+	printf "\n"
 else
 	msg="Failed to find a connection to an I/O Controller"
-	printf "%b[1;31m%s%b[0m\n" "\0033" "${msg}" "\0033"
-	sudo logger -i "@@@@@  COVERAGE -" -p 4 "${msg}"
+	printf "%b%s%s%b[0m\n" "\0033" ${RED} "${msg}" "\0033"
+	sudo logger -i "@@@@@  COVERAGE -" -p warning "${msg}"
 fi
 
 sleep 3
@@ -438,81 +606,59 @@ sleep 3
 rm "${getdev}"
 
 
-################################################################################
+#*******************************************************************************
+log ">>>>>>>>>>>>>>>>>>>>> Marker [10] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
 sd_restart "stafd"
 sd_restart "stacd"
-sleep 1
+sleep 4
 
 log "Create invalid conditions for saving/loading stafd's last known config"
 rm -rf "/tmp/stafd"
-sd_stop "stafd"
-sd_restart "stacd"
-mkdir -p "/tmp/stafd"
-sd_start "stafd" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}"
+sd_restart "stafd"
 sleep 2
 
-################################################################################
-# Stop everything and collect coverage stats
-log "Stop stafd and stacd"
-sd_stop "stafd"
-sd_stop "stacd"
-sleep 1
+log "Remove invalid conditions for saving/loading stafd's last known config"
+mkdir -p "/tmp/stafd"
+sd_restart "stafd"
+sleep 2
 
-################################################################################
+#*******************************************************************************
 # Change ownership of files that were created as root
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage  >/dev/null 2>&1
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" staslib/__pycache__  >/dev/null 2>&1
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/libnvme/libnvme/__pycache__  >/dev/null 2>&1
 
-log "nvme disconnect-all"
-sudo nvme disconnect-all
+#*******************************************************************************
+# Run unit tests
+run_unit_test test-avahi.py
+run_unit_test test-avahi.py
+run_unit_test test-config.py
+run_unit_test test-controller.py
+run_unit_test test-gtimer.py
+run_unit_test test-iputil.py
+run_unit_test test-log.py
+run_unit_test sudo test-nvme_options.py  # Test both with super user...
+run_unit_test test-nvme_options.py       # ... and with regular user
+run_unit_test test-service.py
+run_unit_test test-timeparse.py
+run_unit_test test-transport_id.py
+run_unit_test test-udev.py
+run_unit_test test-version.py
 
-log "Remove ${stafd_conf_fname} and ${stacd_conf_fname}"
-rm "${stafd_conf_fname}"
-rm "${stacd_conf_fname}"
-
-log "Run unit test: test-avahi"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-avahi.py
-log "Run unit test: test-config"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-config.py
-log "Run unit test: test-controller"
-sudo PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-controller.py
-log "Run unit test: test-gtimer"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-gtimer.py
-log "Run unit test: test-iputil"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-iputil.py
-log "Run unit test: test-log"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-log.py
-log "Run unit test: test-nvme_options"
-sudo PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-nvme_options.py
-log "Run unit test: test-service"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-service.py
-log "Run unit test: test-timeparse"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-timeparse.py
-log "Run unit test: test-transport_id"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-transport_id.py
-log "Run unit test: test-udev"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-udev.py
-log "Run unit test: test-version"
-PYTHONPATH=${PYTHON_PATH} coverage run --rcfile=.coveragerc ../test/test-version.py
-
-################################################################################
+#*******************************************************************************
 # Stop nvme target simulator
-log "Stop nvmet"
-sudo ../utils/nvmet/nvmet.py clean
 
 log "Collect all coverage data"
 coverage combine --rcfile=.coveragerc
+printf "\n"
 
 log "Generating coverage report"
 coverage report -i --rcfile=.coveragerc
+printf "\n"
 
 log "Generating coverage report (HTML)"
 coverage html -i --rcfile=.coveragerc
-
-
-log "All done!!!"
-
-postrun_cleanup
-log "FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED"
+printf "\n"
 
