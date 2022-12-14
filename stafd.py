@@ -81,6 +81,10 @@ if __name__ == '__main__':
         ):
             '''@brief Signal sent when log pages have changed.'''
 
+        @dasbus.server.interface.dbus_signal
+        def dc_removed(self):
+            '''@brief Signal sent when log pages have changed.'''
+
         @property
         def tron(self):
             '''@brief Get Trace ON property'''

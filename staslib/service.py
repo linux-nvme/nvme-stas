@@ -236,9 +236,10 @@ class Stac(Service):
         '''@brief After the add event has been soaking for ADD_EVENT_SOAK_TIME_SEC
         seconds, we can audit the connections.
         '''
-        svc_conf = conf.SvcConf()
-        if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':
-            self._audit_all_connections(self._udev.get_nvme_ioc_tids(svc_conf.disconnect_trtypes))
+        if self._alive():
+            svc_conf = conf.SvcConf()
+            if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':
+                self._audit_all_connections(self._udev.get_nvme_ioc_tids(svc_conf.disconnect_trtypes))
         return GLib.SOURCE_REMOVE
 
     def _config_connections_audit(self):
@@ -264,6 +265,9 @@ class Stac(Service):
         '''@brief Reload configuration file. This is triggered by the SIGHUP
         signal, which can be sent with "systemctl reload stacd".
         '''
+        if not self._alive():
+            return GLib.SOURCE_REMOVE
+
         systemd.daemon.notify('RELOADING=1')
         service_cnf = conf.SvcConf()
         service_cnf.reload()
@@ -289,7 +293,14 @@ class Stac(Service):
 
     def _config_ctrls_finish(self, configured_ctrl_list: list):  # pylint: disable=too-many-locals
         '''@param configured_ctrl_list: list of TIDs'''
-        # Eliminate invalid entries
+        # This is a callback function, which may be called after the service
+        # has been signalled to stop. So let's make sure the service is still
+        # alive and well before continuing.
+        if not self._alive():
+            logging.debug('Stac._config_ctrls_finish()        - Exiting because service is no longer alive')
+            return
+
+        # Eliminate invalid entries from stacd.conf "controller list".
         configured_ctrl_list = [
             tid for tid in configured_ctrl_list if '' not in (tid.transport, tid.traddr, tid.trsvcid, tid.subsysnqn)
         ]
@@ -346,9 +357,13 @@ class Stac(Service):
 
     def _connect_to_staf(self, _):
         '''@brief Hook up DBus signal handlers for signals from stafd.'''
+        if not self._alive():
+            return
+
         try:
             self._staf = self._sysbus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
             self._staf.log_pages_changed.connect(self._log_pages_changed)
+            self._staf.dc_removed.connect(self._dc_removed)
             self._cfg_soak_tmr.start()
 
             # Make sure timer is set back to its normal value.
@@ -360,6 +375,7 @@ class Stac(Service):
     def _destroy_staf_comlink(self, watcher):  # pylint: disable=unused-argument
         if self._staf:
             self._staf.log_pages_changed.disconnect(self._log_pages_changed)
+            self._staf.dc_removed.disconnect(self._dc_removed)
             dasbus.client.proxy.disconnect_proxy(self._staf)
             self._staf = None
 
@@ -380,6 +396,9 @@ class Stac(Service):
     def _log_pages_changed(  # pylint: disable=too-many-arguments
         self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn, device
     ):
+        if not self._alive():
+            return
+
         logging.debug(
             'Stac._log_pages_changed()          - transport=%s, traddr=%s, trsvcid=%s, host_traddr=%s, host_iface=%s, subsysnqn=%s, device=%s',
             transport,
@@ -390,6 +409,14 @@ class Stac(Service):
             subsysnqn,
             device,
         )
+        if self._cfg_soak_tmr:
+            self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
+
+    def _dc_removed(self):
+        if not self._alive():
+            return
+
+        logging.debug('Stac._dc_removed()')
         if self._cfg_soak_tmr:
             self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
 
@@ -409,7 +436,7 @@ class Staf(Service):
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
             ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'persistent-connections'): 'true',  # Deprecated use [Discovery controller connection management] instead.
+            ('Global', 'persistent-connections'): 'true',  # Deprecated
             ('Discovery controller connection management', 'persistent-connections'): 'true',
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
             ('Global', 'ignore-iface'): 'false',
@@ -477,6 +504,9 @@ class Staf(Service):
         '''@brief Reload configuration file. This is triggered by the SIGHUP
         signal, which can be sent with "systemctl reload stafd".
         '''
+        if not self._alive():
+            return GLib.SOURCE_REMOVE
+
         systemd.daemon.notify('RELOADING=1')
         service_cnf = conf.SvcConf()
         service_cnf.reload()
@@ -515,12 +545,12 @@ class Staf(Service):
             device,
         )
 
-    def referrals_changed(self):
-        '''@brief Function invoked when a controller's cached referrals
-        have changed.
+    def dc_removed(self):
+        '''@brief Function invoked when a controller's cached log pages
+        have changed. This will emit a D-Bus signal to inform
+        other applications that the cached log pages have changed.
         '''
-        logging.debug('Staf.referrals_changed()')
-        self._cfg_soak_tmr.start()
+        self._dbus_iface.dc_removed.emit()
 
     def _referrals(self) -> list:
         return [
@@ -529,20 +559,24 @@ class Staf(Service):
             for dlpe in controller.referrals()
         ]
 
-    def remove_controller(self, controller, success):  # pylint: disable=unused-argument
-        '''@brief remove the specified controller object from the list of controllers
-        @param controller: the controller object
-        @param success: whether the disconnect was successful'''
-        logging.debug('Staf.remove_controller()')
-        self.log_pages_changed(controller, controller.device)
-        super().remove_controller(controller, success)
-
     def _config_ctrls_finish(self, configured_ctrl_list: list):
         '''@brief Finish discovery controllers configuration after
-        hostnames (if any) have been resolved.
-        @param configured_ctrl_list: List of TIDs
+        hostnames (if any) have been resolved. All the logic associated
+        with discovery controller creation/deletion is found here.  To
+        avoid calling this algorith repetitively for each and every events,
+        it is called after a soaking period controlled by self._cfg_soak_tmr.
+
+        @param configured_ctrl_list: List of TIDs configured in stafd.conf with
+        all hostnames resolved to their corresponding IP addresses.
         '''
-        # Eliminate invalid entries from manual configuration list
+        # This is a callback function, which may be called after the service
+        # has been signalled to stop. So let's make sure the service is still
+        # alive and well before continuing.
+        if not self._alive():
+            logging.debug('Staf._config_ctrls_finish()        - Exiting because service is no longer alive')
+            return
+
+        # Eliminate invalid entries from stafd.conf "controller list".
         controllers = list()
         for tid in configured_ctrl_list:
             if '' in (tid.transport, tid.traddr, tid.trsvcid):
@@ -571,6 +605,13 @@ class Staf(Service):
         controllers_to_add = new_controller_tids - cur_controller_tids
         controllers_to_del = cur_controller_tids - new_controller_tids
 
+        # Make a list list of excluded and invalid controllers
+        must_remove_list = set(all_ctrls) - new_controller_tids
+
+        # Find "discovered" controllers that have not responded
+        # in a while and add them to controllers that must be removed.
+        must_remove_list.update({tid for tid, controller in self._controllers.items() if controller.is_unresponsive()})
+
         # Do not remove Avahi-discovered DCs from controllers_to_del unless
         # marked as "must-be-removed" (must_remove_list). This is to account for
         # the case where mDNS discovery is momentarily disabled (e.g. Avahi
@@ -578,7 +619,6 @@ class Staf(Service):
         # temporary mDNS impairments. Removal of Avahi-discovered DCs will be
         # handled differently and only if the connection cannot be established
         # for a long period of time.
-        must_remove_list = set(all_ctrls) - new_controller_tids  # List of excluded or invalid controllers
         logging.debug('Staf._config_ctrls_finish()        - must_remove_list     = %s', list(must_remove_list))
         controllers_to_del = [
             tid
@@ -594,6 +634,9 @@ class Staf(Service):
             controller = self._controllers.pop(tid, None)
             if controller is not None:
                 controller.disconnect(self.remove_controller, keep_connection=False)
+
+        if len(controllers_to_del) > 0:
+            self.dc_removed()  # Let other apps (e.g. stacd) know that discovery controllers were removed.
 
         # Add controllers
         for tid in controllers_to_add:
@@ -616,4 +659,21 @@ class Staf(Service):
         self._dump_last_known_config(self._controllers)
 
     def _avahi_change(self):
-        self._cfg_soak_tmr.start()
+        if self._alive() and self._cfg_soak_tmr is not None:
+            self._cfg_soak_tmr.start()
+
+    def controller_unresponsive(self, tid):
+        '''@brief Function invoked when a controller becomes unresponsive and
+        needs to be removed.
+        '''
+        if self._alive() and self._cfg_soak_tmr is not None:
+            logging.debug('Staf.controller_unresponsive()     - tid = %s', tid)
+            self._cfg_soak_tmr.start()
+
+    def referrals_changed(self):
+        '''@brief Function invoked when a controller's cached referrals
+        have changed.
+        '''
+        if self._alive() and self._cfg_soak_tmr is not None:
+            logging.debug('Staf.referrals_changed()')
+            self._cfg_soak_tmr.start()

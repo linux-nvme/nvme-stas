@@ -11,9 +11,8 @@ access to GLib/Gio/Gobject resources.
 '''
 
 import logging
-import ipaddress
 from gi.repository import Gio, GLib, GObject
-from staslib import conf, trid
+from staslib import conf, iputil, trid
 
 
 # ******************************************************************************
@@ -127,6 +126,7 @@ class NameResolver:  # pylint: disable=too-few-public-methods
         '''
         pending_resolution_count = 0
         controllers_out = []
+        service_conf = conf.SvcConf()
 
         def addr_resolved(resolver, result, controller):
             try:
@@ -134,7 +134,10 @@ class NameResolver:  # pylint: disable=too-few-public-methods
 
             except GLib.GError as err:
                 # We don't need to report "cancellation" errors.
-                if not err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                if err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                    # pylint: disable=no-member
+                    logging.debug('NameResolver.resolve_ctrl_async()  - %s %s', err.message, controller)
+                else:
                     logging.error('%s', err.message)  # pylint: disable=no-member
 
                 # if err.matches(Gio.resolver_error_quark(), Gio.ResolverError.TEMPORARY_FAILURE):
@@ -146,14 +149,14 @@ class NameResolver:  # pylint: disable=too-few-public-methods
 
                 # If multiple addresses are returned (which is often the case),
                 # prefer IPv4 addresses over IPv6.
-                if 4 in conf.SvcConf().ip_family:
+                if 4 in service_conf.ip_family:
                     for address in addresses:
                         # There may be multiple IPv4 addresses. Pick 1st one.
                         if address.get_family() == Gio.SocketFamily.IPV4:
                             traddr = address.to_string()
                             break
 
-                if traddr is None and 6 in conf.SvcConf().ip_family:
+                if traddr is None and 6 in service_conf.ip_family:
                     for address in addresses:
                         # There may be multiple IPv6 addresses. Pick 1st one.
                         if address.get_family() == Gio.SocketFamily.IPV6:
@@ -181,21 +184,19 @@ class NameResolver:  # pylint: disable=too-few-public-methods
                 if not hostname_or_addr:
                     logging.error('Invalid traddr: %s', controller)
                 else:
-                    try:
-                        # Try to convert to an ipaddress object. If this
-                        # succeeds, then we don't need to call the resolver.
-                        ip = ipaddress.ip_address(hostname_or_addr)
-                    except ValueError:
+                    # Try to convert to an ipaddress object. If this
+                    # succeeds, then we don't need to call the resolver.
+                    ip = iputil.get_ipaddress_obj(hostname_or_addr)
+                    if ip is None:
                         logging.debug('NameResolver.resolve_ctrl_async()  - resolving \'%s\'', hostname_or_addr)
                         pending_resolution_count += 1
                         self._resolver.lookup_by_name_async(hostname_or_addr, cancellable, addr_resolved, controller)
+                    elif ip.version in service_conf.ip_family:
+                        controllers_out.append(controller)
                     else:
-                        if ip.version in conf.SvcConf().ip_family:
-                            controllers_out.append(controller)
-                        else:
-                            logging.warning(
-                                'Excluding configured IP address %s based on "ip-family" setting', hostname_or_addr
-                            )
+                        logging.warning(
+                            'Excluding configured IP address %s based on "ip-family" setting', hostname_or_addr
+                        )
             else:
                 controllers_out.append(controller)
 
@@ -282,7 +283,7 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         self._fail_cnt    = 0
 
     def _release_resources(self):
-        if self._cancellable and not self._cancellable.is_cancelled():
+        if self._alive():
             self._cancellable.cancel()
 
         if self._retry_tmr is not None:
@@ -313,9 +314,12 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
 
         return info
 
+    def _alive(self):
+        return self._cancellable and not self._cancellable.is_cancelled()
+
     def cancel(self):
         '''@brief cancel async operation'''
-        if self._cancellable and not self._cancellable.is_cancelled():
+        if self._alive():
             self._cancellable.cancel()
 
     def kill(self):
@@ -349,7 +353,8 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         will be executed again. This is the method that is called when
         the timer expires.
         '''
-        self.run_async(*args)
+        if self._alive():
+            self.run_async(*args)
         return GLib.SOURCE_REMOVE
 
     def _on_operation_complete(self, async_caller, result, *args):
@@ -359,7 +364,7 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         '''
         # The operation might have been cancelled.
         # Only proceed if it hasn't been cancelled.
-        if self._operation is None or self._cancellable.is_cancelled():
+        if self._operation is None or not self._alive():
             return
 
         success, data, err = async_caller.communicate_finish(result)

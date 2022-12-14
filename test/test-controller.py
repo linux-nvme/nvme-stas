@@ -60,6 +60,9 @@ class TestStaf:
     def is_avahi_reported(self, tid):
         return False
 
+    def controller_unresponsive(self, tid):
+        pass
+
 
 stafd_conf_1 = '''
 [Global]
@@ -285,9 +288,7 @@ class Test(TestCase):
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
             controller.origin = 'discovered'
             self.assertEqual(len(captured.records), 1)
-            self.assertNotEqual(
-                -1, captured.records[0].getMessage().find("Controller is not responding, but will keep trying forever")
-            )
+            self.assertNotEqual(-1, captured.records[0].getMessage().find("Controller not responding. Retrying..."))
 
         controller.set_connected(True)
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
