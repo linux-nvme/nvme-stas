@@ -19,7 +19,7 @@ NORMAL="[0m"
 log() {
 	msg="$1"
 	printf "%b%s%s%b[0m\n" "\0033" ${CYAN} "${msg}" "\0033"
-	sudo logger -i "@@@@@  COVERAGE -" -p warning "${msg}"
+	sudo logger -t COVERAGE -i "@@@@@ " -p warning -- "${msg}"
 }
 
 log_file_contents() {
@@ -37,7 +37,7 @@ log_file_contents() {
 	while IFS= read -r line; do
 		msg="   ${line}"
 		printf "%b%s%s%b[0m\n" "\0033" ${color} "${msg}" "\0033"
-		sudo logger -i "@@@@@  COVERAGE -" -p ${level} "${msg}"
+		sudo logger -t COVERAGE -i "@@@@@ " -p ${level} -- "${msg}"
 	done < ${file}
 }
 
@@ -83,7 +83,7 @@ sd_start() {
 	sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
 
 	log "Start ${app}"
-	sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --property="ExecReload=/bin/kill -HUP \$MAINPID" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >/tmp/output.txt 2>&1
+	sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --property="SyslogIdentifier=${app}" --property="ExecReload=/bin/kill -HUP \$MAINPID" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >/tmp/output.txt 2>&1
 	log_file_contents $? /tmp/output.txt
 	printf "\n"
 	sleep 1
@@ -587,7 +587,7 @@ if dev=$(python3 ${getdev} @STAFD_DBUS_NAME@ @STAFD_DBUS_PATH@); then
 else
 	msg="Failed to find a connection to a Discovery Controller"
 	printf "%b%s%s%b[0m\n" "\0033" ${RED} "${msg}" "\0033"
-	sudo logger -i "@@@@@  COVERAGE -" -p warning "${msg}"
+	sudo logger -t COVERAGE -i "@@@@@ " -p warning -- "${msg}"
 fi
 
 # Find an I/O Controller and issue a "nvme disconnect"
@@ -598,7 +598,7 @@ if dev=$(python3 ${getdev} @STACD_DBUS_NAME@ @STACD_DBUS_PATH@); then
 else
 	msg="Failed to find a connection to an I/O Controller"
 	printf "%b%s%s%b[0m\n" "\0033" ${RED} "${msg}" "\0033"
-	sudo logger -i "@@@@@  COVERAGE -" -p warning "${msg}"
+	sudo logger -t COVERAGE -i "@@@@@ " -p warning -- "${msg}"
 fi
 
 sleep 3
