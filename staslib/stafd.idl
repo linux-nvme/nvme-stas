@@ -43,6 +43,7 @@
           <arg direction="out" type="s" name="subsysnqn"/>
           <arg direction="out" type="s" name="device"/>
         </signal>
+        <signal name="dc_removed"></signal>
     </interface>
 </node>
 

@@ -36,6 +36,17 @@ GETADDRCMD = (
 )
 GETADDRCMD = len(GETADDRCMD).to_bytes(4, byteorder='little') + GETADDRCMD[4:]  # nlmsg_len
 
+# ******************************************************************************
+def get_ipaddress_obj(ipaddr):
+    '''@brief Return a IPv4Address or IPv6Address depending on whether @ipaddr
+    is a valid IPv4 or IPv6 address. Return None otherwise.'''
+    try:
+        ip = ipaddress.ip_address(ipaddr)
+    except ValueError:
+        return None
+
+    return ip
+
 
 # ******************************************************************************
 def _data_matches_ip(data_family, data, ip):
@@ -115,8 +126,8 @@ def get_interface(src_addr):
         return ''
 
     src_addr = src_addr.split('%')[0]  # remove scope-id (if any)
-    src_addr = ipaddress.ip_address(src_addr)
-    return iface_of(src_addr)
+    src_addr = get_ipaddress_obj(src_addr)
+    return '' if src_addr is None else iface_of(src_addr)
 
 
 # ******************************************************************************
@@ -130,9 +141,8 @@ def remove_invalid_addresses(controllers: list):
         if controller.transport in ('tcp', 'rdma'):
             # Let's make sure that traddr is
             # syntactically a valid IPv4 or IPv6 address.
-            try:
-                ip = ipaddress.ip_address(controller.traddr)
-            except ValueError:
+            ip = get_ipaddress_obj(controller.traddr)
+            if ip is None:
                 logging.warning('%s IP address is not valid', controller)
                 continue
 

@@ -349,23 +349,24 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         self._origin = origin
         self._log_pages = log_pages if log_pages else list()  # Log pages cache
 
-        # For Avahi-discovered DCs that are later lost, monitor the duration
-        # and if the controller does not come back for a configurable amount of
-        # time (_ctrl_lost_tmr), just remove that controller. Only Avahi-
-        # discovered controllers need this timeout-based cleanup.
-        self._ctrl_lost_time = None  # The time at which connectivity was lost
-        self._ctrl_lost_tmr = gutil.GTimer(0, self._on_ctrl_lost)
+        # For Avahi-discovered DCs that later become unresponsive, monitor how
+        # long the controller remains unresponsive and if it does not return for
+        # a configurable soak period (_ctrl_unresponsive_tmr), remove that
+        # controller. Only Avahi-discovered controllers need this timeout-based
+        # cleanup.
+        self._ctrl_unresponsive_time = None  # The time at which connectivity was lost
+        self._ctrl_unresponsive_tmr = gutil.GTimer(0, self._staf.controller_unresponsive, self.tid)
 
     def _release_resources(self):
         logging.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
         super()._release_resources()
 
-        if self._ctrl_lost_tmr is not None:
-            self._ctrl_lost_tmr.kill()
+        if self._ctrl_unresponsive_tmr is not None:
+            self._ctrl_unresponsive_tmr.kill()
 
         self._log_pages = list()
         self._staf = None
-        self._ctrl_lost_tmr = None
+        self._ctrl_unresponsive_tmr = None
 
     def _kill_ops(self):
         super()._kill_ops()
@@ -406,11 +407,14 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
     def info(self) -> dict:
         '''@brief Get the controller info for this object'''
         timeout = conf.SvcConf().zeroconf_persistence_sec
+        unresponsive_time = (
+            time.asctime(self._ctrl_unresponsive_time) if self._ctrl_unresponsive_time is not None else '---'
+        )
         info = super().info()
         info['origin'] = self._origin
-        info['controller lost timer'] = str(self._ctrl_lost_tmr)
-        info['controller lost timeout'] = f'{timeout} sec' if timeout >= 0 else 'forever'
-        info['controller lost time'] = time.asctime(self._ctrl_lost_time) if self._ctrl_lost_time is not None else '---'
+        info['unresponsive timer'] = str(self._ctrl_unresponsive_tmr)
+        info['unresponsive timeout'] = f'{timeout} sec' if timeout >= 0 else 'forever'
+        info['unresponsive time'] = unresponsive_time
         if self._get_log_op:
             info['get log page operation'] = str(self._get_log_op.as_dict())
         if self._register_op:
@@ -449,27 +453,39 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             if not self._staf.is_avahi_reported(self.tid) and not self.connected():
                 timeout = conf.SvcConf().zeroconf_persistence_sec
                 if timeout >= 0:
-                    if self._ctrl_lost_time is None:
-                        self._ctrl_lost_time = time.localtime()
-                        self._ctrl_lost_tmr.start(timeout)
+                    if self._ctrl_unresponsive_time is None:
+                        self._ctrl_unresponsive_time = time.localtime()
+                        self._ctrl_unresponsive_tmr.start(timeout)
                         logging.info(
                             '%s | %s - Controller is not responding. Will be removed by %s unless restored',
                             self.id,
                             self.device,
-                            time.ctime(time.mktime(self._ctrl_lost_time) + timeout),
+                            time.ctime(time.mktime(self._ctrl_unresponsive_time) + timeout),
                         )
 
                     return
 
                 logging.info(
-                    '%s | %s - Controller is not responding, but will keep trying forever',
+                    '%s | %s - Controller not responding. Retrying...',
                     self.id,
                     self.device,
                 )
 
-        self._ctrl_lost_time = None
-        self._ctrl_lost_tmr.stop()
-        self._ctrl_lost_tmr.set_timeout(0)
+        self._ctrl_unresponsive_time = None
+        self._ctrl_unresponsive_tmr.stop()
+        self._ctrl_unresponsive_tmr.set_timeout(0)
+
+    def is_unresponsive(self):
+        '''@brief For "discovered" DC, return True if DC is unresponsive,
+        False otherwise.
+        '''
+        return (
+            self.origin == 'discovered'
+            and not self._staf.is_avahi_reported(self.tid)
+            and not self.connected()
+            and self._ctrl_unresponsive_time is not None
+            and self._ctrl_unresponsive_tmr.time_remaining() <= 0
+        )
 
     def _resync_with_controller(self):
         '''Communicate with DC to resync the states'''
@@ -493,16 +509,6 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         super()._on_ctrl_removed(obj)
         if self._try_to_connect_deferred:
             self._try_to_connect_deferred.schedule()
-
-    def _on_ctrl_lost(self):
-        logging.info(
-            '%s | %s - Removing controller that stopped responding on %s',
-            self.id,
-            self.device,
-            time.asctime(self._ctrl_lost_time),
-        )
-        # Defer removal of this object to the next main loop's idle period.
-        GLib.idle_add(self._staf.remove_controller, self, True)
 
     def _find_existing_connection(self):
         return self._udev.find_nvme_dc_device(self.tid)
@@ -538,9 +544,9 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         super()._on_connect_success(op_obj, data)
 
         if self._alive():
-            self._ctrl_lost_time = None
-            self._ctrl_lost_tmr.stop()
-            self._ctrl_lost_tmr.set_timeout(0)
+            self._ctrl_unresponsive_time = None
+            self._ctrl_unresponsive_tmr.stop()
+            self._ctrl_unresponsive_tmr.set_timeout(0)
 
             if self._ctrl.is_registration_supported():
                 self._register_op = gutil.AsyncOperationWithRetry(

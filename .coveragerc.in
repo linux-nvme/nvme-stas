@@ -15,6 +15,9 @@ exclude_lines =
 	# Have to re-enable the standard pragma
 	pragma: no cover
 
+	# Coverage cannot cover code running in threads
+	def in_thread_exec
+
 	# Don't complain if tests don't hit defensive assertion code:
 	raise AssertionError
 	raise NotImplementedError
@@ -26,6 +29,9 @@ exclude_lines =
 	if __name__ *== *__main__ *:
 	sys\.exit\(\)
 	sys\.exit\(f?'.+\)
+
+	# ImportError is usually OK because there will be a workaround import.
+	except ImportError
 
 skip_empty = True
 

@@ -150,7 +150,7 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         if self._retry_connect_tmr is not None:
             self._retry_connect_tmr.kill()
 
-        if self._cancellable and not self._cancellable.is_cancelled():
+        if self._alive():
             self._cancellable.cancel()
 
         self._tid = None
@@ -185,7 +185,7 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     def cancel(self):
         '''@brief Used to cancel pending operations.'''
-        if self._cancellable and not self._cancellable.is_cancelled():
+        if self._alive():
             logging.debug('ControllerABC.cancel()             - %s', self.id)
             self._cancellable.cancel()
 
@@ -203,13 +203,17 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return self._cancellable and not self._cancellable.is_cancelled()
 
     def _on_try_to_connect(self):
-        self._try_to_connect_deferred.schedule()
+        if self._alive():
+            self._try_to_connect_deferred.schedule()
         return GLib.SOURCE_REMOVE
 
     def _should_try_to_reconnect(self):  # pylint: disable=no-self-use
         return True
 
     def _try_to_connect(self):
+        if not self._alive():
+            return GLib.SOURCE_REMOVE
+
         # This is a deferred function call. Make sure
         # the source of the deferred is still good.
         source = GLib.main_current_source()
@@ -306,7 +310,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
     def _release_resources(self):
         logging.debug('ServiceABC._release_resources()')
 
-        if self._cancellable and not self._cancellable.is_cancelled():
+        if self._alive():
             self._cancellable.cancel()
 
         if self._cfg_soak_tmr is not None:
@@ -389,7 +393,9 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
         if tid_to_pop:
             logging.debug('ServiceABC._remove_ctrl_from_dict()- %s | %s', tid_to_pop, controller.device)
-            self._controllers.pop(tid_to_pop, None)
+            popped = self._controllers.pop(tid_to_pop, None)
+            if popped is not None and self._cfg_soak_tmr:
+                self._cfg_soak_tmr.start()
         else:
             logging.debug('ServiceABC._remove_ctrl_from_dict()- already removed')
 
@@ -403,12 +409,18 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
             controller.kill()
 
-        if self._cfg_soak_tmr:
-            self._cfg_soak_tmr.start()
+    def _alive(self):
+        '''It's a good idea to check that this object hasn't been
+        cancelled (i.e. is still alive) when entering a callback function.
+        Callback functrions can be invoked after, for example, a process has
+        been signalled to stop or restart, in which case it makes no sense to
+        proceed with the callback.
+        '''
+        return self._cancellable and not self._cancellable.is_cancelled()
 
     def _cancel(self):
         logging.debug('ServiceABC._cancel()')
-        if not self._cancellable.is_cancelled():
+        if self._alive():
             self._cancellable.cancel()
 
         for controller in self._controllers.values():
@@ -467,7 +479,8 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         self._loop.quit()
 
     def _on_config_ctrls(self, *_user_data):
-        self._config_ctrls()
+        if self._alive():
+            self._config_ctrls()
         return GLib.SOURCE_REMOVE
 
     def _config_ctrls(self):
