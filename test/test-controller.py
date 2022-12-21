@@ -240,7 +240,7 @@ class Test(TestCase):
         controller._find_existing_connection = lambda: None
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
             controller._try_to_connect()
-        self.assertEqual(len(captured.records), 1)
+        self.assertTrue(len(captured.records) > 0)
         self.assertTrue(
             captured.records[0]
             .getMessage()
