@@ -436,7 +436,7 @@ class Staf(Service):
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
             ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'persistent-connections'): 'true',  # Deprecated
+            ('Global', 'persistent-connections'): 'false',  # Deprecated
             ('Discovery controller connection management', 'persistent-connections'): 'true',
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
             ('Global', 'ignore-iface'): 'false',
