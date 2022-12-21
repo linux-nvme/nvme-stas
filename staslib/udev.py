@@ -33,7 +33,7 @@ class Udev:
         self._monitor.filter_by(subsystem='nvme')
         self._event_source = GLib.io_add_watch(
             self._monitor.fileno(),
-            GLib.PRIORITY_DEFAULT,
+            GLib.PRIORITY_HIGH,
             GLib.IO_IN,
             self._process_udev_event,
         )
