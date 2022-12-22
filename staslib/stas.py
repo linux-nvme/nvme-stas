@@ -326,13 +326,20 @@ class CtrlTerminator:
                 controller.tid,
                 controller.device,
             )
-            self._controllers.append((controller, keep_connection, on_controller_removed_cb))
+            self._controllers.append((controller, keep_connection, on_controller_removed_cb, controller.tid))
 
             self._udev.register_for_action_events('add', self._on_kernel_events)
             self._udev.register_for_action_events('remove', self._on_kernel_events)
 
             if self._audit_tmr.time_remaining() == 0:
                 self._audit_tmr.start()
+
+    def info(self):
+        info = {
+            'controllers': str([str(tid) for _, _, _, tid in self._controllers]),
+            'audit timer': str(self._audit_tmr),
+        }
+        return info
 
     def kill(self):
         '''Stop Controller Terminator and release resources.'''
@@ -344,7 +351,7 @@ class CtrlTerminator:
             self._udev.unregister_for_action_events('remove', self._on_kernel_events)
             self._udev = None
 
-        for controller, keep_connection, on_controller_removed_cb in self._controllers:
+        for controller, keep_connection, on_controller_removed_cb, tid in self._controllers:
             controller.disconnect(on_controller_removed_cb, keep_connection)
 
         self._controllers.clear()
@@ -358,18 +365,20 @@ class CtrlTerminator:
         return GLib.SOURCE_REMOVE if self._disposal_check() else GLib.SOURCE_CONTINUE
 
     @staticmethod
-    def _keep_or_terminate(controller, keep_connection, on_controller_removed_cb):
-        '''Return True if controller is to be kept. False if controller was terminated.'''
+    def _keep_or_terminate(args):
+        '''Return False if controller is to be kept. True if controller
+        was terminated and can be removed from the list.'''
+        controller, keep_connection, on_controller_removed_cb, tid = args
         if controller.all_ops_completed():
             logging.debug(
                 'CtrlTerminator._keep_or_terminate()- %s | %s: Disconnecting controller',
-                controller.tid,
+                tid,
                 controller.device,
             )
             controller.disconnect(on_controller_removed_cb, keep_connection)
-            return False
+            return True
 
-        return True
+        return False
 
     def _disposal_check(self):
         # Iterate over the list, terminating (disconnecting) those controllers
@@ -487,6 +496,8 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         info['config soak timer'] = str(self._cfg_soak_tmr)
         info['kernel support.TP8013'] = str(nvme_options.discovery_supp)
         info['kernel support.host_iface'] = str(nvme_options.host_iface_supp)
+        if self._terminator:
+            info['terminator'] = str(self._terminator.info())
         return info
 
     def get_controllers(self) -> dict:

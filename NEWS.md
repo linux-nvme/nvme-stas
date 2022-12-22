@@ -1,5 +1,16 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.1.1
+
+* Bug fixes:
+  * Fix handling of unresponsive zeroconf-discovered Discovery Controllers.  Sometimes we could have a timeout during twice as long as normal.
+  * Set default value of legacy "[Global] persistent-connections=false"
+  * Add `ControllerTerminator` entity to deal with potential (rare) cases where Connect/Disconnect operations could be performed in reverse order.
+* Add more unit tests
+* Increase code coverage
+* Improve name resolution algorithm
+* Set udev event priority to high (for faster handling) 
+
 ## Changes with release 2.1
 
 * Bug fixes:
