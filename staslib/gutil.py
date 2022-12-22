@@ -205,7 +205,7 @@ class NameResolver:  # pylint: disable=too-few-public-methods
 
 
 # ******************************************************************************
-class _AsyncCaller(GObject.Object):
+class _TaskRunner(GObject.Object):
     '''@brief This class allows running methods asynchronously in a thread.'''
 
     def __init__(self, user_function, *user_args):
@@ -223,10 +223,10 @@ class _AsyncCaller(GObject.Object):
                             command has completed.  The callback function
                             will be passed these arguments:
 
-                                (async_caller_obj, result, *cb_args)
+                                (runner, result, *cb_args)
 
                             Where:
-                                async_caller_obj: This _AsyncCaller object instance
+                                runner: This _TaskRunner object instance
                                 result: A GObject.Object instance that contains the result
                                 cb_args: The cb_args arguments passed to communicate()
 
@@ -247,12 +247,14 @@ class _AsyncCaller(GObject.Object):
         task = Gio.Task.new(self, cancellable, cb_function, *cb_args)
         task.set_return_on_cancel(False)
         task.run_in_thread(in_thread_exec)
+        return task
 
     def communicate_finish(self, result):  # pylint: disable=no-self-use
         '''@brief Use this function in your callback (see @cb_function) to
-               extract data from the result object.
+         extract data from the result object.
 
-        @return A tuple: (success, data, errmsg)
+        @return On success (True, data, None),
+        On failure (False, None, err: GLib.Error)
         '''
         try:
             success, value = result.propagate_value()
@@ -262,7 +264,7 @@ class _AsyncCaller(GObject.Object):
 
 
 # ******************************************************************************
-class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
+class AsyncTask:  # pylint: disable=too-many-instance-attributes
     '''Object used to manage an asynchronous GLib operation. The operation
     can be cancelled or retried.
     '''
@@ -280,6 +282,7 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         self._fail_cb     = on_failure_callback
         self._retry_tmr   = None
         self._errmsg      = None
+        self._task        = None
         self._fail_cnt    = 0
 
     def _release_resources(self):
@@ -295,6 +298,7 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         self._fail_cb     = None
         self._retry_tmr   = None
         self._errmsg      = None
+        self._task        = None
         self._fail_cnt    = None
         self._cancellable = None
 
@@ -317,6 +321,10 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
     def _alive(self):
         return self._cancellable and not self._cancellable.is_cancelled()
 
+    def completed(self):
+        '''@brief Returns True if the task has completed, False otherwise.'''
+        return self._task is not None and self._task.get_completed()
+
     def cancel(self):
         '''@brief cancel async operation'''
         if self._alive():
@@ -332,8 +340,8 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         Controller. When the operation completes (or fails) the
         callback method @_on_operation_complete() will be invoked.
         '''
-        async_caller = _AsyncCaller(self._operation, *self._op_args)
-        async_caller.communicate(self._cancellable, self._on_operation_complete, *args)
+        runner = _TaskRunner(self._operation, *self._op_args)
+        self._task = runner.communicate(self._cancellable, self._on_operation_complete, *args)
 
     def retry(self, interval_sec, *args):
         '''@brief Tell this object that the async operation is to be retried
@@ -357,7 +365,7 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
             self.run_async(*args)
         return GLib.SOURCE_REMOVE
 
-    def _on_operation_complete(self, async_caller, result, *args):
+    def _on_operation_complete(self, runner, result, *args):
         '''@brief
         This callback method is invoked when the operation with the
         Controller has completed (be it successful or not).
@@ -367,7 +375,7 @@ class AsyncOperationWithRetry:  # pylint: disable=too-many-instance-attributes
         if self._operation is None or not self._alive():
             return
 
-        success, data, err = async_caller.communicate_finish(result)
+        success, data, err = runner.communicate_finish(result)
 
         if success:
             self._errmsg = None

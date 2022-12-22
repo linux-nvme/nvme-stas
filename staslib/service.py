@@ -167,7 +167,7 @@ class Stac(Service):
         udev_rule_ctrl(True)
 
         if self._udev:
-            self._udev.unregister_for_action_events('add')
+            self._udev.unregister_for_action_events('add', self._on_add_event)
 
         self._destroy_staf_comlink(self._staf_watcher)
         if self._staf_watcher is not None:
@@ -249,11 +249,11 @@ class Stac(Service):
         '''
         svc_conf = conf.SvcConf()
         if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':
-            if self._udev.get_registered_action_cback('add') is None:
+            if not self._udev.is_action_cback_registered('add', self._on_add_event):
                 self._udev.register_for_action_events('add', self._on_add_event)
                 self._audit_all_connections(self._udev.get_nvme_ioc_tids(svc_conf.disconnect_trtypes))
         else:
-            self._udev.unregister_for_action_events('add')
+            self._udev.unregister_for_action_events('add', self._on_add_event)
 
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
@@ -343,7 +343,7 @@ class Stac(Service):
                     svc_conf.disconnect_trtypes,
                 )
                 keep_connection = no_disconnect or (match_trtypes and tid.transport not in svc_conf.disconnect_trtypes)
-                controller.disconnect(self.remove_controller, keep_connection)
+                self._terminator.dispose(controller, self.remove_controller, keep_connection)
 
         for tid in controllers_to_add:
             self._controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
@@ -633,7 +633,7 @@ class Staf(Service):
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                controller.disconnect(self.remove_controller, keep_connection=False)
+                self._terminator.dispose(controller, self.remove_controller, keep_connection=False)
 
         if len(controllers_to_del) > 0:
             self.dc_removed()  # Let other apps (e.g. stacd) know that discovery controllers were removed.
