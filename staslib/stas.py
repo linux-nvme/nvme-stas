@@ -335,6 +335,7 @@ class CtrlTerminator:
                 self._audit_tmr.start()
 
     def info(self):
+        '''@brief Get info about this object (used for debug)'''
         info = {
             'controllers': str([str(tid) for _, _, _, tid in self._controllers]),
             'audit timer': str(self._audit_tmr),
@@ -351,7 +352,7 @@ class CtrlTerminator:
             self._udev.unregister_for_action_events('remove', self._on_kernel_events)
             self._udev = None
 
-        for controller, keep_connection, on_controller_removed_cb, tid in self._controllers:
+        for controller, keep_connection, on_controller_removed_cb, _ in self._controllers:
             controller.disconnect(on_controller_removed_cb, keep_connection)
 
         self._controllers.clear()
