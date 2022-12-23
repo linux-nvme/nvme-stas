@@ -18,6 +18,7 @@ from staslib import defs, singleton, timeparse
 __TOKEN_RE = re.compile(r'\s*;\s*')
 __OPTION_RE = re.compile(r'\s*=\s*')
 
+
 def parse_controller(controller):
     '''@brief Parse a "controller" entry. Controller entries are strings
            composed of several configuration parameters delimited by
@@ -206,7 +207,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
     @property
     def queue_size(self):
         '''@brief return the "Queue size" config parameter'''
-        return self.__get_int('Global', 'queue-size', range(16,1025))
+        return self.__get_int('Global', 'queue-size', range(16, 1025))
 
     @property
     def reconnect_delay(self):

@@ -165,7 +165,7 @@ class Test(TestCase):
         self.assertRaises(TypeError, lambda: ctrl.Controller(root=self.root, host=self.host, tid=self.NVME_TID))
 
     def test_get_device(self):
-        controller = TestController(root=self.root, host=self.host, tid=self.NVME_TID)
+        controller = TestController(root=self.root, host=self.host, tid=self.NVME_TID, service=None)
         self.assertEqual(controller._connect_attempts, 0)
         controller._try_to_connect()
         self.assertEqual(controller._connect_attempts, 1)
@@ -235,12 +235,12 @@ class Test(TestCase):
         self.assertIsNone(controller.disconnect(lambda *args: None, True))
 
     def test_connect(self):
-        controller = TestController(root=self.root, host=self.host, tid=self.NVME_TID)
+        controller = TestController(root=self.root, host=self.host, tid=self.NVME_TID, service=None)
         self.assertEqual(controller._connect_attempts, 0)
         controller._find_existing_connection = lambda: None
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
             controller._try_to_connect()
-        self.assertEqual(len(captured.records), 1)
+        self.assertTrue(len(captured.records) > 0)
         self.assertTrue(
             captured.records[0]
             .getMessage()

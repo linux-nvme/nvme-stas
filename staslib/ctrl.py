@@ -47,7 +47,8 @@ def dlp_supp_opts_as_string(dlp_supp_opts: int):
 class Controller(stas.ControllerABC):
     '''@brief Base class used to manage the connection to a controller.'''
 
-    def __init__(self, root, host, tid: trid.TID, discovery_ctrl=False):
+    def __init__(self, root, host, tid: trid.TID, service, discovery_ctrl=False):  # pylint: disable=too-many-arguments
+        self._serv = service  # Refers to the parent service (either Staf or Stac)
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
         self._ctrl = None  # libnvme's nvme.ctrl object
@@ -67,6 +68,7 @@ class Controller(stas.ControllerABC):
 
         self._ctrl = None
         self._udev = None
+        self._serv = None
 
     @property
     def device(self) -> str:
@@ -76,6 +78,10 @@ class Controller(stas.ControllerABC):
             self._device = self._ctrl.name
 
         return self._device or 'nvme?'
+
+    def all_ops_completed(self) -> bool:
+        '''@brief Returns True if all operations have completed. False otherwise.'''
+        return self._connect_op is None or self._connect_op.completed()
 
     def connected(self):
         '''@brief Return whether a connection is established'''
@@ -129,25 +135,28 @@ class Controller(stas.ControllerABC):
                 self._on_ctrl_removed(udev_obj)
             else:
                 logging.debug(
-                    'Controller._on_udev_notification() - %s | %s - Received "%s" event',
+                    'Controller._on_udev_notification() - %s | %s: Received "%s" event',
                     self.id,
                     udev_obj.sys_name,
                     udev_obj.action,
                 )
         else:
             logging.debug(
-                'Controller._on_udev_notification() - %s | %s - Received event on dead object. udev_obj %s: %s',
+                'Controller._on_udev_notification() - %s | %s: Received event on dead object. udev_obj %s: %s',
                 self.id,
                 self.device,
                 udev_obj.action,
                 udev_obj.sys_name,
             )
 
-    def _on_ctrl_removed(self, obj):  # pylint: disable=unused-argument
+    def _on_ctrl_removed(self, udev_obj):  # pylint: disable=unused-argument
         if self._udev:
             self._udev.unregister_for_device_events(self._on_udev_notification)
         self._kill_ops()  # Kill all pending operations
         self._ctrl = None
+
+        # Defer removal of this object to the next main loop's idle period.
+        GLib.idle_add(self._serv.remove_controller, self, True)
 
     def _do_connect(self):
         host_iface = (
@@ -175,7 +184,7 @@ class Controller(stas.ControllerABC):
             logging.debug(
                 'Controller._do_connect()           - %s Found existing control device: %s', self.id, udev_obj.sys_name
             )
-            self._connect_op = gutil.AsyncOperationWithRetry(
+            self._connect_op = gutil.AsyncTask(
                 self._on_connect_success, self._on_connect_fail, self._ctrl.init, self._host, int(udev_obj.sys_number)
             )
         else:
@@ -210,14 +219,14 @@ class Controller(stas.ControllerABC):
             logging.debug(
                 'Controller._do_connect()           - %s Connecting to nvme control with cfg=%s', self.id, cfg
             )
-            self._connect_op = gutil.AsyncOperationWithRetry(
+            self._connect_op = gutil.AsyncTask(
                 self._on_connect_success, self._on_connect_fail, self._ctrl.connect, self._host, cfg
             )
 
         self._connect_op.run_async()
 
     # --------------------------------------------------------------------------
-    def _on_connect_success(self, op_obj, data):
+    def _on_connect_success(self, op_obj: gutil.AsyncTask, data):
         '''@brief Function called when we successfully connect to the
         Controller.
         '''
@@ -231,15 +240,16 @@ class Controller(stas.ControllerABC):
             self._udev.register_for_device_events(self._device, self._on_udev_notification)
         else:
             logging.debug(
-                'Controller._on_connect_success()   - %s | %s Received event on dead object. data=%s',
+                'Controller._on_connect_success()   - %s | %s: Received event on dead object. data=%s',
                 self.id,
                 self.device,
                 data,
             )
 
-    def _on_connect_fail(self, op_obj, err, fail_cnt):  # pylint: disable=unused-argument
+    def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):  # pylint: disable=unused-argument
         '''@brief Function called when we fail to connect to the Controller.'''
         op_obj.kill()
+        self._connect_op = None
         if self._alive():
             if self._connect_attempts == 1:
                 # Do a fast re-try on the first failure.
@@ -292,10 +302,9 @@ class Controller(stas.ControllerABC):
         logging.debug(
             'Controller.disconnect()            - %s | %s: keep_connection=%s', self.id, self.device, keep_connection
         )
-        self._kill_ops()
         if self._ctrl and self._ctrl.connected() and not keep_connection:
             logging.info('%s | %s - Disconnect initiated', self.id, self.device)
-            op = gutil.AsyncOperationWithRetry(self._on_disconn_success, self._on_disconn_fail, self._ctrl.disconnect)
+            op = gutil.AsyncTask(self._on_disconn_success, self._on_disconn_fail, self._ctrl.disconnect)
             op.run_async(disconnected_cb)
         else:
             # Defer callback to the next main loop's idle period. The callback
@@ -304,7 +313,7 @@ class Controller(stas.ControllerABC):
             # the object. This would invariably lead to unpredictable outcome.
             GLib.idle_add(disconnected_cb, self, True)
 
-    def _on_disconn_success(self, op_obj, data, disconnected_cb):  # pylint: disable=unused-argument
+    def _on_disconn_success(self, op_obj: gutil.AsyncTask, data, disconnected_cb):  # pylint: disable=unused-argument
         logging.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback
@@ -313,8 +322,10 @@ class Controller(stas.ControllerABC):
         # the object. This would invariably lead to unpredictable outcome.
         GLib.idle_add(disconnected_cb, self, True)
 
-    def _on_disconn_fail(self, op_obj, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
-        logging.debug('Controller._on_disconn_fail()      - %s | %s - %s', self.id, self.device, err)
+    def _on_disconn_fail(
+        self, op_obj: gutil.AsyncTask, err, fail_cnt, disconnected_cb
+    ):  # pylint: disable=unused-argument
+        logging.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback
         # cannot be called directly as the current Controller object is in the
@@ -341,8 +352,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
     def __init__(
         self, staf, root, host, tid: trid.TID, log_pages=None, origin=None
     ):  # pylint: disable=too-many-arguments
-        super().__init__(root, host, tid, discovery_ctrl=True)
-        self._staf = staf
+        super().__init__(root, host, tid, staf, discovery_ctrl=True)
         self._register_op = None
         self._get_supported_op = None
         self._get_log_op = None
@@ -355,7 +365,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         # controller. Only Avahi-discovered controllers need this timeout-based
         # cleanup.
         self._ctrl_unresponsive_time = None  # The time at which connectivity was lost
-        self._ctrl_unresponsive_tmr = gutil.GTimer(0, self._staf.controller_unresponsive, self.tid)
+        self._ctrl_unresponsive_tmr = gutil.GTimer(0, self._serv.controller_unresponsive, self.tid)
 
     def _release_resources(self):
         logging.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
@@ -365,7 +375,6 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             self._ctrl_unresponsive_tmr.kill()
 
         self._log_pages = list()
-        self._staf = None
         self._ctrl_unresponsive_tmr = None
 
     def _kill_ops(self):
@@ -379,6 +388,15 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         if self._get_supported_op:
             self._get_supported_op.kill()
             self._get_supported_op = None
+
+    def all_ops_completed(self) -> bool:
+        '''@brief Returns True if all operations have completed. False otherwise.'''
+        return (
+            super().all_ops_completed()
+            and (self._get_log_op is None or self._get_log_op.completed())
+            and (self._register_op is None or self._register_op.completed())
+            and (self._get_supported_op is None or self._get_supported_op.completed())
+        )
 
     @property
     def origin(self):
@@ -450,7 +468,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
 
     def _handle_lost_controller(self):
         if self.origin == 'discovered':  # Only apply to mDNS-discovered DCs
-            if not self._staf.is_avahi_reported(self.tid) and not self.connected():
+            if not self._serv.is_avahi_reported(self.tid) and not self.connected():
                 timeout = conf.SvcConf().zeroconf_persistence_sec
                 if timeout >= 0:
                     if self._ctrl_unresponsive_time is None:
@@ -481,7 +499,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         '''
         return (
             self.origin == 'discovered'
-            and not self._staf.is_avahi_reported(self.tid)
+            and not self._serv.is_avahi_reported(self.tid)
             and not self.connected()
             and self._ctrl_unresponsive_time is not None
             and self._ctrl_unresponsive_tmr.time_remaining() <= 0
@@ -501,14 +519,9 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             # This event indicates that the kernel
             # driver re-connected to the DC.
             logging.debug(
-                'Dc._on_nvme_event()                - %s | %s - Received "connected" event', self.id, self.device
+                'Dc._on_nvme_event()                - %s | %s: Received "connected" event', self.id, self.device
             )
             self._resync_with_controller()
-
-    def _on_ctrl_removed(self, obj):
-        super()._on_ctrl_removed(obj)
-        if self._try_to_connect_deferred:
-            self._try_to_connect_deferred.schedule()
 
     def _find_existing_connection(self):
         return self._udev.find_nvme_dc_device(self.tid)
@@ -526,18 +539,16 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             )
 
         if conf.SvcConf().pleo_enabled and self._is_ddc() and has_supported_log_pages:
-            self._get_supported_op = gutil.AsyncOperationWithRetry(
+            self._get_supported_op = gutil.AsyncTask(
                 self._on_get_supported_success, self._on_get_supported_fail, self._ctrl.supported_log_pages
             )
             self._get_supported_op.run_async()
         else:
-            self._get_log_op = gutil.AsyncOperationWithRetry(
-                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
-            )
+            self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
             self._get_log_op.run_async()
 
     # --------------------------------------------------------------------------
-    def _on_connect_success(self, op_obj, data):
+    def _on_connect_success(self, op_obj: gutil.AsyncTask, data):
         '''@brief Function called when we successfully connect to the
         Discovery Controller.
         '''
@@ -549,7 +560,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             self._ctrl_unresponsive_tmr.set_timeout(0)
 
             if self._ctrl.is_registration_supported():
-                self._register_op = gutil.AsyncOperationWithRetry(
+                self._register_op = gutil.AsyncTask(
                     self._on_registration_success,
                     self._on_registration_fail,
                     self._ctrl.registration_ctlr,
@@ -559,7 +570,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             else:
                 self._post_registration_actions()
 
-    def _on_connect_fail(self, op_obj, err, fail_cnt):  # pylint: disable=unused-argument
+    def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):  # pylint: disable=unused-argument
         '''@brief Function called when we fail to connect to the Controller.'''
         super()._on_connect_fail(op_obj, err, fail_cnt)
 
@@ -567,7 +578,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             self._handle_lost_controller()
 
     # --------------------------------------------------------------------------
-    def _on_registration_success(self, op_obj, data):  # pylint: disable=unused-argument
+    def _on_registration_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
         '''@brief Function called when we successfully register with the
         Discovery Controller. See self._register_op object
         for details.
@@ -585,17 +596,17 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             self._post_registration_actions()
         else:
             logging.debug(
-                'Dc._on_registration_success()      - %s | %s Received event on dead object.', self.id, self.device
+                'Dc._on_registration_success()      - %s | %s: Received event on dead object.', self.id, self.device
             )
 
-    def _on_registration_fail(self, op_obj, err, fail_cnt):
+    def _on_registration_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to register with the
         Discovery Controller. See self._register_op object
         for details.
         '''
         if self._alive():
             logging.debug(
-                'Dc._on_registration_fail()         - %s | %s - %s. Retry in %s sec',
+                'Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec',
                 self.id,
                 self.device,
                 err,
@@ -606,7 +617,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
         else:
             logging.debug(
-                'Dc._on_registration_fail()         - %s | %s Received event on dead object. %s',
+                'Dc._on_registration_fail()         - %s | %s: Received event on dead object. %s',
                 self.id,
                 self.device,
                 err,
@@ -614,7 +625,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             op_obj.kill()
 
     # --------------------------------------------------------------------------
-    def _on_get_supported_success(self, op_obj, data):  # pylint: disable=unused-argument
+    def _on_get_supported_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
         '''@brief Function called when we successfully retrieved the supported
         log pages from the Discovery Controller. See self._get_supported_op object
         for details.
@@ -630,7 +641,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
                 dlp_supp_opts = 0
 
             logging.debug(
-                'Dc._on_get_supported_success()     - %s | %s - supported options = 0x%04X = %s',
+                'Dc._on_get_supported_success()     - %s | %s: supported options = 0x%04X = %s',
                 self.id,
                 self.device,
                 dlp_supp_opts,
@@ -639,7 +650,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
 
             if 'lsp' in inspect.signature(self._ctrl.discover).parameters:
                 lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
-                self._get_log_op = gutil.AsyncOperationWithRetry(
+                self._get_log_op = gutil.AsyncTask(
                     self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
                 )
             else:
@@ -649,23 +660,21 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
                     self.device,
                     getattr(libnvme, '__version__', '?.?'),
                 )
-                self._get_log_op = gutil.AsyncOperationWithRetry(
-                    self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover
-                )
+                self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
             self._get_log_op.run_async()
         else:
             logging.debug(
-                'Dc._on_get_supported_success()     - %s | %s Received event on dead object.', self.id, self.device
+                'Dc._on_get_supported_success()     - %s | %s: Received event on dead object.', self.id, self.device
             )
 
-    def _on_get_supported_fail(self, op_obj, err, fail_cnt):
+    def _on_get_supported_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to retrieve the supported log
         page from the Discovery Controller. See self._get_supported_op object
         for details.
         '''
         if self._alive():
             logging.debug(
-                'Dc._on_get_supported_fail()        - %s | %s - %s. Retry in %s sec',
+                'Dc._on_get_supported_fail()        - %s | %s: %s. Retry in %s sec',
                 self.id,
                 self.device,
                 err,
@@ -681,7 +690,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             op_obj.retry(Dc.GET_SUPPORTED_RETRY_RERIOD_SEC)
         else:
             logging.debug(
-                'Dc._on_get_supported_fail()        - %s | %s Received event on dead object. %s',
+                'Dc._on_get_supported_fail()        - %s | %s: Received event on dead object. %s',
                 self.id,
                 self.device,
                 err,
@@ -689,7 +698,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             op_obj.kill()
 
     # --------------------------------------------------------------------------
-    def _on_get_log_success(self, op_obj, data):  # pylint: disable=unused-argument
+    def _on_get_log_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
         '''@brief Function called when we successfully retrieve the log pages
         from the Discovery Controller. See self._get_log_op object
         for details.
@@ -712,34 +721,34 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
                 '%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages)
             )
             referrals_after = self.referrals()
-            self._staf.log_pages_changed(self, self.device)
+            self._serv.log_pages_changed(self, self.device)
             if referrals_after != referrals_before:
                 logging.debug(
-                    'Dc._on_get_log_success()           - %s | %s Referrals before = %s',
+                    'Dc._on_get_log_success()           - %s | %s: Referrals before = %s',
                     self.id,
                     self.device,
                     referrals_before,
                 )
                 logging.debug(
-                    'Dc._on_get_log_success()           - %s | %s Referrals after  = %s',
+                    'Dc._on_get_log_success()           - %s | %s: Referrals after  = %s',
                     self.id,
                     self.device,
                     referrals_after,
                 )
-                self._staf.referrals_changed()
+                self._serv.referrals_changed()
         else:
             logging.debug(
-                'Dc._on_get_log_success()           - %s | %s Received event on dead object.', self.id, self.device
+                'Dc._on_get_log_success()           - %s | %s: Received event on dead object.', self.id, self.device
             )
 
-    def _on_get_log_fail(self, op_obj, err, fail_cnt):
+    def _on_get_log_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to retrieve the log pages
         from the Discovery Controller. See self._get_log_op object
         for details.
         '''
         if self._alive():
             logging.debug(
-                'Dc._on_get_log_fail()              - %s | %s - %s. Retry in %s sec',
+                'Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec',
                 self.id,
                 self.device,
                 err,
@@ -750,7 +759,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
         else:
             logging.debug(
-                'Dc._on_get_log_fail()              - %s | %s Received event on dead object. %s',
+                'Dc._on_get_log_fail()              - %s | %s: Received event on dead object. %s',
                 self.id,
                 self.device,
                 err,
@@ -763,22 +772,8 @@ class Ioc(Controller):
     '''@brief This object establishes a connection to one I/O Controller.'''
 
     def __init__(self, stac, root, host, tid: trid.TID):
-        self._stac = stac
         self._dlpe = None
-        super().__init__(root, host, tid)
-
-    def _release_resources(self):
-        super()._release_resources()
-        self._stac = None
-
-    def _on_ctrl_removed(self, obj):
-        '''Called when the associated nvme device (/dev/nvmeX) is removed
-        from the system.
-        '''
-        super()._on_ctrl_removed(obj)
-
-        # Defer removal of this object to the next main loop's idle period.
-        GLib.idle_add(self._stac.remove_controller, self, True)
+        super().__init__(root, host, tid, stac)
 
     def _find_existing_connection(self):
         return self._udev.find_nvme_ioc_device(self.tid)

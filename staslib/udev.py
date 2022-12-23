@@ -33,7 +33,7 @@ class Udev:
         self._monitor.filter_by(subsystem='nvme')
         self._event_source = GLib.io_add_watch(
             self._monitor.fileno(),
-            GLib.PRIORITY_DEFAULT,
+            GLib.PRIORITY_HIGH,
             GLib.IO_IN,
             self._process_udev_event,
         )
@@ -65,23 +65,26 @@ class Udev:
             logging.error("Udev.get_nvme_device() - Error: %s", ex)
             return None
 
-    def get_registered_action_cback(self, action: str):
-        '''@brief Return the callback function registered for a specific action.
+    def is_action_cback_registered(self, action: str, user_cback):
+        '''Returns True if @user_cback is registered for @action. False otherwise.
         @param action: one of 'add', 'remove', 'change'.
+        @param user_cback: A callback function with this signature: cback(udev_obj)
         '''
-        return self._action_event_registry.get(action, None)
+        return user_cback in self._action_event_registry.get(action, set())
 
     def register_for_action_events(self, action: str, user_cback):
         '''@brief Register a callback function to be called when udev events
         for a specific action are received.
         @param action: one of 'add', 'remove', 'change'.
         '''
-        if action and action not in self._action_event_registry:
-            self._action_event_registry[action] = user_cback
+        self._action_event_registry.setdefault(action, set()).add(user_cback)
 
-    def unregister_for_action_events(self, action: str):
+    def unregister_for_action_events(self, action: str, user_cback):
         '''@brief The opposite of register_for_action_events()'''
-        self._action_event_registry.pop(action, None)
+        try:
+            self._action_event_registry.get(action, set()).remove(user_cback)
+        except KeyError:  # Raise if user_cback already removed
+            pass
 
     def register_for_device_events(self, sys_name: str, user_cback):
         '''@brief Register a callback function to be called when udev events
@@ -227,8 +230,17 @@ class Udev:
 
         return GLib.SOURCE_CONTINUE
 
+    @staticmethod
+    def __cback_names(action_cbacks, device_cback):
+        names = []
+        for cback in action_cbacks:
+            names.append(cback.__name__ + '()')
+        if device_cback:
+            names.append(device_cback.__name__ + '()')
+        return names
+
     def _device_event(self, device, event_count):
-        action_cback = self._action_event_registry.get(device.action, None)
+        action_cbacks = self._action_event_registry.get(device.action, set())
         device_cback = self._device_event_registry.get(device.sys_name, None)
 
         logging.debug(
@@ -236,10 +248,10 @@ class Udev:
             f'{device.sys_name}:',
             device.action,
             f'{event_count:2}:{device.sequence_number}',
-            '/'.join([cback.__name__ + '()' for cback in (action_cback, device_cback) if cback is not None]),
+            self.__cback_names(action_cbacks, device_cback),
         )
 
-        if action_cback is not None:
+        for action_cback in action_cbacks:
             GLib.idle_add(action_cback, device)
 
         if device_cback is not None:
