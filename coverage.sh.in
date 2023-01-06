@@ -249,7 +249,6 @@ log "Create dummy config file ${stafd_conf_fname}"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron              = true
-kato              = 10
 ip-family         = ipv6
 johnny            = be-good
 queue-size        = 2000000
@@ -366,7 +365,6 @@ cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron              = true
 ip-family         = ipv4
-kato              = 10
 queue-size        = 2000000
 reconnect-delay   = 1
 ctrl-loss-tmo     = 1

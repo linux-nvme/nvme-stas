@@ -429,10 +429,13 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             time.asctime(self._ctrl_unresponsive_time) if self._ctrl_unresponsive_time is not None else '---'
         )
         info = super().info()
-        info['origin'] = self._origin
-        info['unresponsive timer'] = str(self._ctrl_unresponsive_tmr)
-        info['unresponsive timeout'] = f'{timeout} sec' if timeout >= 0 else 'forever'
-        info['unresponsive time'] = unresponsive_time
+        info['origin'] = self.origin
+        if self.origin == 'discovered':
+            # The code that handles "unresponsive" DCs only applies to
+            # discovered DCs. So, let's only print that info when it's relevant.
+            info['unresponsive timer'] = str(self._ctrl_unresponsive_tmr)
+            info['unresponsive timeout'] = f'{timeout} sec' if timeout >= 0 else 'forever'
+            info['unresponsive time'] = unresponsive_time
         if self._get_log_op:
             info['get log page operation'] = str(self._get_log_op.as_dict())
         if self._register_op:
