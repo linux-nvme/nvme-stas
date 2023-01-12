@@ -14,6 +14,7 @@ components = [
     'Makefile',
     'make.bat',
     'index.rst',
+    'environment.txt',
     'installation.rst',
     'nvme-stas.rst',
     'org.nvmexpress.stac.debug.rst',
