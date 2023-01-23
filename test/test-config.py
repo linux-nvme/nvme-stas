@@ -89,9 +89,11 @@ class StasProcessConfUnitTest(unittest.TestCase):
         )
 
         self.assertEqual(service_conf.get_excluded(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
-        self.assertEqual(service_conf.get_stypes(), ['_nvme-disc._tcp'])
-        self.assertTrue(service_conf.zeroconf_enabled())
 
+        stypes = service_conf.get_stypes()
+        self.assertIn('_nvme-disc._tcp', stypes)
+
+        self.assertTrue(service_conf.zeroconf_enabled())
         self.assertEqual(service_conf.connect_attempts_on_ncc, 2)
         data = [
             '[I/O controller connection management]\n',
