@@ -376,7 +376,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
         self._change_cb()
 
-    def _service_identified(
+    def _service_identified(  # pylint: disable=too-many-locals
         self,
         _connection,
         _sender_name: str,
