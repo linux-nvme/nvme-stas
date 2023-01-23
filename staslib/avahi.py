@@ -407,9 +407,8 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
         service = (interface, protocol, name, stype, domain)
         if service in self._services:
-            transport = 'tcp' if txt.get('p', 'tcp').strip() == 'tcp' else 'rdma'
+            transport = 'tcp' if txt.get('p', 'tcp').strip() == 'tcp' else 'rdma'  # choose transport as rdma if not tcp
             self._services[service]['data'] = {
-                # choose transport as rdma if not tcp
                 'transport':  transport,
                 'traddr':     address.strip(),
                 'trsvcid':    str(port).strip(),
