@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.1.2
+
+* Bug fixes:
+  * Add support for RoCE and iWARP protocols in mDNS TXT field (i.e. `p=roce`, `p=iwarp`)
+  * Add `_nvme-disc._udp` to the list of supported mDNS service types (stype)
+
 ## Changes with release 2.1.1
 
 * Bug fixes:
