@@ -1,5 +1,12 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 1.1.9
+
+Backporting changes from the main branch:
+
+- Add support for RoCE when handling the TXT field of mDNS messages
+- Add `_nvme-disc._udp` to the list of mDNS service types we register for with the Avahi daemon
+
 ## Changes with release 1.1.8
 
 - Fix handling of TXT field containing NQN specified with lowercase "nqn" key. TP8009 says that the key for the Discovery Controller's NQN should be specified with the lowercase string "nqn". However, some DC may send an uppercase "NQN". nvme-stas will now support either uppercase "NQN" or lowercase "nqn".
