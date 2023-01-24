@@ -37,6 +37,21 @@ def _txt2dict(txt: list):
     return the_dict
 
 
+def _proto2trans(protocol):
+    '''Return the matching transport for the given protocol.'''
+    if protocol is None:
+        return None
+
+    protocol = protocol.strip().lower()
+    if protocol == 'tcp':
+        return 'tcp'
+
+    if protocol in ('roce', 'iwarp', 'rdma'):
+        return 'rdma'
+
+    return None
+
+
 # ******************************************************************************
 class Avahi:  # pylint: disable=too-many-instance-attributes
     '''@brief Avahi Server proxy. Set up the D-Bus connection to the Avahi
@@ -376,7 +391,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
         self._change_cb()
 
-    def _service_identified(
+    def _service_identified(  # pylint: disable=too-many-locals
         self,
         _connection,
         _sender_name: str,
@@ -407,16 +422,27 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
         service = (interface, protocol, name, stype, domain)
         if service in self._services:
-            self._services[service]['data'] = {
-                'transport':  txt.get('p', 'tcp').strip(),
-                'traddr':     address.strip(),
-                'trsvcid':    str(port).strip(),
-                'host-iface': socket.if_indextoname(interface).strip(),
-                'subsysnqn':  txt.get('nqn', defs.WELL_KNOWN_DISC_NQN).strip()
-                              if conf.NvmeOptions().discovery_supp
-                              else defs.WELL_KNOWN_DISC_NQN,
-            }
-        self._change_cb()
+            transport = _proto2trans(txt.get('p'))
+            if transport is not None:
+                self._services[service]['data'] = {
+                    'transport':  transport,
+                    'traddr':     address.strip(),
+                    'trsvcid':    str(port).strip(),
+                    # host-iface permitted for tcp alone and not rdma
+                    'host-iface': socket.if_indextoname(interface).strip() if transport == 'tcp' else '',
+                    'subsysnqn':  txt.get('nqn', defs.WELL_KNOWN_DISC_NQN).strip()
+                                  if conf.NvmeOptions().discovery_supp
+                                  else defs.WELL_KNOWN_DISC_NQN,
+                }
+
+                self._change_cb()
+            else:
+                logging.error(
+                    'Received invalid/undefined protocol in mDNS TXT field: address=%s, iface=%s, TXT=%s',
+                    address,
+                    socket.if_indextoname(interface).strip(),
+                    txt,
+                )
 
     def _failure_handler(  # pylint: disable=no-self-use
         self,

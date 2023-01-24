@@ -54,7 +54,8 @@ class StasProcessConfUnitTest(unittest.TestCase):
 
         self.assertEqual(service_conf.get_blacklist(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
 
-        self.assertEqual(service_conf.get_stypes(), ['_nvme-disc._tcp'])
+        stypes = service_conf.get_stypes()
+        self.assertIn('_nvme-disc._tcp', stypes)
 
         self.assertTrue(service_conf.zeroconf_enabled())
 
