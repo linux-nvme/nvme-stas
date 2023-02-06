@@ -5,12 +5,6 @@ import subprocess
 from pyfakefs.fake_filesystem_unittest import TestCase
 from staslib import log
 
-try:
-    cmd = ['python3', '-c', 'import systemd.journal; print(f"{systemd.journal.__file__}")']
-    p = subprocess.run(cmd, stdout=subprocess.PIPE, check=True)
-    JOURNAL_MODULE  = p.stdout.decode().strip()
-except subprocess.CalledProcessError:
-    JOURNAL_MODULE  = None
 
 class StaslibLogTest(TestCase):
     '''Test for log.py module'''
@@ -18,43 +12,90 @@ class StaslibLogTest(TestCase):
     def setUp(self):
         self.setUpPyfakefs()
 
-#    def tearDown(self):
-#        # No longer need self.tearDownPyfakefs()
-#        pass
-#
-#    @classmethod
-#    def setUpClass(cls):
-#        pass
-#
-#    @classmethod
-#    def tearDownClass(cls):
-#        pass
+    def test_log_with_systemd_journal(self):
+        '''Check that we can set the handler to systemd.journal.JournalHandler'''
+        try:
+            # We can't proceed with this test if the
+            # module systemd.journal is not installed.
+            import systemd.journal  # pylint: disable=import-outside-toplevel
+        except ModuleNotFoundError:
+            return
+
+        log.init(syslog=True)
+
+        logger = logging.getLogger()
+        handler = logger.handlers[-1]
+
+        self.assertIsInstance(handler, systemd.journal.JournalHandler)
+
+        self.assertEqual(log.level(), 'INFO')
+
+        log.set_level_from_tron(tron=True)
+        self.assertEqual(log.level(), 'DEBUG')
+        log.set_level_from_tron(tron=False)
+        self.assertEqual(log.level(), 'INFO')
+
+        logger.removeHandler(handler)
+        handler.close()
 
     def test_log_with_syslog_handler(self):
         '''Check that we can set the handler to logging.handlers.SysLogHandler'''
-        if JOURNAL_MODULE is not None:
-            # We need to mask the real journal module by creating
-            # a fake journal module with invalid contents
-            self.fs.create_file(JOURNAL_MODULE, contents='import bzgatejgtlatdfke-094n\n')
+        try:
+            # The log.py module uses systemd.journal.JournalHandler() as the
+            # default logging handler (if present). Therefore, in order to force
+            # log.py to use SysLogHandler as the handler, we need to mock
+            # systemd.journal.JournalHandler() with an invalid class.
+            import systemd.journal  # pylint: disable=import-outside-toplevel
+        except ModuleNotFoundError:
+            original_handler = None
+        else:
 
-        log.init(syslog=False)
+            class MockJournalHandler:
+                def __new__(cls, *args, **kwargs):
+                    raise ModuleNotFoundError
+
+            original_handler = systemd.journal.JournalHandler
+            systemd.journal.JournalHandler = MockJournalHandler
+
+        log.init(syslog=True)
+
+        logger = logging.getLogger()
+        handler = logger.handlers[-1]
+
+        self.assertIsInstance(handler, logging.handlers.SysLogHandler)
+
+        self.assertEqual(log.level(), 'INFO')
+
+        log.set_level_from_tron(tron=True)
         self.assertEqual(log.level(), 'DEBUG')
-        logging.shutdown()
+        log.set_level_from_tron(tron=False)
+        self.assertEqual(log.level(), 'INFO')
 
+        logger.removeHandler(handler)
+        handler.close()
 
-    def test_log_with_systemd_journal(self):
-        '''Check that we can set the handler to systemd.journal.JournalHandler (needs python-systemd to be installed)'''
-        if JOURNAL_MODULE is not None:
-            log.init(syslog=False)
-            self.assertEqual(log.level(), 'DEBUG')
-            logging.shutdown()
-
+        if original_handler is not None:
+            # Restore original systemd.journal.JournalHandler()
+            systemd.journal.JournalHandler = original_handler
 
     def test_log_with_stdout(self):
         '''Check that we can set the handler to logging.StreamHandler (i.e. stdout)'''
-        log.init(syslog=True)
+        log.init(syslog=False)
+
+        logger = logging.getLogger()
+        handler = logger.handlers[-1]
+
+        self.assertIsInstance(handler, logging.StreamHandler)
+
+        self.assertEqual(log.level(), 'DEBUG')
+
+        log.set_level_from_tron(tron=True)
+        self.assertEqual(log.level(), 'DEBUG')
+        log.set_level_from_tron(tron=False)
         self.assertEqual(log.level(), 'INFO')
-        logging.shutdown()
+
+        logger.removeHandler(handler)
+        handler.close()
 
 
 if __name__ == '__main__':
