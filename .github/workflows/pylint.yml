@@ -35,7 +35,7 @@ jobs:
           sudo apt-get upgrade
           sudo apt-get install -y meson libgirepository1.0-dev libsystemd-dev python3-systemd python3-pyudev python3-lxml
           python3 -m pip install --upgrade pip wheel
-          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
+          python3 -m pip install --upgrade meson dasbus pylint pyflakes PyGObject
 
       - name: Install libnvme
         run: |
