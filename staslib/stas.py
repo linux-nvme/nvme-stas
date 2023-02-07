@@ -15,11 +15,10 @@ import abc
 import signal
 import pickle
 import logging
-from itertools import filterfalse
-import systemd.daemon
 import dasbus.connection
 from gi.repository import Gio, GLib
-from staslib import conf, defs, gutil, log, trid, udev
+from systemd.daemon import notify as sd_notify
+from staslib import conf, defs, gutil, log, trid
 
 try:
     # Python 3.9 or later
@@ -275,130 +274,6 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         '''@brief This is called when a "reload" signal is received.'''
         raise NotImplementedError()
 
-
-# ******************************************************************************
-class CtrlTerminator:
-    '''The Controller Terminator is used to gracefully disconnect from
-    controllers. All communications with controllers is handled by the kernel.
-    Once we make a request to the kernel to perform an operation (e.g. connect),
-    we have to wait for it to complete before requesting another operation. This
-    is particularly important when we want to disconnect from a controller while
-    there are pending operations, especially a pending connect.
-
-    The "connect" operation is especially unpredictable because all connect
-    requests are made through the blocking interface "/dev/nvme-fabrics". This
-    means that once a "connect" operation has been submitted, and depending on
-    how many connect requests are made concurrently, it can take several seconds
-    for a connect to be processed by the kernel.
-
-    While connect or other operations are being performed, it is possible
-    that a disconnect may be requested (e.g. someone or something changes the
-    configuration to remove a controller). Because it is not possible to
-    terminate a pending operation request, we have to wait for it to complete
-    before we can issue a disconnect. Failure to do that will result in
-    operations being performed by the kernel in reverse order. For example,
-    a disconnect may be executed before a pending connect has had a chance to
-    complete. And this will result in controllers that are supposed to be
-    disconnected to be connected without nvme-stas knowing about it.
-
-    The Controller Terminator is used when we need to disconnect from a
-    controller. It will make sure that there are no pending operations before
-    issuing a disconnect.
-    '''
-
-    DISPOSAL_AUDIT_PERIOD_SEC = 30
-
-    def __init__(self):
-        self._udev = udev.UDEV
-        self._controllers = list()  # The list of controllers to dispose of.
-        self._audit_tmr = gutil.GTimer(self.DISPOSAL_AUDIT_PERIOD_SEC, self._on_disposal_check)
-
-    def dispose(self, controller: ControllerABC, on_controller_removed_cb, keep_connection: bool):
-        '''Invoked by a service (stafd or stacd) to dispose of a controller'''
-        if controller.all_ops_completed():
-            logging.debug(
-                'CtrlTerminator.dispose()           - %s | %s: Invoke disconnect()', controller.tid, controller.device
-            )
-            controller.disconnect(on_controller_removed_cb, keep_connection)
-        else:
-            logging.debug(
-                'CtrlTerminator.dispose()           - %s | %s: Add controller to garbage disposal',
-                controller.tid,
-                controller.device,
-            )
-            self._controllers.append((controller, keep_connection, on_controller_removed_cb, controller.tid))
-
-            self._udev.register_for_action_events('add', self._on_kernel_events)
-            self._udev.register_for_action_events('remove', self._on_kernel_events)
-
-            if self._audit_tmr.time_remaining() == 0:
-                self._audit_tmr.start()
-
-    def info(self):
-        '''@brief Get info about this object (used for debug)'''
-        info = {
-            'controllers': str([str(tid) for _, _, _, tid in self._controllers]),
-            'audit timer': str(self._audit_tmr),
-        }
-        return info
-
-    def kill(self):
-        '''Stop Controller Terminator and release resources.'''
-        self._audit_tmr.stop()
-        self._audit_tmr = None
-
-        if self._udev:
-            self._udev.unregister_for_action_events('add', self._on_kernel_events)
-            self._udev.unregister_for_action_events('remove', self._on_kernel_events)
-            self._udev = None
-
-        for controller, keep_connection, on_controller_removed_cb, _ in self._controllers:
-            controller.disconnect(on_controller_removed_cb, keep_connection)
-
-        self._controllers.clear()
-
-    def _on_kernel_events(self, udev_obj):  # pylint: disable=unused-argument
-        logging.debug('CtrlTerminator._on_kernel_events() - %s event received', udev_obj.action)
-        self._disposal_check()
-
-    def _on_disposal_check(self, *_user_data):
-        logging.debug('CtrlTerminator._on_disposal_check()- Periodic audit')
-        return GLib.SOURCE_REMOVE if self._disposal_check() else GLib.SOURCE_CONTINUE
-
-    @staticmethod
-    def _keep_or_terminate(args):
-        '''Return False if controller is to be kept. True if controller
-        was terminated and can be removed from the list.'''
-        controller, keep_connection, on_controller_removed_cb, tid = args
-        if controller.all_ops_completed():
-            logging.debug(
-                'CtrlTerminator._keep_or_terminate()- %s | %s: Disconnecting controller',
-                tid,
-                controller.device,
-            )
-            controller.disconnect(on_controller_removed_cb, keep_connection)
-            return True
-
-        return False
-
-    def _disposal_check(self):
-        # Iterate over the list, terminating (disconnecting) those controllers
-        # that have no pending operations, and remove those controllers from the
-        # list (only keep controllers that still have operations pending).
-        self._controllers[:] = filterfalse(self._keep_or_terminate, self._controllers)
-        disposal_complete = len(self._controllers) == 0
-
-        if disposal_complete:
-            logging.debug('CtrlTerminator._disposal_check()   - Disposal complete')
-            self._audit_tmr.stop()
-            self._udev.unregister_for_action_events('add', self._on_kernel_events)
-            self._udev.unregister_for_action_events('remove', self._on_kernel_events)
-        else:
-            self._audit_tmr.start()  # Restart timer
-
-        return disposal_complete
-
-
 # ******************************************************************************
 class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
     '''@brief Base class used to manage a STorage Appliance Service'''
@@ -420,7 +295,6 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         self._dbus_iface   = None
         self._cfg_soak_tmr = gutil.GTimer(self.CONF_STABILITY_SOAK_TIME_SEC, self._on_config_ctrls)
         self._sysbus       = dasbus.connection.SystemMessageBus()
-        self._terminator   = CtrlTerminator()
 
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, self._stop_hdlr)  # CTRL-C
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr)  # systemctl stop stafd
@@ -454,15 +328,11 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         if self._sysbus:
             self._sysbus.disconnect()
 
-        if self._terminator:
-            self._terminator.kill()
-
         self._cfg_soak_tmr = None
         self._cancellable = None
         self._resolver = None
         self._lkc_file = None
         self._sysbus = None
-        self._terminator = None
 
     def _config_dbus(self, iface_obj, bus_name: str, obj_name: str):
         self._dbus_iface = iface_obj
@@ -497,8 +367,6 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         info['config soak timer'] = str(self._cfg_soak_tmr)
         info['kernel support.TP8013'] = str(nvme_options.discovery_supp)
         info['kernel support.host_iface'] = str(nvme_options.host_iface_supp)
-        if self._terminator:
-            info['terminator'] = str(self._terminator.info())
         return info
 
     def get_controllers(self) -> dict:
@@ -564,9 +432,13 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         for controller in self._controllers.values():
             controller.cancel()
 
+    @abc.abstractmethod
+    def _disconnect_all(self):
+        pass
+
     def _stop_hdlr(self):
         logging.debug('ServiceABC._stop_hdlr()')
-        systemd.daemon.notify('STOPPING=1')
+        sd_notify('STOPPING=1')
 
         self._cancel()  # Cancel pending operations
 
@@ -575,16 +447,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         if len(self._controllers) == 0:
             GLib.idle_add(self._exit)
         else:
-            # Tell all controller objects to disconnect
-            keep_connections = self._keep_connections_on_exit()
-            controllers = self._controllers.values()
-            logging.debug(
-                'ServiceABC._stop_hdlr()            - Controller count = %s, keep_connections = %s',
-                len(controllers),
-                keep_connections,
-            )
-            for controller in controllers:
-                self._terminator.dispose(controller, self._on_final_disconnect, keep_connections)
+            self._disconnect_all()
 
         return GLib.SOURCE_REMOVE
 
