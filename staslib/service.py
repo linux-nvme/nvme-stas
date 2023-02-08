@@ -10,6 +10,7 @@
 which the Staf and the Stac objects are derived.'''
 
 import json
+import shutil
 import logging
 import pathlib
 from itertools import filterfalse
@@ -144,6 +145,7 @@ class CtrlTerminator:
 
         return disposal_complete
 
+
 # ******************************************************************************
 class Service(stas.ServiceABC):
     '''@brief Base class used to manage a STorage Appliance Service'''
@@ -204,19 +206,38 @@ ENV{NVME_HOST_IFACE}=="", ENV{NVME_HOST_IFACE}="none"
 ACTION=="change", SUBSYSTEM=="nvme", ENV{NVME_AEN}=="0x70f002", \
   ENV{NVME_TRTYPE}!="tcp", ENV{NVME_TRADDR}=="*", \
   ENV{NVME_TRSVCID}=="*", ENV{NVME_HOST_TRADDR}=="*", ENV{NVME_HOST_IFACE}=="*", \
-  RUN+="@SYSTEMCTL@ --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
+  RUN+="%s --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
 
 ACTION=="change", SUBSYSTEM=="fc", ENV{FC_EVENT}=="nvmediscovery", \
   ENV{NVMEFC_HOST_TRADDR}=="*",  ENV{NVMEFC_TRADDR}=="*", \
-  RUN+="@SYSTEMCTL@ --no-block start nvmf-connect@--device=none\t--transport=fc\t--traddr=$env{NVMEFC_TRADDR}\t--trsvcid=none\t--host-traddr=$env{NVMEFC_HOST_TRADDR}.service"
+  RUN+="%s --no-block start nvmf-connect@--device=none\t--transport=fc\t--traddr=$env{NVMEFC_TRADDR}\t--trsvcid=none\t--host-traddr=$env{NVMEFC_HOST_TRADDR}.service"
 
 ACTION=="change", SUBSYSTEM=="nvme", ENV{NVME_EVENT}=="rediscover", ATTR{cntrltype}=="discovery", \
   ENV{NVME_TRTYPE}!="tcp", ENV{NVME_TRADDR}=="*", \
   ENV{NVME_TRSVCID}=="*", ENV{NVME_HOST_TRADDR}=="*", ENV{NVME_HOST_IFACE}=="*", \
-  RUN+="@SYSTEMCTL@ --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
+  RUN+="%s --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
 
 LABEL="autoconnect_end"
 '''
+
+
+def _get_new_rules():
+    '''Get the file containing the original udev rule installed by nvme-cli'''
+    # Let's see if we can find existing rules
+    for path in ('/usr/lib/udev/rules.d', '/usr/local/lib/udev/rules.d'):
+        udev_rule_original = pathlib.Path(path, '70-nvmf-autoconnect.rules')
+        if udev_rule_original.exists():
+            # Copy original file and suppress udev rule for TCP only
+            text = udev_rule_original.read_text()  # pylint: disable=unspecified-encoding
+            text = text.replace('ENV{NVME_TRTYPE}=="*"', 'ENV{NVME_TRTYPE}!="tcp"')
+            return text
+
+    # No existing rules found. This is probably because nvme-cli is not
+    # currently installed. In that case, let's create rules so that if nvme-cli
+    # gets installed later we'll be ready for it.
+    systemctl = shutil.which('systemctl')
+    text = OVERRIDE_TCP_UDEV_RULE % (systemctl, systemctl, systemctl)
+    return text
 
 
 def udev_rule_ctrl(enable):
@@ -241,14 +262,7 @@ def udev_rule_ctrl(enable):
     else:
         if not udev_rule_suppress.exists():
             pathlib.Path('/run/udev/rules.d').mkdir(parents=True, exist_ok=True)
-
-            udev_rule_original = pathlib.Path('/usr/lib/udev/rules.d', '70-nvmf-autoconnect.rules')
-            if udev_rule_original.exists():
-                # Copy original file and suppress udev rule for TCP only
-                text = udev_rule_original.read_text()  # pylint: disable=unspecified-encoding
-                text = text.replace('ENV{NVME_TRTYPE}=="*"', 'ENV{NVME_TRTYPE}!="tcp"')
-            else:
-                text = OVERRIDE_TCP_UDEV_RULE
+            text = _get_new_rules()
             udev_rule_suppress.write_text(text)  # pylint: disable=unspecified-encoding
 
 
