@@ -46,7 +46,7 @@ stafd (STorage Appliance Finder) and stacd (STorage Appliance Connector).
 %autosetup -p1 -n %{name}-%{version}
 
 %build
-%meson -Dman=true -Dhtml=true
+%meson --wrap-mode=nodownload -Dman=true -Dhtml=true
 %meson_build
 
 %install
@@ -84,8 +84,10 @@ stafd (STorage Appliance Finder) and stacd (STorage Appliance Connector).
 %{_sbindir}/stafd
 %{_unitdir}/stacd.service
 %{_unitdir}/stafd.service
-%dir %{python3_sitearch}/staslib
-%{python3_sitearch}/staslib/*
+%{_unitdir}/stas-config.target
+%{_unitdir}/stas-config@.service
+%dir %{python3_sitelib}/staslib
+%{python3_sitelib}/staslib/*
 %doc %{_pkgdocdir}
 %{_mandir}/man1/sta*.1*
 %{_mandir}/man5/*.5*
