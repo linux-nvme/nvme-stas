@@ -11,12 +11,16 @@ BUILD-DIR         := .build
 DEB-PKG-DIR       := ${BUILD-DIR}/deb-pkg
 RPM-BUILDROOT-DIR := ${BUILD-DIR}/rpmbuild
 
+ifneq (,$(strip $(filter $(MAKECMDGOALS),rpm deb dist)))
+  XTRA-MESON-OPTS := --wrap-mode=nodownload
+endif
+
 .PHONY: update-subprojects
 update-subprojects:
 	meson subprojects update
 
 ${BUILD-DIR}:
-	BUILD_DIR=${BUILD-DIR} ./configure
+	BUILD_DIR=${BUILD-DIR} ./configure ${XTRA-MESON-OPTS}
 	@echo "Configuration located in: $@"
 	@echo "-------------------------------------------------------"
 
@@ -92,7 +96,7 @@ deb: ${BUILD-DIR}
 ################################################################################
 # RedHat (*.rpm)
 ${BUILD-DIR}/nvme-stas.spec: ${BUILD-DIR} nvme-stas.spec.in
-	meson --reconfigure ${BUILD-DIR}
+	meson --wrap-mode=nodownload --reconfigure ${BUILD-DIR}
 
 ${RPM-BUILDROOT-DIR}: ${BUILD-DIR}/nvme-stas.spec
 	rpmbuild -ba $< --build-in-place --clean --nocheck --define "_topdir $(abspath ${BUILD-DIR}/rpmbuild)"
