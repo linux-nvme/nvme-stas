@@ -19,6 +19,9 @@ from staslib import conf, gutil, trid, udev, stas
 
 
 DC_KATO_DEFAULT = 30  # seconds
+DLP_CHANGED = (
+    (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
+)  # 0x70f002
 
 
 def get_eflags(dlpe):
@@ -123,8 +126,8 @@ class Controller(stas.ControllerABC):
     def _on_udev_notification(self, udev_obj):
         if self._alive():
             if udev_obj.action == 'change':
-                nvme_aen = udev_obj.get("NVME_AEN")
-                nvme_event = udev_obj.get("NVME_EVENT")
+                nvme_aen = udev_obj.get('NVME_AEN')
+                nvme_event = udev_obj.get('NVME_EVENT')
                 if isinstance(nvme_aen, str):
                     logging.info('%s | %s - Received AEN: %s', self.id, udev_obj.sys_name, nvme_aen)
                     self._on_aen(int(nvme_aen, 16))
@@ -253,16 +256,6 @@ class Controller(stas.ControllerABC):
         if self._alive():
             if self._connect_attempts == 1:
                 # Do a fast re-try on the first failure.
-                # A race condition between "nvme connect-all" and "stacd" can result
-                # in a failed connection message even when the connection is successful.
-                # More precisely, nvme-cli's "connect-all" command relies on udev rules
-                # to trigger a "nvme connect" command when an AEN indicates that the
-                # Discovery Log Page Entries (DPLE) have changed. And since stacd also
-                # reacts to AENs to set up I/O controller connections, we end up having
-                # both stacd and udevd trying to connect to the same I/O controllers at
-                # the same time. This is perfectly fine, except that we may get a bogus
-                # failed to connect error. By doing a fast re-try, stacd can quickly
-                # verify that the connection was actually successful.
                 self._retry_connect_tmr.set_timeout(self.FAST_CONNECT_RETRY_PERIOD_SEC)
             elif self._connect_attempts == 2:
                 # If the fast connect re-try fails, then we can print a message to
@@ -342,9 +335,6 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
     the cached discovery log pages accordingly.
     '''
 
-    DLP_CHANGED = (
-        (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
-    )  # 0x70f002
     GET_LOG_PAGE_RETRY_RERIOD_SEC = 20
     REGISTRATION_RETRY_RERIOD_SEC = 5
     GET_SUPPORTED_RETRY_RERIOD_SEC = 5
@@ -466,7 +456,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
         return self._ctrl and self._ctrl.dctype != 'cdc'
 
     def _on_aen(self, aen: int):
-        if aen == self.DLP_CHANGED and self._get_log_op:
+        if aen == DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
 
     def _handle_lost_controller(self):
@@ -522,7 +512,10 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             # This event indicates that the kernel
             # driver re-connected to the DC.
             logging.debug(
-                'Dc._on_nvme_event()                - %s | %s: Received "connected" event', self.id, self.device
+                'Dc._on_nvme_event()                - %s | %s: Received "%s" event',
+                self.id,
+                self.device,
+                nvme_event,
             )
             self._resync_with_controller()
 

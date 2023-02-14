@@ -10,9 +10,9 @@
 which the Staf and the Stac objects are derived.'''
 
 import json
-import shutil
 import logging
 import pathlib
+import subprocess
 from itertools import filterfalse
 import dasbus.error
 import dasbus.client.observer
@@ -154,6 +154,7 @@ class Service(stas.ServiceABC):
         sysconf = conf.SysConf()
         self._root = nvme.root()
         self._host = nvme.host(self._root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+        self._udev = udev.UDEV
         self._terminator = CtrlTerminator()
 
         super().__init__(args, default_conf, reload_hdlr)
@@ -169,6 +170,7 @@ class Service(stas.ServiceABC):
 
         self._host = None
         self._root = None
+        self._udev = None
         self._terminator = None
 
     def _disconnect_all(self):
@@ -198,75 +200,6 @@ class Service(stas.ServiceABC):
 
 
 # ******************************************************************************
-OVERRIDE_TCP_UDEV_RULE = r'''
-ACTION!="change", GOTO="autoconnect_end"
-
-ENV{NVME_HOST_IFACE}=="", ENV{NVME_HOST_IFACE}="none"
-
-ACTION=="change", SUBSYSTEM=="nvme", ENV{NVME_AEN}=="0x70f002", \
-  ENV{NVME_TRTYPE}!="tcp", ENV{NVME_TRADDR}=="*", \
-  ENV{NVME_TRSVCID}=="*", ENV{NVME_HOST_TRADDR}=="*", ENV{NVME_HOST_IFACE}=="*", \
-  RUN+="%s --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
-
-ACTION=="change", SUBSYSTEM=="fc", ENV{FC_EVENT}=="nvmediscovery", \
-  ENV{NVMEFC_HOST_TRADDR}=="*",  ENV{NVMEFC_TRADDR}=="*", \
-  RUN+="%s --no-block start nvmf-connect@--device=none\t--transport=fc\t--traddr=$env{NVMEFC_TRADDR}\t--trsvcid=none\t--host-traddr=$env{NVMEFC_HOST_TRADDR}.service"
-
-ACTION=="change", SUBSYSTEM=="nvme", ENV{NVME_EVENT}=="rediscover", ATTR{cntrltype}=="discovery", \
-  ENV{NVME_TRTYPE}!="tcp", ENV{NVME_TRADDR}=="*", \
-  ENV{NVME_TRSVCID}=="*", ENV{NVME_HOST_TRADDR}=="*", ENV{NVME_HOST_IFACE}=="*", \
-  RUN+="%s --no-block start nvmf-connect@--device=$kernel\t--transport=$env{NVME_TRTYPE}\t--traddr=$env{NVME_TRADDR}\t--trsvcid=$env{NVME_TRSVCID}\t--host-traddr=$env{NVME_HOST_TRADDR}\t--host-iface=$env{NVME_HOST_IFACE}.service"
-
-LABEL="autoconnect_end"
-'''
-
-
-def _get_new_rules():
-    '''Get the file containing the original udev rule installed by nvme-cli'''
-    # Let's see if we can find existing rules
-    for path in ('/usr/lib/udev/rules.d', '/usr/local/lib/udev/rules.d'):
-        udev_rule_original = pathlib.Path(path, '70-nvmf-autoconnect.rules')
-        if udev_rule_original.exists():
-            # Copy original file and suppress udev rule for TCP only
-            text = udev_rule_original.read_text()  # pylint: disable=unspecified-encoding
-            text = text.replace('ENV{NVME_TRTYPE}=="*"', 'ENV{NVME_TRTYPE}!="tcp"')
-            return text
-
-    # No existing rules found. This is probably because nvme-cli is not
-    # currently installed. In that case, let's create rules so that if nvme-cli
-    # gets installed later we'll be ready for it.
-    systemctl = shutil.which('systemctl')
-    text = OVERRIDE_TCP_UDEV_RULE % (systemctl, systemctl, systemctl)
-    return text
-
-
-def udev_rule_ctrl(enable):
-    '''@brief We override the standard udev rule installed by nvme-cli, i.e.
-    '/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules', with a copy into
-    /run/udev/rules.d. The goal is to suppress the udev rule that controls TCP
-    connections to I/O controllers. This is to avoid race conditions between
-    stacd and udevd. This is configurable. See "udev-rule" in stacd.conf
-    for details.
-
-    @param enable: When True, override nvme-cli's udev rule and prevent TCP I/O
-    Controller connections by nvme-cli. When False, allow nvme-cli's udev rule
-    to make TCP I/O connections.
-    @type enable: bool
-    '''
-    udev_rule_suppress = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
-    if enable:
-        try:
-            udev_rule_suppress.unlink()
-        except FileNotFoundError:
-            pass
-    else:
-        if not udev_rule_suppress.exists():
-            pathlib.Path('/run/udev/rules.d').mkdir(parents=True, exist_ok=True)
-            text = _get_new_rules()
-            udev_rule_suppress.write_text(text)  # pylint: disable=unspecified-encoding
-
-
-# ******************************************************************************
 class Stac(Service):
     '''STorage Appliance Connector (STAC)'''
 
@@ -289,7 +222,6 @@ class Stac(Service):
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'udev-rule'): 'disabled',
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
@@ -298,8 +230,6 @@ class Stac(Service):
         }
 
         super().__init__(args, default_conf, self._reload_hdlr)
-
-        self._udev = udev.UDEV
 
         self._add_event_soak_tmr = gutil.GTimer(self.ADD_EVENT_SOAK_TIME_SEC, self._on_add_event_soaked)
 
@@ -315,16 +245,11 @@ class Stac(Service):
         self._staf_watcher.service_unavailable.connect(self._disconnect_from_staf)
         self._staf_watcher.connect_once_available()
 
-        # Suppress udev rule to auto-connect when AEN is received.
-        udev_rule_ctrl(conf.SvcConf().udev_rule_enabled)
-
     def _release_resources(self):
         logging.debug('Stac._release_resources()')
 
         if self._add_event_soak_tmr:
             self._add_event_soak_tmr.kill()
-
-        udev_rule_ctrl(True)
 
         if self._udev:
             self._udev.unregister_for_action_events('add', self._on_add_event)
@@ -335,7 +260,6 @@ class Stac(Service):
 
         super()._release_resources()
 
-        self._udev = None
         self._staf = None
         self._staf_watcher = None
         self._add_event_soak_tmr = None
@@ -433,7 +357,6 @@ class Stac(Service):
         service_cnf.reload()
         self.tron = service_cnf.tron
         self._config_connections_audit()
-        udev_rule_ctrl(service_cnf.udev_rule_enabled)
         self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
 
         for controller in self._controllers.values():
@@ -582,6 +505,70 @@ class Stac(Service):
 
 
 # ******************************************************************************
+# Only keep legacy FC rule (not even sure this is still in use today, but just to be safe).
+UDEV_RULE_OVERRIDE = r'''
+ACTION=="change", SUBSYSTEM=="fc", ENV{FC_EVENT}=="nvmediscovery", \
+  ENV{NVMEFC_HOST_TRADDR}=="*",  ENV{NVMEFC_TRADDR}=="*", \
+  RUN+="%s --no-block start nvmf-connect@--transport=fc\t--traddr=$env{NVMEFC_TRADDR}\t--trsvcid=none\t--host-traddr=$env{NVMEFC_HOST_TRADDR}.service"
+'''
+
+
+def _udev_rule_ctrl(suppress):
+    '''@brief We override the standard udev rule installed by nvme-cli, i.e.
+    '/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules', with a copy into
+    /run/udev/rules.d. The goal is to suppress the udev rule that controls TCP
+    connections to I/O controllers. This is to avoid race conditions between
+    stacd and udevd. This is configurable. See "udev-rule" in stacd.conf
+    for details.
+
+    @param enable: When True, override nvme-cli's udev rule and prevent TCP I/O
+    Controller connections by nvme-cli. When False, allow nvme-cli's udev rule
+    to make TCP I/O connections.
+    @type enable: bool
+    '''
+    udev_rule_file = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
+    if suppress:
+        if not udev_rule_file.exists():
+            pathlib.Path('/run/udev/rules.d').mkdir(parents=True, exist_ok=True)
+            text = UDEV_RULE_OVERRIDE % (defs.SYSTEMCTL)
+            udev_rule_file.write_text(text)  # pylint: disable=unspecified-encoding
+    else:
+        try:
+            udev_rule_file.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _is_dlp_changed_aen(udev_obj):
+    '''Check whether we received a Change of Discovery Log Page AEN'''
+    nvme_aen = udev_obj.get('NVME_AEN')
+    if not isinstance(nvme_aen, str):
+        return False
+
+    aen = int(nvme_aen, 16)
+    if aen != ctrl.DLP_CHANGED:
+        return False
+
+    logging.info(
+        '%s - Received AEN: Change of Discovery Log Page (%s)',
+        udev_obj.sys_name,
+        nvme_aen,
+    )
+    return True
+
+
+def _event_matches(udev_obj, nvme_events):
+    '''Check whether we received an NVMe Event matching
+    one of the events listed in @nvme_events'''
+    nvme_event = udev_obj.get('NVME_EVENT')
+    if nvme_event not in nvme_events:
+        return False
+
+    logging.info('%s - Received "%s" event', udev_obj.sys_name, nvme_event)
+    return True
+
+
+# ******************************************************************************
 class Staf(Service):
     '''STorage Appliance Finder (STAF)'''
 
@@ -601,7 +588,6 @@ class Staf(Service):
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'udev-rule'): 'disabled',
             ('Global', 'pleo'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),
@@ -616,6 +602,9 @@ class Staf(Service):
         # Create the D-Bus instance.
         self._config_dbus(dbus, defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
 
+        self._udev.register_for_action_events('change', self._nvme_cli_interop)
+        _udev_rule_ctrl(True)
+
     def info(self) -> dict:
         '''@brief Get the status info for this object (used for debug)'''
         info = super().info()
@@ -624,7 +613,12 @@ class Staf(Service):
 
     def _release_resources(self):
         logging.debug('Staf._release_resources()')
+        if self._udev:
+            self._udev.unregister_for_action_events('change', self._nvme_cli_interop)
+
         super()._release_resources()
+
+        _udev_rule_ctrl(False)
         if self._avahi:
             self._avahi.kill()
             self._avahi = None
@@ -837,3 +831,44 @@ class Staf(Service):
         if self._alive() and self._cfg_soak_tmr is not None:
             logging.debug('Staf.referrals_changed()')
             self._cfg_soak_tmr.start()
+
+    def _nvme_cli_interop(self, udev_obj):
+        '''Interoperability with nvme-cli:
+        stafd will invoke nvme-cli's connect-all the same way nvme-cli's udev
+        rules would do normally. This is for the case where a user has an hybrid
+        configuration where some controllers are configured through nvme-stas
+        and others through nvme-cli. This is not an optimal configuration. It
+        would be better if everything was configured through nvme-stas, however
+        support for hybrid configuration was requested by users (actually only
+        one user requested this).'''
+
+        # Looking for 'change' events only
+        if udev_obj.action != 'change':
+            return
+
+        # Looking for events from Discovery Controllers only
+        if not udev.Udev.is_dc_device(udev_obj):
+            return
+
+        # Is the controller already being monitored by stafd?
+        for controller in self.get_controllers():
+            if controller.device == udev_obj.sys_name:
+                return
+
+        # Did we receive a Change of DLP AEN or an NVME Event indicating 'connect' or 'rediscover'?
+        if not _is_dlp_changed_aen(udev_obj) and not _event_matches(udev_obj, ('connected', 'rediscover')):
+            return
+
+        # We need to invoke "nvme connect-all" using nvme-cli's nvmf-connect@.service
+        cnf = [
+            ('--device', udev_obj.sys_name),
+            ('--host-traddr', udev_obj.properties.get('NVME_HOST_TRADDR', None)),
+            ('--host-iface', udev_obj.properties.get('NVME_HOST_IFACE', None)),
+        ]
+        # Use systemd's escaped syntax (i.e. '=' is replaced by '\x3d', '\t' by '\x09', etc.
+        options = r'\x09'.join(
+            [fr'{option}\x3d{value}' for option, value in cnf if value not in (None, 'none', 'None', '')]
+        )
+        logging.info('Invoking: systemctl start nvmf-connect@%s.service', options)
+        cmd = [defs.SYSTEMCTL, '--quiet', '--no-block', 'start', fr'nvmf-connect@{options}.service']
+        subprocess.run(cmd, check=False)

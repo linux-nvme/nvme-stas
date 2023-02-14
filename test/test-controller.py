@@ -134,7 +134,6 @@ class Test(TestCase):
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'udev-rule'): 'disabled',
             ('Global', 'pleo'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
             ('Controllers', 'controller'): list(),

@@ -94,11 +94,11 @@ Lastly, the two daemons, `stafd` and `stacd`, should be enabled (e.g. `systemctl
 
 # Compatibility between nvme-stas and nvme-cli
 
-Udev rules are installed along with `nvme-cli`. These udev rules allow `nvme-cli` to perform tasks similar to those performed by `stacd`. However, the udev rules in `nvme-cli` version 2.1.2 and prior drop the `host-iface` parameter when making TCP connections to I/O controllers. `nvme-stas`, on the other hand, always makes sure that TCP connections to I/O controllers are made over the right interface using the `host-iface` parameter. This causes a discrepancy between TCP connections made by `nvme-cli` and `nvme-stas`. Worse, TCP connections made by `nvme-cli` (2.1.2 and earlier) may end up on the wrong interface. 
+Udev rules are installed along with `nvme-cli` (e.g. `/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules`). These udev rules allow `nvme-cli` to perform tasks similar to those performed by `nvme-stas`. However, the udev rules in `nvme-cli` version 2.1.2 and prior drop the `host-iface` parameter when making TCP connections to I/O controllers. `nvme-stas`, on the other hand, always makes sure that TCP connections to I/O controllers are made over the right interface using the `host-iface` parameter. 
 
-We basically have a race condition between `nvme-stas` and the udev rules installed with `nvme-cli`. Both try to perform the same task in parallel, which is to connect to I/O controllers over TCP. Because `nvme-stas` is written in Python and the udevd daemon (i.e. the process running the udev rules) in C, `nvme-stas` usually loses the race and TCP connections are made by the udev rules without specifying the `host-iface`.
+We essentially have a race condition because `nvme-stas` and `nvme-cli` react to the same kernel events. Both try to perform the same task in parallel, which is to connect to I/O controllers. Because `nvme-stas` is written in Python and the udevd daemon (i.e. the process running the udev rules) in C, `nvme-stas` usually loses the race and TCP connections are made by the udev rules without specifying the `host-iface`.
 
-`nvme-stas` provides a way to avoid this conflicts with `nvme-cli`. In `stacd.conf`, one can set `udev-rule=disabled` to completely disable the udev rules that come with `nvme-cli`. This, however, will impact all transport types and not just TCP. The udev rules have been fixed post 2.1.2 `nvme-cli` so that the `host-iface` will now be taken into consideration when making TCP connections to I/O controllers, eliminating the need to disable the udev rules.
+To remedy to this problem, `nvme-stas` disables `nvme-cli` udev rules and assumes the tasks performed by the udev rules. This way, only one process will take action on kernel events eliminating any race conditions. This also ensure that the right `host-iface` is used when making TCP connections.
 
 # Addendum
 

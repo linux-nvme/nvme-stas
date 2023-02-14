@@ -139,11 +139,6 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         return self.__get_value('Global', 'pleo') == 'enabled'
 
     @property
-    def udev_rule_enabled(self):
-        '''@brief return the "udev-rule" config parameter'''
-        return self.__get_value('Global', 'udev-rule') == 'enabled'
-
-    @property
     def disconnect_scope(self):
         '''@brief return the disconnect scope (i.e. which connections are affected by DLPE removal)'''
         disconnect_scope = self.__get_value(

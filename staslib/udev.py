@@ -19,7 +19,7 @@ from staslib import defs, iputil, trid
 # ******************************************************************************
 class Udev:
     '''@brief Udev event monitor. Provide a way to register for udev events.
-    WARNING: THE singleton.Singleton PATTERN CANNOT BE USED WITH THIOS CLASS.
+    WARNING: THE singleton.Singleton PATTERN CANNOT BE USED WITH THIS CLASS.
     IT INTERFERES WITH THE pyudev INTERNALS, WHICH CAUSES OBJECT CLEAN UP TO FAIL.
     '''
 
@@ -314,12 +314,12 @@ class Udev:
     def get_tid(device):
         '''@brief return the Transport ID associated with a udev device'''
         cid = {
-            'transport':   Udev._get_property(device, 'NVME_TRTYPE'),
-            'traddr':      Udev._get_property(device, 'NVME_TRADDR'),
-            'trsvcid':     Udev._get_property(device, 'NVME_TRSVCID'),
+            'transport': Udev._get_property(device, 'NVME_TRTYPE'),
+            'traddr': Udev._get_property(device, 'NVME_TRADDR'),
+            'trsvcid': Udev._get_property(device, 'NVME_TRSVCID'),
             'host-traddr': Udev._get_property(device, 'NVME_HOST_TRADDR'),
-            'host-iface':  Udev._get_host_iface(device),
-            'subsysnqn':   Udev._get_attribute(device, 'subsysnqn'),
+            'host-iface': Udev._get_host_iface(device),
+            'subsysnqn': Udev._get_attribute(device, 'subsysnqn'),
         }
         return trid.TID(cid)
 

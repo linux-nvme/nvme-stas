@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import logging
 import unittest
-import subprocess
 from pyfakefs.fake_filesystem_unittest import TestCase
 from staslib import log
 

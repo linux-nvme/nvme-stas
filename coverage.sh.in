@@ -274,7 +274,6 @@ cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron              = true
 kato              = 10
-udev-rule         = enabled
 nr-io-queues      = 4
 nr-write-queues   = NaN
 nr-poll-queues    = NaN
@@ -395,7 +394,6 @@ log "Change stacd config [1]:"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
-udev-rule=disabled
 nr-io-queues=4
 nr-write-queues=4
 nr-poll-queues=4
