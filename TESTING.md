@@ -88,13 +88,6 @@ for file in ${FILES}; do
 done 
 sudo sed -i '/^#controller=$/a controller=transport=tcp;traddr=localhost' /etc/stas/stafd.conf
 
-#####################################################################
-# OPTIONAL: Edit /etc/stas/stacd.conf
-# Optionally disable nvme-cli udev rule. This is just to make 
-# debugging easier as it will prevent the udev rule to perform
-# the same operations that stacd performs (i.e. automatically connect 
-# to I/O controllers)
-sudo sed -i '/^#udev-rule=enabled$/a udev-rule=disabled' /etc/stas/stacd.conf
 ```
 
 ### Run the post-install script

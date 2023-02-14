@@ -10,7 +10,7 @@
 test_env = environment({'MALLOC_PERTURB_': '0'})
 test_env.prepend('PYTHONPATH', PYTHONPATH)
 
-subproject('libnvme', required: false)
+libnvme_dep = dependency('python3-libnvme', fallback: ['libnvme', 'libnvme_dep'], required: false)
 
 rr = run_command(python3, '-c', 'import libnvme', check: false, env: test_env)
 if rr.returncode() != 0

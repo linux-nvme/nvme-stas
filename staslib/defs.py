@@ -10,11 +10,12 @@
 '''
 import os
 import sys
+import shutil
 import platform
 from staslib.version import KernelVersion
 
-VERSION         = '@VERSION@'
-LICENSE         = '@LICENSE@'
+VERSION = '@VERSION@'
+LICENSE = '@LICENSE@'
 
 STACD_DBUS_NAME = '@STACD_DBUS_NAME@'
 STACD_DBUS_PATH = '@STACD_DBUS_PATH@'
@@ -23,10 +24,12 @@ STAFD_DBUS_NAME = '@STAFD_DBUS_NAME@'
 STAFD_DBUS_PATH = '@STAFD_DBUS_PATH@'
 
 KERNEL_VERSION = KernelVersion(platform.release())
-KERNEL_IFACE_MIN_VERSION  = KernelVersion('@KERNEL_IFACE_MIN_VERSION@')
+KERNEL_IFACE_MIN_VERSION = KernelVersion('@KERNEL_IFACE_MIN_VERSION@')
 KERNEL_TP8013_MIN_VERSION = KernelVersion('@KERNEL_TP8013_MIN_VERSION@')
 
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 
 PROG_NAME = os.path.basename(sys.argv[0])
 SYS_CONF_FILE = '/etc/stas/sys.conf'
+
+SYSTEMCTL = shutil.which('systemctl')

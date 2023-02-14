@@ -54,7 +54,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Global', 'ignore-iface'): 'false',
             ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'udev-rule'): 'disabled',
             ('Discovery controller connection management', 'persistent-connections'): 'true',
             ('Global', 'pleo'): 'enabled',
             ('Service Discovery', 'zeroconf'): 'enabled',
@@ -74,7 +73,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)
         self.assertTrue(service_conf.pleo_enabled)
-        self.assertFalse(service_conf.udev_rule_enabled)
         self.assertEqual(service_conf.disconnect_scope, 'only-stas-connections')
         self.assertEqual(service_conf.disconnect_trtypes, ['tcp'])
         self.assertFalse(service_conf.ignore_iface)
@@ -106,7 +104,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
         self.assertEqual(set(service_conf.disconnect_trtypes), set(['fc', 'tcp', 'rdma']))
 
-
         data = [
             '[Global]\n',
             'ip-family=ipv4\n',
@@ -136,6 +133,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
         service_conf.reload()
         self.assertIn(4, service_conf.ip_family)
         self.assertIn(6, service_conf.ip_family)
+
 
 class StasSysConfUnitTest(unittest.TestCase):
     '''Sys config unit tests'''

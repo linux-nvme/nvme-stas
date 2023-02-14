@@ -5,3 +5,5 @@ __pycache__
 
 subprojects/*
 !subprojects/*.wrap
+
+.vscode
