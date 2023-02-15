@@ -1,12 +1,14 @@
 #!/usr/bin/python3
 import os
 import json
+import shutil
 import logging
 import unittest
 import ipaddress
 import subprocess
 from staslib import iputil, log, trid
 
+IP = shutil.which('ip')
 
 class Test(unittest.TestCase):
     '''iputil.py unit tests'''
@@ -20,7 +22,7 @@ class Test(unittest.TestCase):
         # using standard bash utility (ip address). We'll use this to make sure
         # iputil.get_interface() returns the same data as "ip address".
         try:
-            cmd = ['ip', '-j', 'address', 'show']
+            cmd = [IP, '-j', 'address', 'show']
             p = subprocess.run(cmd, stdout=subprocess.PIPE, check=True)
             self.ifaces = json.loads(p.stdout.decode().strip())
         except subprocess.CalledProcessError:

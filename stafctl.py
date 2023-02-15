@@ -34,7 +34,7 @@ def troff(args):  # pylint: disable=unused-argument
     print(f'tron = {iface.tron}')  # Read value back from stafd and print
 
 
-def _extract_cid(ctrl):  # pylint: disable=missing-function-docstring
+def _extract_cid(ctrl):
     return (
         ctrl['transport'],
         ctrl['traddr'],

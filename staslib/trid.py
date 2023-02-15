@@ -71,7 +71,8 @@ class TID:  # pylint: disable=too-many-instance-attributes
     def subsysnqn(self):  # pylint: disable=missing-function-docstring
         return self._subsysnqn
 
-    def as_dict(self):  # pylint: disable=missing-function-docstring
+    def as_dict(self):
+        '''Return object members as a dictionary'''
         return {
             'transport': self.transport,
             'traddr': self.traddr,

@@ -1,9 +1,12 @@
 #!/usr/bin/python3
+import shutil
 import logging
 import unittest
 from staslib import avahi
 import dasbus.connection
 import subprocess
+
+SYSTEMCTL = shutil.which('systemctl')
 
 class Test(unittest.TestCase):
     '''Unit tests for class Avahi'''
@@ -16,7 +19,7 @@ class Test(unittest.TestCase):
 
         try:
             # Check that the Avahi daemon is running
-            subprocess.run(['systemctl', 'is-active', 'avahi-daemon.service'], check=True)
+            subprocess.run([SYSTEMCTL, 'is-active', 'avahi-daemon.service'], check=True)
             self.assertFalse(srv._on_kick_avahi())
         except subprocess.CalledProcessError:
             self.assertTrue(srv._on_kick_avahi())

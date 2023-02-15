@@ -19,7 +19,6 @@ import dasbus.client.observer
 import dasbus.client.proxy
 
 from gi.repository import GLib
-from libnvme import nvme
 from systemd.daemon import notify as sd_notify
 from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, trid, udev
 
@@ -104,7 +103,7 @@ class CtrlTerminator:
 
         self._controllers.clear()
 
-    def _on_kernel_events(self, udev_obj):  # pylint: disable=unused-argument
+    def _on_kernel_events(self, udev_obj):
         logging.debug('CtrlTerminator._on_kernel_events() - %s event received', udev_obj.action)
         self._disposal_check()
 
@@ -151,15 +150,10 @@ class Service(stas.ServiceABC):
     '''@brief Base class used to manage a STorage Appliance Service'''
 
     def __init__(self, args, default_conf, reload_hdlr):
-        sysconf = conf.SysConf()
-        self._root = nvme.root()
-        self._host = nvme.host(self._root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
         self._udev = udev.UDEV
         self._terminator = CtrlTerminator()
 
         super().__init__(args, default_conf, reload_hdlr)
-
-        self._root.log_level("debug" if self._tron else "err")
 
     def _release_resources(self):
         logging.debug('Service._release_resources()')
@@ -168,13 +162,11 @@ class Service(stas.ServiceABC):
         if self._terminator:
             self._terminator.kill()
 
-        self._host = None
-        self._root = None
         self._udev = None
         self._terminator = None
 
     def _disconnect_all(self):
-        # Tell all controller objects to disconnect
+        '''Tell all controller objects to disconnect'''
         keep_connections = self._keep_connections_on_exit()
         controllers = self._controllers.values()
         logging.debug(
@@ -196,7 +188,6 @@ class Service(stas.ServiceABC):
     def tron(self, value):
         '''@brief Set Trace ON property'''
         super(__class__, self.__class__).tron.__set__(self, value)
-        self._root.log_level("debug" if self._tron else "err")
 
 
 # ******************************************************************************
@@ -280,7 +271,7 @@ class Stac(Service):
             # has changed internally)
             tid = trid.TID(tid.as_dict())
             if udev.UDEV.find_nvme_ioc_device(tid) is not None:
-                controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
+                controllers[tid] = ctrl.Ioc(self, tid)
 
         return controllers
 
@@ -297,12 +288,12 @@ class Stac(Service):
         num_controllers = len(self._controllers)
         for tid in tids:
             if tid not in self._controllers:
-                self._controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
+                self._controllers[tid] = ctrl.Ioc(self, tid)
 
         if num_controllers != len(self._controllers):
             self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
 
-    def _on_add_event(self, udev_obj):  # pylint: disable=unused-argument
+    def _on_add_event(self, udev_obj):
         '''@brief This function is called when a "add" event is received from
         the kernel for an NVMe device. This is used to trigger an audit and make
         sure that the connection to an I/O controller is allowed.
@@ -429,7 +420,7 @@ class Stac(Service):
                 self._terminator.dispose(controller, self.remove_controller, keep_connection)
 
         for tid in controllers_to_add:
-            self._controllers[tid] = ctrl.Ioc(self, self._root, self._host, tid)
+            self._controllers[tid] = ctrl.Ioc(self, tid)
 
         for tid, controller in self._controllers.items():
             if tid in discovered_ctrls:
@@ -644,7 +635,7 @@ class Staf(Service):
             # Regenerate the TID (in case of soft. upgrade and TID object
             # has changed internally)
             tid = trid.TID(tid.as_dict())
-            controllers[tid] = ctrl.Dc(self, self._root, self._host, tid, log_pages, origin)
+            controllers[tid] = ctrl.Dc(self, tid, log_pages, origin)
 
         return controllers
 
@@ -794,7 +785,7 @@ class Staf(Service):
 
         # Add controllers
         for tid in controllers_to_add:
-            self._controllers[tid] = ctrl.Dc(self, self._root, self._host, tid)
+            self._controllers[tid] = ctrl.Dc(self, tid)
 
         # Update "origin" on all DC objects
         for tid, controller in self._controllers.items():
@@ -860,6 +851,10 @@ class Staf(Service):
             return
 
         # We need to invoke "nvme connect-all" using nvme-cli's nvmf-connect@.service
+        # NOTE: Eventually, we'll be able to drop --host-traddr and --host-iface from
+        # the parameters passed to nvmf-connect@.service. A fix was added to connect-all
+        # to infer these two values from the device used to connect to the DC.
+        # Ref: https://github.com/linux-nvme/nvme-cli/pull/1812
         cnf = [
             ('--device', udev_obj.sys_name),
             ('--host-traddr', udev_obj.properties.get('NVME_HOST_TRADDR', None)),

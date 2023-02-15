@@ -98,7 +98,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'disconnect-trtypes = tcp+rdma+fc\n',
             'connect-attempts-on-ncc = hello\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  # pylint: disable=unspecified-encoding
             f.writelines(data)
         service_conf.reload()
         self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
@@ -108,7 +108,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[Global]\n',
             'ip-family=ipv4\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  pylint: disable=unspecified-encoding
             f.writelines(data)
         service_conf.reload()
         self.assertIn(4, service_conf.ip_family)
@@ -118,7 +118,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[Global]\n',
             'ip-family=ipv4+ipv6\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  pylint: disable=unspecified-encoding
             f.writelines(data)
         service_conf.reload()
         self.assertIn(4, service_conf.ip_family)
@@ -128,7 +128,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[Global]\n',
             'ip-family=ipv6+ipv4\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  pylint: disable=unspecified-encoding
             f.writelines(data)
         service_conf.reload()
         self.assertIn(4, service_conf.ip_family)
@@ -174,7 +174,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     def setUpClass(cls):
         '''Create a temporary configuration file'''
         for file, data in StasSysConfUnitTest.DATA.items():
-            with open(file, 'w') as f:  #  # pylint: disable=unspecified-encoding
+            with open(file, 'w') as f:  #  pylint: disable=unspecified-encoding
                 f.writelines(data)
 
     @classmethod

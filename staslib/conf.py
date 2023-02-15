@@ -79,10 +79,12 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         self._config = self.read_conf_file()
 
     @property
-    def conf_file(self):  # pylint: disable=missing-function-docstring
+    def conf_file(self):
+        '''Return the configuration file name'''
         return self._conf_file
 
-    def set_conf_file(self, fname):  # pylint: disable=missing-function-docstring
+    def set_conf_file(self, fname):
+        '''Set the configuration file name and reload config'''
         self._conf_file = fname
         self.reload()
 
@@ -109,10 +111,12 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         ) or self.__get_bool('Global', 'persistent-connections')
 
     @property
-    def zeroconf_persistence_sec(self):  # pylint: disable=invalid-name
+    def zeroconf_persistence_sec(self):
         '''@brief return the "zeroconf-connections-persistence" config parameter, in seconds'''
-        value = self.__get_value('Discovery controller connection management', 'zeroconf-connections-persistence')
-        return timeparse.timeparse(value)
+        section = 'Discovery controller connection management'
+        option = 'zeroconf-connections-persistence'
+        value = self.__get_value(section, option)
+        return timeparse.timeparse(value) if value is not None else self._defaults.get((section, option), None)
 
     @property
     def ignore_iface(self):
@@ -286,7 +290,8 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         '''@brief Get the DNS-SD/mDNS service types.'''
         return ['_nvme-disc._tcp', '_nvme-disc._udp'] if self.zeroconf_enabled() else list()
 
-    def zeroconf_enabled(self):  # pylint: disable=missing-function-docstring
+    def zeroconf_enabled(self):
+        '''Return the value for "zeroconf="'''
         return self.__get_value('Service Discovery', 'zeroconf') == 'enabled'
 
     def read_conf_file(self):
@@ -405,14 +410,17 @@ class SysConf(metaclass=singleton.Singleton):
         self._config = self.read_conf_file()
 
     @property
-    def conf_file(self):  # pylint: disable=missing-function-docstring
+    def conf_file(self):
+        '''Return the configuration file name'''
         return self._conf_file
 
-    def set_conf_file(self, fname):  # pylint: disable=missing-function-docstring
+    def set_conf_file(self, fname):
+        '''Set the configuration file name and reload config'''
         self._conf_file = fname
         self.reload()
 
-    def as_dict(self):  # pylint: disable=missing-function-docstring
+    def as_dict(self):
+        '''Return configuration as a dictionary'''
         return {
             'hostnqn': self.hostnqn,
             'hostid': self.hostid,

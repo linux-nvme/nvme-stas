@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import logging
 import unittest
-from libnvme import nvme
 from staslib import conf, ctrl, service, stas, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
 
@@ -62,6 +61,10 @@ class TestStaf:
 
     def controller_unresponsive(self, tid):
         pass
+
+    @property
+    def tron(self):
+        return True
 
 
 stafd_conf_1 = '''
@@ -149,10 +152,6 @@ class Test(TestCase):
         self.svcconf = conf.SvcConf(default_conf=default_conf)
         self.svcconf.set_conf_file(self.stafd_conf_file1)
 
-        sysconf = conf.SysConf()
-        self.root = nvme.root()
-        self.host = nvme.host(self.root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
-
     def tearDown(self):
         pass
 
@@ -161,10 +160,10 @@ class Test(TestCase):
         class Controller(ctrl.Controller):
             pass
 
-        self.assertRaises(TypeError, lambda: ctrl.Controller(root=self.root, host=self.host, tid=self.NVME_TID))
+        self.assertRaises(TypeError, lambda: ctrl.Controller(tid=self.NVME_TID))
 
     def test_get_device(self):
-        controller = TestController(root=self.root, host=self.host, tid=self.NVME_TID, service=None)
+        controller = TestController(tid=self.NVME_TID, service=TestStaf())
         self.assertEqual(controller._connect_attempts, 0)
         controller._try_to_connect()
         self.assertEqual(controller._connect_attempts, 1)
@@ -234,7 +233,7 @@ class Test(TestCase):
         self.assertIsNone(controller.disconnect(lambda *args: None, True))
 
     def test_connect(self):
-        controller = TestController(root=self.root, host=self.host, tid=self.NVME_TID, service=None)
+        controller = TestController(tid=self.NVME_TID, service=TestStaf())
         self.assertEqual(controller._connect_attempts, 0)
         controller._find_existing_connection = lambda: None
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
@@ -266,7 +265,7 @@ class Test(TestCase):
     def test_dc(self):
         self.svcconf.set_conf_file(self.stafd_conf_file1)
 
-        controller = TestDc(TestStaf(), root=self.root, host=self.host, tid=self.NVME_TID)
+        controller = TestDc(TestStaf(), tid=self.NVME_TID)
         controller.set_connected(True)
         controller.origin = 'discovered'
 

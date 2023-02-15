@@ -305,7 +305,8 @@ class AsyncTask:  # pylint: disable=too-many-instance-attributes
     def __str__(self):
         return str(self.as_dict())
 
-    def as_dict(self):  # pylint: disable=missing-function-docstring
+    def as_dict(self):
+        '''Return object members as a dictionary'''
         info = {
             'fail count': self._fail_cnt,
         }
