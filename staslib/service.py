@@ -22,6 +22,7 @@ from gi.repository import GLib
 from systemd.daemon import notify as sd_notify
 from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, trid, udev
 
+
 # ******************************************************************************
 class CtrlTerminator:
     '''The Controller Terminator is used to gracefully disconnect from

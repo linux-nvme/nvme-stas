@@ -83,3 +83,16 @@ jobs:
         run: |
           python3 -m pyflakes *.py staslib
 
+  python-black:
+    if: ${{ !github.event.act }} # skip during local actions testing
+    name: python-black formatter
+    runs-on: ubuntu-latest
+    steps:
+      - name: "CHECKOUT: nvme-stas"
+        uses: actions/checkout@v3
+
+      - name: "BLACK"
+        uses: psf/black@stable
+        with:
+          options: "--check --diff --color --line-length 120 --skip-string-normalization --extend-exclude (subprojects|debian|.build)"
+          src: "."

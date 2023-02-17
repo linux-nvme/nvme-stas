@@ -8,12 +8,13 @@ import subprocess
 
 SYSTEMCTL = shutil.which('systemctl')
 
+
 class Test(unittest.TestCase):
     '''Unit tests for class Avahi'''
 
     def test_new(self):
         sysbus = dasbus.connection.SystemMessageBus()
-        srv = avahi.Avahi(sysbus, lambda:"ok")
+        srv = avahi.Avahi(sysbus, lambda: "ok")
         self.assertEqual(srv.info(), {'avahi wake up timer': '60.0s [off]', 'service types': [], 'services': {}})
         self.assertEqual(srv.get_controllers(), [])
 
@@ -34,6 +35,7 @@ class Test(unittest.TestCase):
         self.assertEqual(captured.records[0].getMessage(), "avahi-daemon not available, zeroconf not supported.")
         srv.kill()
         self.assertEqual(srv.info(), {'avahi wake up timer': 'None', 'service types': [], 'services': {}})
+
 
 if __name__ == '__main__':
     unittest.main()

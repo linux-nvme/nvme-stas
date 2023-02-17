@@ -64,32 +64,28 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
     DBUS_INTERFACE_SERVICE_RESOLVER = DBUS_NAME + '.ServiceResolver'
     LOOKUP_USE_MULTICAST = 2
 
-    IF_UNSPEC    = -1
-    PROTO_INET   =  0
-    PROTO_INET6  =  1
+    IF_UNSPEC = -1
+    PROTO_INET = 0
+    PROTO_INET6 = 1
     PROTO_UNSPEC = -1
 
-    LOOKUP_RESULT_CACHED    = 1   # This response originates from the cache
-    LOOKUP_RESULT_WIDE_AREA = 2   # This response originates from wide area DNS
-    LOOKUP_RESULT_MULTICAST = 4   # This response originates from multicast DNS
-    LOOKUP_RESULT_LOCAL     = 8   # This record/service resides on and was announced by the local host
-    LOOKUP_RESULT_OUR_OWN   = 16  # This service belongs to the same local client as the browser object
-    LOOKUP_RESULT_STATIC    = 32  # The returned data has been defined statically by some configuration option
+    LOOKUP_RESULT_LOCAL = 8  # This record/service resides on and was announced by the local host
+    LOOKUP_RESULT_CACHED = 1  # This response originates from the cache
+    LOOKUP_RESULT_STATIC = 32  # The returned data has been defined statically by some configuration option
+    LOOKUP_RESULT_OUR_OWN = 16  # This service belongs to the same local client as the browser object
+    LOOKUP_RESULT_WIDE_AREA = 2  # This response originates from wide area DNS
+    LOOKUP_RESULT_MULTICAST = 4  # This response originates from multicast DNS
 
     result_flags = {
-        LOOKUP_RESULT_CACHED:    'cache',
+        LOOKUP_RESULT_LOCAL: 'local',
+        LOOKUP_RESULT_CACHED: 'cache',
+        LOOKUP_RESULT_STATIC: 'static',
+        LOOKUP_RESULT_OUR_OWN: 'own',
         LOOKUP_RESULT_WIDE_AREA: 'wan',
         LOOKUP_RESULT_MULTICAST: 'mcast',
-        LOOKUP_RESULT_LOCAL:     'local',
-        LOOKUP_RESULT_OUR_OWN:   'own',
-        LOOKUP_RESULT_STATIC:    'static',
     }
 
-    protos = {
-        PROTO_INET:   'IPv4',
-        PROTO_INET6:  'IPv6',
-        PROTO_UNSPEC: 'uspecified'
-    }
+    protos = {PROTO_INET: 'IPv4', PROTO_INET6: 'IPv6', PROTO_UNSPEC: 'uspecified'}
 
     @classmethod
     def result_flags_as_string(cls, flags):
@@ -425,14 +421,14 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
             transport = _proto2trans(txt.get('p'))
             if transport is not None:
                 self._services[service]['data'] = {
-                    'transport':  transport,
-                    'traddr':     address.strip(),
-                    'trsvcid':    str(port).strip(),
+                    'transport': transport,
+                    'traddr': address.strip(),
+                    'trsvcid': str(port).strip(),
                     # host-iface permitted for tcp alone and not rdma
                     'host-iface': socket.if_indextoname(interface).strip() if transport == 'tcp' else '',
-                    'subsysnqn':  txt.get('nqn', defs.WELL_KNOWN_DISC_NQN).strip()
-                                  if conf.NvmeOptions().discovery_supp
-                                  else defs.WELL_KNOWN_DISC_NQN,
+                    'subsysnqn': txt.get('nqn', defs.WELL_KNOWN_DISC_NQN).strip()
+                    if conf.NvmeOptions().discovery_supp
+                    else defs.WELL_KNOWN_DISC_NQN,
                 }
 
                 self._change_cb()

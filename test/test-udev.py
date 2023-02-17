@@ -2,6 +2,7 @@
 import unittest
 from staslib import udev
 
+
 class Test(unittest.TestCase):
     '''Unit tests for class Udev'''
 
@@ -34,6 +35,7 @@ class Test(unittest.TestCase):
 
         bogus = udev.UDEV.get_key_from_attr(device, 'bogus', 'BOGUS', '\n')
         self.assertEqual(bogus, '')
+
 
 if __name__ == '__main__':
     unittest.main()
