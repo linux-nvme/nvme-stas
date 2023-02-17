@@ -9,22 +9,40 @@ on:
   workflow_dispatch:
 
 jobs:
-  linux:
+  meson-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install requirements
-        run: |
-          sudo apt-get update
-          sudo apt-get upgrade
-          sudo apt-get install -y meson docbook-xml docbook-xsl xsltproc libjson-c-dev libglib2.0-dev libgirepository1.0-dev libsystemd-dev python3-systemd python3-pyudev python3-lxml
-          python3 -m pip install --upgrade pip wheel
-          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
-          python3 -m pip install --upgrade vermin
-          python3 -m pip install --upgrade pyfakefs
-          python3 -m pip install --upgrade importlib-resources
+      - name: "CHECKOUT: nvme-stas"
+        uses: actions/checkout@v3
 
-      - uses: BSFishy/meson-build@v1.0.3
+      - name: "INSTALL: Overall dependencies"
+        run: |
+          sudo apt-get update --yes --quiet
+          sudo apt-get upgrade --yes --quiet
+          sudo apt-get install --yes --quiet python3-pip cmake iproute2
+          sudo python3 -m pip install --upgrade pip
+          sudo python3 -m pip install --upgrade wheel meson ninja
+
+      - name: "INSTALL: nvme-stas dependencies"
+        run: |
+          sudo apt-get install --yes --quiet docbook-xml docbook-xsl xsltproc libglib2.0-dev libgirepository1.0-dev libsystemd-dev python3-systemd python3-pyudev python3-lxml
+          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
+          python3 -m pip install --upgrade vermin pyfakefs importlib-resources
+
+      - name: "INSTALL: libnvme"
+        run: |
+          sudo apt-get install --yes --quiet swig libjson-c-dev
+          meson subprojects download
+          meson setup .build subprojects/libnvme -Dlibdbus=disabled -Dopenssl=disabled -Dbuildtype=release -Dprefix=/usr -Dpython=true
+          ninja -C .build
+          sudo meson install -C .build
+
+      - name: "CONFIG: PYTHONPATH"
+        run: |
+          echo "PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
+
+      - name: "TEST: nvme-stas"
+        uses: BSFishy/meson-build@v1.0.3
         with:
           action: test
           directory: .build
@@ -35,10 +53,10 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: Linux_Meson_Testlog
+          name: "Linux_Meson_Testlog"
           path: .build/meson-logs/*
 
-      - name: Generate coverage report
+      - name: "Generate coverage report"
         run: |
           python3 -m pip install pytest
           python3 -m pip install pytest-cov

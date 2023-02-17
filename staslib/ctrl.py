@@ -50,14 +50,16 @@ def dlp_supp_opts_as_string(dlp_supp_opts: int):
 class Controller(stas.ControllerABC):
     '''@brief Base class used to manage the connection to a controller.'''
 
-    def __init__(self, root, host, tid: trid.TID, service, discovery_ctrl=False):  # pylint: disable=too-many-arguments
-        self._serv = service  # Refers to the parent service (either Staf or Stac)
+    def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
+        sysconf = conf.SysConf()
+        self._root = nvme.root()
+        self._host = nvme.host(self._root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
         self._ctrl = None  # libnvme's nvme.ctrl object
         self._connect_op = None
 
-        super().__init__(root, host, tid, discovery_ctrl)
+        super().__init__(tid, service, discovery_ctrl)
 
     def _release_resources(self):
         logging.debug('Controller._release_resources()    - %s | %s', self.id, self.device)
@@ -71,7 +73,8 @@ class Controller(stas.ControllerABC):
 
         self._ctrl = None
         self._udev = None
-        self._serv = None
+        self._host = None
+        self._root = None
 
     @property
     def device(self) -> str:
@@ -122,6 +125,11 @@ class Controller(stas.ControllerABC):
         if self._connect_op:
             self._connect_op.kill()
             self._connect_op = None
+
+    def set_level_from_tron(self, tron):
+        '''Set log level based on TRON'''
+        if self._root:
+            self._root.log_level("debug" if tron else "err")
 
     def _on_udev_notification(self, udev_obj):
         if self._alive():
@@ -328,7 +336,7 @@ class Controller(stas.ControllerABC):
 
 
 # ******************************************************************************
-class Dc(Controller):  # pylint: disable=too-many-instance-attributes
+class Dc(Controller):
     '''@brief This object establishes a connection to one Discover Controller (DC).
     It retrieves the discovery log pages and caches them.
     It also monitors udev events associated with that DC and updates
@@ -339,10 +347,8 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
     REGISTRATION_RETRY_RERIOD_SEC = 5
     GET_SUPPORTED_RETRY_RERIOD_SEC = 5
 
-    def __init__(
-        self, staf, root, host, tid: trid.TID, log_pages=None, origin=None
-    ):  # pylint: disable=too-many-arguments
-        super().__init__(root, host, tid, staf, discovery_ctrl=True)
+    def __init__(self, staf, tid: trid.TID, log_pages=None, origin=None):
+        super().__init__(tid, staf, discovery_ctrl=True)
         self._register_op = None
         self._get_supported_op = None
         self._get_log_op = None
@@ -566,7 +572,7 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
             else:
                 self._post_registration_actions()
 
-    def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):  # pylint: disable=unused-argument
+    def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to connect to the Controller.'''
         super()._on_connect_fail(op_obj, err, fail_cnt)
 
@@ -767,9 +773,9 @@ class Dc(Controller):  # pylint: disable=too-many-instance-attributes
 class Ioc(Controller):
     '''@brief This object establishes a connection to one I/O Controller.'''
 
-    def __init__(self, stac, root, host, tid: trid.TID):
+    def __init__(self, stac, tid: trid.TID):
         self._dlpe = None
-        super().__init__(root, host, tid, stac)
+        super().__init__(tid, stac)
 
     def _find_existing_connection(self):
         return self._udev.find_nvme_ioc_device(self.tid)

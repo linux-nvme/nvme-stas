@@ -90,12 +90,12 @@ def check_if_allowed_to_continue():
 def tid_from_dlpe(dlpe, host_traddr, host_iface):
     '''@brief Take a Discovery Log Page Entry and return a Controller ID as a dict.'''
     cid = {
-        'transport':   dlpe['trtype'],
-        'traddr':      dlpe['traddr'],
-        'trsvcid':     dlpe['trsvcid'],
+        'transport': dlpe['trtype'],
+        'traddr': dlpe['traddr'],
+        'trsvcid': dlpe['trsvcid'],
         'host-traddr': host_traddr,
-        'host-iface':  host_iface,
-        'subsysnqn':   dlpe['subnqn'],
+        'host-iface': host_iface,
+        'subsysnqn': dlpe['subnqn'],
     }
     return trid.TID(cid)
 
@@ -125,20 +125,20 @@ def remove_excluded(controllers: list):
 
 
 # ******************************************************************************
-class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
+class ControllerABC(abc.ABC):
     '''@brief Base class used to manage the connection to a controller.'''
 
     CONNECT_RETRY_PERIOD_SEC = 60
     FAST_CONNECT_RETRY_PERIOD_SEC = 3
 
-    def __init__(self, root, host, tid: trid.TID, discovery_ctrl=False):
-        self._root              = root
-        self._host              = host
-        self._tid               = tid
-        self._cancellable       = Gio.Cancellable()
-        self._connect_attempts  = 0
+    def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
+        self._tid = tid
+        self._serv = service  # Refers to the parent service (either Staf or Stac)
+        self.set_level_from_tron(self._serv.tron)
+        self._cancellable = Gio.Cancellable()
+        self._connect_attempts = 0
         self._retry_connect_tmr = gutil.GTimer(self.CONNECT_RETRY_PERIOD_SEC, self._on_try_to_connect)
-        self._discovery_ctrl    = discovery_ctrl
+        self._discovery_ctrl = discovery_ctrl
         self._try_to_connect_deferred = gutil.Deferred(self._try_to_connect)
         self._try_to_connect_deferred.schedule()
 
@@ -154,6 +154,7 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
             self._cancellable.cancel()
 
         self._tid = None
+        self._serv = None
         self._cancellable = None
         self._retry_connect_tmr = None
         self._try_to_connect_deferred = None
@@ -227,37 +228,38 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return GLib.SOURCE_REMOVE
 
     @abc.abstractmethod
+    def set_level_from_tron(self, tron):
+        '''Set log level based on TRON'''
+
+    @abc.abstractmethod
     def _do_connect(self):
-        raise NotImplementedError()
+        '''Perform connection'''
 
     @abc.abstractmethod
     def _on_aen(self, aen: int):
-        raise NotImplementedError()
+        '''Event handler when an AEN is received'''
 
     @abc.abstractmethod
     def _on_nvme_event(self, nvme_event):
-        raise NotImplementedError()
+        '''Event handler when an nvme_event is received'''
 
     @abc.abstractmethod
     def _on_ctrl_removed(self, udev_obj):
         '''Called when the associated nvme device (/dev/nvmeX) is removed
         from the system by the kernel.
         '''
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def _find_existing_connection(self):
-        raise NotImplementedError()
+        '''Check if there is an existing connection that matches this Controller's TID'''
 
     @abc.abstractmethod
     def all_ops_completed(self) -> bool:
         '''@brief Returns True if all operations have completed. False otherwise.'''
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def connected(self):
         '''@brief Return whether a connection is established'''
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def disconnect(self, disconnected_cb, keep_connection):
@@ -267,12 +269,11 @@ class ControllerABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         callback will be added to the main loop's next idle slot to be executed
         ASAP.
         '''
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def reload_hdlr(self):
         '''@brief This is called when a "reload" signal is received.'''
-        raise NotImplementedError()
+
 
 # ******************************************************************************
 class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
@@ -287,14 +288,16 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         self._tron = args.tron or service_conf.tron
         log.set_level_from_tron(self._tron)
 
-        self._lkc_file     = os.path.join(os.environ.get('RUNTIME_DIRECTORY', os.path.join('/run', defs.PROG_NAME)), 'last-known-config.pickle')
-        self._loop         = GLib.MainLoop()
-        self._cancellable  = Gio.Cancellable()
-        self._resolver     = gutil.NameResolver()
-        self._controllers  = self._load_last_known_config()
-        self._dbus_iface   = None
+        self._lkc_file = os.path.join(
+            os.environ.get('RUNTIME_DIRECTORY', os.path.join('/run', defs.PROG_NAME)), 'last-known-config.pickle'
+        )
+        self._loop = GLib.MainLoop()
+        self._cancellable = Gio.Cancellable()
+        self._resolver = gutil.NameResolver()
+        self._controllers = self._load_last_known_config()
+        self._dbus_iface = None
         self._cfg_soak_tmr = gutil.GTimer(self.CONF_STABILITY_SOAK_TIME_SEC, self._on_config_ctrls)
-        self._sysbus       = dasbus.connection.SystemMessageBus()
+        self._sysbus = dasbus.connection.SystemMessageBus()
 
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, self._stop_hdlr)  # CTRL-C
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr)  # systemctl stop stafd
@@ -349,6 +352,8 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         '''@brief Set Trace ON property'''
         self._tron = value
         log.set_level_from_tron(self._tron)
+        for controller in self._controllers.values():
+            controller.set_level_from_tron(self._tron)
 
     def run(self):
         '''@brief Start the main loop execution'''
@@ -432,10 +437,6 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         for controller in self._controllers.values():
             controller.cancel()
 
-    @abc.abstractmethod
-    def _disconnect_all(self):
-        pass
-
     def _stop_hdlr(self):
         logging.debug('ServiceABC._stop_hdlr()')
         sd_notify('STOPPING=1')
@@ -517,6 +518,10 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
             logging.error('Unable to save last known config: %s', ex)
 
     @abc.abstractmethod
+    def _disconnect_all(self):
+        '''Tell all controller objects to disconnect'''
+
+    @abc.abstractmethod
     def _keep_connections_on_exit(self):
         '''@brief Determine whether connections should remain when the
         process exits.
@@ -524,7 +529,6 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         NOTE) This is the base class method used to define the interface.
         It must be overloaded by a child class.
         '''
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def _config_ctrls_finish(self, configured_ctrl_list):
@@ -541,12 +545,11 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         NOTE) This is the base class method used to define the interface.
         It must be overloaded by a child class.
         '''
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def _load_last_known_config(self):
-        raise NotImplementedError()
+        '''Load last known config from file (if any)'''
 
     @abc.abstractmethod
     def _dump_last_known_config(self, controllers):
-        raise NotImplementedError()
+        '''Save last known config to file'''

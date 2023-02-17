@@ -5,6 +5,7 @@ on: [push]
 jobs:
 
   docker-lint:
+    if: ${{ !github.event.act }} # skip during local actions testing
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -22,33 +23,52 @@ jobs:
         python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
 
     steps:
-      - uses: actions/checkout@v3
+      - name: "CHECKOUT: nvme-stas"
+        uses: actions/checkout@v3
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: "UPGRADE: existing packages"
         run: |
-          sudo apt-get update
-          sudo apt-get upgrade
-          sudo apt-get install -y meson libgirepository1.0-dev libsystemd-dev python3-systemd python3-pyudev python3-lxml
-          python3 -m pip install --upgrade pip wheel
-          python3 -m pip install --upgrade meson dasbus pylint pyflakes PyGObject
+          sudo apt-get update --yes --quiet || true
+          sudo apt-get upgrade --yes --quiet || true
 
-      - name: Install libnvme
+      - name: "INSTALL: additional packages"
         run: |
+          sudo apt-get install --yes --quiet python3-pip || true
+          sudo apt-get install --yes --quiet cmake || true
+          sudo apt-get install --yes --quiet libgirepository1.0-dev || true
+          sudo apt-get install --yes --quiet libsystemd-dev || true
+          sudo apt-get install --yes --quiet python3-systemd || true
+          sudo python3 -m pip install --upgrade pip
+          sudo python3 -m pip install --upgrade wheel
+          sudo python3 -m pip install --upgrade meson
+          sudo python3 -m pip install --upgrade ninja
+          python3 -m pip install --upgrade dasbus
+          python3 -m pip install --upgrade pylint
+          python3 -m pip install --upgrade pyflakes
+          python3 -m pip install --upgrade PyGObject
+          python3 -m pip install --upgrade lxml
+          python3 -m pip install --upgrade pyudev
+
+      - name: "BUILD: libnvme"
+        run: |
+          sudo apt-get install --yes --quiet swig libjson-c-dev || true
           meson subprojects download
-          meson setup builddir subprojects/libnvme
+          meson setup builddir subprojects/libnvme -Dlibdbus=disabled -Dopenssl=disabled -Dbuildtype=release -Dprefix=/usr -Dpython=true
           ninja -C builddir
+          sudo meson install -C builddir
 
       - name: Set PYTHONPATH
         run: |
-          echo "PYTHONPATH=builddir:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
+          echo "PYTHONPATH=builddir:builddir/subprojects/libnvme:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
 
       - name: Show test environment
         run: |
+          echo -e "Build Directory:\n$(ls -laF builddir)"
           python3 -VV
           python3 -m site
           python3 -m pylint --version

@@ -52,16 +52,13 @@ def _opt(string):
 
 
 def _optsep(string):
-    # pylint: disable=consider-using-f-string
-    return r'(?:{x}\s*(?:{SEPARATORS}\s*)?)?'.format(x=string, SEPARATORS=SEPARATORS)
+    return fr'(?:{string}\s*(?:{SEPARATORS}\s*)?)?'
 
 
 TIMEFORMATS = [
-    r'{DAYS}\s*{HOURS}\s*{MINS}\s*{SECS}'.format(  # pylint: disable=consider-using-f-string
-        DAYS=_optsep(DAYS), HOURS=_optsep(HOURS), MINS=_optsep(MINS), SECS=_opt(SECS)
-    ),
+    fr'{_optsep(DAYS)}\s*{_optsep(HOURS)}\s*{_optsep(MINS)}\s*{_opt(SECS)}',
     f'{MINCLOCK}',
-    r'{DAYS}\s*{HOURCLOCK}'.format(DAYS=_optsep(DAYS), HOURCLOCK=HOURCLOCK),  # pylint: disable=consider-using-f-string
+    fr'{_optsep(DAYS)}\s*{HOURCLOCK}',
     f'{DAYCLOCK}',
     f'{SECCLOCK}',
 ]
@@ -109,6 +106,8 @@ def timeparse(sval):
     '''
     try:
         return float(sval)
+    except TypeError:
+        pass
     except ValueError:
         match = COMPILED_SIGN.match(sval)
         sign = -1 if match.groupdict()['sign'] == '-' else 1

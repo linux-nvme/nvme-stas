@@ -15,7 +15,8 @@ from staslib import defs
 
 
 # ******************************************************************************
-def parse_args(conf_file: str):  # pylint: disable=missing-function-docstring
+def parse_args(conf_file: str):
+    '''Parse command line options'''
     parser = ArgumentParser(description='STorage Appliance Connector (STAC). Must be root to run this program.')
     parser.add_argument(
         '-f',

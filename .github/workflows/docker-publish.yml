@@ -23,8 +23,8 @@ env:
 
 
 jobs:
-  build:
-
+  docker-publish:
+    if: ${{ !github.event.act }} # skip during local actions testing
     runs-on: ubuntu-latest
     permissions:
       contents: read
