@@ -276,14 +276,14 @@ class AsyncTask:  # pylint: disable=too-many-instance-attributes
         @param op_args: Arguments passed to operation
         '''
         self._cancellable = Gio.Cancellable()
-        self._operation   = operation
-        self._op_args     = op_args
-        self._success_cb  = on_success_callback
-        self._fail_cb     = on_failure_callback
-        self._retry_tmr   = None
-        self._errmsg      = None
-        self._task        = None
-        self._fail_cnt    = 0
+        self._operation = operation
+        self._op_args = op_args
+        self._success_cb = on_success_callback
+        self._fail_cb = on_failure_callback
+        self._retry_tmr = None
+        self._errmsg = None
+        self._task = None
+        self._fail_cnt = 0
 
     def _release_resources(self):
         if self._alive():
@@ -292,14 +292,14 @@ class AsyncTask:  # pylint: disable=too-many-instance-attributes
         if self._retry_tmr is not None:
             self._retry_tmr.kill()
 
-        self._operation   = None
-        self._op_args     = None
-        self._success_cb  = None
-        self._fail_cb     = None
-        self._retry_tmr   = None
-        self._errmsg      = None
-        self._task        = None
-        self._fail_cnt    = None
+        self._operation = None
+        self._op_args = None
+        self._success_cb = None
+        self._fail_cb = None
+        self._retry_tmr = None
+        self._errmsg = None
+        self._task = None
+        self._fail_cnt = None
         self._cancellable = None
 
     def __str__(self):

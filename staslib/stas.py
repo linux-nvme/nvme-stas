@@ -282,7 +282,6 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
     CONF_STABILITY_SOAK_TIME_SEC = 1.5
 
     def __init__(self, args, default_conf, reload_hdlr):
-
         service_conf = conf.SvcConf(default_conf=default_conf)
         service_conf.set_conf_file(args.conf_file)  # reload configuration
         self._tron = args.tron or service_conf.tron

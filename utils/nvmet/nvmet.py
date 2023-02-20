@@ -248,10 +248,10 @@ def ls(args):
         id = port_path.parts[-1]
         port = {
             'id': int(id),
-            'traddr':  _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_traddr')),
+            'traddr': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_traddr')),
             'trsvcid': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_trsvcid')),
-            'adrfam':  _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_adrfam')),
-            'trtype':  _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_trtype')),
+            'adrfam': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_adrfam')),
+            'trtype': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_trtype')),
         }
 
         ports.append(port)

@@ -10,6 +10,7 @@ from staslib import iputil, log, trid
 
 IP = shutil.which('ip')
 
+
 class Test(unittest.TestCase):
     '''iputil.py unit tests'''
 
@@ -33,19 +34,24 @@ class Test(unittest.TestCase):
         for iface in self.ifaces:
             for addr_entry in iface['addr_info']:
                 addr = ipaddress.ip_address(addr_entry['local'])
-                if not addr.is_link_local:  # Link local addresses may appear on more than one interface and therefore cannot be used.
+                # Link local addresses may appear on more than one interface and therefore cannot be used.
+                if not addr.is_link_local:
                     self.assertEqual(iface['ifname'], iputil.get_interface(str(addr)))
 
         self.assertEqual('', iputil.get_interface('255.255.255.255'))
 
     def test_remove_invalid_addresses(self):
         good_tcp = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': '', 'trsvcid': '8009'})
-        bad_tcp  = trid.TID({'transport': 'tcp', 'traddr': '555.555.555.555', 'subsysnqn': '', 'trsvcid': '8009'})
-        any_fc   = trid.TID({'transport': 'fc', 'traddr': 'blah', 'subsysnqn': ''})
+        bad_tcp = trid.TID({'transport': 'tcp', 'traddr': '555.555.555.555', 'subsysnqn': '', 'trsvcid': '8009'})
+        any_fc = trid.TID({'transport': 'fc', 'traddr': 'blah', 'subsysnqn': ''})
         bad_trtype = trid.TID({'transport': 'whatever', 'traddr': 'blah', 'subsysnqn': ''})
 
-
-        l1 = [ good_tcp, bad_tcp, any_fc, bad_trtype, ]
+        l1 = [
+            good_tcp,
+            bad_tcp,
+            any_fc,
+            bad_trtype,
+        ]
         l2 = iputil.remove_invalid_addresses(l1)
 
         self.assertNotEqual(l1, l2)

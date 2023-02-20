@@ -82,5 +82,6 @@ class Test(unittest.TestCase):
         self.assertNotEqual(self.tid, self.other_tid)
         self.assertNotEqual(self.tid, 'hello')
 
+
 if __name__ == '__main__':
     unittest.main()

@@ -28,6 +28,6 @@ class StasTimeparseUnitTest(unittest.TestCase):
         self.assertEqual(timeparse.timeparse('+ 1 minute'), 60)
         self.assertIsNone(timeparse.timeparse('blah'))
 
+
 if __name__ == '__main__':
     unittest.main()
-

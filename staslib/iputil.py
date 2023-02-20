@@ -36,6 +36,7 @@ GETADDRCMD = (
 )
 GETADDRCMD = len(GETADDRCMD).to_bytes(4, byteorder='little') + GETADDRCMD[4:]  # nlmsg_len
 
+
 # ******************************************************************************
 def get_ipaddress_obj(ipaddr):
     '''@brief Return a IPv4Address or IPv6Address depending on whether @ipaddr

@@ -9,7 +9,7 @@ KEYS = [
     ('traddr', None),
     ('subsysnqn', 'nqn'),
     ('host-iface', None),
-    ('host-traddr', None) ,
+    ('host-traddr', None),
 ]
 
 for ctrl in eval(sys.stdin.read()):
