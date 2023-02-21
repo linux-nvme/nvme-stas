@@ -15,8 +15,8 @@ All contributions should be made through pull requests. Before submitting make s
 1. Fork the repo
 2. Make changes. Try to split you changes into distinct commits and avoid making big reformatting as it makes it harder to review the changes.
 3. If possible, add unit tests for new features.
-4. Run `black --diff --color --line-length 120 --skip-string-normalization [file]` to make sure the changes conform to coding styles. See [Coding styles]() below.
-5. Run "make test" and make sure all tests pass.
+4. Run `make black` to make sure the changes conform to coding styles. See [Coding styles]() below.
+5. Run `make test` and make sure all tests pass.
 6. Commit to your fork with descriptive message and use the "--signoff, -s" option
 7. Send the pull request
 8. Check for failures in the automated CI output.
@@ -24,9 +24,7 @@ All contributions should be made through pull requests. Before submitting make s
 
 ## Coding style
 
-nvme-stas uses [Black](https://black.readthedocs.io/en/stable/), pylint, and pyflakes to check that the code meets minimum style requirements. However, we do not necessarily agree 100% with these tools and we may ignore some of their recommendations especially if it will make the code harder to read (e.g. vertical alignment). 
-
-With pylint its fairly easy to indicate which lines of code we do not want to lint. With Black, however, it's not that easy. We can only control Black options at the command-line (see below) . And since we can't tell Black to disregard specific lines in the code, we can only do a visual inspection of the changes and accept or reject them. For that reason Black is only used manually with the following options:
+nvme-stas uses [black](https://black.readthedocs.io/en/stable/), pylint, and pyflakes to check that the code meets minimum style requirements. We use `black` with the following options, which can simply be invoked with `make black`.
 
 ```bash
 black --diff --color --line-length 120 --skip-string-normalization [file or directory]

@@ -12,6 +12,8 @@ To solve this issue, and to eliminate the race condition, this release of `nvme-
 
 With this change we no longer need to provide the configuration parameter `udev-rule=[enabled|disabled]` in `stacd.conf`. This parameter is therefore deprecated.
 
+This release also adds the "[black](https://github.com/psf/black)" code formatter to the GitHub actions. From now on, code submitted as a pull request with GitHub must comply to black's code format. A new command, `make black`, has been added to allow users to verify their code before submitting a pull request.
+
 ## Changes with release 2.1.2
 
 * Bug fixes:
