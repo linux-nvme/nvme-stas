@@ -39,7 +39,7 @@ STAS is composed of two services, STAF and STAC, running on the Host computer.
 
 ## Design
 
-**`stafd`** and **`stacd`** use the GLib main loop. The GLib Python module provides several low-level building blocks that are needed by **`stafd`** and **`stacd`**. In addition, many Python modules "play nice" with GLib such as `dasbus` and `pyudev`. GLib also provides additional components such as timers, signal handlers, and much more.
+**`stafd`** and **`stacd`** use the [GLib main loop](https://docs.gtk.org/glib/main-loop.html). The [GLib](https://docs.gtk.org/glib/index.html) Python module provides several low-level building blocks that are needed by **`stafd`** and **`stacd`**. In addition, many Python modules "play nice" with GLib such as `dasbus` and `pyudev`. GLib also provides additional components such as timers, signal handlers, and much more.
 
 **`stafd`** connects to the `avahi-daemon`, which it uses to detect Central Discovery Controllers (CDC) and Direct Discovery Controllers (DDC). When Discovery Controllers (DC) are found with Avahi's help, **`stafd`** uses `libnvme` to set up persistent connections and retrieve the discovery log pages.
 
@@ -282,5 +282,6 @@ make
 
 ## Generating RPM and/or DEB packages
 ```bash
-make rpm deb
+make rpm
+make deb
 ```
