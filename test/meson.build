@@ -32,9 +32,13 @@ else
 
         if pylint.found()
             test('pylint', pylint, args: ['--rcfile=' + rcfile] + modules_to_lint, env: test_env)
+        else
+            warning('Skiping some of the tests because "pylint" is missing.')
         endif
         if pyflakes.found()
             test('pyflakes', pyflakes, args: modules_to_lint, env: test_env)
+        else
+            warning('Skiping some of the tests because "pyflakes" is missing.')
         endif
     endif
 
@@ -90,4 +94,6 @@ if vermin.found()
         test('vermin code', vermin, args: ['--config-file', join_paths(meson.current_source_dir(), 'vermin.conf')] + modules_to_lint, env: test_env)
     endif
     test('vermin tools', vermin, args: ['--config-file', join_paths(meson.current_source_dir(), 'vermin-tools.conf')] + tools, env: test_env)
+else
+    warning('Skiping some of the tests because "vermin" is missing.')
 endif

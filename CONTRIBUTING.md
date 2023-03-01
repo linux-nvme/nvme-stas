@@ -17,24 +17,30 @@ All contributions should be made through pull requests. Before submitting make s
 3. If possible, add unit tests for new features.
 4. Run `make black` to make sure the changes conform to coding styles. See [Coding styles]() below.
 5. Run `make test` and make sure all tests pass.
-6. Commit to your fork with descriptive message and use the "--signoff, -s" option
+6. Commit to your fork with descriptive message and use the "`--signoff, -s`" option
 7. Send the pull request
 8. Check for failures in the automated CI output.
 9. Be involved in the conversation (if any).
 
 ## Coding style
 
-nvme-stas uses [black](https://black.readthedocs.io/en/stable/), pylint, and pyflakes to check that the code meets minimum style requirements. We use `black` with the following options, which can simply be invoked with `make black`.
+nvme-stas uses [black](https://black.readthedocs.io/en/stable/), [pylint](https://pylint.readthedocs.io/en/latest/), and [pyflakes](https://pypi.org/project/pyflakes/) to check that the code meets minimum style requirements. We use `black` with the following options.
 
 ```bash
 black --diff --color --line-length 120 --skip-string-normalization [file or directory]
+```
+
+You can also use this convenience make command:
+
+```
+make black
 ```
 
 ## Minimum Python version required
 
 nvme-stas must be able to run with Python 3.6. Code changes cannot use Python features not supported by Python 3.6. The only exception is for Python scripts used during the build phase (e.g. scripts to generate the documentation) or test scripts. Those scripts can follow Python 3.8 syntax.
 
-nvme-stas use [vermin](https://pypi.org/project/vermin/) to verify that the code submitted complies with the minimum version required. Vermin gets executed as part of the tests (see `make test` below).
+nvme-stas uses [vermin](https://pypi.org/project/vermin/) to verify that the code submitted complies with the minimum version required. Vermin gets executed as part of the tests (see `make test` below).
 
 ## Unit tests
 
