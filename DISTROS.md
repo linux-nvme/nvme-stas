@@ -35,7 +35,7 @@ The next table shows different features that were added to the NVMe driver and i
 | **TP8010 Support** - Ability for a Host to register with a Discovery Controller. This version of the kernel introduces a new event to indicate to user-space apps (e.g. nvme-stas) when a connection to a DC is restored. This is used to trigger a re-registration of the host. This kernel also exposes the DC Type (dctype) attribute through the sysfs, which is needed to determine whether registration is supported. | 5.18                         |
 | - Print actual source IP address (`src_addr`) through sysfs "address" attr. This is needed to verify that TCP connections were made on the right interface.<br />- Consider also `host_iface` when checking IP options.<br />- Send a rediscover uevent when a persistent discovery controller reconnects. | 6.1                          |
 
-nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with. 
+nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with at the time the code was developed. 
 
 | Package / Module                                           | Min version | stafd         | stacd         | How to determine the  currently installed version            |
 | ---------------------------------------------------------- | ----------- | ------------- | ------------- | ------------------------------------------------------------ |
@@ -47,7 +47,7 @@ nvme-stas also depends on the following run-time libraries and modules. Note tha
 | nvme-tcp (kernel module)                                   | 5.18 *      | **Mandatory** | **Mandatory** | N/A                                                          |
 | dbus-daemon                                                | 1.12.2      | **Mandatory** | **Mandatory** | `dbus-daemon --version`                                      |
 | avahi-daemon                                               | 0.7         | **Mandatory** | Not required  | `avahi-daemon --version`                                     |
-| python3-libnvme                                            | 1.2         | **Mandatory** | **Mandatory** | `python3 -c 'import libnvme; print(f"{libnvme.__version__}")'` |
+| python3-libnvme                                            | 1.3         | **Mandatory** | **Mandatory** | `python3 -c 'import libnvme; print(f"{libnvme.__version__}")'` |
 | importlib.resources.files() OR importlib_resources.files() | ***         | Optional      | Optional      | `importlib.resources.files()` was introduced in Python 3.9 and backported to earlier versions as `importlib_resources.files()`. If neither modules can be found, `nvme-stas` will default to using the less efficient `pkg_resources.resource_string()` instead. When `nvme-stas` is no longer required to support Python 3.6 and is allowed a minimum of 3.9 or later, only `importlib.resources.files()` will be required. |
 
 * Kernel 5.18 provides full functionality. nvme-stas can work with older kernels, but with limited functionality, unless the kernels contain back-ported features (see Addendum for the list of kernel patches that could be back-ported to an older kernel). 
