@@ -2,16 +2,16 @@ Source: nvme-stas
 Section: misc
 Priority: optional
 Maintainer: Martin Belanger <Martin.Belanger@dell.com>
-Build-Depends: debhelper-compat (= 12), python3-setuptools, dh-python
+Build-Depends: debhelper-compat (= 12), python3-setuptools, dh-python, meson, ninja-build
 Standards-Version: 4.4.1
-#Homepage: <insert the upstream URL, if relevant>
-#Vcs-Browser: https://salsa.debian.org/debian/pack
-#Vcs-Git: https://salsa.debian.org/debian/pack.git
+Homepage: https://nvme-stas.readthedocs.io/en/latest/
+Vcs-Browser: https://github.com/linux-nvme/nvme-stas
+Vcs-Git: https://github.com/linux-nvme/nvme-stas.git
 #Testsuite: autopkgtest-pkg-python
 
 Package: nvme-stas
 Architecture: all
-Depends: ${python3:Depends}, ${misc:Depends}, python3-pyudev, python3-systemd, python3-gi python3-dasbus python3-libnvme
+Depends: ${python3:Depends}, ${misc:Depends}, python3-pyudev, python3-systemd, python3-gi, python3-dasbus, python3-libnvme
 Description: NVMe STorage Appliance Services
  This package provides two daemons, stafd and stacd. The STorage Appliance
  Finder Daemon (stafd) automatically discovers NVMe-oF Discovery Controllers (DC)
