@@ -29,12 +29,37 @@ class Style:
     RESET_ALL = '\033[0m'
 
 
+def _get_loaded_nvme_modules():
+    cp = subprocess.run('/usr/sbin/lsmod', capture_output=True, text=True)
+    if cp.returncode != 0 or not cp.stdout:
+        return []
+
+    output = []
+    lines = cp.stdout.split('\n')
+    for line in lines:
+        if 'nvme' in line:
+            module = line.split()[0]
+            for end in ('loop', 'tcp', 'fc', 'rdma'):
+                if module.endswith(end):
+                    output.append(module)
+                    break
+
+    return output
+
+
 def _runcmd(cmd: list, quiet=False):
     if not quiet:
         print(' '.join(cmd))
     if args.dry_run:
         return
     subprocess.run(cmd)
+
+
+def _modprobe(module: str, args: list = None, quiet=False):
+    cmd = ['/usr/sbin/modprobe', module]
+    if args:
+        cmd.extend(args)
+    _runcmd(cmd, quiet)
 
 
 def _mkdir(dname: str):
@@ -142,7 +167,7 @@ def create(args):
 
     # Create a dummy null block device (if one doesn't already exist)
     dev_node = '/dev/nullb0'
-    _runcmd(['/usr/sbin/modprobe', 'null_blk', 'nr_devices=1'])
+    _modprobe('null_blk', ['nr_devices=1'])
 
     ports = config.get('ports')
     if ports is None:
@@ -154,13 +179,13 @@ def create(args):
 
     # Extract the list of transport types found in the
     # config file and load the corresponding kernel module.
-    _runcmd(['/usr/sbin/modprobe', 'nvmet'])
+    _modprobe('nvmet')
     trtypes = {port.get('trtype') for port in ports if port.get('trtype') is not None}
     for trtype in trtypes:
         if trtype in ('tcp', 'fc', 'rdma'):
-            _runcmd(['/usr/sbin/modprobe', f'nvmet-{trtype}'])
+            _modprobe(f'nvmet_{trtype}')
         elif trtype == 'loop':
-            _runcmd(['/usr/sbin/modprobe', f'nvme-loop'])
+            _modprobe('nvmet_loop')
 
     for port in ports:
         print('')
@@ -221,10 +246,11 @@ def clean(args):
     for dname in pathlib.Path('/sys/kernel/config/nvmet/subsystems').glob('*'):
         _runcmd(['rmdir', str(dname)], quiet=True)
 
-    _runcmd(['/usr/sbin/modprobe', '--remove', 'nvmet-tcp'])
-    _runcmd(['/usr/sbin/modprobe', '--remove', 'nvmet-rdma'])
-    _runcmd(['/usr/sbin/modprobe', '--remove', 'nvmet-fc'])
-    _runcmd(['/usr/sbin/modprobe', '--remove', 'null_blk'])
+    for module in _get_loaded_nvme_modules():
+        _modprobe(module, ['--remove'])
+
+    _modprobe('nvmet', ['--remove'])
+    _modprobe('null_blk', ['--remove'])
 
 
 def link(args):
