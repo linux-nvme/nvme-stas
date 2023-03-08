@@ -80,15 +80,28 @@ def _create_namespace(subsysnqn: str, id: str, node: str) -> str:
     return dname
 
 
+def _args_valid(id, traddr, trsvcid, trtype, adrfam):
+    if None in (id, trtype):
+        return False
+
+    if trtype != 'loop' and None in (traddr, trsvcid, adrfam):
+        return False
+
+    return True
+
+
 def _create_port(port: str, traddr: str, trsvcid: str, trtype: str, adrfam: str):
     '''@param port: This is a nvmet port and not a tcp port.'''
     print(f'###{Fore.GREEN} Create port: {port} -> {traddr}:{trsvcid}{Style.RESET_ALL}')
     dname = os.path.join('/sys/kernel/config/nvmet/ports', port)
     _mkdir(dname)
-    _echo(traddr, os.path.join(dname, 'addr_traddr'))
-    _echo(trsvcid, os.path.join(dname, 'addr_trsvcid'))
     _echo(trtype, os.path.join(dname, 'addr_trtype'))
-    _echo(adrfam, os.path.join(dname, 'addr_adrfam'))
+    if traddr:
+        _echo(traddr, os.path.join(dname, 'addr_traddr'))
+    if trsvcid:
+        _echo(trsvcid, os.path.join(dname, 'addr_trsvcid'))
+    if adrfam:
+        _echo(adrfam, os.path.join(dname, 'addr_adrfam'))
 
 
 def _map_subsystems_to_ports(subsystems: list):
@@ -146,6 +159,8 @@ def create(args):
     for trtype in trtypes:
         if trtype in ('tcp', 'fc', 'rdma'):
             _runcmd(['/usr/sbin/modprobe', f'nvmet-{trtype}'])
+        elif trtype == 'loop':
+            _runcmd(['/usr/sbin/modprobe', f'nvme-loop'])
 
     for port in ports:
         print('')
@@ -156,7 +171,7 @@ def create(args):
             port.get('trtype'),
             port.get('adrfam'),
         )
-        if None not in (id, traddr, trsvcid, trtype, adrfam):
+        if _args_valid(id, traddr, trsvcid, trtype, adrfam):
             _create_port(id, traddr, trsvcid, trtype, adrfam)
         else:
             print(

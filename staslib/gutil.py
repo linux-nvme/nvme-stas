@@ -309,6 +309,8 @@ class AsyncTask:  # pylint: disable=too-many-instance-attributes
         '''Return object members as a dictionary'''
         info = {
             'fail count': self._fail_cnt,
+            'completed': self._task.get_completed(),
+            'alive': self._alive(),
         }
 
         if self._retry_tmr:

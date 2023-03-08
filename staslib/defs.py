@@ -24,12 +24,19 @@ STAFD_DBUS_NAME = '@STAFD_DBUS_NAME@'
 STAFD_DBUS_PATH = '@STAFD_DBUS_PATH@'
 
 KERNEL_VERSION = KernelVersion(platform.release())
-KERNEL_IFACE_MIN_VERSION = KernelVersion('@KERNEL_IFACE_MIN_VERSION@')
-KERNEL_TP8013_MIN_VERSION = KernelVersion('@KERNEL_TP8013_MIN_VERSION@')
+KERNEL_IFACE_MIN_VERSION = KernelVersion('5.14')
+KERNEL_TP8013_MIN_VERSION = KernelVersion('5.16')
 
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 
 PROG_NAME = os.path.basename(sys.argv[0])
+
+NVME_HOSTID = '/etc/nvme/hostid'
+NVME_HOSTNQN = '/etc/nvme/hostnqn'
+NVME_HOSTKEY = '/etc/nvme/hostkey'
+
 SYS_CONF_FILE = '/etc/stas/sys.conf'
+STAFD_CONF_FILE = '/etc/stas/stafd.conf'
+STACD_CONF_FILE = '/etc/stas/stacd.conf'
 
 SYSTEMCTL = shutil.which('systemctl')

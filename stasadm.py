@@ -157,7 +157,7 @@ def get_parser():  # pylint: disable=missing-function-docstring
         '--conf-file',
         action='store',
         help='Configuration file. Default %(default)s.',
-        default='/etc/stas/sys.conf',
+        default=defs.SYS_CONF_FILE,
         type=str,
         metavar='FILE',
     )

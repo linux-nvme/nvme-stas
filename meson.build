@@ -71,8 +71,6 @@ conf = configuration_data()
 
 conf.set('VERSION', meson.project_version())
 conf.set('LICENSE', meson.project_license()[0])
-conf.set('KERNEL_IFACE_MIN_VERSION', '5.14')
-conf.set('KERNEL_TP8013_MIN_VERSION', '5.16')
 conf.set('BUILD_DIR', meson.current_build_dir())
 conf.set('STAFD_DBUS_NAME', 'org.nvmexpress.staf')
 conf.set('STAFD_DBUS_PATH', '/org/nvmexpress/staf')
