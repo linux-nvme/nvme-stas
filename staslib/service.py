@@ -81,12 +81,20 @@ class CtrlTerminator:
             if self._audit_tmr.time_remaining() == 0:
                 self._audit_tmr.start()
 
+    def pending_disposal(self, tid):
+        '''Check whether @tid is pending disposal'''
+        for controller in self._controllers:
+            if controller.tid == tid:
+                return True
+        return False
+
     def info(self):
         '''@brief Get info about this object (used for debug)'''
         info = {
-            'controllers': str([str(tid) for _, _, _, tid in self._controllers]),
-            'audit timer': str(self._audit_tmr),
+            'terminator.audit timer': str(self._audit_tmr),
         }
+        for controller, _, _, tid in self._controllers:
+            info[f'terminator.controller.{tid}'] = str(controller.info())
         return info
 
     def kill(self):
@@ -182,7 +190,7 @@ class Service(stas.ServiceABC):
         '''@brief Get the status info for this object (used for debug)'''
         info = super().info()
         if self._terminator:
-            info['terminator'] = str(self._terminator.info())
+            info.update(self._terminator.info())
         return info
 
     @stas.ServiceABC.tron.setter
@@ -278,17 +286,17 @@ class Stac(Service):
 
     def _audit_all_connections(self, tids):
         '''A host should only connect to I/O controllers that have been zoned
-        for that host or a manual "controller" entry exists in stcd.conf.
+        for that host or a manual "controller" entry exists in stacd.conf.
         A host should disconnect from an I/O controller when that I/O controller
-        is removed from the zone or a manual "controller" entry is removed from
-        stacd.conf. stacd will audit connections if "disconnect-scope=
+        is removed from the zone or a "controller" entry is manually removed
+        from stacd.conf. stacd will audit connections if "disconnect-scope=
         all-connections-matching-disconnect-trtypes". stacd will delete any
         connection that is not supposed to exist.
         '''
         logging.debug('Stac._audit_all_connections()      - tids = %s', tids)
         num_controllers = len(self._controllers)
         for tid in tids:
-            if tid not in self._controllers:
+            if tid not in self._controllers and not self._terminator.pending_disposal(tid):
                 self._controllers[tid] = ctrl.Ioc(self, tid)
 
         if num_controllers != len(self._controllers):

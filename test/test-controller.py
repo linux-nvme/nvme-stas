@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import logging
 import unittest
-from staslib import conf, ctrl, service, stas, trid
+from staslib import conf, ctrl, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -201,7 +201,7 @@ class Test(TestCase):
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
-                'connect operation': "{'fail count': 0}",
+                'connect operation': "{'fail count': 0, 'completed': False, 'alive': True}",
             },
         )
         self.assertEqual(
@@ -223,7 +223,7 @@ class Test(TestCase):
                 'hostnqn': '',
                 'model': '',
                 'serial': '',
-                'connect operation': "{'fail count': 0}",
+                'connect operation': "{'fail count': 0, 'completed': False, 'alive': True}",
             },
         )
 

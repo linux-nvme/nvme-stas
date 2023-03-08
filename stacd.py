@@ -39,7 +39,7 @@ def parse_args(conf_file: str):
     return parser.parse_args()
 
 
-ARGS = parse_args('/etc/stas/stacd.conf')
+ARGS = parse_args(defs.STACD_CONF_FILE)
 
 if ARGS.version:
     print(f'nvme-stas {defs.VERSION}')

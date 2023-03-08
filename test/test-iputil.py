@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import os
 import json
 import shutil
 import logging

@@ -435,7 +435,7 @@ class SysConf(metaclass=singleton.Singleton):
                 Host NQN cannot be determined.
         '''
         try:
-            value = self.__get_value('Host', 'nqn', '/etc/nvme/hostnqn')
+            value = self.__get_value('Host', 'nqn', defs.NVME_HOSTNQN)
         except FileNotFoundError as ex:
             sys.exit(f'Error reading mandatory Host NQN (see stasadm --help): {ex}')
 
@@ -452,7 +452,7 @@ class SysConf(metaclass=singleton.Singleton):
                 Host ID cannot be determined.
         '''
         try:
-            value = self.__get_value('Host', 'id', '/etc/nvme/hostid')
+            value = self.__get_value('Host', 'id', defs.NVME_HOSTID)
         except FileNotFoundError as ex:
             sys.exit(f'Error reading mandatory Host ID (see stasadm --help): {ex}')
 
