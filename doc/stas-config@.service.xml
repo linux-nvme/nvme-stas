@@ -29,6 +29,7 @@
 
     <refnamediv>
         <refname>stas-config@.service</refname>
+        <refpurpose>Used for auto-generation of nvme-stas configuration files.</refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>

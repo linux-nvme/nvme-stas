@@ -29,6 +29,7 @@
 
     <refnamediv>
         <refname>stafd.service</refname>
+        <refpurpose>Systemd unit file for the stafd service</refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>
