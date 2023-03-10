@@ -53,7 +53,7 @@
             Although <code>nvme-stas</code>' configuration is saved to
             <filename>/etc/stas/sys.conf</filename>, it's still possible to
             interoperate with the configuration of <command>nvme-cli</command>
-            and <command>libnvme</command>. <code>nvme-stas</code> allows to
+            and <command>libnvme</command>. <code>nvme-stas</code> allows one to
             save individual parameters such as the Host NQN and ID outside of
             <filename>/etc/stas/sys.conf</filename>. This allows, for example,
             using the same default Host NQN and ID defined by

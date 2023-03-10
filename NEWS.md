@@ -41,7 +41,7 @@ This release also adds the "[black](https://github.com/psf/black)" code formatte
   * `nr-io-queues`, `nr-write-queues`, `nr-poll-queues`, `queue-size`, `reconnect-delay`, `ctrl-loss-tmo`, `duplicate-connect`, `disable-sqflow`
 * Changes to `stafd.conf`:
   * Move  `persistent-connections` from the `[Global]` section to a new section named `[Discovery controller connection management]`.  `persistent-connections` will still be recognized from the `[Global]` section, but will be deprecated over time.
-  * Add new configuration parameter `zeroconf-connections-persistence` to section `[Discovery controller connection management]`. This parameter allows to age Discovery Controllers discovered through zeroconf (mDNS) when they are no longer reachable and should be purged from the configuration. 
+  * Add new configuration parameter `zeroconf-connections-persistence` to section `[Discovery controller connection management]`. This parameter allows one to age Discovery Controllers discovered through zeroconf (mDNS) when they are no longer reachable and should be purged from the configuration. 
 * Added more configuration validation to identify invalid Sections and Options in configuration files (`stafd.conf` and `stacd.conf`).
 * Improve dependencies in meson build environment so that missing subprojects won't prevent distros from packaging the `nvme-stas` (i.e. needed when invoking meson with the `--wrap-mode=nodownload`  option)
 * Improve Read-The-Docs documentation format.
