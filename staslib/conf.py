@@ -424,6 +424,7 @@ class SysConf(metaclass=singleton.Singleton):
         return {
             'hostnqn': self.hostnqn,
             'hostid': self.hostid,
+            'hostkey': self.hostkey,
             'symname': self.hostsymname,
         }
 
@@ -455,6 +456,20 @@ class SysConf(metaclass=singleton.Singleton):
             value = self.__get_value('Host', 'id', defs.NVME_HOSTID)
         except FileNotFoundError as ex:
             sys.exit(f'Error reading mandatory Host ID (see stasadm --help): {ex}')
+
+        return value
+
+    @property
+    def hostkey(self):
+        '''@brief return the host key
+        @return: Host key
+        @raise: Host key is optional, but mandatory if authorization will be performed.
+        '''
+        try:
+            value = self.__get_value('Host', 'key', defs.NVME_HOSTKEY)
+        except FileNotFoundError as ex:
+            logging.info('Host key undefined: %s', ex)
+            value = None
 
         return value
 
@@ -533,6 +548,7 @@ class NvmeOptions(metaclass=singleton.Singleton):
         self._supported_options = {
             'discovery': defs.KERNEL_VERSION >= defs.KERNEL_TP8013_MIN_VERSION,
             'host_iface': defs.KERNEL_VERSION >= defs.KERNEL_IFACE_MIN_VERSION,
+            'dhchap_secret': defs.KERNEL_VERSION >= defs.KERNEL_HOSTKEY_MIN_VERSION,
         }
 
         # If some of the options are False, we need to check wether they can be
@@ -570,3 +586,8 @@ class NvmeOptions(metaclass=singleton.Singleton):
         a specific interface regardless of the routing tables.
         '''
         return self._supported_options['host_iface']
+
+    @property
+    def dhchap_secret_supp(self):
+        '''This option allows specifying the host DHCHAP key used for authentication.'''
+        return self._supported_options['dhchap_secret']

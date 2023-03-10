@@ -46,7 +46,7 @@ if want_man or want_html or want_readthedocs
     foreach idl : idls
         rr = run_command(
             dbus2doc,
-            '--idl', join_paths(conf.get('BUILD_DIR'), 'staslib', idl),
+            '--idl', conf.get('BUILD_DIR') / 'staslib' / idl,
             '--output-directory', out_dir,
             '--tmp', meson.current_build_dir(),
             env: env,
@@ -101,7 +101,7 @@ if want_man or want_html or want_readthedocs
                 depend_files: deps,
                 command: xslt_cmd + [man_xsl, '@INPUT@'],
                 install: true,
-                install_dir: join_paths(get_option('mandir'), ('man' + sect))
+                install_dir: mandir / ('man' + sect)
             )
         endif
 
@@ -114,7 +114,7 @@ if want_man or want_html or want_readthedocs
                 depend_files: deps,
                 command: xslt_cmd + [html_xsl, '@INPUT@'],
                 install: want_html,
-                install_dir: join_paths(docdir, 'html')
+                install_dir: docdir / 'html'
             )
             html_files += [ [stem, html_file ] ]
         endif

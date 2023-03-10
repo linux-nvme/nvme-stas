@@ -14,6 +14,12 @@ import shutil
 import platform
 from staslib.version import KernelVersion
 
+try:
+    import libnvme
+    LIBNVME_VERSION = libnvme.__version__
+except (AttributeError, ModuleNotFoundError):
+    LIBNVME_VERSION = '?.?'
+
 VERSION = '@VERSION@'
 LICENSE = '@LICENSE@'
 
@@ -26,6 +32,7 @@ STAFD_DBUS_PATH = '@STAFD_DBUS_PATH@'
 KERNEL_VERSION = KernelVersion(platform.release())
 KERNEL_IFACE_MIN_VERSION = KernelVersion('5.14')
 KERNEL_TP8013_MIN_VERSION = KernelVersion('5.16')
+KERNEL_HOSTKEY_MIN_VERSION = KernelVersion('5.20')
 
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 

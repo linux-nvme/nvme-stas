@@ -40,13 +40,16 @@ class Test(TestCase):
 
     def test_fabrics_correct_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
-        self.fs.create_file('/dev/nvme-fabrics', contents='host_iface=%s,discovery\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='host_iface=%s,discovery,dhchap_secret=%s\n')
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         nvme_options = conf.NvmeOptions()
         self.assertTrue(nvme_options.discovery_supp)
         self.assertTrue(nvme_options.host_iface_supp)
-        self.assertEqual(nvme_options.get(), {'discovery': True, 'host_iface': True})
-        self.assertEqual(str(nvme_options), "supported options: {'discovery': True, 'host_iface': True}")
+        self.assertTrue(nvme_options.dhchap_secret_supp)
+        self.assertEqual(nvme_options.get(), {'discovery': True, 'host_iface': True, 'dhchap_secret': True})
+        self.assertEqual(
+            str(nvme_options), "supported options: {'discovery': True, 'host_iface': True, 'dhchap_secret': True}"
+        )
         del nvme_options
 
 

@@ -36,6 +36,20 @@
 #id=file:///etc/nvme/hostid
 
 
+# key:     The host's DHCHAP key to be used for authentication. This is an
+#          optional parameter only required when authentication is needed.
+#          A value starting with "file://" indicates that the Host Key can
+#          be retrieved from a separate file. Typically, nvme-cli saves the
+#          Host Key in /etc/nvme/hostkey. For compatibility with nvme-cli,
+#          nvme-stas defaults to looking for the existance of this file and
+#          will read the Key from it. Otherwise, you can overwrite the default
+#          Key by specifying its value here or specifying another file that
+#          contains an alternate Host Key to use.
+#          Type: string
+#          Default: file:///etc/nvme/hostkey
+#key=file:///etc/nvme/hostkey
+
+
 # symname: The host's symbolic name. This can be a string or the name of a file
 #          containing the symbolic name. A value starting with "file://"
 #          indicates that the Symbolic Name can be retrieved from a separate

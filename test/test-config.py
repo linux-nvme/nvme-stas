@@ -144,6 +144,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     FNAME_4 = '/tmp/stas-sys-config-test-4'
     NQN = 'nqn.2014-08.org.nvmexpress:uuid:9aae2691-b275-4b64-8bfe-5da429a2bab9'
     ID = '56529e15-0f3e-4ede-87e2-63932a4adb99'
+    KEY = 'DHHC-1:03:qwertyuioplkjhgfdsazxcvbnm0123456789QWERTYUIOPLKJHGFDSAZXCVBNM010101010101010101010101010101:'
     SYMNAME = 'Bart-Simpson'
 
     DATA = {
@@ -151,6 +152,7 @@ class StasSysConfUnitTest(unittest.TestCase):
             '[Host]\n',
             f'nqn={NQN}\n',
             f'id={ID}\n',
+            f'key={KEY}\n',
             f'symname={SYMNAME}\n',
         ],
         FNAME_2: [
@@ -197,6 +199,7 @@ class StasSysConfUnitTest(unittest.TestCase):
             {
                 'hostnqn': StasSysConfUnitTest.NQN,
                 'hostid': StasSysConfUnitTest.ID,
+                'hostkey': StasSysConfUnitTest.KEY,
                 'symname': StasSysConfUnitTest.SYMNAME,
             },
         )
