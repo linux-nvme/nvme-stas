@@ -3,4 +3,5 @@
 option('man',         type: 'boolean', value: false, description: 'build and install man pages')
 option('html',        type: 'boolean', value: false, description: 'build and install html pages')
 option('readthedocs', type: 'boolean', value: false,  description: 'to be used by Read-The-Docs documentation builder')
+option('libnvme-sel', type: 'combo',   value: 'subproject', choices: ['subproject', 'pre-installed'], description: 'Select the libnvme to be used for testing. Either libnvme built as a "subproject", or libnvme already installed on the system.')
 option('rt_pymods_reqd', type: 'boolean', value: false,  description: 'Make sure all run-time python modules are installed')

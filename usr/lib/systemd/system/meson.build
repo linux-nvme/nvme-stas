@@ -6,7 +6,7 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-sd_service_file_dir = join_paths(prefix, 'lib', 'systemd', 'system')
+sd_service_file_dir = prefix / 'lib' / 'systemd' / 'system'
 
 configure_file(
     input: 'stafd.in.service',

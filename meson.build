@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.53.0',
-    version: '2.1.3',
+    version: '2.1.4-rc1',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -21,12 +21,13 @@ fs = import('fs')
 
 #===============================================================================
 prefix  = get_option('prefix')
-etcdir  = get_option('sysconfdir')
-datadir = get_option('datadir')
-bindir  = join_paths(prefix, get_option('bindir'))
-sbindir = join_paths(prefix, get_option('sbindir'))
-docdir  = join_paths(prefix, datadir, 'doc', 'nvme-stas')
-cnfdir  = join_paths(etcdir, 'stas')
+datadir = prefix / get_option('datadir')
+etcdir  = prefix / get_option('sysconfdir')
+bindir  = prefix / get_option('bindir')
+sbindir = prefix / get_option('sbindir')
+mandir  = prefix / get_option('mandir')
+docdir  = datadir / 'doc' / 'nvme-stas'
+cnfdir  = etcdir / 'stas'
 
 want_man  = get_option('man')
 want_html = get_option('html')
@@ -136,7 +137,7 @@ modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
 # This is used by other meson.build files.
 PYTHON_SEARCH_PATHS = [
     conf.get('BUILD_DIR'),
-    join_paths(conf.get('BUILD_DIR'), 'subprojects', 'libnvme')
+    conf.get('BUILD_DIR') / 'subprojects' / 'libnvme',
 ]
 PYTHONPATH = ':'.join(PYTHON_SEARCH_PATHS)
 
@@ -163,6 +164,7 @@ if meson.version().version_compare('>=0.57.0')
         'datadir:             ' + datadir,
         'bindir:              ' + bindir,
         'sbindir:             ' + sbindir,
+        'mandir:              ' + mandir,
         'docdir:              ' + docdir,
         'cnfdir:              ' + cnfdir,
         'want_man:            ' + want_man.to_string(),
