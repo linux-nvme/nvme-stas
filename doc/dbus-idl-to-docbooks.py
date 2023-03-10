@@ -59,6 +59,7 @@ REF_ENTRY_INFO = '''\
 '''
 
 MANVOLNUM = '<manvolnum>5</manvolnum>'
+PURPOSE = '<refpurpose>DBus interface</refpurpose>'
 
 PARSER = etree.XMLParser(remove_blank_text=True)
 
@@ -76,8 +77,17 @@ def add_missing_info(fname, stem):
 
     refmeta = xml.find('refmeta')
     if refmeta is not None:
-        refmeta.append(etree.fromstring(f'<refentrytitle>{stem}</refentrytitle>'))
+        if refmeta.find('refentrytitle') is None:
+            refmeta.append(etree.fromstring(f'<refentrytitle>{stem}</refentrytitle>'))
         refmeta.append(etree.fromstring(MANVOLNUM))
+
+    refnamediv = xml.find('refnamediv')
+    if refnamediv is not None:
+        refpurpose = refnamediv.find('refpurpose')
+        if refpurpose is not None:
+            refnamediv.remove(refpurpose)
+
+        refnamediv.append(etree.fromstring(PURPOSE))
 
     et = etree.ElementTree(root)
     et.write(fname, pretty_print=True)

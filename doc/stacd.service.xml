@@ -29,6 +29,7 @@
 
     <refnamediv>
         <refname>stacd.service</refname>
+        <refpurpose>Systemd unit file for the stacd service</refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>

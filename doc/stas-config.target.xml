@@ -29,6 +29,7 @@
 
     <refnamediv>
         <refname>stas-config.target</refname>
+        <refpurpose>Used to synchronize the start of nvme-stas processes</refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>
