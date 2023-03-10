@@ -6,32 +6,32 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-sd_service_file_dir = prefix / 'lib' / 'systemd' / 'system'
+sd_unit_dir = prefix / 'lib' / 'systemd' / 'system'
 
 configure_file(
     input: 'stafd.in.service',
     output: 'stafd.service',
-    install_dir: sd_service_file_dir,
+    install_dir: sd_unit_dir,
     configuration: conf,
 )
 
 configure_file(
     input: 'stacd.in.service',
     output: 'stacd.service',
-    install_dir: sd_service_file_dir,
+    install_dir: sd_unit_dir,
     configuration: conf,
 )
 
 configure_file(
     input: 'stas-config@.service',
     output: 'stas-config@.service',
-    install_dir: sd_service_file_dir,
+    install_dir: sd_unit_dir,
     copy: true,
 )
 
 configure_file(
     input: 'stas-config.target',
     output: 'stas-config.target',
-    install_dir: sd_service_file_dir,
+    install_dir: sd_unit_dir,
     copy: true,
 )

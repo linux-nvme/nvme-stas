@@ -148,32 +148,33 @@ subdir('usr/lib/systemd/system')
 subdir('test')
 subdir('doc')
 
-if meson.version().version_compare('>=0.57.0')
-    summary = [
-        '',
-        '------------------------------------------------------------',
-    ]
+
+summary = [
+    '',
+    '',
+    '------------------------------------------------------------',
+    'prefix:         ' + prefix,
+    'etcdir:         ' + etcdir,
+    'cnfdir:         ' + cnfdir,
+    'bindir:         ' + bindir,
+    'sbindir:        ' + sbindir,
+    'datadir:        ' + datadir,
+    'mandir:         ' + mandir,
+    'docdir:         ' + docdir,
+    'dbus_conf_dir:  ' + dbus_conf_dir,
+    'sd_unit_dir:    ' + sd_unit_dir,
+    'want_man:       ' + want_man.to_string(),
+    'want_html:      ' + want_html.to_string(),
+    '------------------------------------------------------------',
+]
+
+if meson.version().version_compare('>=0.57.0')  # conf.keys()
     foreach key : conf.keys()
-        summary += (key + ':  ' + conf.get(key))
+        summary += (key + ':  ' + '@0@'.format(conf.get(key)))
     endforeach
-
-    summary += [
-        '------------------------------------------------------------',
-        'prefix:              ' + prefix,
-        'etcdir:              ' + etcdir,
-        'datadir:             ' + datadir,
-        'bindir:              ' + bindir,
-        'sbindir:             ' + sbindir,
-        'mandir:              ' + mandir,
-        'docdir:              ' + docdir,
-        'cnfdir:              ' + cnfdir,
-        'want_man:            ' + want_man.to_string(),
-        'want_html:           ' + want_html.to_string(),
-        'dbus_conf_dir:       ' + dbus_conf_dir,
-        'sd_service_file_dir: ' + sd_service_file_dir,
-        '------------------------------------------------------------',
-        '',
-    ]
-
-    message('\n'.join(summary))
+    summary += '------------------------------------------------------------'
 endif
+
+summary += ''
+
+message('\n'.join(summary))
