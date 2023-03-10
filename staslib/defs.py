@@ -14,6 +14,12 @@ import shutil
 import platform
 from staslib.version import KernelVersion
 
+try:
+    import libnvme
+    LIBNVME_VERSION = libnvme.__version__
+except (AttributeError, ModuleNotFoundError):
+    LIBNVME_VERSION = '?.?'
+
 VERSION = '@VERSION@'
 LICENSE = '@LICENSE@'
 

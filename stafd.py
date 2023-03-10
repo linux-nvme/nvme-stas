@@ -43,12 +43,7 @@ ARGS = parse_args(defs.STAFD_CONF_FILE)
 
 if ARGS.version:
     print(f'nvme-stas {defs.VERSION}')
-    try:
-        import libnvme
-
-        print(f'libnvme {libnvme.__version__}')
-    except (AttributeError, ModuleNotFoundError):
-        pass
+    print(f'libnvme {defs.LIBNVME_VERSION}')
     sys.exit(0)
 
 
