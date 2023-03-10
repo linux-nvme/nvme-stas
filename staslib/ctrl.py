@@ -12,10 +12,9 @@ Dc (Discovery Controller) and Ioc (I/O Controller) objects are derived.'''
 import time
 import inspect
 import logging
-import libnvme
 from gi.repository import GLib
 from libnvme import nvme
-from staslib import conf, gutil, trid, udev, stas
+from staslib import conf, defs, gutil, trid, udev, stas
 
 
 DC_KATO_DEFAULT = 30  # seconds
@@ -47,13 +46,33 @@ def dlp_supp_opts_as_string(dlp_supp_opts: int):
 
 
 # ******************************************************************************
-class Controller(stas.ControllerABC):
+class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attributes
     '''@brief Base class used to manage the connection to a controller.'''
 
     def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
         sysconf = conf.SysConf()
+        self._nvme_options = conf.NvmeOptions()
         self._root = nvme.root()
-        self._host = nvme.host(self._root, sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+        if (
+            self._nvme_options.dhchap_secret_supp
+            and sysconf.hostkey
+            and 'hostkey' in inspect.signature(nvme.host).parameters
+        ):
+            self._host = nvme.host(  # hostkey: pylint: disable=unexpected-keyword-arg
+                self._root,
+                hostnqn=sysconf.hostnqn,
+                hostid=sysconf.hostid,
+                hostkey=sysconf.hostkey,
+                hostsymname=sysconf.hostsymname,
+            )
+        else:
+            # This is for backward compatibility with older libnvme
+            self._host = nvme.host(
+                self._root,
+                hostnqn=sysconf.hostnqn,
+                hostid=sysconf.hostid,
+                hostsymname=sysconf.hostsymname,
+            )
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
         self._ctrl = None  # libnvme's nvme.ctrl object
@@ -75,6 +94,7 @@ class Controller(stas.ControllerABC):
         self._udev = None
         self._host = None
         self._root = None
+        self._nvme_options = None
 
     @property
     def device(self) -> str:
@@ -172,7 +192,7 @@ class Controller(stas.ControllerABC):
     def _do_connect(self):
         host_iface = (
             self.tid.host_iface
-            if (self.tid.host_iface and not conf.SvcConf().ignore_iface and conf.NvmeOptions().host_iface_supp)
+            if (self.tid.host_iface and not conf.SvcConf().ignore_iface and self._nvme_options.host_iface_supp)
             else None
         )
         self._ctrl = nvme.ctrl(
@@ -537,7 +557,7 @@ class Dc(Controller):
                 '%s | %s - libnvme-%s does not support "Get supported log pages". Please upgrade libnvme.',
                 self.id,
                 self.device,
-                getattr(libnvme, '__version__', '?.?'),
+                defs.LIBNVME_VERSION,
             )
 
         if conf.SvcConf().pleo_enabled and self._is_ddc() and has_supported_log_pages:
@@ -660,7 +680,7 @@ class Dc(Controller):
                     '%s | %s - libnvme-%s does not support setting PLEO bit. Please upgrade.',
                     self.id,
                     self.device,
-                    getattr(libnvme, '__version__', '?.?'),
+                    defs.LIBNVME_VERSION,
                 )
                 self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
             self._get_log_op.run_async()
