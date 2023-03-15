@@ -23,14 +23,33 @@ class TID:  # pylint: disable=too-many-instance-attributes
         '''@param cid: Controller Identifier. A dictionary with the following
         contents.
         {
+            # Transport parameters
             'transport':   str, # [mandatory]
             'traddr':      str, # [mandatory]
             'subsysnqn':   str, # [mandatory]
             'trsvcid':     str, # [optional]
             'host-traddr': str, # [optional]
             'host-iface':  str, # [optional]
+
+            # Connection parameters
+            'dhchap-ctrl-secret': str, # [optional]
+            'hdr-digest':         str, # [optional]
+            'data-digest':        str, # [optional]
+            'nr-io-queues':       str, # [optional]
+            'nr-write-queues':    str, # [optional]
+            'nr-poll-queues':     str, # [optional]
+            'queue-size':         str, # [optional]
+            'kato':               str, # [optional]
+            'reconnect-delay':    str, # [optional]
+            'ctrl-loss-tmo':      str, # [optional]
+            'disable-sqflow':     str, # [optional]
         }
         '''
+        self._cfg = {
+            k: v
+            for k, v in cid.items()
+            if k not in ('transport', 'traddr', 'subsysnqn', 'trsvcid', 'host-traddr', 'host-iface')
+        }
         self._transport = cid.get('transport', '')
         self._traddr = cid.get('traddr', '')
         self._trsvcid = ''
@@ -73,9 +92,13 @@ class TID:  # pylint: disable=too-many-instance-attributes
     def subsysnqn(self):  # pylint: disable=missing-function-docstring
         return self._subsysnqn
 
+    @property
+    def cfg(self):  # pylint: disable=missing-function-docstring
+        return self._cfg
+
     def as_dict(self):
         '''Return object members as a dictionary'''
-        return {
+        data = {
             'transport': self.transport,
             'traddr': self.traddr,
             'subsysnqn': self.subsysnqn,
@@ -83,6 +106,8 @@ class TID:  # pylint: disable=too-many-instance-attributes
             'host-traddr': self.host_traddr,
             'host-iface': self.host_iface,
         }
+        data.update(self._cfg)
+        return data
 
     def __str__(self):
         return self._id

@@ -20,7 +20,7 @@ import dasbus.client.proxy
 
 from gi.repository import GLib
 from systemd.daemon import notify as sd_notify
-from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, trid, udev
+from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, timeparse, trid, udev
 
 
 # ******************************************************************************
@@ -208,9 +208,9 @@ class Stac(Service):
 
     def __init__(self, args, dbus):
         default_conf = {
-            ('Global', 'tron'): 'false',
-            ('Global', 'hdr-digest'): 'false',
-            ('Global', 'data-digest'): 'false',
+            ('Global', 'tron'): False,
+            ('Global', 'hdr-digest'): False,
+            ('Global', 'data-digest'): False,
             ('Global', 'kato'): None,  # None to let the driver decide the default
             ('Global', 'nr-io-queues'): None,  # None to let the driver decide the default
             ('Global', 'nr-write-queues'): None,  # None to let the driver decide the default
@@ -218,14 +218,13 @@ class Stac(Service):
             ('Global', 'queue-size'): None,  # None to let the driver decide the default
             ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'ignore-iface'): 'false',
-            ('Global', 'ip-family'): 'ipv4+ipv6',
+            ('Global', 'ignore-iface'): False,
+            ('Global', 'ip-family'): (4, 6),
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
+            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
 
@@ -574,22 +573,23 @@ class Staf(Service):
 
     def __init__(self, args, dbus):
         default_conf = {
-            ('Global', 'tron'): 'false',
-            ('Global', 'hdr-digest'): 'false',
-            ('Global', 'data-digest'): 'false',
-            ('Global', 'kato'): None,  # None to let the driver decide the default
+            ('Global', 'tron'): False,
+            ('Global', 'hdr-digest'): False,
+            ('Global', 'data-digest'): False,
+            ('Global', 'kato'): 30,
             ('Global', 'queue-size'): None,  # None to let the driver decide the default
             ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'persistent-connections'): 'false',  # Deprecated
-            ('Discovery controller connection management', 'persistent-connections'): 'true',
-            ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
-            ('Global', 'ignore-iface'): 'false',
-            ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'pleo'): 'enabled',
-            ('Service Discovery', 'zeroconf'): 'enabled',
+            ('Global', 'persistent-connections'): False,  # Deprecated
+            ('Discovery controller connection management', 'persistent-connections'): True,
+            ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
+                '72hours'
+            ),
+            ('Global', 'ignore-iface'): False,
+            ('Global', 'ip-family'): (4, 6),
+            ('Global', 'pleo'): True,
+            ('Service Discovery', 'zeroconf'): True,
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
         }
@@ -597,7 +597,7 @@ class Staf(Service):
         super().__init__(args, default_conf, self._reload_hdlr)
 
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
-        self._avahi.config_stypes(conf.SvcConf().get_stypes())
+        self._avahi.config_stypes(conf.SvcConf().stypes)
 
         # Create the D-Bus instance.
         self._config_dbus(dbus, defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
@@ -666,7 +666,7 @@ class Staf(Service):
         service_cnf.reload()
         self.tron = service_cnf.tron
         self._avahi.kick_start()  # Make sure Avahi is running
-        self._avahi.config_stypes(service_cnf.get_stypes())
+        self._avahi.config_stypes(service_cnf.stypes)
         self._cfg_soak_tmr.start()
 
         for controller in self._controllers.values():

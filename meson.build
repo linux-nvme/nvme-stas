@@ -14,6 +14,7 @@ project(
     default_options: [
         'buildtype=release',
         'prefix=/usr',
+        'sysconfdir=etc'
     ]
 )
 
