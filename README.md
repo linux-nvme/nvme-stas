@@ -3,10 +3,12 @@
 ![Build](https://github.com/linux-nvme/nvme-stas/actions/workflows/meson-test.yml/badge.svg)
 ![GitHub](https://img.shields.io/github/license/linux-nvme/nvme-stas)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Release](https://img.shields.io/github/v/release/linux-nvme/nvme-stas?include_prereleases&style=)](https://github.com/linux-nvme/nvme-stas/releases)
 [![Github tag](https://badgen.net/github/tag/linux-nvme/nvme-stas)](https://github.com/linux-nvme/nvme-stas/tags/)
 [![GitHub commits](https://img.shields.io/github/commits-since/linux-nvme/nvme-stas/latest.svg)](https://GitHub.com/linux-nvme/nvme-stas/commit/)
 [![Read the Docs](https://img.shields.io/readthedocs/nvme-stas)](https://nvme-stas.readthedocs.io/en/latest/)
 [![codecov](https://codecov.io/gh/linux-nvme/nvme-stas/branch/main/graph/badge.svg)](https://codecov.io/gh/linux-nvme/nvme-stas)
+[![Minimum Python Version](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
 
 What does nvme-stas provide?
 
