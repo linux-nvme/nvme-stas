@@ -393,7 +393,6 @@ cat > "${stacd_conf_fname}" <<'EOF'
 tron=true
 nr-io-queues=4
 nr-write-queues=4
-nr-poll-queues=4
 queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=1
