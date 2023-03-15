@@ -88,7 +88,6 @@
                 <xi:include href="standard-conf.xml" xpointer="queue-size"/>
                 <xi:include href="standard-conf.xml" xpointer="reconnect-delay"/>
                 <xi:include href="standard-conf.xml" xpointer="ctrl-loss-tmo"/>
-                <xi:include href="standard-conf.xml" xpointer="duplicate-connect"/>
                 <xi:include href="standard-conf.xml" xpointer="disable-sqflow"/>
 
                 <varlistentry>

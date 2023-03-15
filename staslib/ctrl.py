@@ -17,7 +17,6 @@ from libnvme import nvme
 from staslib import conf, defs, gutil, trid, udev, stas
 
 
-DC_KATO_DEFAULT = 30  # seconds
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
@@ -53,19 +52,16 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
         self._root = nvme.root()
-        if (
-            self._nvme_options.dhchap_secret_supp
-            and sysconf.hostkey
-            and 'hostkey' in inspect.signature(nvme.host).parameters
-        ):
+        if 'hostkey' in inspect.signature(nvme.host).parameters:
             self._host = nvme.host(  # hostkey: pylint: disable=unexpected-keyword-arg
                 self._root,
                 hostnqn=sysconf.hostnqn,
                 hostid=sysconf.hostid,
-                hostkey=sysconf.hostkey,
+                hostkey=sysconf.hostkey if self._nvme_options.dhchap_secret_supp else None,
                 hostsymname=sysconf.hostsymname,
             )
         else:
+            # To be removed at some point.
             # This is for backward compatibility with older libnvme
             self._host = nvme.host(
                 self._root,
@@ -189,10 +185,43 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         # Defer removal of this object to the next main loop's idle period.
         GLib.idle_add(self._serv.remove_controller, self, True)
 
+    def _get_cfg(self):
+        '''Get configuration parameters. These may either come from the [Global]
+        section or from a "controller" entry in the configuration file. A
+        definition found in a "controller" entry overrides the same definition
+        found in the [Global] section.
+        '''
+        cfg = {}
+        service_conf = conf.SvcConf()
+        for option, keyword in (
+            ('kato', 'keep_alive_tmo'),
+            ('queue-size', 'queue_size'),
+            ('hdr-digest', 'hdr_digest'),
+            ('data-digest', 'data_digest'),
+            ('nr-io-queues', 'nr_io_queues'),
+            ('ctrl-loss-tmo', 'ctrl_loss_tmo'),
+            ('disable-sqflow', 'disable_sqflow'),
+            ('nr-poll-queues', 'nr_poll_queues'),
+            ('nr-write-queues', 'nr_write_queues'),
+            ('reconnect-delay', 'reconnect_delay'),
+        ):
+            # Check if the value is defined as a "controller" entry (i.e. override)
+            ovrd_val = self.tid.cfg.get(option, None)
+            if ovrd_val is not None:
+                cfg[keyword] = ovrd_val
+            else:
+                # Check if the value is found in the [Global] section.
+                glob_val = service_conf.get_option('Global', option)
+                if glob_val is not None:
+                    cfg[keyword] = glob_val
+
+        return cfg
+
     def _do_connect(self):
+        service_conf = conf.SvcConf()
         host_iface = (
             self.tid.host_iface
-            if (self.tid.host_iface and not conf.SvcConf().ignore_iface and self._nvme_options.host_iface_supp)
+            if (self.tid.host_iface and not service_conf.ignore_iface and self._nvme_options.host_iface_supp)
             else None
         )
         self._ctrl = nvme.ctrl(
@@ -219,34 +248,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
                 self._on_connect_success, self._on_connect_fail, self._ctrl.init, self._host, int(udev_obj.sys_number)
             )
         else:
-            service_conf = conf.SvcConf()
-            cfg = {'hdr_digest': service_conf.hdr_digest, 'data_digest': service_conf.data_digest}
-            if service_conf.kato is not None:
-                cfg['keep_alive_tmo'] = service_conf.kato
-            elif self._discovery_ctrl:
-                # All the connections to Controllers (I/O and Discovery) are
-                # persistent. Persistent connections MUST configure the KATO.
-                # The kernel already assigns a default 2-minute KATO to I/O
-                # controller connections, but it doesn't assign one to
-                # Discovery controller (DC) connections. Here we set the default
-                # DC connection KATO to match the default set by nvme-cli on
-                # persistent DC connections (i.e. 30 sec).
-                cfg['keep_alive_tmo'] = DC_KATO_DEFAULT
-
-            for option in (
-                'nr_io_queues',
-                'nr_write_queues',
-                'nr_poll_queues',
-                'queue_size',
-                'reconnect_delay',
-                'ctrl_loss_tmo',
-                'duplicate_connect',
-                'disable_sqflow',
-            ):
-                value = getattr(service_conf, option, None)
-                if value is not None:
-                    cfg[option] = value
-
+            cfg = self._get_cfg()
             logging.debug(
                 'Controller._do_connect()           - %s Connecting to nvme control with cfg=%s', self.id, cfg
             )

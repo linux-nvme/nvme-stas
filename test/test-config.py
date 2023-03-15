@@ -25,6 +25,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '\n',
             '[Controllers]\n',
             'controller=transport=tcp;traddr=100.100.100.100;host-iface=enp0s8\n',
+            'controller=transport=tcp;traddr=100.100.100.200;host-iface=enp0s7;dhchap-ctrl-secret=super-secret;hdr-digest=true;data-digest=true;nr-io-queues=8;nr-write-queues=6;nr-poll-queues=4;queue-size=400;kato=71;reconnect-delay=13;ctrl-loss-tmo=666;disable-sqflow=true\n',
             'exclude=transport=tcp;traddr=10.10.10.10\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
@@ -40,9 +41,9 @@ class StasProcessConfUnitTest(unittest.TestCase):
         '''Check we can read the temporary configuration file'''
 
         default_conf = {
-            ('Global', 'tron'): 'false',
-            ('Global', 'hdr-digest'): 'false',
-            ('Global', 'data-digest'): 'false',
+            ('Global', 'tron'): False,
+            ('Global', 'hdr-digest'): False,
+            ('Global', 'data-digest'): False,
             ('Global', 'kato'): None,  # None to let the driver decide the default
             ('Global', 'nr-io-queues'): None,  # None to let the driver decide the default
             ('Global', 'nr-write-queues'): None,  # None to let the driver decide the default
@@ -50,17 +51,17 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Global', 'queue-size'): None,  # None to let the driver decide the default
             ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'ignore-iface'): 'false',
-            ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Discovery controller connection management', 'persistent-connections'): 'true',
-            ('Global', 'pleo'): 'enabled',
-            ('Service Discovery', 'zeroconf'): 'enabled',
+            ('Global', 'ignore-iface'): False,
+            ('Global', 'ip-family'): (4, 6),
+            ('Global', 'persistent-connections'): False,  # Deprecated
+            ('Discovery controller connection management', 'persistent-connections'): True,
+            ('Global', 'pleo'): True,
+            ('Service Discovery', 'zeroconf'): True,
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): 'tcp',
+            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
 
@@ -82,16 +83,36 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertEqual(
             service_conf.get_controllers(),
             [
-                {'transport': 'tcp', 'traddr': '100.100.100.100', 'host-iface': 'enp0s8'},
+                {
+                    'transport': 'tcp',
+                    'traddr': '100.100.100.100',
+                    'host-iface': 'enp0s8',
+                },
+                {
+                    'transport': 'tcp',
+                    'traddr': '100.100.100.200',
+                    'host-iface': 'enp0s7',
+                    'dhchap-ctrl-secret': 'super-secret',
+                    'hdr-digest': True,
+                    'data-digest': True,
+                    'nr-io-queues': 8,
+                    'nr-write-queues': 6,
+                    'nr-poll-queues': 4,
+                    'queue-size': 400,
+                    'kato': 71,
+                    'reconnect-delay': 13,
+                    'ctrl-loss-tmo': 666,
+                    'disable-sqflow': True,
+                },
             ],
         )
 
         self.assertEqual(service_conf.get_excluded(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
 
-        stypes = service_conf.get_stypes()
+        stypes = service_conf.stypes
         self.assertIn('_nvme-disc._tcp', stypes)
 
-        self.assertTrue(service_conf.zeroconf_enabled())
+        self.assertTrue(service_conf.zeroconf_enabled)
         self.assertEqual(service_conf.connect_attempts_on_ncc, 2)
         data = [
             '[I/O controller connection management]\n',

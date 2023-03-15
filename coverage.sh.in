@@ -55,7 +55,7 @@ sd_stop() {
 		if [ -s /tmp/output.txt ]; then
 			log_file_contents $? /tmp/output.txt
 		else
-			printf "   sudo systemctl stop ${unit}\n"
+			printf "   sudo systemctl stop %s\n" "${unit}"
 		fi
 		sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
 		printf "\n"
@@ -95,7 +95,7 @@ sd_restart() {
 
 	if systemctl is-active "${unit}" >/dev/null 2>&1; then
 		log "Restart ${app}"
-		sudo systemctl restart "${unit}" && printf "systemctl restart ${unit}\n"  >/tmp/output.txt 2>&1
+		sudo systemctl restart "${unit}" && printf "systemctl restart %s\n" "${unit}" >/tmp/output.txt 2>&1
 		log_file_contents $? /tmp/output.txt
 		sleep 1
 	else
@@ -109,7 +109,7 @@ reload_cfg() {
 	app="$1"
 	unit="${app}"-cov.service
 	log "Reload config ${app}"
-	sudo systemctl reload "${unit}" && printf "systemctl reload ${unit}\n" >/tmp/output.txt 2>&1
+	sudo systemctl reload "${unit}" && printf "systemctl reload %s\n" "${unit}" >/tmp/output.txt 2>&1
 	#pid=$( systemctl show --property MainPID --value "${unit}" )
 	#sudo kill -HUP "${pid}" >/tmp/output.txt 2>&1
 	log_file_contents $? /tmp/output.txt
@@ -151,7 +151,7 @@ run_cmd() {
 	if [ -s /tmp/output.txt ]; then
 		log_file_contents $? /tmp/output.txt
 	else
-		printf "   ${cmd}\n"
+		printf "   %s\n" "${cmd}"
 	fi
 }
 
@@ -233,8 +233,8 @@ prerun_setup
 
 #*******************************************************************************
 # Load nvme kernel module
-log "modprobe nvme-tcp"
-run_cmd sudo /usr/sbin/modprobe nvme-tcp
+log "modprobe nvme_tcp"
+run_cmd sudo /usr/sbin/modprobe nvme_tcp
 
 log "nvme disconnect-all"
 run_cmd sudo nvme disconnect-all
@@ -254,7 +254,6 @@ johnny            = be-good
 queue-size        = 2000000
 reconnect-delay   = NaN
 ctrl-loss-tmo     = 10
-duplicate-connect = false
 disable-sqflow    = true
 
 [Discovery controller connection management]
@@ -280,7 +279,6 @@ nr-poll-queues    = NaN
 queue-size        = 2000000
 reconnect-delay   = 1
 ctrl-loss-tmo     = 1
-duplicate-connect = false
 disable-sqflow    = true
 
 [I/O controller connection management]
@@ -367,7 +365,6 @@ ip-family         = ipv4
 queue-size        = 2000000
 reconnect-delay   = 1
 ctrl-loss-tmo     = 1
-duplicate-connect = false
 disable-sqflow    = true
 pleo              = disable
 
@@ -396,11 +393,9 @@ cat > "${stacd_conf_fname}" <<'EOF'
 tron=true
 nr-io-queues=4
 nr-write-queues=4
-nr-poll-queues=4
 queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=1
-duplicate-connect=false
 disable-sqflow=true
 
 [I/O controller connection management]
@@ -494,7 +489,6 @@ tron              = true
 queue-size        = 2000000
 reconnect-delay   = 1
 ctrl-loss-tmo     = 1
-duplicate-connect = false
 disable-sqflow    = true
 
 [Discovery controller connection management]
@@ -519,7 +513,6 @@ tron=true
 queue-size=2000000
 reconnect-delay=1
 ctrl-loss-tmo=0
-duplicate-connect=false
 disable-sqflow=true
 ip-family=ipv6
 

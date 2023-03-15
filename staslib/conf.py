@@ -12,6 +12,7 @@ import re
 import os
 import sys
 import logging
+import functools
 import configparser
 from staslib import defs, singleton, timeparse
 
@@ -19,7 +20,11 @@ __TOKEN_RE = re.compile(r'\s*;\s*')
 __OPTION_RE = re.compile(r'\s*=\s*')
 
 
-def parse_controller(controller):
+class InvalidOption(Exception):
+    '''Exception raised when an invalid option value is detected'''
+
+
+def _parse_controller(controller):
     '''@brief Parse a "controller" entry. Controller entries are strings
            composed of several configuration parameters delimited by
            semi-colons. Each configuration parameter is specified as a
@@ -37,6 +42,41 @@ def parse_controller(controller):
                 pass
 
     return options
+
+
+def _parse_single_val(text):
+    if isinstance(text, str):
+        return text
+    if not isinstance(text, list) or len(text) == 0:
+        return None
+
+    return text[-1]
+
+
+def _parse_list(text):
+    return text if isinstance(text, list) else [text]
+
+
+def _to_int(text):
+    try:
+        return int(_parse_single_val(text))
+    except (ValueError, TypeError):
+        raise InvalidOption  # pylint: disable=raise-missing-from
+
+
+def _to_bool(text, positive='true'):
+    return _parse_single_val(text).lower() == positive
+
+
+def _to_ncc(text):
+    value = _to_int(text)
+    if value == 1:  # 1 is invalid. A minimum of 2 is required (with the exception of 0, which is valid).
+        value = 2
+    return value
+
+
+def _to_ip_family(text):
+    return tuple((4 if text == 'ipv4' else 6 for text in _parse_single_val(text).split('+')))
 
 
 # ******************************************************************************
@@ -64,19 +104,145 @@ class OrderedMultisetDict(dict):
 class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public-methods
     '''Read and cache configuration file.'''
 
+    OPTION_CHECKER = {
+        'Global': {
+            'tron': {
+                'convert': _to_bool,
+                'default': False,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
+            },
+            'kato': {
+                'convert': _to_int,
+            },
+            'pleo': {
+                'convert': functools.partial(_to_bool, positive='enabled'),
+                'default': True,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('disabled', 'enabled'),
+            },
+            'ip-family': {
+                'convert': _to_ip_family,
+                'default': (4, 6),
+                'txt-chk': lambda text: _parse_single_val(text) in ('ipv4', 'ipv6', 'ipv4+ipv6', 'ipv6+ipv4'),
+            },
+            'queue-size': {
+                'convert': _to_int,
+                'rng-chk': lambda value: None if value in range(16, 1025) else range(16, 1025),
+            },
+            'hdr-digest': {
+                'convert': _to_bool,
+                'default': False,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
+            },
+            'data-digest': {
+                'convert': _to_bool,
+                'default': False,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
+            },
+            'ignore-iface': {
+                'convert': _to_bool,
+                'default': False,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
+            },
+            'nr-io-queues': {
+                'convert': _to_int,
+            },
+            'ctrl-loss-tmo': {
+                'convert': _to_int,
+            },
+            'disable-sqflow': {
+                'convert': _to_bool,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
+            },
+            'nr-poll-queues': {
+                'convert': _to_int,
+            },
+            'nr-write-queues': {
+                'convert': _to_int,
+            },
+            'reconnect-delay': {
+                'convert': _to_int,
+            },
+            ### BEGIN: LEGACY SECTION TO BE REMOVED ###
+            'persistent-connections': {
+                'convert': _to_bool,
+                'default': False,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
+            },
+            ### END: LEGACY SECTION TO BE REMOVED ###
+        },
+        'Service Discovery': {
+            'zeroconf': {
+                'convert': functools.partial(_to_bool, positive='enabled'),
+                'default': True,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('disabled', 'enabled'),
+            },
+        },
+        'Discovery controller connection management': {
+            'persistent-connections': {
+                'convert': _to_bool,
+                'default': True,
+                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
+            },
+            'zeroconf-connections-persistence': {
+                'convert': lambda text: timeparse.timeparse(_parse_single_val(text)),
+                'default': timeparse.timeparse('72hours'),
+            },
+        },
+        'I/O controller connection management': {
+            'disconnect-scope': {
+                'convert': _parse_single_val,
+                'default': 'only-stas-connections',
+                'txt-chk': lambda text: _parse_single_val(text)
+                in ('only-stas-connections', 'all-connections-matching-disconnect-trtypes', 'no-disconnect'),
+            },
+            'disconnect-trtypes': {
+                # Use set() to eliminate potential duplicates
+                'convert': lambda text: set(_parse_single_val(text).split('+')),
+                'default': [
+                    'tcp',
+                ],
+                'lst-chk': ('tcp', 'rdma', 'fc'),
+            },
+            'connect-attempts-on-ncc': {
+                'convert': _to_ncc,
+                'default': 0,
+            },
+        },
+        'Controllers': {
+            'controller': {
+                'convert': _parse_list,
+                'default': [],
+            },
+            'exclude': {
+                'convert': _parse_list,
+                'default': [],
+            },
+            ### BEGIN: LEGACY SECTION TO BE REMOVED ###
+            'blacklist': {
+                'convert': _parse_list,
+                'default': [],
+            },
+            ### END: LEGACY SECTION TO BE REMOVED ###
+        },
+    }
+
     def __init__(self, default_conf=None, conf_file='/dev/null'):
+        self._config = None
         self._defaults = default_conf if default_conf else {}
 
-        self._valid_conf = {}
-        for section, option in self._defaults:
-            self._valid_conf.setdefault(section, set()).add(option)
+        if self._defaults is not None and len(self._defaults) != 0:
+            self._valid_conf = {}
+            for section, option in self._defaults:
+                self._valid_conf.setdefault(section, set()).add(option)
+        else:
+            self._valid_conf = None
 
         self._conf_file = conf_file
         self.reload()
 
     def reload(self):
         '''@brief Reload the configuration file.'''
-        self._config = self.read_conf_file()
+        self._config = self._read_conf_file()
 
     @property
     def conf_file(self):
@@ -88,175 +254,117 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         self._conf_file = fname
         self.reload()
 
-    @property
-    def tron(self):
-        '''@brief return the "tron" config parameter'''
-        return self.__get_bool('Global', 'tron')
+    def get_option(self, section, option, ignore_default=False):  # pylint: disable=too-many-locals
+        '''Retrieve @option from @section, convert raw text to
+        appropriate object type, and validate.'''
+        try:
+            checker = self.OPTION_CHECKER[section][option]
+        except KeyError:
+            logging.error('Requesting invalid section=%s and/or option=%s', section, option)
+            raise
+
+        default = checker.get('default', None)
+
+        try:
+            text = self._config.get(section=section, option=option)
+        except (configparser.NoSectionError, configparser.NoOptionError, KeyError):
+            return None if ignore_default else self._defaults.get((section, option), default)
+
+        return self._check(text, section, option, default)
+
+    tron = property(functools.partial(get_option, section='Global', option='tron'))
+    kato = property(functools.partial(get_option, section='Global', option='kato'))
+    ip_family = property(functools.partial(get_option, section='Global', option='ip-family'))
+    queue_size = property(functools.partial(get_option, section='Global', option='queue-size'))
+    hdr_digest = property(functools.partial(get_option, section='Global', option='hdr-digest'))
+    data_digest = property(functools.partial(get_option, section='Global', option='data-digest'))
+    ignore_iface = property(functools.partial(get_option, section='Global', option='ignore-iface'))
+    pleo_enabled = property(functools.partial(get_option, section='Global', option='pleo'))
+    nr_io_queues = property(functools.partial(get_option, section='Global', option='nr-io-queues'))
+    ctrl_loss_tmo = property(functools.partial(get_option, section='Global', option='ctrl-loss-tmo'))
+    disable_sqflow = property(functools.partial(get_option, section='Global', option='disable-sqflow'))
+    nr_poll_queues = property(functools.partial(get_option, section='Global', option='nr-poll-queues'))
+    nr_write_queues = property(functools.partial(get_option, section='Global', option='nr-write-queues'))
+    reconnect_delay = property(functools.partial(get_option, section='Global', option='reconnect-delay'))
+
+    zeroconf_enabled = property(functools.partial(get_option, section='Service Discovery', option='zeroconf'))
+
+    zeroconf_persistence_sec = property(
+        functools.partial(
+            get_option, section='Discovery controller connection management', option='zeroconf-connections-persistence'
+        )
+    )
+
+    disconnect_scope = property(
+        functools.partial(get_option, section='I/O controller connection management', option='disconnect-scope')
+    )
+    disconnect_trtypes = property(
+        functools.partial(get_option, section='I/O controller connection management', option='disconnect-trtypes')
+    )
+    connect_attempts_on_ncc = property(
+        functools.partial(get_option, section='I/O controller connection management', option='connect-attempts-on-ncc')
+    )
 
     @property
-    def hdr_digest(self):
-        '''@brief return the "hdr-digest" config parameter'''
-        return self.__get_bool('Global', 'hdr-digest')
-
-    @property
-    def data_digest(self):
-        '''@brief return the "data-digest" config parameter'''
-        return self.__get_bool('Global', 'data-digest')
+    def stypes(self):
+        '''@brief Get the DNS-SD/mDNS service types.'''
+        return ['_nvme-disc._tcp', '_nvme-disc._udp'] if self.zeroconf_enabled else list()
 
     @property
     def persistent_connections(self):
         '''@brief return the "persistent-connections" config parameter'''
-        return self.__get_bool(
-            'Discovery controller connection management', 'persistent-connections'
-        ) or self.__get_bool('Global', 'persistent-connections')
-
-    @property
-    def zeroconf_persistence_sec(self):
-        '''@brief return the "zeroconf-connections-persistence" config parameter, in seconds'''
         section = 'Discovery controller connection management'
-        option = 'zeroconf-connections-persistence'
-        value = self.__get_value(section, option)
-        return timeparse.timeparse(value) if value is not None else self._defaults.get((section, option), None)
+        option = 'persistent-connections'
 
-    @property
-    def ignore_iface(self):
-        '''@brief return the "ignore-iface" config parameter'''
-        return self.__get_bool('Global', 'ignore-iface')
+        value = self.get_option(section, option, ignore_default=True)
+        legacy = self.get_option('Global', 'persistent-connections', ignore_default=True)
 
-    @property
-    def ip_family(self):
-        '''@brief return the "ip-family" config parameter.
-        @rtype tuple
-        '''
-        family = self.__get_value('Global', 'ip-family')
+        if value is None and legacy is None:
+            return self._defaults.get((section, option), True)
 
-        if family == 'ipv4':
-            return (4,)
-        if family == 'ipv6':
-            return (6,)
-
-        return (4, 6)
-
-    @property
-    def pleo_enabled(self):
-        '''@brief return the "pleo" config parameter'''
-        return self.__get_value('Global', 'pleo') == 'enabled'
-
-    @property
-    def disconnect_scope(self):
-        '''@brief return the disconnect scope (i.e. which connections are affected by DLPE removal)'''
-        disconnect_scope = self.__get_value(
-            'I/O controller connection management',
-            'disconnect-scope',
-            ('only-stas-connections', 'all-connections-matching-disconnect-trtypes', 'no-disconnect'),
-        )
-        return disconnect_scope
-
-    @property
-    def disconnect_trtypes(self):
-        '''@brief return the type(s) of transport that will be audited
-        as part of I/O controller connection management, when "disconnect-scope" is set to
-        "all-connections-matching-disconnect-trtypes"'''
-        value = self.__get_value('I/O controller connection management', 'disconnect-trtypes')
-        value = set(value.split('+'))  # Use set() to eliminate potential duplicates
-
-        trtypes = set()
-        for trtype in value:
-            if trtype not in ('tcp', 'rdma', 'fc'):
-                logging.warning(
-                    'File:%s, Section: [I/O controller connection management], Invalid "disconnect-trtypes=%s". Default will be used',
-                    self.conf_file,
-                    trtype,
-                )
-            else:
-                trtypes.add(trtype)
-
-        if len(trtypes) == 0:
-            value = self._defaults[('I/O controller connection management', 'disconnect-trtypes')]
-            trtypes = value.split('+')
-
-        return list(trtypes)
-
-    @property
-    def connect_attempts_on_ncc(self):
-        '''@brief Return the number of connection attempts that will be made
-        when the NCC bit (Not Connected to CDC) is asserted.'''
-        value = self.__get_int('I/O controller connection management', 'connect-attempts-on-ncc')
-
-        if value == 1:  # 1 is invalid. A minimum of 2 is required (with the exception of 0, which is valid).
-            value = 2
-
-        return value
-
-    @property
-    def nr_io_queues(self):
-        '''@brief return the "Number of I/O queues" config parameter'''
-        return self.__get_int('Global', 'nr-io-queues')
-
-    @property
-    def nr_write_queues(self):
-        '''@brief return the "Number of write queues" config parameter'''
-        return self.__get_int('Global', 'nr-write-queues')
-
-    @property
-    def nr_poll_queues(self):
-        '''@brief return the "Number of poll queues" config parameter'''
-        return self.__get_int('Global', 'nr-poll-queues')
-
-    @property
-    def queue_size(self):
-        '''@brief return the "Queue size" config parameter'''
-        return self.__get_int('Global', 'queue-size', range(16, 1025))
-
-    @property
-    def reconnect_delay(self):
-        '''@brief return the "Reconnect delay" config parameter'''
-        return self.__get_int('Global', 'reconnect-delay')
-
-    @property
-    def ctrl_loss_tmo(self):
-        '''@brief return the "Controller loss timeout" config parameter'''
-        return self.__get_int('Global', 'ctrl-loss-tmo')
-
-    @property
-    def duplicate_connect(self):
-        '''@brief return the "Duplicate connections" config parameter'''
-        value = self.__get_value('Global', 'duplicate-connect')
-        return value if value in ('true', 'false') else None
-
-    @property
-    def disable_sqflow(self):
-        '''@brief return the "Disable sqflow" config parameter'''
-        value = self.__get_value('Global', 'disable-sqflow')
-        return value if value in ('true', 'false') else None
-
-    @property
-    def kato(self):
-        '''@brief return the "kato" config parameter'''
-        return self.__get_int('Global', 'kato')
+        return value or legacy
 
     def get_controllers(self):
         '''@brief Return the list of controllers in the config file.
         Each controller is in the form of a dictionary as follows.
         Note that some of the keys are optional.
         {
-            'transport':   [TRANSPORT],
-            'traddr':      [TRADDR],
-            'trsvcid':     [TRSVCID],
-            'host-traddr': [TRADDR],
-            'host-iface':  [IFACE],
-            'subsysnqn':   [NQN],
+            'transport':          [TRANSPORT],
+            'traddr':             [TRADDR],
+            'trsvcid':            [TRSVCID],
+            'host-traddr':        [TRADDR],
+            'host-iface':         [IFACE],
+            'subsysnqn':          [NQN],
+            'dhchap-ctrl-secret': [KEY],
+            'hdr-digest':         [BOOL]
+            'data-digest':        [BOOL]
+            'nr-io-queues':       [NUMBER]
+            'nr-write-queues':    [NUMBER]
+            'nr-poll-queues':     [NUMBER]
+            'queue-size':         [SIZE]
+            'kato':               [KATO]
+            'reconnect-delay':    [SECONDS]
+            'ctrl-loss-tmo':      [SECONDS]
+            'disable-sqflow':     [BOOL]
         }
         '''
-        controller_list = self.__get_list('Controllers', 'controller')
-        controllers = [parse_controller(controller) for controller in controller_list]
-        for controller in controllers:
+        controller_list = self.get_option('Controllers', 'controller')
+        cids = [_parse_controller(controller) for controller in controller_list]
+        for cid in cids:
             try:
                 # replace 'nqn' key by 'subsysnqn', if present.
-                controller['subsysnqn'] = controller.pop('nqn')
+                cid['subsysnqn'] = cid.pop('nqn')
             except KeyError:
                 pass
-        return controllers
+
+            # Verify values of the options used to overload the matching [Global] options
+            for option in cid:
+                if option in self.OPTION_CHECKER['Global']:
+                    value = self._check(cid[option], 'Global', option, None)
+                    if value is not None:
+                        cid[option] = value
+
+        return cids
 
     def get_excluded(self):
         '''@brief Return the list of excluded controllers in the config file.
@@ -270,13 +378,13 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
             'subsysnqn':  [NQN],
         }
         '''
-        controller_list = self.__get_list('Controllers', 'exclude')
+        controller_list = self.get_option('Controllers', 'exclude')
 
         # 2022-09-20: Look for "blacklist". This is for backwards compatibility
         # with releases 1.0 to 1.1.6. This is to be phased out (i.e. remove by 2024)
-        controller_list += self.__get_list('Controllers', 'blacklist')
+        controller_list += self.get_option('Controllers', 'blacklist')
 
-        excluded = [parse_controller(controller) for controller in controller_list]
+        excluded = [_parse_controller(controller) for controller in controller_list]
         for controller in excluded:
             controller.pop('host-traddr', None)  # remove host-traddr
             try:
@@ -286,15 +394,70 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
                 pass
         return excluded
 
-    def get_stypes(self):
-        '''@brief Get the DNS-SD/mDNS service types.'''
-        return ['_nvme-disc._tcp', '_nvme-disc._udp'] if self.zeroconf_enabled() else list()
+    def _check(self, text, section, option, default):
+        checker = self.OPTION_CHECKER[section][option]
+        text_checker = checker.get('txt-chk', None)
+        if text_checker is not None and not text_checker(text):
+            logging.warning(
+                'File:%s [%s]: %s - Text check found invalid value "%s". Default will be used',
+                self.conf_file,
+                section,
+                option,
+                text,
+            )
+            return self._defaults.get((section, option), default)
 
-    def zeroconf_enabled(self):
-        '''Return the value for "zeroconf="'''
-        return self.__get_value('Service Discovery', 'zeroconf') == 'enabled'
+        converter = checker.get('convert', None)
+        try:
+            value = converter(text)
+        except InvalidOption:
+            logging.warning(
+                'File:%s [%s]: %s - Data converter found invalid value "%s". Default will be used',
+                self.conf_file,
+                section,
+                option,
+                text,
+            )
+            return self._defaults.get((section, option), default)
 
-    def read_conf_file(self):
+        value_in_range = checker.get('rng-chk', None)
+        if value_in_range is not None:
+            expected_range = value_in_range(value)
+            if expected_range is not None:
+                logging.warning(
+                    'File:%s [%s]: %s - "%s" is not within range %s..%s. Default will be used',
+                    self.conf_file,
+                    section,
+                    option,
+                    value,
+                    min(expected_range),
+                    max(expected_range),
+                )
+                return self._defaults.get((section, option), default)
+
+        list_checker = checker.get('lst-chk', None)
+        if list_checker:
+            values = set()
+            for item in value:
+                if item not in list_checker:
+                    logging.warning(
+                        'File:%s [%s]: %s - List checker found invalid item "%s" will be ignored.',
+                        self.conf_file,
+                        section,
+                        option,
+                        item,
+                    )
+                else:
+                    values.add(item)
+
+            if len(values) == 0:
+                return self._defaults.get((section, option), default)
+
+            value = list(values)
+
+        return value
+
+    def _read_conf_file(self):
         '''@brief Read the configuration file if the file exists.'''
         config = configparser.ConfigParser(
             default_section=None,
@@ -307,94 +470,34 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         if self._conf_file and os.path.isfile(self._conf_file):
             config.read(self._conf_file)
 
-        # Configuration validation.
-        invalid_sections = set()
-        for section in config.sections():
-            if section not in self._valid_conf:
-                invalid_sections.add(section)
-            else:
-                invalid_options = set()
-                for option in config.options(section):
-                    if option not in self._valid_conf.get(section, []):
-                        invalid_options.add(option)
+        # Parse Configuration and validate.
+        if self._valid_conf is not None:
+            invalid_sections = set()
+            for section in config.sections():
+                if section not in self._valid_conf:
+                    invalid_sections.add(section)
+                else:
+                    invalid_options = set()
+                    for option in config.options(section):
+                        if option not in self._valid_conf.get(section, []):
+                            invalid_options.add(option)
 
-                if len(invalid_options) != 0:
-                    logging.error(
-                        'File:%s, section [%s] contains invalid options: %s',
-                        self.conf_file,
-                        section,
-                        invalid_options,
-                    )
+                    if len(invalid_options) != 0:
+                        logging.error(
+                            'File:%s [%s] contains invalid options: %s',
+                            self.conf_file,
+                            section,
+                            invalid_options,
+                        )
 
-        if len(invalid_sections) != 0:
-            logging.error(
-                'File:%s, contains invalid sections: %s',
-                self.conf_file,
-                invalid_sections,
-            )
+            if len(invalid_sections) != 0:
+                logging.error(
+                    'File:%s contains invalid sections: %s',
+                    self.conf_file,
+                    invalid_sections,
+                )
 
         return config
-
-    def __get_bool(self, section, option):
-        text = self.__get_value(section, option)
-        return text == 'true'
-
-    def __get_int(self, section, option, expected_range=None):
-        text = self.__get_value(section, option)
-        if text is None:
-            value = self._defaults.get((section, option), None)
-        else:
-            try:
-                value = int(text)
-            except (ValueError, TypeError):
-                logging.warning(
-                    'File:%s, Section: [%s], Invalid "%s=%s". Default will be used',
-                    self.conf_file,
-                    section,
-                    option,
-                    text,
-                )
-                value = self._defaults.get((section, option), None)
-            else:
-                if expected_range is not None and value not in expected_range:
-                    logging.warning(
-                        'File:%s, Section: [%s], %s=%s is not within range %s..%s',
-                        self.conf_file,
-                        section,
-                        option,
-                        value,
-                        min(expected_range),
-                        max(expected_range),
-                    )
-                    value = self._defaults.get((section, option), None)
-
-        return value
-
-    def __get_value(self, section, option, expected_range=None):
-        lst = self.__get_list(section, option)
-        if len(lst) == 0:
-            return None
-
-        value = lst[0]
-        if expected_range is not None and value not in expected_range:
-            logging.warning(
-                'File:%s, Section:[%s], Invalid "%s=%s". Default will be used',
-                self.conf_file,
-                section,
-                option,
-                value,
-            )
-            value = self._defaults.get((section, option), None)
-        return value
-
-    def __get_list(self, section, option):
-        try:
-            value = self._config.get(section=section, option=option)
-        except (configparser.NoSectionError, configparser.NoOptionError, KeyError):
-            value = self._defaults.get((section, option), [])
-            if not isinstance(value, list):
-                value = [value]
-        return value if value is not None else list()
 
 
 # ******************************************************************************
@@ -402,12 +505,13 @@ class SysConf(metaclass=singleton.Singleton):
     '''Read and cache the host configuration file.'''
 
     def __init__(self, conf_file=defs.SYS_CONF_FILE):
+        self._config = None
         self._conf_file = conf_file
         self.reload()
 
     def reload(self):
         '''@brief Reload the configuration file.'''
-        self._config = self.read_conf_file()
+        self._config = self._read_conf_file()
 
     @property
     def conf_file(self):
@@ -486,7 +590,7 @@ class SysConf(metaclass=singleton.Singleton):
 
         return value
 
-    def read_conf_file(self):
+    def _read_conf_file(self):
         '''@brief Read the configuration file if the file exists.'''
         config = configparser.ConfigParser(
             default_section=None, allow_no_value=True, delimiters=('='), interpolation=None, strict=False

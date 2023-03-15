@@ -156,23 +156,6 @@
             </listitem>
         </varlistentry>
 
-        <varlistentry id='duplicate-connect'>
-            <term><varname>duplicate-connect=</varname></term>
-
-            <listitem id='duplicate-connect-text'>
-                <para>
-                    Takes a boolean argument. Allows duplicated connections
-                    between same transport host and subsystem port.
-                </para>
-
-                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-
-                <para>
-                    Defaults to <parameter>false</parameter>.
-                </para>
-            </listitem>
-        </varlistentry>
-
         <varlistentry id='disable-sqflow'>
             <term><varname>disable-sqflow=</varname></term>
 

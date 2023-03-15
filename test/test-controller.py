@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import logging
 import unittest
-from staslib import conf, ctrl, trid
+from staslib import conf, ctrl, timeparse, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -76,7 +76,6 @@ kato=30
 queue-size=128
 reconnect-delay=10
 ctrl-loss-tmo=600
-duplicate-connect=true
 disable-sqflow=false
 ignore-iface=false
 ip-family=ipv4+ipv6
@@ -108,7 +107,7 @@ class Test(TestCase):
         self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
         self.fs.create_file(
             '/dev/nvme-fabrics',
-            contents='instance=-1,cntlid=-1,transport=%s,traddr=%s,trsvcid=%s,nqn=%s,queue_size=%d,nr_io_queues=%d,reconnect_delay=%d,ctrl_loss_tmo=%d,keep_alive_tmo=%d,hostnqn=%s,host_traddr=%s,host_iface=%s,hostid=%s,duplicate_connect,disable_sqflow,hdr_digest,data_digest,nr_write_queues=%d,nr_poll_queues=%d,tos=%d,fast_io_fail_tmo=%d,discovery,dhchap_secret=%s,dhchap_ctrl_secret=%s\n',
+            contents='instance=-1,cntlid=-1,transport=%s,traddr=%s,trsvcid=%s,nqn=%s,queue_size=%d,nr_io_queues=%d,reconnect_delay=%d,ctrl_loss_tmo=%d,keep_alive_tmo=%d,hostnqn=%s,host_traddr=%s,host_iface=%s,hostid=%s,disable_sqflow,hdr_digest,data_digest,nr_write_queues=%d,nr_poll_queues=%d,tos=%d,fast_io_fail_tmo=%d,discovery,dhchap_secret=%s,dhchap_ctrl_secret=%s\n',
         )
 
         self.NVME_TID = trid.TID(
@@ -123,22 +122,23 @@ class Test(TestCase):
         )
 
         default_conf = {
-            ('Global', 'tron'): 'false',
-            ('Global', 'hdr-digest'): 'false',
-            ('Global', 'data-digest'): 'false',
+            ('Global', 'tron'): False,
+            ('Global', 'hdr-digest'): False,
+            ('Global', 'data-digest'): False,
             ('Global', 'kato'): None,  # None to let the driver decide the default
             ('Global', 'queue-size'): None,  # None to let the driver decide the default
             ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'duplicate-connect'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'persistent-connections'): 'true',
-            ('Discovery controller connection management', 'persistent-connections'): 'true',
-            ('Discovery controller connection management', 'zeroconf-connections-persistence'): '72hours',
-            ('Global', 'ignore-iface'): 'false',
-            ('Global', 'ip-family'): 'ipv4+ipv6',
-            ('Global', 'pleo'): 'enabled',
-            ('Service Discovery', 'zeroconf'): 'enabled',
+            ('Global', 'persistent-connections'): True,
+            ('Discovery controller connection management', 'persistent-connections'): True,
+            ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
+                '72hours'
+            ),
+            ('Global', 'ignore-iface'): False,
+            ('Global', 'ip-family'): (4, 6),
+            ('Global', 'pleo'): True,
+            ('Service Discovery', 'zeroconf'): True,
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
         }
@@ -243,7 +243,7 @@ class Test(TestCase):
             captured.records[0]
             .getMessage()
             .startswith(
-                "Controller._do_connect()           - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={'hdr_digest': False, 'data_digest': False"
+                "Controller._do_connect()           - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={"
             )
         )
         self.assertEqual(controller._connect_attempts, 1)

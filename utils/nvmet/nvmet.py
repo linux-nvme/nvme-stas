@@ -29,7 +29,7 @@ class Style:
     RESET_ALL = '\033[0m'
 
 
-def _get_loaded_nvme_modules():
+def _get_loaded_nvmet_modules():
     cp = subprocess.run('/usr/sbin/lsmod', capture_output=True, text=True)
     if cp.returncode != 0 or not cp.stdout:
         return []
@@ -37,7 +37,7 @@ def _get_loaded_nvme_modules():
     output = []
     lines = cp.stdout.split('\n')
     for line in lines:
-        if 'nvme' in line:
+        if 'nvmet_' in line:
             module = line.split()[0]
             for end in ('loop', 'tcp', 'fc', 'rdma'):
                 if module.endswith(end):
@@ -246,7 +246,7 @@ def clean(args):
     for dname in pathlib.Path('/sys/kernel/config/nvmet/subsystems').glob('*'):
         _runcmd(['rmdir', str(dname)], quiet=True)
 
-    for module in _get_loaded_nvme_modules():
+    for module in _get_loaded_nvmet_modules():
         _modprobe(module, ['--remove'])
 
     _modprobe('nvmet', ['--remove'])
