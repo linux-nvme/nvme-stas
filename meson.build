@@ -14,7 +14,7 @@ project(
     default_options: [
         'buildtype=release',
         'prefix=/usr',
-        'sysconfdir=etc'
+        'sysconfdir=/etc',
     ]
 )
 
@@ -48,7 +48,7 @@ endif
 
 # Check if the runtime Python modules are present. These are not needed
 # to build nvme-stas, but will be needed to run the tests.
-missing_modules = false
+missing_runtime_mods = false
 py_modules_reqd = [
     ['libnvme', 'Install python3-libnvme (deb/rpm)'],
     ['dasbus',  'Install python3-dasbus (deb/rpm) OR pip3 install dasbus'],
@@ -59,11 +59,11 @@ py_modules_reqd = [
 foreach p : py_modules_reqd
     if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
         warning('Missing runtime module "@0@". @1@'.format(p[0], p[1]))
-        missing_modules = true
+        missing_runtime_mods = true
     endif
 endforeach
 
-if missing_modules and get_option('rt_pymods_reqd')
+if missing_runtime_mods and get_option('rt_pymods_reqd')
     error('Please install missing runtime modules')
 endif
 
@@ -150,32 +150,33 @@ subdir('test')
 subdir('doc')
 
 
-summary = [
-    '',
-    '',
-    '------------------------------------------------------------',
-    'prefix:         ' + prefix,
-    'etcdir:         ' + etcdir,
-    'cnfdir:         ' + cnfdir,
-    'bindir:         ' + bindir,
-    'sbindir:        ' + sbindir,
-    'datadir:        ' + datadir,
-    'mandir:         ' + mandir,
-    'docdir:         ' + docdir,
-    'dbus_conf_dir:  ' + dbus_conf_dir,
-    'sd_unit_dir:    ' + sd_unit_dir,
-    'want_man:       ' + want_man.to_string(),
-    'want_html:      ' + want_html.to_string(),
-    '------------------------------------------------------------',
-]
+#===========================================================================
+summary_dict = {
+    'prefix ':              prefix,
+    'etcdir ':              etcdir,
+    'cnfdir ':              cnfdir,
+    'bindir ':              bindir,
+    'sbindir ':             sbindir,
+    'datadir ':             datadir,
+    'mandir ':              mandir,
+    'docdir ':              docdir,
+    'dbus_conf_dir ':       dbus_conf_dir,
+    'sd_unit_dir ':         sd_unit_dir,
+    'build location ':      meson.current_build_dir(),
+    'libnvme for tests ':   libnvme_location,
+}
+summary(summary_dict, section: 'Directories')
 
+summary_dict = {
+    'want_man ':            want_man,
+    'want_html ':           want_html,
+    'want_readthedocs ':    want_readthedocs,
+}
 if meson.version().version_compare('>=0.57.0')  # conf.keys()
     foreach key : conf.keys()
-        summary += (key + ':  ' + '@0@'.format(conf.get(key)))
+        if key not in ['BUILD_DIR', 'VERSION', 'LICENSE']
+            summary_dict += { key + ' ': conf.get(key) }
+        endif
     endforeach
-    summary += '------------------------------------------------------------'
 endif
-
-summary += ''
-
-message('\n'.join(summary))
+summary(summary_dict, section: 'Configuration', bool_yn: true)

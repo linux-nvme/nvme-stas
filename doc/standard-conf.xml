@@ -375,6 +375,131 @@
                                 </para>
                             </listitem>
                         </varlistentry>
+
+                        <varlistentry id='dhchap-ctrl-secret'>
+                            <term><varname>dhchap-ctrl-secret=</varname></term>
+                            <listitem>
+                                <para>
+                                    This is an optional field that specifies the
+                                    NVMe In-band authentication controller secret
+                                    (i.e. key) for bi-directional authentication;
+                                    needs to be in ASCII format as specified in
+                                    NVMe 2.0 section 8.13.5.8 'Secret representation'.
+                                    Bi-directional authentication will be attempted
+                                    when present.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='hdr-digest-override'>
+                            <term><varname>hdr-digest=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='data-digest-override'>
+                            <term><varname>data-digest=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='nr-io-queues-override'>
+                            <term><varname>nr-io-queues=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='nr-write-queues-override'>
+                            <term><varname>nr-write-queues=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='nr-poll-queues-override'>
+                            <term><varname>nr-poll-queues=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='queue-size-override'>
+                            <term><varname>queue-size=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='kato-override'>
+                            <term><varname>kato=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='reconnect-delay-override'>
+                            <term><varname>reconnect-delay=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='ctrl-loss-tmo-override'>
+                            <term><varname>ctrl-loss-tmo=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
+                        <varlistentry id='disable-sqflow-override'>
+                            <term><varname>disable-sqflow=</varname></term>
+                            <listitem>
+                                <para>
+                                    See definition in [Global] section. This is
+                                    an optional field used to override the value
+                                    specified in the [Global] section.
+                                </para>
+                            </listitem>
+                        </varlistentry>
                     </variablelist>
                 </refsect3>
 
@@ -401,8 +526,10 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                 </para>
 
                 <para>
-                    The syntax is the same as for "controller", except that the parameter
-                    <parameter>host-traddr</parameter> does not apply. Multiple
+                    The syntax is the same as for "controller", except that only
+                    <parameter>transport</parameter>, <parameter>traddr</parameter>,
+                    <parameter>trsvcid</parameter>, <parameter>nqn</parameter>, and
+                    <parameter>host-iface</parameter> apply. Multiple
                     <varname>exclude=</varname> keywords may appear in the config
                     file to specify more than 1 excluded controller.
                 </para>
