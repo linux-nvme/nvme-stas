@@ -34,6 +34,7 @@ KERNEL_VERSION = KernelVersion(platform.release())
 KERNEL_IFACE_MIN_VERSION = KernelVersion('5.14')
 KERNEL_TP8013_MIN_VERSION = KernelVersion('5.16')
 KERNEL_HOSTKEY_MIN_VERSION = KernelVersion('5.20')
+KERNEL_CTRLKEY_MIN_VERSION = KernelVersion('5.20')
 
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 

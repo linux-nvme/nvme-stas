@@ -653,6 +653,7 @@ class NvmeOptions(metaclass=singleton.Singleton):
             'discovery': defs.KERNEL_VERSION >= defs.KERNEL_TP8013_MIN_VERSION,
             'host_iface': defs.KERNEL_VERSION >= defs.KERNEL_IFACE_MIN_VERSION,
             'dhchap_secret': defs.KERNEL_VERSION >= defs.KERNEL_HOSTKEY_MIN_VERSION,
+            'dhchap_ctrl_secret': defs.KERNEL_VERSION >= defs.KERNEL_CTRLKEY_MIN_VERSION,
         }
 
         # If some of the options are False, we need to check wether they can be
@@ -692,6 +693,11 @@ class NvmeOptions(metaclass=singleton.Singleton):
         return self._supported_options['host_iface']
 
     @property
-    def dhchap_secret_supp(self):
+    def dhchap_hostkey_supp(self):
         '''This option allows specifying the host DHCHAP key used for authentication.'''
         return self._supported_options['dhchap_secret']
+
+    @property
+    def dhchap_ctrlkey_supp(self):
+        '''This option allows specifying the controller DHCHAP key used for authentication.'''
+        return self._supported_options['dhchap_ctrl_secret']
