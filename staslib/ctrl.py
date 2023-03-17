@@ -52,23 +52,10 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
         self._root = nvme.root()
-        if 'hostkey' in inspect.signature(nvme.host).parameters:
-            self._host = nvme.host(  # hostkey: pylint: disable=unexpected-keyword-arg
-                self._root,
-                hostnqn=sysconf.hostnqn,
-                hostid=sysconf.hostid,
-                hostkey=sysconf.hostkey if self._nvme_options.dhchap_secret_supp else None,
-                hostsymname=sysconf.hostsymname,
-            )
-        else:
-            # To be removed at some point.
-            # This is for backward compatibility with older libnvme
-            self._host = nvme.host(
-                self._root,
-                hostnqn=sysconf.hostnqn,
-                hostid=sysconf.hostid,
-                hostsymname=sysconf.hostsymname,
-            )
+        self._host = nvme.host(
+            self._root, hostnqn=sysconf.hostnqn, hostid=sysconf.hostid, hostsymname=sysconf.hostsymname
+        )
+        self._host.dhchap_key = sysconf.hostkey if self._nvme_options.dhchap_hostkey_supp else None
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
         self._ctrl = None  # libnvme's nvme.ctrl object
@@ -234,6 +221,22 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
             host_iface=host_iface,
         )
         self._ctrl.discovery_ctrl_set(self._discovery_ctrl)
+
+        # Set the DHCHAP key on the controller
+        # NOTE that this will eventually have to
+        # change once we have support for AVE (TP8019)
+        ctrl_dhchap_key = self.tid.cfg.get('dhchap-ctrl-secret')
+        if ctrl_dhchap_key and self._nvme_options.dhchap_ctrlkey_supp:
+            has_dhchap_key = hasattr(self._ctrl, 'dhchap_key')
+            if not has_dhchap_key:
+                logging.warning(
+                    '%s | %s - libnvme-%s does not allow setting the controller DHCHAP key. Please upgrade libnvme.',
+                    self.id,
+                    self.device,
+                    defs.LIBNVME_VERSION,
+                )
+            else:
+                self._ctrl.dhchap_key = ctrl_dhchap_key
 
         # Audit existing nvme devices. If we find a match, then
         # we'll just borrow that device instead of creating a new one.
@@ -553,7 +556,6 @@ class Dc(Controller):
     def _post_registration_actions(self):
         # Need to check that supported_log_pages() is available (introduced in libnvme 1.2)
         has_supported_log_pages = hasattr(self._ctrl, 'supported_log_pages')
-
         if not has_supported_log_pages:
             logging.warning(
                 '%s | %s - libnvme-%s does not support "Get supported log pages". Please upgrade libnvme.',
