@@ -155,6 +155,8 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertIn(4, service_conf.ip_family)
         self.assertIn(6, service_conf.ip_family)
 
+        self.assertRaises(KeyError, service_conf.get_option, 'Babylon', 5)
+
 
 class StasSysConfUnitTest(unittest.TestCase):
     '''Sys config unit tests'''
