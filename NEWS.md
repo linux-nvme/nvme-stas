@@ -1,5 +1,14 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.2.1
+
+Added a few more unit and coverage tests. Fixed the following bugs.
+
+Bug fixes:
+
+* Fix errors with some debug commands (e.g. `stafctl ls --detailed`)
+* Fix setting controller DHCHAP key (this requires [corresponding changes in libnvme](https://github.com/linux-nvme/libnvme/pull/597)) 
+
 ## Changes with release 2.2
 
 Support for in-band authentication. 
