@@ -171,7 +171,7 @@ class ControllerABC(abc.ABC):
 
     def controller_id_dict(self) -> dict:
         '''@brief return the controller ID as a dict.'''
-        return self.tid.as_dict()
+        return { k: str(v) for k, v in self.tid.as_dict().items() }
 
     def details(self) -> dict:
         '''@brief return detailed debug info about this controller'''

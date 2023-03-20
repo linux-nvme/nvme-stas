@@ -30,7 +30,12 @@ class Style:
 
 
 def _get_loaded_nvmet_modules():
-    cp = subprocess.run('/usr/sbin/lsmod', capture_output=True, text=True)
+    try:
+        cp = subprocess.run('/usr/sbin/lsmod', capture_output=True, text=True)
+    except TypeError:
+        # For older Python versions that don't support "capture_output" or "text"
+        cp = subprocess.run('/usr/sbin/lsmod', stdout=subprocess.PIPE, universal_newlines=True)
+
     if cp.returncode != 0 or not cp.stdout:
         return []
 
