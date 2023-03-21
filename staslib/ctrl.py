@@ -135,32 +135,33 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
             self._root.log_level("debug" if tron else "err")
 
     def _on_udev_notification(self, udev_obj):
-        if self._alive():
-            if udev_obj.action == 'change':
-                nvme_aen = udev_obj.get('NVME_AEN')
-                nvme_event = udev_obj.get('NVME_EVENT')
-                if isinstance(nvme_aen, str):
-                    logging.info('%s | %s - Received AEN: %s', self.id, udev_obj.sys_name, nvme_aen)
-                    self._on_aen(int(nvme_aen, 16))
-                if isinstance(nvme_event, str):
-                    self._on_nvme_event(nvme_event)
-            elif udev_obj.action == 'remove':
-                logging.info('%s | %s - Received "remove" event', self.id, udev_obj.sys_name)
-                self._on_ctrl_removed(udev_obj)
-            else:
-                logging.debug(
-                    'Controller._on_udev_notification() - %s | %s: Received "%s" event',
-                    self.id,
-                    udev_obj.sys_name,
-                    udev_obj.action,
-                )
-        else:
+        if not self._alive():
             logging.debug(
                 'Controller._on_udev_notification() - %s | %s: Received event on dead object. udev_obj %s: %s',
                 self.id,
                 self.device,
                 udev_obj.action,
                 udev_obj.sys_name,
+            )
+            return
+
+        if udev_obj.action == 'change':
+            nvme_aen = udev_obj.get('NVME_AEN')
+            nvme_event = udev_obj.get('NVME_EVENT')
+            if isinstance(nvme_aen, str):
+                logging.info('%s | %s - Received AEN: %s', self.id, udev_obj.sys_name, nvme_aen)
+                self._on_aen(int(nvme_aen, 16))
+            if isinstance(nvme_event, str):
+                self._on_nvme_event(nvme_event)
+        elif udev_obj.action == 'remove':
+            logging.info('%s | %s - Received "remove" event', self.id, udev_obj.sys_name)
+            self._on_ctrl_removed(udev_obj)
+        else:
+            logging.debug(
+                'Controller._on_udev_notification() - %s | %s: Received "%s" event',
+                self.id,
+                udev_obj.sys_name,
+                udev_obj.action,
             )
 
     def _on_ctrl_removed(self, udev_obj):  # pylint: disable=unused-argument
@@ -269,48 +270,51 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         op_obj.kill()
         self._connect_op = None
 
-        if self._alive():
-            self._device = self._ctrl.name
-            logging.info('%s | %s - Connection established!', self.id, self.device)
-            self._connect_attempts = 0
-            self._udev.register_for_device_events(self._device, self._on_udev_notification)
-        else:
+        if not self._alive():
             logging.debug(
                 'Controller._on_connect_success()   - %s | %s: Received event on dead object. data=%s',
                 self.id,
                 self.device,
                 data,
             )
+            return
+
+        self._device = self._ctrl.name
+        logging.info('%s | %s - Connection established!', self.id, self.device)
+        self._connect_attempts = 0
+        self._udev.register_for_device_events(self._device, self._on_udev_notification)
 
     def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):  # pylint: disable=unused-argument
         '''@brief Function called when we fail to connect to the Controller.'''
         op_obj.kill()
         self._connect_op = None
-        if self._alive():
-            if self._connect_attempts == 1:
-                # Do a fast re-try on the first failure.
-                self._retry_connect_tmr.set_timeout(self.FAST_CONNECT_RETRY_PERIOD_SEC)
-            elif self._connect_attempts == 2:
-                # If the fast connect re-try fails, then we can print a message to
-                # indicate the failure, and start a slow re-try period.
-                self._retry_connect_tmr.set_timeout(self.CONNECT_RETRY_PERIOD_SEC)
-                logging.error('%s Failed to connect to controller. %s %s', self.id, err.domain, err.message)
 
-            if self._should_try_to_reconnect():
-                logging.debug(
-                    'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
-                    self.id,
-                    err,
-                    self._retry_connect_tmr.get_timeout(),
-                )
-                self._retry_connect_tmr.start()
-        else:
+        if not self._alive():
             logging.debug(
                 'Controller._on_connect_fail()      - %s Received event on dead object. %s %s',
                 self.id,
                 err.domain,
                 err.message,
             )
+            return
+
+        if self._connect_attempts == 1:
+            # Do a fast re-try on the first failure.
+            self._retry_connect_tmr.set_timeout(self.FAST_CONNECT_RETRY_PERIOD_SEC)
+        elif self._connect_attempts == 2:
+            # If the fast connect re-try fails, then we can print a message to
+            # indicate the failure, and start a slow re-try period.
+            self._retry_connect_tmr.set_timeout(self.CONNECT_RETRY_PERIOD_SEC)
+            logging.error('%s Failed to connect to controller. %s %s', self.id, err.domain, err.message)
+
+        if self._should_try_to_reconnect():
+            logging.debug(
+                'Controller._on_connect_fail()      - %s %s. Retry in %s sec.',
+                self.id,
+                err,
+                self._retry_connect_tmr.get_timeout(),
+            )
+            self._retry_connect_tmr.start()
 
     def disconnect(self, disconnected_cb, keep_connection):
         '''@brief Issue an asynchronous disconnect command to a Controller.
@@ -507,11 +511,7 @@ class Dc(Controller):
 
                     return
 
-                logging.info(
-                    '%s | %s - Controller not responding. Retrying...',
-                    self.id,
-                    self.device,
-                )
+                logging.info('%s | %s - Controller not responding. Retrying...', self.id, self.device)
 
         self._ctrl_unresponsive_time = None
         self._ctrl_unresponsive_tmr.stop()
@@ -580,21 +580,23 @@ class Dc(Controller):
         '''
         super()._on_connect_success(op_obj, data)
 
-        if self._alive():
-            self._ctrl_unresponsive_time = None
-            self._ctrl_unresponsive_tmr.stop()
-            self._ctrl_unresponsive_tmr.set_timeout(0)
+        if not self._alive():
+            return
 
-            if self._ctrl.is_registration_supported():
-                self._register_op = gutil.AsyncTask(
-                    self._on_registration_success,
-                    self._on_registration_fail,
-                    self._ctrl.registration_ctlr,
-                    nvme.NVMF_DIM_TAS_REGISTER,
-                )
-                self._register_op.run_async()
-            else:
-                self._post_registration_actions()
+        self._ctrl_unresponsive_time = None
+        self._ctrl_unresponsive_tmr.stop()
+        self._ctrl_unresponsive_tmr.set_timeout(0)
+
+        if self._ctrl.is_registration_supported():
+            self._register_op = gutil.AsyncTask(
+                self._on_registration_success,
+                self._on_registration_fail,
+                self._ctrl.registration_ctlr,
+                nvme.NVMF_DIM_TAS_REGISTER,
+            )
+            self._register_op.run_async()
+        else:
+            self._post_registration_actions()
 
     def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to connect to the Controller.'''
@@ -613,35 +615,25 @@ class Dc(Controller):
         refers to the fact that a successful exchange was made with the DC.
         It doesn't mean that the registration itself succeeded.
         '''
-        if self._alive():
-            if data is not None:
-                logging.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
-            else:
-                logging.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
-
-            self._post_registration_actions()
-        else:
+        if not self._alive():
             logging.debug(
                 'Dc._on_registration_success()      - %s | %s: Received event on dead object.', self.id, self.device
             )
+            return
+
+        if data is not None:
+            logging.warning('%s | %s - Registration error. %s.', self.id, self.device, data)
+        else:
+            logging.debug('Dc._on_registration_success()      - %s | %s', self.id, self.device)
+
+        self._post_registration_actions()
 
     def _on_registration_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to register with the
         Discovery Controller. See self._register_op object
         for details.
         '''
-        if self._alive():
-            logging.debug(
-                'Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec',
-                self.id,
-                self.device,
-                err,
-                Dc.REGISTRATION_RETRY_RERIOD_SEC,
-            )
-            if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
-                logging.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
-            op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
-        else:
+        if not self._alive():
             logging.debug(
                 'Dc._on_registration_fail()         - %s | %s: Received event on dead object. %s',
                 self.id,
@@ -649,6 +641,18 @@ class Dc(Controller):
                 err,
             )
             op_obj.kill()
+            return
+
+        logging.debug(
+            'Dc._on_registration_fail()         - %s | %s: %s. Retry in %s sec',
+            self.id,
+            self.device,
+            err,
+            Dc.REGISTRATION_RETRY_RERIOD_SEC,
+        )
+        if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
+            logging.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
+        op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
 
     # --------------------------------------------------------------------------
     def _on_get_supported_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
@@ -660,61 +664,46 @@ class Dc(Controller):
         refers to the fact that a successful exchange was made with the DC.
         It doesn't mean that the Get Supported Log Page itself succeeded.
         '''
-        if self._alive():
-            try:
-                dlp_supp_opts = data[nvme.NVME_LOG_LID_DISCOVER] >> 16
-            except (TypeError, IndexError):
-                dlp_supp_opts = 0
-
-            logging.debug(
-                'Dc._on_get_supported_success()     - %s | %s: supported options = 0x%04X = %s',
-                self.id,
-                self.device,
-                dlp_supp_opts,
-                dlp_supp_opts_as_string(dlp_supp_opts),
-            )
-
-            if 'lsp' in inspect.signature(self._ctrl.discover).parameters:
-                lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
-                self._get_log_op = gutil.AsyncTask(
-                    self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
-                )
-            else:
-                logging.warning(
-                    '%s | %s - libnvme-%s does not support setting PLEO bit. Please upgrade.',
-                    self.id,
-                    self.device,
-                    defs.LIBNVME_VERSION,
-                )
-                self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
-            self._get_log_op.run_async()
-        else:
+        if not self._alive():
             logging.debug(
                 'Dc._on_get_supported_success()     - %s | %s: Received event on dead object.', self.id, self.device
             )
+            return
+
+        try:
+            dlp_supp_opts = data[nvme.NVME_LOG_LID_DISCOVER] >> 16
+        except (TypeError, IndexError):
+            dlp_supp_opts = 0
+
+        logging.debug(
+            'Dc._on_get_supported_success()     - %s | %s: supported options = 0x%04X = %s',
+            self.id,
+            self.device,
+            dlp_supp_opts,
+            dlp_supp_opts_as_string(dlp_supp_opts),
+        )
+
+        if 'lsp' in inspect.signature(self._ctrl.discover).parameters:
+            lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
+            self._get_log_op = gutil.AsyncTask(
+                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
+            )
+        else:
+            logging.warning(
+                '%s | %s - libnvme-%s does not support setting PLEO bit. Please upgrade.',
+                self.id,
+                self.device,
+                defs.LIBNVME_VERSION,
+            )
+            self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
+        self._get_log_op.run_async()
 
     def _on_get_supported_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to retrieve the supported log
         page from the Discovery Controller. See self._get_supported_op object
         for details.
         '''
-        if self._alive():
-            logging.debug(
-                'Dc._on_get_supported_fail()        - %s | %s: %s. Retry in %s sec',
-                self.id,
-                self.device,
-                err,
-                Dc.GET_SUPPORTED_RETRY_RERIOD_SEC,
-            )
-            if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
-                logging.error(
-                    '%s | %s - Failed to Get supported log pages from Discovery Controller. %s',
-                    self.id,
-                    self.device,
-                    err,
-                )
-            op_obj.retry(Dc.GET_SUPPORTED_RETRY_RERIOD_SEC)
-        else:
+        if not self._alive():
             logging.debug(
                 'Dc._on_get_supported_fail()        - %s | %s: Received event on dead object. %s',
                 self.id,
@@ -722,6 +711,23 @@ class Dc(Controller):
                 err,
             )
             op_obj.kill()
+            return
+
+        logging.debug(
+            'Dc._on_get_supported_fail()        - %s | %s: %s. Retry in %s sec',
+            self.id,
+            self.device,
+            err,
+            Dc.GET_SUPPORTED_RETRY_RERIOD_SEC,
+        )
+        if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
+            logging.error(
+                '%s | %s - Failed to Get supported log pages from Discovery Controller. %s',
+                self.id,
+                self.device,
+                err,
+            )
+        op_obj.retry(Dc.GET_SUPPORTED_RETRY_RERIOD_SEC)
 
     # --------------------------------------------------------------------------
     def _on_get_log_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
@@ -729,61 +735,51 @@ class Dc(Controller):
         from the Discovery Controller. See self._get_log_op object
         for details.
         '''
-        if self._alive():
-            # Note that for historical reasons too long to explain, the CDC may
-            # return invalid addresses ('0.0.0.0', '::', or ''). Those need to
-            # be filtered out.
-            referrals_before = self.referrals()
-            self._log_pages = (
-                [
-                    {k.strip(): str(v).strip() for k, v in dictionary.items()}
-                    for dictionary in data
-                    if dictionary.get('traddr', '').strip() not in ('0.0.0.0', '::', '')
-                ]
-                if data
-                else list()
-            )
-            logging.info(
-                '%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages)
-            )
-            referrals_after = self.referrals()
-            self._serv.log_pages_changed(self, self.device)
-            if referrals_after != referrals_before:
-                logging.debug(
-                    'Dc._on_get_log_success()           - %s | %s: Referrals before = %s',
-                    self.id,
-                    self.device,
-                    referrals_before,
-                )
-                logging.debug(
-                    'Dc._on_get_log_success()           - %s | %s: Referrals after  = %s',
-                    self.id,
-                    self.device,
-                    referrals_after,
-                )
-                self._serv.referrals_changed()
-        else:
+        if not self._alive():
             logging.debug(
                 'Dc._on_get_log_success()           - %s | %s: Received event on dead object.', self.id, self.device
             )
+            return
+
+        # Note that for historical reasons too long to explain, the CDC may
+        # return invalid addresses ('0.0.0.0', '::', or ''). Those need to
+        # be filtered out.
+        referrals_before = self.referrals()
+        self._log_pages = (
+            [
+                {k.strip(): str(v).strip() for k, v in dictionary.items()}
+                for dictionary in data
+                if dictionary.get('traddr', '').strip() not in ('0.0.0.0', '::', '')
+            ]
+            if data
+            else list()
+        )
+        logging.info(
+            '%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages)
+        )
+        referrals_after = self.referrals()
+        self._serv.log_pages_changed(self, self.device)
+        if referrals_after != referrals_before:
+            logging.debug(
+                'Dc._on_get_log_success()           - %s | %s: Referrals before = %s',
+                self.id,
+                self.device,
+                referrals_before,
+            )
+            logging.debug(
+                'Dc._on_get_log_success()           - %s | %s: Referrals after  = %s',
+                self.id,
+                self.device,
+                referrals_after,
+            )
+            self._serv.referrals_changed()
 
     def _on_get_log_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to retrieve the log pages
         from the Discovery Controller. See self._get_log_op object
         for details.
         '''
-        if self._alive():
-            logging.debug(
-                'Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec',
-                self.id,
-                self.device,
-                err,
-                Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC,
-            )
-            if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
-                logging.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
-            op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
-        else:
+        if not self._alive():
             logging.debug(
                 'Dc._on_get_log_fail()              - %s | %s: Received event on dead object. %s',
                 self.id,
@@ -791,6 +787,18 @@ class Dc(Controller):
                 err,
             )
             op_obj.kill()
+            return
+
+        logging.debug(
+            'Dc._on_get_log_fail()              - %s | %s: %s. Retry in %s sec',
+            self.id,
+            self.device,
+            err,
+            Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC,
+        )
+        if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
+            logging.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
+        op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
 
 
 # ******************************************************************************
