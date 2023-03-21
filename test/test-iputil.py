@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import json
 import shutil
+import socket
 import logging
 import unittest
 import ipaddress
@@ -60,6 +61,11 @@ class Test(unittest.TestCase):
 
         self.assertNotIn(bad_tcp, l2)
         self.assertNotIn(bad_trtype, l2)
+
+    def test__data_matches_ip(self):
+        self.assertFalse(iputil._data_matches_ip(None, None, None))
+        self.assertFalse(iputil._data_matches_ip(socket.AF_INET, None, None))
+        self.assertFalse(iputil._data_matches_ip(socket.AF_INET6, None, None))
 
 
 if __name__ == "__main__":
