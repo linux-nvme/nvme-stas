@@ -35,10 +35,14 @@ log_file_contents() {
 	fi
 
 	while IFS= read -r line; do
-		msg="   ${line}"
-		printf "%b%s%s%b[0m\n" "\0033" ${color} "${msg}" "\0033"
-		sudo logger -t COVERAGE -i "@@@@@ " -p ${level} -- "${msg}"
+		printf "%b%s%s%b[0m\n" "\0033" ${color} "   ${line}" "\0033"
 	done < ${file}
+
+        sudo file=${file} level=${level} bash <<'EOF'
+while IFS= read -r line; do
+	logger -t COVERAGE -i "@@@@@ " -p ${level} -- "   ${line}"
+done < ${file}
+EOF
 }
 
 systemctl-exists() {
@@ -515,6 +519,7 @@ reconnect-delay=1
 ctrl-loss-tmo=0
 disable-sqflow=true
 ip-family=ipv6
+pleo=disabled
 
 [Discovery controller connection management]
 persistent-connections=false
