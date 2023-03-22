@@ -21,3 +21,28 @@ class Singleton(type):
             instance = super(Singleton, cls).__call__(*args, **kwargs)
             cls._instances[cls] = instance
         return cls._instances[cls]
+
+    def destroy(cls):
+        '''Delete a singleton instance.
+
+        This is to be invoked using the derived class Name.
+
+        For example:
+
+        class Child(Singleton):
+            pass
+
+        child1 = Child() # Instantiate singleton
+        child2 = Child() # Get a reference to the singleton
+
+        print(f'{child1 is child2}') # True
+
+        Child.destroy()  # Delete the singleton
+
+        print(f'{child1 is child2}') # Still True because child1 and child2 still hold reference to the singleton
+
+        child1 = Child() # Instantiate a new singleton and assign to child1
+
+        print(f'{child1 is child2}') # False
+        '''
+        cls._instances.pop(cls, None)
