@@ -1,6 +1,10 @@
 #!/usr/bin/python3
 import unittest
-from staslib import udev
+from staslib import defs, udev
+
+
+class DummyDevice:
+    ...
 
 
 class Test(unittest.TestCase):
@@ -35,6 +39,37 @@ class Test(unittest.TestCase):
 
         bogus = udev.UDEV.get_key_from_attr(device, 'bogus', 'BOGUS', '\n')
         self.assertEqual(bogus, '')
+
+    def test_is_dc_device(self):
+        device = DummyDevice()
+        device.children = ['vera', 'Chuck', 'Dave']
+        device.attributes = {}
+
+        self.assertFalse(udev.UDEV.is_dc_device(device))
+
+        device.attributes = {'subsysnqn': defs.WELL_KNOWN_DISC_NQN.encode('utf-8')}
+        self.assertTrue(udev.UDEV.is_dc_device(device))
+
+        device.attributes = {'cntrltype': 'discovery'.encode('utf-8')}
+        self.assertTrue(udev.UDEV.is_dc_device(device))
+
+        device.attributes = {}
+        device.children = []
+        self.assertTrue(udev.UDEV.is_dc_device(device))
+
+    def test_is_ioc_device(self):
+        device = DummyDevice()
+        device.children = []
+        device.attributes = {}
+
+        self.assertFalse(udev.UDEV.is_ioc_device(device))
+
+        device.attributes = {'cntrltype': 'io'.encode('utf-8')}
+        self.assertTrue(udev.UDEV.is_ioc_device(device))
+
+        device.attributes = {}
+        device.children = ['vera', 'Chuck', 'Dave']
+        self.assertTrue(udev.UDEV.is_ioc_device(device))
 
 
 if __name__ == '__main__':

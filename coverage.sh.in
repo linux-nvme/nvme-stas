@@ -468,15 +468,39 @@ run_cmd_coverage stacctl ls
 log ">>>>>>>>>>>>>>>>>>>>> Marker [6] <<<<<<<<<<<<<<<<<<<<<"
 printf "\n"
 
+
 #*******************************************************************************
-# Stop Avahi Publisher
-log "Stop Avahi publisher"
+log "Restart Avahi publisher with invalid protocol"
 run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
 printf "\n"
 sleep 1
+run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=walmart"
+printf "\n"
+sleep 2
 
 #*******************************************************************************
-log "Restart Avahi publisher"
+log "Restart Avahi publisher with protocol set to RoCE"
+run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
+printf "\n"
+sleep 1
+run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=roce"
+printf "\n"
+sleep 2
+
+#*******************************************************************************
+log "Restart Avahi publisher without specifying protocol"
+run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
+printf "\n"
+sleep 1
+run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009
+printf "\n"
+sleep 2
+
+#*******************************************************************************
+log "Restart Avahi publisher with protocol set to TCP"
+run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
+printf "\n"
+sleep 1
 run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
 printf "\n"
 sleep 2

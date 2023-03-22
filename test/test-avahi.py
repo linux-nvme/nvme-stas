@@ -36,6 +36,26 @@ class Test(unittest.TestCase):
         srv.kill()
         self.assertEqual(srv.info(), {'avahi wake up timer': 'None', 'service types': [], 'services': {}})
 
+    def test__txt2dict(self):
+        txt = [
+            list('NqN=Starfleet'.encode('utf-8')),
+            list('p=tcp'.encode('utf-8')),
+        ]
+        self.assertEqual(avahi._txt2dict(txt), {'nqn': 'Starfleet', 'p': 'tcp'})
+
+        txt = [
+            list('Nqn=Starfleet'.encode('utf-8')),
+            list('p='.encode('utf-8')),  # Try with a missing value for p
+            list('blah'.encode('utf-8')),  # Missing '='
+            list('='.encode('utf-8')),  # Just '='
+        ]
+        self.assertEqual(avahi._txt2dict(txt), {'nqn': 'Starfleet', 'p': ''})
+
+        txt = [
+            [1000, ord('='), 123456],  # Try with non printable characters
+        ]
+        self.assertEqual(avahi._txt2dict(txt), {})
+
 
 if __name__ == '__main__':
     unittest.main()
