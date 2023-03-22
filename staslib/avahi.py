@@ -29,9 +29,11 @@ def _txt2dict(txt: list):
     for list_of_chars in txt:
         try:
             string = functools.reduce(lambda accumulator, c: accumulator + chr(c), list_of_chars, '')
-            key, val = string.split("=")
-            the_dict[key.lower()] = val
-        except Exception:  # pylint: disable=broad-except
+            if string.isprintable():
+                key, val = string.split('=')
+                if key:  # Make sure the key is not an empty string
+                    the_dict[key.lower()] = val
+        except ValueError:
             pass
 
     return the_dict
