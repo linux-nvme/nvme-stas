@@ -101,6 +101,7 @@ else
         ['Test Service',       'test-service.py',      ['pyfakefs']],
         ['Test TID',           'test-transport_id.py', []],
         ['Test defs.py',       'test-defs.py',         []],
+        ['Test gutil.py',      'test-gutil.py',        []],
         ['Test Udev',          'test-udev.py',         []],
         ['Test timeparse',     'test-timeparse.py',    []],
     ]

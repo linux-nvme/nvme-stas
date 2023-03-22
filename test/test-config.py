@@ -157,6 +157,11 @@ class StasProcessConfUnitTest(unittest.TestCase):
 
         self.assertRaises(KeyError, service_conf.get_option, 'Babylon', 5)
 
+    def test__parse_single_val(self):
+        self.assertEqual(conf._parse_single_val('hello'), 'hello')
+        self.assertIsNone(conf._parse_single_val(None))
+        self.assertEqual(conf._parse_single_val(['hello', 'goodbye']), 'goodbye')
+
 
 class StasSysConfUnitTest(unittest.TestCase):
     '''Sys config unit tests'''

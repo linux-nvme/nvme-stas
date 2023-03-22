@@ -663,6 +663,7 @@ run_unit_test test-service.py
 run_unit_test test-timeparse.py
 run_unit_test test-transport_id.py
 run_unit_test test-defs.py
+run_unit_test test-gutil.py
 run_unit_test test-udev.py
 run_unit_test test-version.py
 
