@@ -26,12 +26,12 @@ ${BUILD-DIR}:
 
 .PHONY: stas
 stas: ${BUILD-DIR}
-	ninja -C ${BUILD-DIR}
+	meson compile -C ${BUILD-DIR}
 
 .PHONY: clean
 clean:
 ifneq ("$(wildcard ${BUILD-DIR})","")
-	ninja -C ${BUILD-DIR} -t clean
+	meson compile --clean -C ${BUILD-DIR}
 endif
 
 .PHONY: purge
@@ -46,7 +46,7 @@ install: stas
 
 .PHONY: uninstall
 uninstall: ${BUILD-DIR}
-	sudo ninja -C ${BUILD-DIR} uninstall
+	sudo ninja $@ -C ${BUILD-DIR}
 
 .PHONY: dist
 dist: stas
@@ -56,6 +56,7 @@ dist: stas
 test: stas
 	meson $@ -C ${BUILD-DIR} --suite nvme-stas
 
+################################################################################
 .PHONY: loc
 loc:
 	@cloc --by-file --exclude-dir=${BUILD-DIR},doc,subprojects,test,utils,debian,obj-x86_64-linux-gnu,.github --exclude-lang=Markdown,"NAnt script",XML,"Bourne Again Shell",make,"Bourne Shell",Meson,YAML,XSLT .

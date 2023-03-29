@@ -42,7 +42,7 @@ jobs:
         run: |
           sudo apt-get install --yes --quiet swig libjson-c-dev
           meson subprojects download
-          meson setup .build subprojects/libnvme -Dlibdbus=disabled -Dopenssl=disabled -Dbuildtype=release -Dprefix=/usr -Dpython=true
+          meson setup .build subprojects/libnvme -Dlibdbus=disabled -Dopenssl=disabled -Dbuildtype=release -Dprefix=/usr -Dpython=enabled
           ninja -C .build
           sudo meson install -C .build
 

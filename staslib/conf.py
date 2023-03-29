@@ -83,7 +83,8 @@ def _to_ip_family(text):
 class OrderedMultisetDict(dict):
     '''This class is used to change the behavior of configparser.ConfigParser
     and allow multiple configuration parameters with the same key. The
-    result is a list of values.
+    result is a list of values, where values are sorted by the order they
+    appear in the file.
     '''
 
     def __setitem__(self, key, value):
@@ -317,7 +318,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         option = 'persistent-connections'
 
         value = self.get_option(section, option, ignore_default=True)
-        legacy = self.get_option('Global', 'persistent-connections', ignore_default=True)
+        legacy = self.get_option('Global', option, ignore_default=True)
 
         if value is None and legacy is None:
             return self._defaults.get((section, option), True)
@@ -381,7 +382,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         controller_list = self.get_option('Controllers', 'exclude')
 
         # 2022-09-20: Look for "blacklist". This is for backwards compatibility
-        # with releases 1.0 to 1.1.6. This is to be phased out (i.e. remove by 2024)
+        # with releases 1.0 to 1.1.x. This is to be phased out (i.e. remove by 2024)
         controller_list += self.get_option('Controllers', 'blacklist')
 
         excluded = [_parse_controller(controller) for controller in controller_list]
