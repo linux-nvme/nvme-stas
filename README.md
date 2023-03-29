@@ -171,31 +171,28 @@ STAS uses the `meson` build system. Since STAS is a Python project, there is no 
 Invoke `meson` to configure the project:
 
 ```bash
-meson .build
+meson setup .build
 ```
 
-The command `meson .build` need only be called once. This analyzes the project and the host computer to determine if all the necessary tools and dependencies are available. The result is saved to the directory named `.build`.
+The command `meson setup .build` need only be called once. This analyzes the project and the host computer to determine if all the necessary tools and dependencies are available. The result is saved to the directory named `.build`.
 
 To compile the code:
 
 ```bash
-cd .build
-ninja
+meson compile -C .build
 ```
 
 To install / uninstall the code:
 
 ```bash
-cd .build
-meson install
-ninja uninstall
+meson install -C .build    # Wrapper for ninja install -C .build
+ninja uninstall -C .build  # Unfortunately there's no meson wrapper
 ```
 
 To run the unit tests:
 
 ```bash
-cd .build
-meson test
+meson test -C .build
 ```
 
 For more information about testing, please refer to: [TESTING.md](./TESTING.md)
@@ -209,18 +206,20 @@ Recognizing that many people are not familiar with `meson`, we're providing a se
 make
 ```
 
-This performs the same operations as the meson approach described above. The `configure` script is automatically invoked when running `make` by itself.
+This performs the same operations as the meson approach described above. The `configure` script is automatically invoked (using default configuration parameters) when running `make` by itself.
 
-| make command         | Description                                                  |
-| -------------------- | :----------------------------------------------------------- |
-| **`make`**           | Invoke the `.configure` script and build the code.           |
-| **`make install`**   | Install the code. Requires root privileges (you will be asked to enter your password). |
-| **`make uninstall`** | Uninstall the code. Requires root privileges (you will be asked to enter your password). |
-| **`make test`**      | Run the unit tests                                           |
-| **`make clean`**     | Clean build artifacts, but does not remove the meson's configuration. That is, the configuration in `.build` is preserved. |
-| **`make purge`**     | Remove all build artifacts including the `.build` directory. |
+| make command                  | Description                                                  |
+| ----------------------------- | :----------------------------------------------------------- |
+| **`make`**                    | Build the code. This command will automatically invoke the `.configure` scripts (using default configuration parameters) if the project is not already configured. |
+| **`make install`**            | Install the code. Requires root privileges (you will be asked to enter your password). |
+| **`make uninstall`**          | Uninstall the code. Requires root privileges (you will be asked to enter your password). |
+| **`make test`**               | Run the unit tests                                           |
+| **`make clean`**              | Clean build artifacts, but does not remove the meson's configuration. That is, the configuration in `.build` is preserved. |
+| **`make purge`**              | Remove all build artifacts including the `.build` directory. |
+| **`make update-subprojects`** | Bring subprojects like `libnvme` up to date                  |
+| **`make black`**              | Verify that source code complies to black coding style       |
 
-## Compiling and running nvme-stas in a docker container
+# Containerization
 
 Use published image (optional)
 ```bash
@@ -246,9 +245,9 @@ docker-compose exec stacd stacctl ls
 docker-compose exec stacd stacctl status
 ```
 
-dependencies: dbus, avahi.
+dependencies: `dbus`, `avahi`.
 
-## Generating man and html pages
+# Generating the documentation
 
 nvme-stas uses the following programs to generate the documentation. These can be installed as shown in the "dependencies" section below.
 
@@ -259,13 +258,13 @@ nvme-stas uses the following programs to generate the documentation. These can b
 
 The following packages must be installed to generate the documentation
 
-**Debian packages (tested on Ubuntu 20.04):**
+**Debian packages (tested on Ubuntu 20.04, 22.04):**
 
 ```bash
 sudo apt-get install -y docbook-xml docbook-xsl xsltproc libglib2.0-dev
 ```
 
-**RPM packages (tested on Fedora 34..35 and SLES15):**
+**RPM packages (tested on Fedora 34..37 and SLES15):**
 
 ```bash
 sudo dnf install -y docbook-style-xsl libxslt glib2-devel
@@ -281,7 +280,7 @@ make purge
 make
 ```
 
-## Generating RPM and/or DEB packages
+# Generating RPM and/or DEB packages
 ```bash
 make rpm
 make deb
