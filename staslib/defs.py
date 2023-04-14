@@ -12,6 +12,7 @@ import os
 import sys
 import shutil
 import platform
+from libnvme import nvme
 from staslib.version import KernelVersion
 
 try:
@@ -47,5 +48,9 @@ NVME_HOSTKEY = '/etc/nvme/hostkey'
 SYS_CONF_FILE = '/etc/stas/sys.conf'
 STAFD_CONF_FILE = '/etc/stas/stafd.conf'
 STACD_CONF_FILE = '/etc/stas/stacd.conf'
+
+HAS_NBFT_SUPPORT = hasattr(nvme, 'nbft_get')
+NBFT_SYSFS_PATH = "/sys/firmware/acpi/tables"
+NBFT_SYSFS_FILENAME = "NBFT*"
 
 SYSTEMCTL = shutil.which('systemctl')

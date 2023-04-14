@@ -12,10 +12,12 @@ including the Abstract Base Classes (ABC) for Controllers and Services'''
 import os
 import sys
 import abc
+import glob
 import signal
 import pickle
 import logging
 import dasbus.connection
+from libnvme import nvme
 from gi.repository import Gio, GLib
 from systemd.daemon import notify as sd_notify
 from staslib import conf, defs, gutil, log, trid
@@ -84,6 +86,20 @@ def check_if_allowed_to_continue():
     if not os.path.exists('/dev/nvme-fabrics'):
         # There's no point going any further if the kernel module hasn't been loaded
         sys.exit('Fatal error: missing nvme-tcp kernel module')
+
+
+# ******************************************************************************
+def get_nbft_files(root_dir=defs.NBFT_SYSFS_PATH):
+    """Return a dictionary containing the NBFT data for all the NBFT binary files located in @root_dir"""
+    if not defs.HAS_NBFT_SUPPORT:
+        logging.warning(
+            "libnvme-%s does not have NBFT support. Please upgrade libnvme.",
+            defs.LIBNVME_VERSION,
+        )
+        return {}
+
+    pathname = os.path.join(root_dir, defs.NBFT_SYSFS_FILENAME)
+    return {fname: nvme.nbft_get(fname) for fname in glob.iglob(pathname=pathname)}  # pylint: disable=no-member
 
 
 # ******************************************************************************
