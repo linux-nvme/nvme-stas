@@ -555,8 +555,8 @@ class Dc(Controller):
 
     def _post_registration_actions(self):
         # Need to check that supported_log_pages() is available (introduced in libnvme 1.2)
-        has_supported_log_pages = hasattr(self._ctrl, 'supported_log_pages')
-        if not has_supported_log_pages:
+        get_slp = getattr(self._ctrl, 'supported_log_pages', None)
+        if get_slp is not None:
             logging.warning(
                 '%s | %s - libnvme-%s does not support "Get supported log pages". Please upgrade libnvme.',
                 self.id,
@@ -564,9 +564,9 @@ class Dc(Controller):
                 defs.LIBNVME_VERSION,
             )
 
-        if conf.SvcConf().pleo_enabled and self._is_ddc() and has_supported_log_pages:
+        if conf.SvcConf().pleo_enabled and self._is_ddc() and get_slp is not None:
             self._get_supported_op = gutil.AsyncTask(
-                self._on_get_supported_success, self._on_get_supported_fail, self._ctrl.supported_log_pages
+                self._on_get_supported_success, self._on_get_supported_fail, get_slp
             )
             self._get_supported_op.run_async()
         else:

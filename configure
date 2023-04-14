@@ -10,7 +10,7 @@
 BUILD_DIR="${BUILD_DIR:-.build}"
 
 if [ ! -d ${BUILD_DIR} ]; then
-    exec meson ${BUILD_DIR} "$@"
+    exec meson setup ${BUILD_DIR} "$@"
 else
     exec meson configure ${BUILD_DIR} "$@"
 fi

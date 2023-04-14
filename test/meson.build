@@ -7,6 +7,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 
+srce_dir = meson.current_source_dir()
 test_env = environment({'MALLOC_PERTURB_': '0'})
 
 libnvme_location = '?'
@@ -22,6 +23,9 @@ if get_option('libnvme-sel') == 'pre-installed'
     rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__path__[0]}")', check: false, env: test_env)
     if rr.returncode() == 0
         libnvme_location = rr.stdout().strip()
+        pythonpath = fs.parent('libnvme_location')
+        test_env.prepend('PYTHONPATH', pythonpath) # Look in standard location first
+        test_env.append('PYTHONPATH', PYTHONPATH)  # Look in the build directory second
     endif
 endif
 
@@ -53,7 +57,7 @@ else
             endif
         endif
 
-        rcfile = meson.current_source_dir() / 'pylint.rc'
+        rcfile = srce_dir / 'pylint.rc'
 
         if pylint.found()
             test('pylint', pylint, args: ['--rcfile=' + rcfile] + modules_to_lint, env: test_env)
@@ -91,34 +95,36 @@ else
     #---------------------------------------------------------------------------
     # Unit tests
     things_to_test = [
-        ['Test Configuration', 'test-config.py',       []],
-        ['Test Controller',    'test-controller.py',   ['pyfakefs']],
-        ['Test GTimer',        'test-gtimer.py',       []],
-        ['Test iputil',        'test-iputil.py',       []],
-        ['Test KernelVersion', 'test-version.py',      []],
-        ['Test log',           'test-log.py',          ['pyfakefs']],
-        ['Test NvmeOptions',   'test-nvme_options.py', ['pyfakefs']],
-        ['Test Service',       'test-service.py',      ['pyfakefs']],
-        ['Test TID',           'test-transport_id.py', []],
-        ['Test defs.py',       'test-defs.py',         []],
-        ['Test gutil.py',      'test-gutil.py',        []],
-        ['Test Udev',          'test-udev.py',         []],
-        ['Test timeparse',     'test-timeparse.py',    []],
+        ['Test Configuration', [],           [srce_dir / 'test-config.py',       ]],
+        ['Test Controller',    ['pyfakefs'], [srce_dir / 'test-controller.py',   ]],
+        ['Test GTimer',        [],           [srce_dir / 'test-gtimer.py',       ]],
+        ['Test iputil',        [],           [srce_dir / 'test-iputil.py',       ]],
+        ['Test KernelVersion', [],           [srce_dir / 'test-version.py',      ]],
+        ['Test log',           ['pyfakefs'], [srce_dir / 'test-log.py',          ]],
+        ['Test NBFT',          [],           [srce_dir / 'test-nbft.py',         ]],
+        ['Test NvmeOptions',   ['pyfakefs'], [srce_dir / 'test-nvme_options.py', ]],
+        ['Test Service',       ['pyfakefs'], [srce_dir / 'test-service.py',      ]],
+        ['Test TID',           [],           [srce_dir / 'test-transport_id.py', ]],
+        ['Test defs.py',       [],           [srce_dir / 'test-defs.py',         ]],
+        ['Test gutil.py',      [],           [srce_dir / 'test-gutil.py',        ]],
+        ['Test Udev',          [],           [srce_dir / 'test-udev.py',         ]],
+        ['Test timeparse',     [],           [srce_dir / 'test-timeparse.py',    ]],
     ]
 
     # The Avahi test requires the Avahi and the Dbus daemons to be running.
     if want_avahi_test
-        things_to_test += [['Test Avahi', 'test-avahi.py', []]]
+        things_to_test += [['Test Avahi', [], [srce_dir / 'test-avahi.py']]]
     else
         warning('Skip Avahi Test due to missing dependencies')
     endif
 
     foreach thing: things_to_test
         msg = thing[0]
+        deps = thing[1]
+        args = thing[2]
 
         # Check whether all dependencies can be found
         missing_deps = []
-        deps = thing[2]
         foreach dep : deps
             rr = run_command(python3, '-c', 'import @0@'.format(dep), check: false)
             if rr.returncode() != 0
@@ -128,8 +134,7 @@ else
 
         if missing_deps.length() == 0
             # Allow the test to run if all dependencies are available
-            script = meson.current_source_dir() / thing[1]
-            test(msg, python3, args: script, env: test_env)
+            test(msg, python3, args: args, env: test_env)
         else
             warning('"@0@" requires python module "@1@"'.format(msg, missing_deps))
         endif
@@ -140,15 +145,15 @@ endif
 #-------------------------------------------------------------------------------
 # Make sure code complies with minimum Python version requirement.
 tools = [
-    meson.current_source_dir() / '../doc',
-    meson.current_source_dir() / '../utils',
+    srce_dir / '../doc',
+    srce_dir / '../utils',
 ]
 vermin = find_program('vermin', required: false)
 if vermin.found()
     if modules_to_lint.length() != 0
-        test('vermin code', vermin, args: ['--config-file', meson.current_source_dir() / 'vermin.conf'] + modules_to_lint, env: test_env)
+        test('vermin code', vermin, args: ['--config-file', srce_dir / 'vermin.conf'] + modules_to_lint, env: test_env)
     endif
-    test('vermin tools', vermin, args: ['--config-file', meson.current_source_dir() / 'vermin-tools.conf'] + tools, env: test_env)
+    test('vermin tools', vermin, args: ['--config-file', srce_dir / 'vermin-tools.conf'] + tools, env: test_env)
 else
     warning('Skiping some of the tests because "vermin" is missing.')
 endif

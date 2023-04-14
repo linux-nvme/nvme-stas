@@ -129,9 +129,9 @@ run_unit_test() {
 	else
 		COVERAGE="coverage"
 	fi
-	test=$@
+	args=$@
 	log "Run unit test: ${input}"
-	PYTHONPATH=${PYTHON_PATH} ${COVERAGE} run --rcfile=.coveragerc ../test/${test} >/dev/null 2>&1
+	PYTHONPATH=${PYTHON_PATH} ${COVERAGE} run --rcfile=.coveragerc "${args}" >/dev/null 2>&1
 }
 
 run_cmd_coverage() {
@@ -650,22 +650,24 @@ sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/libnvme/libnvme/__py
 
 #*******************************************************************************
 # Run unit tests
-run_unit_test test-avahi.py
-run_unit_test test-avahi.py
-run_unit_test test-config.py
-run_unit_test test-controller.py
-run_unit_test test-gtimer.py
-run_unit_test test-iputil.py
-run_unit_test test-log.py
-run_unit_test sudo test-nvme_options.py  # Test both with super user...
-run_unit_test test-nvme_options.py       # ... and with regular user
-run_unit_test test-service.py
-run_unit_test test-timeparse.py
-run_unit_test test-transport_id.py
-run_unit_test test-defs.py
-run_unit_test test-gutil.py
-run_unit_test test-udev.py
-run_unit_test test-version.py
+TEST_DIR=$( realpath ../test )
+run_unit_test ${TEST_DIR}/test-avahi.py
+run_unit_test ${TEST_DIR}/test-avahi.py
+run_unit_test ${TEST_DIR}/test-config.py
+run_unit_test ${TEST_DIR}/test-controller.py
+run_unit_test ${TEST_DIR}/test-gtimer.py
+run_unit_test ${TEST_DIR}/test-iputil.py
+run_unit_test ${TEST_DIR}/test-log.py
+run_unit_test ${TEST_DIR}/test-nbft.py
+run_unit_test sudo ${TEST_DIR}/test-nvme_options.py  # Test both with super user...
+run_unit_test ${TEST_DIR}/test-nvme_options.py       # ... and with regular user
+run_unit_test ${TEST_DIR}/test-service.py
+run_unit_test ${TEST_DIR}/test-timeparse.py
+run_unit_test ${TEST_DIR}/test-transport_id.py
+run_unit_test ${TEST_DIR}/test-defs.py
+run_unit_test ${TEST_DIR}/test-gutil.py
+run_unit_test ${TEST_DIR}/test-udev.py
+run_unit_test ${TEST_DIR}/test-version.py
 
 #*******************************************************************************
 # Stop nvme target simulator
