@@ -556,7 +556,7 @@ class Dc(Controller):
     def _post_registration_actions(self):
         # Need to check that supported_log_pages() is available (introduced in libnvme 1.2)
         get_slp = getattr(self._ctrl, 'supported_log_pages', None)
-        if get_slp is not None:
+        if get_slp is None:
             logging.warning(
                 '%s | %s - libnvme-%s does not support "Get supported log pages". Please upgrade libnvme.',
                 self.id,
