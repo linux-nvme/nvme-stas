@@ -40,6 +40,10 @@ class Test(unittest.TestCase):
 
         self.assertEqual('', iputil.get_interface('255.255.255.255'))
 
+    def test_mac2iface(self):
+        for iface in self.ifaces:
+            self.assertEqual(iface['ifname'], iputil.mac2iface(iface['address']))
+
     def test_remove_invalid_addresses(self):
         good_tcp = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': '', 'trsvcid': '8009'})
         bad_tcp = trid.TID({'transport': 'tcp', 'traddr': '555.555.555.555', 'subsysnqn': '', 'trsvcid': '8009'})

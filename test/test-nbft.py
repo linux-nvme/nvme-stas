@@ -90,11 +90,6 @@ class Test(unittest.TestCase):
     def test_dir_with_nbft_files(self):
         """Make sure we get expected data when reading from binary NBFT file"""
         actual_nbft = stas.get_nbft_files(TEST_DIR)
-
-        import pprint
-
-        print(f"actual_nbft:\n{pprint.pformat(actual_nbft)}")
-
         self.assertEqual(actual_nbft, self.expected_nbft)
 
     def test_dir_without_nbft_files(self):
