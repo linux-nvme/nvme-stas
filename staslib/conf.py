@@ -14,7 +14,8 @@ import sys
 import logging
 import functools
 import configparser
-from staslib import defs, singleton, timeparse
+from urllib.parse import urlparse
+from staslib import defs, iputil, nbft, singleton, timeparse
 
 __TOKEN_RE = re.compile(r'\s*;\s*')
 __OPTION_RE = re.compile(r'\s*=\s*')
@@ -702,3 +703,84 @@ class NvmeOptions(metaclass=singleton.Singleton):
     def dhchap_ctrlkey_supp(self):
         '''This option allows specifying the controller DHCHAP key used for authentication.'''
         return self._supported_options['dhchap_ctrl_secret']
+
+
+# ******************************************************************************
+class NbftConf(metaclass=singleton.Singleton):  # pylint: disable=too-few-public-methods
+    '''Read and cache configuration file.'''
+
+    def __init__(self, root_dir=defs.NBFT_SYSFS_PATH):
+        self._disc_ctrls = []
+        self._subs_ctrls = []
+
+        for data in nbft.get_nbft_files(root_dir).values():
+            hfis = data.get('hfi', [])
+            discovery = data.get('discovery', [])
+            subsystem = data.get('subsystem', [])
+
+            self._disc_ctrls.extend(NbftConf.__nbft_disc_to_cids(discovery, hfis))
+            self._subs_ctrls.extend(NbftConf.__nbft_subs_to_cids(subsystem, hfis))
+
+    dcs = property(lambda self: self._disc_ctrls)
+    iocs = property(lambda self: self._subs_ctrls)
+
+    @staticmethod
+    def __nbft_disc_to_cids(discovery, hfis):
+        cids = []
+
+        for ctrl in discovery:
+            cid = NbftConf.__uri2cid(ctrl['uri'])
+            cid['subsysnqn'] = ctrl['nqn']
+
+            host_iface = NbftConf.__get_host_iface(ctrl.get('hfi_index'), hfis)
+            if host_iface:
+                cid['host-iface'] = host_iface
+
+            cids.append(cid)
+
+        return cids
+
+    @staticmethod
+    def __nbft_subs_to_cids(subsystem, hfis):
+        cids = []
+
+        for ctrl in subsystem:
+            cid = {
+                'transport': ctrl['trtype'],
+                'traddr': ctrl['traddr'],
+                'trsvcid': ctrl['trsvcid'],
+                'subsysnqn': ctrl['subsys_nqn'],
+                'hdr-digest': ctrl['pdu_header_digest_required'],
+                'data-digest': ctrl['data_digest_required'],
+            }
+
+            indexes = ctrl.get('hfi_indexes')
+            if isinstance(indexes, list) and len(indexes) > 0:
+                host_iface = NbftConf.__get_host_iface(indexes[0], hfis)
+                if host_iface:
+                    cid['host-iface'] = host_iface
+
+            cids.append(cid)
+
+        return cids
+
+    @staticmethod
+    def __get_host_iface(indx, hfis):
+        if indx is None or indx >= len(hfis):
+            return None
+
+        mac = hfis[indx].get('mac_addr')
+        if mac is None:
+            return None
+
+        return iputil.mac2iface(mac)
+
+    @staticmethod
+    def __uri2cid(uri: str):
+        '''Convert a URI of the form "nvme+tcp://100.71.103.50:8009/" to a Controller ID'''
+        obj = urlparse(uri)
+        return {
+            'transport': obj.scheme.split('+')[1],
+            'traddr': obj.hostname,
+            'trsvcid': str(obj.port),
+        }

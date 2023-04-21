@@ -102,6 +102,7 @@ else
         ['Test KernelVersion', [],           [srce_dir / 'test-version.py',      ]],
         ['Test log',           ['pyfakefs'], [srce_dir / 'test-log.py',          ]],
         ['Test NBFT',          [],           [srce_dir / 'test-nbft.py',         ]],
+        ['Test NbftConf',      [],           [srce_dir / 'test-nbft_conf.py',    ]],
         ['Test NvmeOptions',   ['pyfakefs'], [srce_dir / 'test-nvme_options.py', ]],
         ['Test Service',       ['pyfakefs'], [srce_dir / 'test-service.py',      ]],
         ['Test TID',           [],           [srce_dir / 'test-transport_id.py', ]],

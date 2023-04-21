@@ -659,6 +659,7 @@ run_unit_test ${TEST_DIR}/test-gtimer.py
 run_unit_test ${TEST_DIR}/test-iputil.py
 run_unit_test ${TEST_DIR}/test-log.py
 run_unit_test ${TEST_DIR}/test-nbft.py
+run_unit_test ${TEST_DIR}/test-nbft_conf.py
 run_unit_test sudo ${TEST_DIR}/test-nvme_options.py  # Test both with super user...
 run_unit_test ${TEST_DIR}/test-nvme_options.py       # ... and with regular user
 run_unit_test ${TEST_DIR}/test-service.py

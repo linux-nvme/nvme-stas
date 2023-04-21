@@ -6,7 +6,7 @@ import logging
 import unittest
 import ipaddress
 import subprocess
-from staslib import iputil, log, trid
+from staslib import iputil, log, stas, trid
 
 IP = shutil.which('ip')
 
@@ -56,7 +56,7 @@ class Test(unittest.TestCase):
             any_fc,
             bad_trtype,
         ]
-        l2 = iputil.remove_invalid_addresses(l1)
+        l2 = stas.remove_invalid_addresses(l1)
 
         self.assertNotEqual(l1, l2)
 
