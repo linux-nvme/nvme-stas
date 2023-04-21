@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import defs, stas
+from staslib import defs, nbft
 from libnvme import nvme
 from argparse import ArgumentParser
 
@@ -89,11 +89,11 @@ class Test(unittest.TestCase):
 
     def test_dir_with_nbft_files(self):
         """Make sure we get expected data when reading from binary NBFT file"""
-        actual_nbft = stas.get_nbft_files(TEST_DIR)
+        actual_nbft = nbft.get_nbft_files(TEST_DIR)
         self.assertEqual(actual_nbft, self.expected_nbft)
 
     def test_dir_without_nbft_files(self):
-        actual_nbft = stas.get_nbft_files("/tmp")
+        actual_nbft = nbft.get_nbft_files("/tmp")
         self.assertEqual(actual_nbft, {})
 
 

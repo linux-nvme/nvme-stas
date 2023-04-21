@@ -10,9 +10,7 @@
 
 import struct
 import socket
-import logging
 import ipaddress
-from staslib import conf
 
 RTM_BASE = 16
 RTM_GETLINK = 18
@@ -21,26 +19,29 @@ RTM_GETADDR = 22
 NLM_F_REQUEST = 0x01
 NLM_F_ROOT = 0x100
 NLMSG_DONE = 3
-IFLA_ADDRESS = 1
-NLMSGHDR_SZ = 16
+NLMSG_HDRLEN = 16
 IFADDRMSG_SZ = 8
 IFINFOMSG_SZ = 16
-RTATTR_SZ = 4
 ARPHRD_ETHER = 1
 ARPHRD_LOOPBACK = 772
+NLMSG_LENGTH = lambda msg_len: msg_len + NLMSG_HDRLEN  # pylint: disable=unnecessary-lambda-assignment
+
+RTATTR_SZ = 4
+RTA_ALIGN = lambda length: ((length + 3) & ~3)  # pylint: disable=unnecessary-lambda-assignment
+IFLA_ADDRESS = 1
 
 
 def _nlmsghdr(nlmsg_type, nlmsg_flags, nlmsg_seq, nlmsg_pid, msg_len: int):
     '''Implement this C struct:
     struct nlmsghdr {
-        __u32 nlmsg_len;   /* Length of message including header, but excluding length of nlmsg_len itself */
+        __u32 nlmsg_len;   /* Length of message including header */
         __u16 nlmsg_type;  /* Message content */
         __u16 nlmsg_flags; /* Additional flags */
         __u32 nlmsg_seq;   /* Sequence number */
         __u32 nlmsg_pid;   /* Sending process port ID */
     };
     '''
-    return struct.pack('<LHHLL', 12 + msg_len, nlmsg_type, nlmsg_flags, nlmsg_seq, nlmsg_pid)
+    return struct.pack('<LHHLL', NLMSG_LENGTH(msg_len), nlmsg_type, nlmsg_flags, nlmsg_seq, nlmsg_pid)
 
 
 def _ifaddrmsg(family=0, prefixlen=0, flags=0, scope=0, index=0):
@@ -99,14 +100,14 @@ def mac2iface(mac: str):  # pylint: disable=too-many-locals
             if nlmsg_idx >= len(nlmsg):
                 nlmsg += sock.recv(8192)
 
-            nlmsghdr = nlmsg[nlmsg_idx : nlmsg_idx + NLMSGHDR_SZ]
+            nlmsghdr = nlmsg[nlmsg_idx : nlmsg_idx + NLMSG_HDRLEN]
             nlmsg_len, nlmsg_type, _, _, _ = struct.unpack('<LHHLL', nlmsghdr)
 
             if nlmsg_type == NLMSG_DONE:
                 break
 
             if nlmsg_type == RTM_BASE:
-                msg_indx = nlmsg_idx + NLMSGHDR_SZ
+                msg_indx = nlmsg_idx + NLMSG_HDRLEN
                 msg = nlmsg[msg_indx : msg_indx + IFINFOMSG_SZ]  # ifinfomsg
                 _, _, ifi_type, ifi_index, _, _ = struct.unpack('<BBHiII', msg)
 
@@ -120,7 +121,7 @@ def mac2iface(mac: str):  # pylint: disable=too-many-locals
                             if _data_matches_mac(data, mac):
                                 return socket.if_indextoname(ifi_index)
 
-                        rta_len = (rta_len + 3) & ~3  # Round up to multiple of 4
+                        rta_len = RTA_ALIGN(rta_len)  # Round up to multiple of 4
                         rtattr_indx += rta_len  # Move to next rtattr
 
             nlmsg_idx += nlmsg_len  # Move to next Netlink message
@@ -163,14 +164,14 @@ def _iface_of(src_addr):  # pylint: disable=too-many-locals
             if nlmsg_idx >= len(nlmsg):
                 nlmsg += sock.recv(8192)
 
-            nlmsghdr = nlmsg[nlmsg_idx : nlmsg_idx + NLMSGHDR_SZ]
+            nlmsghdr = nlmsg[nlmsg_idx : nlmsg_idx + NLMSG_HDRLEN]
             nlmsg_len, nlmsg_type, _, _, _ = struct.unpack('<LHHLL', nlmsghdr)
 
             if nlmsg_type == NLMSG_DONE:
                 break
 
             if nlmsg_type == RTM_NEWADDR:
-                msg_indx = nlmsg_idx + NLMSGHDR_SZ
+                msg_indx = nlmsg_idx + NLMSG_HDRLEN
                 msg = nlmsg[msg_indx : msg_indx + IFADDRMSG_SZ]  # ifaddrmsg
                 ifa_family, _, _, _, ifa_index = struct.unpack('<BBBBL', msg)
 
@@ -183,7 +184,7 @@ def _iface_of(src_addr):  # pylint: disable=too-many-locals
                         if _data_matches_ip(ifa_family, data, src_addr):
                             return socket.if_indextoname(ifa_index)
 
-                    rta_len = (rta_len + 3) & ~3  # Round up to multiple of 4
+                    rta_len = RTA_ALIGN(rta_len)  # Round up to multiple of 4
                     rtattr_indx += rta_len  # Move to next rtattr
 
             nlmsg_idx += nlmsg_len  # Move to next Netlink message
@@ -215,41 +216,3 @@ def get_interface(src_addr):
     src_addr = src_addr.split('%')[0]  # remove scope-id (if any)
     src_addr = get_ipaddress_obj(src_addr)
     return '' if src_addr is None else _iface_of(src_addr)
-
-
-# ******************************************************************************
-def remove_invalid_addresses(controllers: list):
-    '''@brief Remove controllers with invalid addresses from the list of controllers.
-    @param controllers: List of TIDs
-    '''
-    service_conf = conf.SvcConf()
-    valid_controllers = list()
-    for controller in controllers:
-        if controller.transport in ('tcp', 'rdma'):
-            # Let's make sure that traddr is
-            # syntactically a valid IPv4 or IPv6 address.
-            ip = get_ipaddress_obj(controller.traddr)
-            if ip is None:
-                logging.warning('%s IP address is not valid', controller)
-                continue
-
-            # Let's make sure the address family is enabled.
-            if ip.version not in service_conf.ip_family:
-                logging.debug(
-                    '%s ignored because IPv%s is disabled in %s',
-                    controller,
-                    ip.version,
-                    service_conf.conf_file,
-                )
-                continue
-
-            valid_controllers.append(controller)
-
-        elif controller.transport in ('fc', 'loop'):
-            # At some point, need to validate FC addresses as well...
-            valid_controllers.append(controller)
-
-        else:
-            logging.warning('Invalid transport %s', controller.transport)
-
-    return valid_controllers

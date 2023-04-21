@@ -12,15 +12,13 @@ including the Abstract Base Classes (ABC) for Controllers and Services'''
 import os
 import sys
 import abc
-import glob
 import signal
 import pickle
 import logging
 import dasbus.connection
-from libnvme import nvme
 from gi.repository import Gio, GLib
 from systemd.daemon import notify as sd_notify
-from staslib import conf, defs, gutil, log, trid
+from staslib import conf, defs, gutil, iputil, log, trid
 
 try:
     # Python 3.9 or later
@@ -89,17 +87,41 @@ def check_if_allowed_to_continue():
 
 
 # ******************************************************************************
-def get_nbft_files(root_dir=defs.NBFT_SYSFS_PATH):
-    """Return a dictionary containing the NBFT data for all the NBFT binary files located in @root_dir"""
-    if not defs.HAS_NBFT_SUPPORT:
-        logging.warning(
-            "libnvme-%s does not have NBFT support. Please upgrade libnvme.",
-            defs.LIBNVME_VERSION,
-        )
-        return {}
+def remove_invalid_addresses(controllers: list):
+    '''@brief Remove controllers with invalid addresses from the list of controllers.
+    @param controllers: List of TIDs
+    '''
+    service_conf = conf.SvcConf()
+    valid_controllers = list()
+    for controller in controllers:
+        if controller.transport in ('tcp', 'rdma'):
+            # Let's make sure that traddr is
+            # syntactically a valid IPv4 or IPv6 address.
+            ip = iputil.get_ipaddress_obj(controller.traddr)
+            if ip is None:
+                logging.warning('%s IP address is not valid', controller)
+                continue
 
-    pathname = os.path.join(root_dir, defs.NBFT_SYSFS_FILENAME)
-    return {fname: nvme.nbft_get(fname) for fname in glob.iglob(pathname=pathname)}  # pylint: disable=no-member
+            # Let's make sure the address family is enabled.
+            if ip.version not in service_conf.ip_family:
+                logging.debug(
+                    '%s ignored because IPv%s is disabled in %s',
+                    controller,
+                    ip.version,
+                    service_conf.conf_file,
+                )
+                continue
+
+            valid_controllers.append(controller)
+
+        elif controller.transport in ('fc', 'loop'):
+            # At some point, need to validate FC addresses as well...
+            valid_controllers.append(controller)
+
+        else:
+            logging.warning('Invalid transport %s', controller.transport)
+
+    return valid_controllers
 
 
 # ******************************************************************************

@@ -20,7 +20,7 @@ import dasbus.client.proxy
 
 from gi.repository import GLib
 from systemd.daemon import notify as sd_notify
-from staslib import avahi, conf, ctrl, defs, gutil, iputil, stas, timeparse, trid, udev
+from staslib import avahi, conf, ctrl, defs, gutil, stas, timeparse, trid, udev
 
 
 # ******************************************************************************
@@ -402,7 +402,7 @@ class Stac(Service):
         logging.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)
 
         controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list)
-        controllers = iputil.remove_invalid_addresses(controllers)
+        controllers = stas.remove_invalid_addresses(controllers)
 
         new_controller_tids = set(controllers)
         cur_controller_tids = set(self._controllers.keys())
@@ -752,7 +752,7 @@ class Staf(Service):
 
         all_ctrls = configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list
         controllers = stas.remove_excluded(all_ctrls)
-        controllers = iputil.remove_invalid_addresses(controllers)
+        controllers = stas.remove_invalid_addresses(controllers)
 
         new_controller_tids = set(controllers)
         cur_controller_tids = set(self._controllers.keys())
