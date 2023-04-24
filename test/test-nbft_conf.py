@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+import logging
 import unittest
 from staslib import conf
 
@@ -35,11 +36,20 @@ EXPECTED_IOCS = [
 class Test(unittest.TestCase):
     """Unit tests for class NbftConf"""
 
-    def test_nbft_matches(self):
+    def test_dir_with_nbft_files(self):
         conf.NbftConf.destroy()  # Make sure singleton does not exist
-        nbft_conf = conf.NbftConf(TEST_DIR)
-        self.assertEqual(nbft_conf.dcs, EXPECTED_DCS)
-        self.assertEqual(nbft_conf.iocs, EXPECTED_IOCS)
+        with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+            nbft_conf = conf.NbftConf(TEST_DIR)
+            self.assertNotEqual(-1, captured.records[0].getMessage().find("NBFT location(s):"))
+            self.assertEqual(nbft_conf.dcs, EXPECTED_DCS)
+            self.assertEqual(nbft_conf.iocs, EXPECTED_IOCS)
+
+    def test_dir_without_nbft_files(self):
+        conf.NbftConf.destroy()  # Make sure singleton does not exist
+        with self.assertNoLogs(logger=logging.getLogger(), level='DEBUG'):
+            nbft_conf = conf.NbftConf('/tmp')
+            self.assertEqual(nbft_conf.dcs, [])
+            self.assertEqual(nbft_conf.iocs, [])
 
 
 if __name__ == "__main__":
