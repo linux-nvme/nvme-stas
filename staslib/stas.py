@@ -530,7 +530,9 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         # elements after name resolution is complete (i.e. in the calback
         # function _config_ctrls_finish)
         logging.debug('ServiceABC._config_ctrls()')
-        configured_controllers = [trid.TID(cid) for cid in conf.SvcConf().get_controllers()]
+        configured_controllers = [
+            trid.TID(cid) for cid in conf.SvcConf().get_controllers() + conf.NbftConf().get_controllers()
+        ]
         configured_controllers = remove_excluded(configured_controllers)
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 

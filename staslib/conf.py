@@ -706,14 +706,18 @@ class NvmeOptions(metaclass=singleton.Singleton):
 
 
 # ******************************************************************************
-class NbftConf(metaclass=singleton.Singleton):  # pylint: disable=too-few-public-methods
+class NbftConf(metaclass=singleton.Singleton):
     '''Read and cache configuration file.'''
 
     def __init__(self, root_dir=defs.NBFT_SYSFS_PATH):
         self._disc_ctrls = []
         self._subs_ctrls = []
 
-        for data in nbft.get_nbft_files(root_dir).values():
+        nbft_files = nbft.get_nbft_files(root_dir)
+        if len(nbft_files):
+            logging.info('NBFT location(s): %s', list(nbft_files.keys()))
+
+        for data in nbft_files.values():
             hfis = data.get('hfi', [])
             discovery = data.get('discovery', [])
             subsystem = data.get('subsystem', [])
@@ -723,6 +727,15 @@ class NbftConf(metaclass=singleton.Singleton):  # pylint: disable=too-few-public
 
     dcs = property(lambda self: self._disc_ctrls)
     iocs = property(lambda self: self._subs_ctrls)
+
+    def get_controllers(self):
+        '''Retrieve the list of controllers. Stafd only cares about
+        discovery controllers. Stacd only cares about I/O controllers.'''
+
+        # For now, only return DCs. There are still unanswered questions
+        # regarding I/O controllers, e.g. what if multipathing has been
+        # configured.
+        return self.dcs if defs.PROG_NAME == 'stafd' else []
 
     @staticmethod
     def __nbft_disc_to_cids(discovery, hfis):
