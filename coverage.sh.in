@@ -642,6 +642,35 @@ mkdir -p "/tmp/stafd"
 sd_restart "stafd"
 sleep 2
 
+
+log ">>>>>>>>>>>>>>>>>>>>> Marker [11] <<<<<<<<<<<<<<<<<<<<<"
+printf "\n"
+
+log "Change stafd config [5]:"
+cat > "${stafd_conf_fname}" <<'EOF'
+[Global]
+tron              = true
+
+[Controllers]
+controller=transport=tcp;traddr=localhost
+controller=transport=tcp;traddr=1.1.1.1
+controller=transport=tcp;traddr=2.2.2.2
+controller=transport=tcp;traddr=3.3.3.3
+controller=transport=tcp;traddr=4.4.4.4
+controller=transport=tcp;traddr=5.5.5.5
+controller=transport=tcp;traddr=6.6.6.6
+EOF
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
+
+reload_cfg "stafd"
+sleep 2
+
+sd_stop "stafd"
+sleep 5
+sd_start "stafd"
+
+
 #*******************************************************************************
 # Change ownership of files that were created as root
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage  >/dev/null 2>&1
