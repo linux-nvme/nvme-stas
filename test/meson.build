@@ -23,7 +23,7 @@ if get_option('libnvme-sel') == 'pre-installed'
     rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__path__[0]}")', check: false, env: test_env)
     if rr.returncode() == 0
         libnvme_location = rr.stdout().strip()
-        pythonpath = fs.parent('libnvme_location')
+        pythonpath = fs.parent(libnvme_location)
         test_env.prepend('PYTHONPATH', pythonpath) # Look in standard location first
         test_env.append('PYTHONPATH', PYTHONPATH)  # Look in the build directory second
     endif
@@ -44,7 +44,6 @@ endif
 if libnvme_location == '?'
     warning('Missing runtime package needed to run the tests: python3-libnvme.')
 else
-    message('\n\n\u001b[32m\u001b[1mNOTE: Tests will be using @0@\u001b[0m\n'.format(libnvme_location))
     #---------------------------------------------------------------------------
     # pylint and pyflakes
     if modules_to_lint.length() != 0
