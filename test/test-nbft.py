@@ -6,6 +6,8 @@ from libnvme import nvme
 from argparse import ArgumentParser
 
 TEST_DIR = os.path.dirname(__file__)
+NBFT_FILE = os.path.join(TEST_DIR, "NBFT")
+EMPTY_NBFT_FILE = os.path.join(TEST_DIR, "NBFT-Empty")
 NBFT_DATA = {
     "discovery": [
         {
@@ -82,8 +84,10 @@ class Test(unittest.TestCase):
         # we may or may not have access to NBFT support.
         nbft_get = getattr(nvme, "nbft_get", None)
         if defs.HAS_NBFT_SUPPORT:
-            nbft_file = os.path.join(TEST_DIR, "NBFT")
-            self.expected_nbft = {nbft_file: NBFT_DATA}
+            self.expected_nbft = {
+                NBFT_FILE: NBFT_DATA,
+                EMPTY_NBFT_FILE: {},
+            }
         else:
             self.expected_nbft = {}
 
