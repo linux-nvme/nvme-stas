@@ -574,7 +574,7 @@ class SysConf(metaclass=singleton.Singleton):
         try:
             value = self.__get_value('Host', 'key', defs.NVME_HOSTKEY)
         except FileNotFoundError as ex:
-            logging.info('Host key undefined: %s', ex)
+            logging.debug('Host key undefined: %s', ex)
             value = None
 
         return value
