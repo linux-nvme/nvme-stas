@@ -153,6 +153,136 @@ class Udev:
 
         return False
 
+    @staticmethod
+    def _cid_matches_tid_legacy(cid, tid):  # pylint: disable=too-many-return-statements
+        '''On kernels older than 6.1, the src_addr parameter is not available
+        from the sysfs. Therefore, we need to infer a match based on other
+        parameters. And there are a few cases where we're simply not sure
+        whether an existing connection (cid) matches the candidate
+        connection (tid).
+        '''
+        host_iface = cid['host-iface']
+        host_traddr = iputil.get_ipaddress_obj(cid['host-traddr'], ipv4_mapped_convert=True)
+
+        if not host_iface:  # cid.host_iface is undefined
+            if not host_traddr:  # cid.host_traddr is undefined
+                # When the existing cid.src_addr, cid.host_traddr, and cid.host_iface
+                # are all undefined (which can only happen on kernels prior to 6.1),
+                # we can't know for sure on which interface an existing connection
+                # was made. In this case, we can only declare a match if both
+                # tid.host_iface and tid.host_traddr are undefined as well.
+                logging.debug(
+                    'Udev._cid_matches_tid_legacy() - cid=%s, tid=%s - Not enough info. Assume "match" but this could be wrong.'
+                )
+                return True
+
+            # cid.host_traddr is defined If tid.host_traddr is defined,
+            # then it must match the existing cid.host_traddr.
+            if tid.host_traddr and iputil.get_ipaddress_obj(tid.host_traddr) != host_traddr:
+                return False
+
+            # If tid.host_iface is defined, then the interface where
+            # the connection is located must match. If tid.host_iface
+            # is not defined, then we don't really care on which
+            # interface the connection was made and we can skip this test.
+            if tid.host_iface:
+                # With the existing cid.host_traddr, we can find the
+                # interface of the exisiting connection.
+                connection_iface = iputil.get_interface(str(host_traddr))
+                if tid.host_iface != connection_iface:
+                    return False
+
+            return True
+
+        # cid.host_iface is defined
+        if not host_traddr:  # cid.host_traddr is undefined
+            if tid.host_iface and tid.host_iface != host_iface:
+                return False
+
+            if not tid.host_traddr:
+                return True
+
+            # It's impossible to tell the existing connection source
+            # address. So, we can't tell if it matches tid.host_traddr.
+            # However, if the existing host_iface has only one source
+            # address assigned to it, we can assume that the source
+            # address used for the existing connection is that address.
+            if_addrs = iputil.net_if_addrs().get(host_iface, {4: [], 6: []})
+            tid_traddr = iputil.get_ipaddress_obj(tid.traddr)
+            source_addrs = if_addrs[tid_traddr.version]
+            if len(source_addrs) == 1 and source_addrs[0] == tid.host_traddr:
+                return True
+
+            return False
+
+        # cid.host_traddr is defined
+        if tid.host_iface and tid.host_iface != host_iface:
+            return False
+
+        if not tid.host_traddr:
+            # If candidate's tid.host_traddr is undefined, then
+            # the primary (default) source address will be used
+            # for the candidate controller connection. We need to
+            # make sure that the primary source address matches with
+            # the  existing connection's source address.
+
+            # With the interface we can find the primary source
+            # address. If existing cid.host_traddr is one of the
+            # two primary addresses (i.e. primary IPv4 and primary
+            # IPv6), then we have a match.
+            return host_traddr in iputil.get_primary_src_addrs(host_iface)
+
+        return iputil.get_ipaddress_obj(tid.host_traddr) == host_traddr
+
+    @staticmethod
+    def _cid_matches_tid(cid, tid):
+        '''Check if existing controller's cid matches candidate controller's tid.
+        @param cid: The Connection ID of an existing controller (from the sysfs).
+        @param tid: The Transport ID of a candidate controller.
+
+        We're trying to find if an existing connection (specified by cid) can
+        be re-used for the candidate controller (specified by tid).
+
+        We do not have a match if the candidate's tid.transport, tid.traddr,
+        tid.trsvcid, and tid.subsysnqn are not identical to those of the cid.
+        These 4 parameters are mandatory for a match.
+
+        With regards to the candidate's tid.host_traddr and tid.host_iface, if
+        those are defined but do not match the existing cid.host_traddr and
+        cid.host_iface, we may still be able to find a match by taking the
+        existing cid.src_addr into consideration since that parameter identifies
+        the actual source address of the connection and therefore can be used
+        to infer the interface of the connection. However, the cid.src_addr can
+        only be read from the sysfs starting with kernel 6.1.
+        '''
+        if (
+            cid['transport'] != tid.transport
+            or cid['traddr'] != tid.traddr
+            or cid['trsvcid'] != tid.trsvcid
+            or cid['subsysnqn'] != tid.subsysnqn
+        ):
+            return False
+
+        src_addr = iputil.get_ipaddress_obj(cid['src-addr'], ipv4_mapped_convert=True)
+        if not src_addr:
+            # For legacy kernels (i.e. older than 6.1), the existing cid.src_addr
+            # is always undefined. We need to use advanced logic to determine
+            # whether cid and tid match.
+            return Udev._cid_matches_tid_legacy(cid, tid)
+
+        # The existing controller's cid.src_addr is always defined for kernel
+        # 6.1 and later. We can use the existing controller's cid.src_addr to
+        # find the interface on which the connection was made and therefore
+        # match it to the candidate's tid.host_iface. And the cid.src_addr
+        # can also be used to match the candidate's tid.host_traddr.
+        if tid.host_traddr and src_addr != iputil.get_ipaddress_obj(tid.host_traddr):
+            return False
+
+        if tid.host_iface and tid.host_iface != iputil.get_interface(str(src_addr)):
+            return False
+
+        return True
+
     def find_nvme_dc_device(self, tid):
         '''@brief  Find the nvme device associated with the specified
                 Discovery Controller.
@@ -164,7 +294,8 @@ class Udev:
             if not self.is_dc_device(device):
                 continue
 
-            if self.get_tid(device) != tid:
+            cid = self.get_cid(device)
+            if not self._cid_matches_tid(cid, tid):
                 continue
 
             return device
@@ -182,7 +313,8 @@ class Udev:
             if not self.is_ioc_device(device):
                 continue
 
-            if self.get_tid(device) != tid:
+            cid = self.get_cid(device)
+            if not self._cid_matches_tid(cid, tid):
                 continue
 
             return device
@@ -300,28 +432,31 @@ class Udev:
         return attr_str[start:end]
 
     @staticmethod
-    def _get_host_iface(device):
-        host_iface = Udev._get_property(device, 'NVME_HOST_IFACE')
-        if not host_iface:
+    def get_tid(device):
+        '''@brief return the Transport ID associated with a udev device'''
+        cid = Udev.get_cid(device)
+        src_addr = cid['src-addr']
+        if not cid['host-iface'] and src_addr:
             # We'll try to find the interface from the source address on
             # the connection. Only available if kernel exposes the source
             # address (src_addr) in the "address" attribute.
-            src_addr = Udev.get_key_from_attr(device, 'address', 'src_addr=')
-            host_iface = iputil.get_interface(src_addr)
-        return host_iface
+            cid['host-iface'] = iputil.get_interface(src_addr)
+
+        return trid.TID(cid)
 
     @staticmethod
-    def get_tid(device):
-        '''@brief return the Transport ID associated with a udev device'''
+    def get_cid(device):
+        '''@brief return the Connection ID associated with a udev device'''
         cid = {
             'transport': Udev._get_property(device, 'NVME_TRTYPE'),
             'traddr': Udev._get_property(device, 'NVME_TRADDR'),
             'trsvcid': Udev._get_property(device, 'NVME_TRSVCID'),
             'host-traddr': Udev._get_property(device, 'NVME_HOST_TRADDR'),
-            'host-iface': Udev._get_host_iface(device),
+            'host-iface': Udev._get_property(device, 'NVME_HOST_IFACE'),
             'subsysnqn': Udev._get_attribute(device, 'subsysnqn'),
+            'src-addr': Udev.get_key_from_attr(device, 'address', 'src_addr='),
         }
-        return trid.TID(cid)
+        return cid
 
 
 UDEV = Udev()  # Singleton
