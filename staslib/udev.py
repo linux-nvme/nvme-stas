@@ -154,7 +154,7 @@ class Udev:
         return False
 
     @staticmethod
-    def _cid_matches_tid_legacy(cid, tid):  # pylint: disable=too-many-return-statements
+    def _cid_matches_tcp_tid_legacy(cid, tid):  # pylint: disable=too-many-return-statements
         '''On kernels older than 6.1, the src_addr parameter is not available
         from the sysfs. Therefore, we need to infer a match based on other
         parameters. And there are a few cases where we're simply not sure
@@ -172,7 +172,7 @@ class Udev:
                 # was made. In this case, we can only declare a match if both
                 # tid.host_iface and tid.host_traddr are undefined as well.
                 logging.debug(
-                    'Udev._cid_matches_tid_legacy() - cid=%s, tid=%s - Not enough info. Assume "match" but this could be wrong.'
+                    'Udev._cid_matches_tcp_tid_legacy() - cid=%s, tid=%s - Not enough info. Assume "match" but this could be wrong.'
                 )
                 return True
 
@@ -247,13 +247,15 @@ class Udev:
         tid.trsvcid, and tid.subsysnqn are not identical to those of the cid.
         These 4 parameters are mandatory for a match.
 
-        With regards to the candidate's tid.host_traddr and tid.host_iface, if
-        those are defined but do not match the existing cid.host_traddr and
-        cid.host_iface, we may still be able to find a match by taking the
-        existing cid.src_addr into consideration since that parameter identifies
-        the actual source address of the connection and therefore can be used
-        to infer the interface of the connection. However, the cid.src_addr can
-        only be read from the sysfs starting with kernel 6.1.
+        For TCP only:
+            With regards to the candidate's tid.host_traddr and tid.host_iface,
+            if those are defined but do not match the existing cid.host_traddr
+            and cid.host_iface, we may still be able to find a match by taking
+            the existing cid.src_addr into consideration since that parameter
+            identifies the actual source address of the connection and therefore
+            can be used to infer the interface of the connection. However, the
+            cid.src_addr can only be read from the sysfs starting with kernel
+            6.1.
         '''
         if (
             cid['transport'] != tid.transport
@@ -263,23 +265,29 @@ class Udev:
         ):
             return False
 
-        src_addr = iputil.get_ipaddress_obj(cid['src-addr'], ipv4_mapped_convert=True)
-        if not src_addr:
-            # For legacy kernels (i.e. older than 6.1), the existing cid.src_addr
-            # is always undefined. We need to use advanced logic to determine
-            # whether cid and tid match.
-            return Udev._cid_matches_tid_legacy(cid, tid)
+        if tid.transport != 'tcp':
+            src_addr = iputil.get_ipaddress_obj(cid['src-addr'], ipv4_mapped_convert=True)
+            if not src_addr:
+                # For legacy kernels (i.e. older than 6.1), the existing cid.src_addr
+                # is always undefined. We need to use advanced logic to determine
+                # whether cid and tid match.
+                return Udev._cid_matches_tcp_tid_legacy(cid, tid)
 
-        # The existing controller's cid.src_addr is always defined for kernel
-        # 6.1 and later. We can use the existing controller's cid.src_addr to
-        # find the interface on which the connection was made and therefore
-        # match it to the candidate's tid.host_iface. And the cid.src_addr
-        # can also be used to match the candidate's tid.host_traddr.
-        if tid.host_traddr and src_addr != iputil.get_ipaddress_obj(tid.host_traddr):
-            return False
+            # The existing controller's cid.src_addr is always defined for kernel
+            # 6.1 and later. We can use the existing controller's cid.src_addr to
+            # find the interface on which the connection was made and therefore
+            # match it to the candidate's tid.host_iface. And the cid.src_addr
+            # can also be used to match the candidate's tid.host_traddr.
+            if tid.host_traddr and src_addr != iputil.get_ipaddress_obj(tid.host_traddr):
+                return False
 
-        if tid.host_iface and tid.host_iface != iputil.get_interface(str(src_addr)):
-            return False
+            if tid.host_iface and tid.host_iface != iputil.get_interface(str(src_addr)):
+                return False
+
+        elif tid.transport == 'fc':
+            # host-traddr is mandatory for FC.
+            if tid.host_traddr != cid['host-traddr']:
+                return False
 
         return True
 
@@ -435,12 +443,13 @@ class Udev:
     def get_tid(device):
         '''@brief return the Transport ID associated with a udev device'''
         cid = Udev.get_cid(device)
-        src_addr = cid['src-addr']
-        if not cid['host-iface'] and src_addr:
-            # We'll try to find the interface from the source address on
-            # the connection. Only available if kernel exposes the source
-            # address (src_addr) in the "address" attribute.
-            cid['host-iface'] = iputil.get_interface(src_addr)
+        if cid['transport'] == 'tcp':
+            src_addr = cid['src-addr']
+            if not cid['host-iface'] and src_addr:
+                # We'll try to find the interface from the source address on
+                # the connection. Only available if kernel exposes the source
+                # address (src_addr) in the "address" attribute.
+                cid['host-iface'] = iputil.get_interface(src_addr)
 
         return trid.TID(cid)
 
