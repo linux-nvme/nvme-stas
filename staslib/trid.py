@@ -106,7 +106,12 @@ class TID:  # pylint: disable=too-many-instance-attributes
             'host-traddr': self.host_traddr,
             'host-iface': self.host_iface,
         }
-        data.update(self._cfg)
+
+        # When migrating an old last known config, the "_cfg" member may
+        # not exist. Therefor retrive it with getattr() to avoid a crash.
+        cfg = getattr(self, '_cfg', None)
+        if cfg:
+            data.update(cfg)
         return data
 
     def __str__(self):

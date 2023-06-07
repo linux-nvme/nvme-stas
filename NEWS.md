@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.2.2
+
+Bug fixes:
+
+* Fix migration of old "last known config" to new format. Old TID objects did not contain a `_cfg` member. Therefore, one needs to check for its existence (through introspection) before blindly trying to access it.
+
 ## Changes with release 2.2.1
 
 Added a few more unit and coverage tests. Fixed the following bugs.
