@@ -235,7 +235,7 @@ class Udev:
         return iputil.get_ipaddress_obj(tid.host_traddr) == host_traddr
 
     @staticmethod
-    def _cid_matches_tid(cid, tid):
+    def _cid_matches_tid(cid, tid):  #  pylint: disable=too-many-return-statements
         '''Check if existing controller's cid matches candidate controller's tid.
         @param cid: The Connection ID of an existing controller (from the sysfs).
         @param tid: The Transport ID of a candidate controller.
@@ -247,6 +247,10 @@ class Udev:
         tid.trsvcid, and tid.subsysnqn are not identical to those of the cid.
         These 4 parameters are mandatory for a match.
 
+        The tid.host_traddr and tid.host_iface depend on the transport type.
+        These parameters may not apply or have a different syntax/meaning
+        depending on the transport type.
+
         For TCP only:
             With regards to the candidate's tid.host_traddr and tid.host_iface,
             if those are defined but do not match the existing cid.host_traddr
@@ -257,15 +261,28 @@ class Udev:
             cid.src_addr can only be read from the sysfs starting with kernel
             6.1.
         '''
+        if tid.transport in ('tcp', 'rdma'):
+            # Need to convert to ipaddress objects to properly
+            # handle all variations of IPv6 addresses.
+            cid_traddr = iputil.get_ipaddress_obj(cid['traddr'], ipv4_mapped_convert=True)
+            tid_traddr = iputil.get_ipaddress_obj(tid.traddr, ipv4_mapped_convert=True)
+        else:
+            cid_traddr = cid['traddr']
+            tid_traddr = tid.traddr
+
+        # 'transport', 'traddr', 'trsvcid', and 'subsysnqn' must exactly match.
         if (
             cid['transport'] != tid.transport
-            or cid['traddr'] != tid.traddr
+            or cid_traddr != tid_traddr
             or cid['trsvcid'] != tid.trsvcid
             or cid['subsysnqn'] != tid.subsysnqn
         ):
             return False
 
-        if tid.transport != 'tcp':
+        # We need to know the type of transport to compare 'host-traddr' and
+        # 'host-iface'. These parameters don't apply to all transport types
+        # and may have a different meaning/syntax.
+        if tid.transport == 'tcp':
             src_addr = iputil.get_ipaddress_obj(cid['src-addr'], ipv4_mapped_convert=True)
             if not src_addr:
                 # For legacy kernels (i.e. older than 6.1), the existing cid.src_addr
@@ -281,6 +298,7 @@ class Udev:
             if tid.host_traddr and src_addr != iputil.get_ipaddress_obj(tid.host_traddr):
                 return False
 
+            # host-iface is an optional tcp-only parameter.
             if tid.host_iface and tid.host_iface != iputil.get_interface(str(src_addr)):
                 return False
 
@@ -288,6 +306,14 @@ class Udev:
             # host-traddr is mandatory for FC.
             if tid.host_traddr != cid['host-traddr']:
                 return False
+
+        elif tid.transport == 'rdma':
+            # host-traddr is optional for RDMA and is expressed as an IP address.
+            if tid.host_traddr:
+                tid_host_traddr = iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
+                cid_host_traddr = iputil.get_ipaddress_obj(cid['host-traddr'], ipv4_mapped_convert=True)
+                if tid_host_traddr != cid_host_traddr:
+                    return False
 
         return True
 
