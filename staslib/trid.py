@@ -61,7 +61,6 @@ class TID:  # pylint: disable=too-many-instance-attributes
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
         self._subsysnqn = cid.get('subsysnqn', '')
-        self._shortkey = (self._transport, self._traddr, self._trsvcid, self._subsysnqn, self._host_traddr)
         self._key = (self._transport, self._traddr, self._trsvcid, self._subsysnqn, self._host_traddr, self._host_iface)
         self._hash = int.from_bytes(
             hashlib.md5(''.join(self._key).encode('utf-8')).digest(), 'big'
@@ -121,22 +120,10 @@ class TID:  # pylint: disable=too-many-instance-attributes
         return self._id
 
     def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            return False
-
-        if self._host_iface and other._host_iface:
-            return self._key == other._key
-
-        return self._shortkey == other._shortkey
+        return isinstance(other, self.__class__) and self._key == other._key
 
     def __ne__(self, other):
-        if not isinstance(other, self.__class__):
-            return True
-
-        if self._host_iface and other._host_iface:
-            return self._key != other._key
-
-        return self._shortkey != other._shortkey
+        return not isinstance(other, self.__class__) or self._key != other._key
 
     def __hash__(self):
         return self._hash

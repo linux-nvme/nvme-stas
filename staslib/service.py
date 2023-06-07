@@ -873,6 +873,6 @@ class Staf(Service):
         options = r'\x09'.join(
             [fr'{option}\x3d{value}' for option, value in cnf if value not in (None, 'none', 'None', '')]
         )
-        logging.info('Invoking: systemctl start nvmf-connect@%s.service', options)
-        cmd = [defs.SYSTEMCTL, '--quiet', '--no-block', 'start', fr'nvmf-connect@{options}.service']
+        logging.info('Invoking: systemctl restart nvmf-connect@%s.service', options)
+        cmd = [defs.SYSTEMCTL, '--quiet', '--no-block', 'restart', fr'nvmf-connect@{options}.service']
         subprocess.run(cmd, check=False)

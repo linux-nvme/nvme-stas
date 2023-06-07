@@ -42,7 +42,9 @@ class Test(unittest.TestCase):
 
     def test_mac2iface(self):
         for iface in self.ifaces:
-            self.assertEqual(iface['ifname'], iputil.mac2iface(iface['address']))
+            address = iface.get('address', None)
+            if address:
+                self.assertEqual(iface['ifname'], iputil.mac2iface(address))
 
     def test_remove_invalid_addresses(self):
         good_tcp = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': '', 'trsvcid': '8009'})
