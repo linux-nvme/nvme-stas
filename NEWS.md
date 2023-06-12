@@ -1,5 +1,12 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.2.3
+
+Bug fixes:
+
+* When processing kernel nvme events, only react to `rediscover` and not to `connected` events. The `connected` event happens too early (before the nvme device has been fully identified).
+* 
+
 ## Changes with release 2.2.2
 
 Bug fixes:
