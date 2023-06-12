@@ -87,7 +87,7 @@ sd_start() {
 	sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
 
 	log "Start ${app}"
-	sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --property="SyslogIdentifier=${app}" --property="ExecReload=/bin/kill -HUP \$MAINPID" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >/tmp/output.txt 2>&1
+	sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --property="SyslogIdentifier=${app}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >/tmp/output.txt 2>&1
 	log_file_contents $? /tmp/output.txt
 	printf "\n"
 	sleep 1
@@ -112,10 +112,10 @@ sd_restart() {
 reload_cfg() {
 	app="$1"
 	unit="${app}"-cov.service
-	log "Reload config ${app}"
-	sudo systemctl reload "${unit}" && printf "systemctl reload %s\n" "${unit}" >/tmp/output.txt 2>&1
-	#pid=$( systemctl show --property MainPID --value "${unit}" )
-	#sudo kill -HUP "${pid}" >/tmp/output.txt 2>&1
+	pid=$( systemctl show --property MainPID --value "${unit}" )
+	log "Reload config ${app} - SIGHUP ${pid}"
+	#sudo systemctl reload "${unit}" && printf "systemctl reload %s\n" "${unit}" >/tmp/output.txt 2>&1
+	sudo kill -HUP "${pid}" >/tmp/output.txt 2>&1
 	log_file_contents $? /tmp/output.txt
 	printf "\n"
 	sleep 1
