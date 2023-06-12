@@ -856,7 +856,7 @@ class Staf(Service):
                 return
 
         # Did we receive a Change of DLP AEN or an NVME Event indicating 'connect' or 'rediscover'?
-        if not _is_dlp_changed_aen(udev_obj) and not _event_matches(udev_obj, ('connected', 'rediscover')):
+        if not _is_dlp_changed_aen(udev_obj) and not _event_matches(udev_obj, ('rediscover',)):
             return
 
         # We need to invoke "nvme connect-all" using nvme-cli's nvmf-connect@.service
