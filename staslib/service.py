@@ -856,7 +856,7 @@ class Staf(Service):
                 return
 
         # Did we receive a Change of DLP AEN or an NVME Event indicating 'connect' or 'rediscover'?
-        if not _is_dlp_changed_aen(udev_obj) and not _event_matches(udev_obj, ('connected', 'rediscover')):
+        if not _is_dlp_changed_aen(udev_obj) and not _event_matches(udev_obj, ('rediscover',)):
             return
 
         # We need to invoke "nvme connect-all" using nvme-cli's nvmf-connect@.service
@@ -873,6 +873,6 @@ class Staf(Service):
         options = r'\x09'.join(
             [fr'{option}\x3d{value}' for option, value in cnf if value not in (None, 'none', 'None', '')]
         )
-        logging.info('Invoking: systemctl restart nvmf-connect@%s.service', options)
+        logging.debug('Invoking: systemctl restart nvmf-connect@%s.service', options)
         cmd = [defs.SYSTEMCTL, '--quiet', '--no-block', 'restart', fr'nvmf-connect@{options}.service']
         subprocess.run(cmd, check=False)
