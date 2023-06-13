@@ -1,5 +1,23 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.3
+
+New features:
+
+- Support for nBFT (NVMe-oF Boot Table). 
+
+Bug fixes:
+
+* For TCP transport: use `sysfs` controller  `src_addr` attribute when matching to a configured "candidate" controller. This is to determine when an existing controller (located under the `sysfs`) can be reused instead of creating a new one. This avoids creating unnecessary duplicate connections.
+* Udev event handling: use `systemctl restart` instead of `systemctl start`. There is a small chance that a `start` operation has not completed when a new `start` is required. Issuing a `start` while a `start` is being performed has no effect. However, a `restart` will be handled properly.
+
+## Changes with release 2.2.3
+
+Bug fixes:
+
+* When processing kernel nvme events, only react to `rediscover` and not to `connected` events. The `connected` event happens too early (before the nvme device has been fully identified).
+* 
+
 ## Changes with release 2.2.2
 
 Bug fixes:
