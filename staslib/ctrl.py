@@ -169,9 +169,9 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
             self._udev.unregister_for_device_events(self._on_udev_notification)
         self._kill_ops()  # Kill all pending operations
         self._ctrl = None
-
-        # Defer removal of this object to the next main loop's idle period.
-        GLib.idle_add(self._serv.remove_controller, self, True)
+        self._device = None
+        self._connect_attempts = 0
+        self._retry_connect_tmr.start()
 
     def _get_cfg(self):
         '''Get configuration parameters. These may either come from the [Global]
