@@ -11,6 +11,7 @@ access to GLib/Gio/Gobject resources.
 '''
 
 import logging
+import socket
 from gi.repository import Gio, GLib, GObject
 from staslib import conf, iputil, trid
 
@@ -416,3 +417,100 @@ class Deferred:
         if self.is_scheduled():
             self._source.destroy()
         self._source = None
+
+
+# ******************************************************************************
+class TcpChecker:  # pylint: disable=too-many-instance-attributes
+    '''@brief Verify that a TCP connection can be established with an enpoint'''
+
+    def __init__(self, traddr, trsvcid, host_iface, user_cback, *user_data):
+        self._user_cback = user_cback
+        self._host_iface = host_iface
+        self._user_data = user_data
+        self._trsvcid = trsvcid
+        self._traddr = iputil.get_ipaddress_obj(traddr, ipv4_mapped_convert=True)
+        self._cancellable = None
+        self._gio_sock = None
+        self._native_sock = None
+
+    def connect(self):
+        '''Attempt to connect'''
+        self.close()
+
+        # Gio has limited setsockopt() capabilities. To set SO_BINDTODEVICE
+        # we need to use a generic socket.socket() and then convert to a
+        # Gio.Socket() object to perform async connect operation within
+        # the GLib context.
+        family = socket.AF_INET if self._traddr.version == 4 else socket.AF_INET6
+        self._native_sock = socket.socket(family, socket.SOCK_STREAM | socket.SOCK_NONBLOCK, socket.IPPROTO_TCP)
+        if isinstance(self._host_iface, str):
+            self._native_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, self._host_iface.encode('utf-8'))
+
+        # Convert socket.socket() to a Gio.Socket() object
+        try:
+            self._gio_sock = Gio.Socket.new_from_fd(self._native_sock.fileno())  # returns None on error
+        except GLib.Error as err:
+            logging.error('Cannot create socket: %s', err.message)  # pylint: disable=no-member
+            self._gio_sock = None
+
+        if self._gio_sock is None:
+            self._native_sock.close()
+            raise RuntimeError(f'Unable to connect to {self._traddr}, {self._trsvcid}, {self._host_iface}')
+
+        g_addr = Gio.InetSocketAddress.new_from_string(self._traddr.compressed, int(self._trsvcid))
+
+        self._cancellable = Gio.Cancellable()
+
+        g_sockconn = self._gio_sock.connection_factory_create_connection()
+        g_sockconn.connect_async(g_addr, self._cancellable, self._connect_async_cback)
+
+    def close(self):
+        '''Terminate/Cancel current connection attempt and free resources'''
+        if self._cancellable is not None:
+            self._cancellable.cancel()
+            self._cancellable = None
+
+        if self._gio_sock is not None:
+            try:
+                self._gio_sock.close()
+            except GLib.Error as err:
+                logging.debug('TcpChecker.close() gio_sock.close  - %s', err.message)  # pylint: disable=no-member
+
+            self._gio_sock = None
+
+        if self._native_sock is not None:
+            try:
+                # This is expected to fail because the socket
+                # is already closed by self._gio_sock.close() above.
+                # This code is just for completeness.
+                self._native_sock.close()
+            except OSError:
+                pass
+
+            self._native_sock = None
+
+    def _connect_async_cback(self, source_object, result):
+        '''
+        @param source_object: The Gio.SocketConnection object used to
+        invoke the connect_async() API.
+        '''
+        try:
+            connected = source_object.connect_finish(result)
+        except GLib.Error as err:
+            connected = False
+            # We don't need to report "cancellation" errors.
+            if err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                logging.debug('TcpChecker._connect_async_cback()  - %s', err.message)  # pylint: disable=no-member
+            else:
+                logging.info(
+                    'Unable to verify TCP connectivity  - (%-10s %-14s %s): %s',
+                    self._host_iface + ',',
+                    self._traddr.compressed + ',',
+                    self._trsvcid,
+                    err.message,  # pylint: disable=no-member
+                )
+
+        self.close()
+
+        if self._user_cback is not None:
+            self._user_cback(connected, *self._user_data)
