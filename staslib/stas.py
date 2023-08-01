@@ -125,7 +125,7 @@ def remove_invalid_addresses(controllers: list):
 
 
 # ******************************************************************************
-def tid_from_dlpe(dlpe, host_traddr, host_iface):
+def tid_from_dlpe(dlpe, host_traddr, host_iface, host_nqn):
     '''@brief Take a Discovery Log Page Entry and return a Controller ID as a dict.'''
     cid = {
         'transport': dlpe['trtype'],
@@ -135,6 +135,8 @@ def tid_from_dlpe(dlpe, host_traddr, host_iface):
         'host-iface': host_iface,
         'subsysnqn': dlpe['subnqn'],
     }
+    if host_nqn:
+        cid['host-nqn'] = host_nqn
     return trid.TID(cid)
 
 
@@ -416,16 +418,24 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return self._controllers.values()
 
     def get_controller(
-        self, transport: str, traddr: str, trsvcid: str, host_traddr: str, host_iface: str, subsysnqn: str
+        self,
+        transport: str,
+        traddr: str,
+        trsvcid: str,
+        subsysnqn: str,
+        host_traddr: str,
+        host_iface: str,
+        host_nqn: str,
     ):  # pylint: disable=too-many-arguments
         '''@brief get the specified controller object from the list of controllers'''
         cid = {
             'transport': transport,
             'traddr': traddr,
             'trsvcid': trsvcid,
+            'subsysnqn': subsysnqn,
             'host-traddr': host_traddr,
             'host-iface': host_iface,
-            'subsysnqn': subsysnqn,
+            'host-nqn': host_nqn,
         }
         return self._controllers.get(trid.TID(cid))
 

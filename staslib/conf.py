@@ -334,9 +334,10 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
             'transport':          [TRANSPORT],
             'traddr':             [TRADDR],
             'trsvcid':            [TRSVCID],
+            'subsysnqn':          [NQN],
             'host-traddr':        [TRADDR],
             'host-iface':         [IFACE],
-            'subsysnqn':          [NQN],
+            'host-nqn':           [NQN],
             'dhchap-ctrl-secret': [KEY],
             'hdr-digest':         [BOOL]
             'data-digest':        [BOOL]
@@ -721,9 +722,11 @@ class NbftConf(metaclass=singleton.Singleton):
             hfis = data.get('hfi', [])
             discovery = data.get('discovery', [])
             subsystem = data.get('subsystem', [])
+            host = data.get('host', {})
+            hostnqn = host.get('nqn', None) if host.get('host_nqn_configured', False) else None
 
-            self._disc_ctrls.extend(NbftConf.__nbft_disc_to_cids(discovery, hfis))
-            self._subs_ctrls.extend(NbftConf.__nbft_subs_to_cids(subsystem, hfis))
+            self._disc_ctrls.extend(NbftConf.__nbft_disc_to_cids(hostnqn, discovery, hfis))
+            self._subs_ctrls.extend(NbftConf.__nbft_subs_to_cids(hostnqn, subsystem, hfis))
 
     dcs = property(lambda self: self._disc_ctrls)
     iocs = property(lambda self: self._subs_ctrls)
@@ -738,12 +741,14 @@ class NbftConf(metaclass=singleton.Singleton):
         return self.dcs if defs.PROG_NAME == 'stafd' else []
 
     @staticmethod
-    def __nbft_disc_to_cids(discovery, hfis):
+    def __nbft_disc_to_cids(hostnqn, discovery, hfis):
         cids = []
 
         for ctrl in discovery:
             cid = NbftConf.__uri2cid(ctrl['uri'])
             cid['subsysnqn'] = ctrl['nqn']
+            if hostnqn:
+                cid['host-nqn'] = hostnqn
 
             host_iface = NbftConf.__get_host_iface(ctrl.get('hfi_index'), hfis)
             if host_iface:
@@ -754,7 +759,7 @@ class NbftConf(metaclass=singleton.Singleton):
         return cids
 
     @staticmethod
-    def __nbft_subs_to_cids(subsystem, hfis):
+    def __nbft_subs_to_cids(hostnqn, subsystem, hfis):
         cids = []
 
         for ctrl in subsystem:
@@ -766,6 +771,8 @@ class NbftConf(metaclass=singleton.Singleton):
                 'hdr-digest': ctrl['pdu_header_digest_required'],
                 'data-digest': ctrl['data_digest_required'],
             }
+            if hostnqn:
+                cid['host-nqn'] = hostnqn
 
             indexes = ctrl.get('hfi_indexes')
             if isinstance(indexes, list) and len(indexes) > 0:

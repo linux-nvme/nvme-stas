@@ -333,15 +333,19 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
                 'transport': tcp,
                 'traddr': str(),
                 'trsvcid': str(),
-                'host-iface': str(),
                 'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
+                'host-traddr': str(),
+                'host-iface': str(),
+                'host-nqn': str(),
             },
             {
                 'transport': tcp,
                 'traddr': str(),
                 'trsvcid': str(),
-                'host-iface': str(),
                 'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
+                'host-traddr': str(),
+                'host-iface': str(),
+                'host-nqn': str(),
             },
             [...]
         ]

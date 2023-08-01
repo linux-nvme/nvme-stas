@@ -11,6 +11,7 @@ EXPECTED_DCS = [
         'traddr': '100.71.103.50',
         'transport': 'tcp',
         'trsvcid': '8009',
+        'host-nqn': 'nqn.1988-11.com.dell:PowerEdge.R760.1234567',
     }
 ]
 EXPECTED_IOCS = [
@@ -21,6 +22,7 @@ EXPECTED_IOCS = [
         'traddr': '100.71.103.48',
         'transport': 'tcp',
         'trsvcid': '4420',
+        'host-nqn': 'nqn.1988-11.com.dell:PowerEdge.R760.1234567',
     },
     {
         'data-digest': False,
@@ -29,6 +31,7 @@ EXPECTED_IOCS = [
         'traddr': '100.71.103.49',
         'transport': 'tcp',
         'trsvcid': '4420',
+        'host-nqn': 'nqn.1988-11.com.dell:PowerEdge.R760.1234567',
     },
 ]
 

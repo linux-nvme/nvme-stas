@@ -393,9 +393,10 @@ class Stac(Service):
         for staf_data in self._get_log_pages_from_stafd():
             host_traddr = staf_data['discovery-controller']['host-traddr']
             host_iface = staf_data['discovery-controller']['host-iface']
+            host_nqn = staf_data['discovery-controller']['host-nqn']
             for dlpe in staf_data['log-pages']:
                 if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
-                    tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface)
+                    tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, host_nqn)
                     discovered_ctrls[tid] = dlpe
 
         discovered_ctrl_list = list(discovered_ctrls.keys())
@@ -476,19 +477,20 @@ class Stac(Service):
         logging.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
 
     def _log_pages_changed(  # pylint: disable=too-many-arguments
-        self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn, device
+        self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn, device
     ):
         if not self._alive():
             return
 
         logging.debug(
-            'Stac._log_pages_changed()          - transport=%s, traddr=%s, trsvcid=%s, host_traddr=%s, host_iface=%s, subsysnqn=%s, device=%s',
+            'Stac._log_pages_changed()          - transport=%s, traddr=%s, trsvcid=%s, subsysnqn=%s, host_traddr=%s, host_iface=%s, host_nqn=%s, device=%s',
             transport,
             traddr,
             trsvcid,
+            subsysnqn,
             host_traddr,
             host_iface,
-            subsysnqn,
+            host_nqn,
             device,
         )
         if self._cfg_soak_tmr:
@@ -693,9 +695,10 @@ class Staf(Service):
             controller.tid.transport,
             controller.tid.traddr,
             controller.tid.trsvcid,
+            controller.tid.subsysnqn,
             controller.tid.host_traddr,
             controller.tid.host_iface,
-            controller.tid.subsysnqn,
+            controller.tid.host_nqn,
             device,
         )
 
@@ -708,7 +711,12 @@ class Staf(Service):
 
     def _referrals(self) -> list:
         return [
-            stas.tid_from_dlpe(dlpe, controller.tid.host_traddr, controller.tid.host_iface)
+            stas.tid_from_dlpe(
+                dlpe,
+                controller.tid.host_traddr,
+                controller.tid.host_iface,
+                controller.tid.host_nqn,
+            )
             for controller in self.get_controllers()
             for dlpe in controller.referrals()
         ]

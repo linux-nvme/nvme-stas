@@ -13,6 +13,7 @@ class Test(unittest.TestCase):
     TRSVCID = '8009'
     HOST_TRADDR = '1.2.3.4'
     HOST_IFACE = 'wlp0s20f3'
+    HOST_NQN = 'nqn.1988-11.com.dell:12345'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -23,6 +24,7 @@ class Test(unittest.TestCase):
             'trsvcid': Test.TRSVCID,
             'host-traddr': Test.HOST_TRADDR,
             'host-iface': Test.HOST_IFACE,
+            'host-nqn': Test.HOST_NQN,
         }
         self.other_cid = {
             'transport': Test.TRANSPORT,
@@ -31,6 +33,7 @@ class Test(unittest.TestCase):
             'trsvcid': Test.TRSVCID,
             'host-traddr': Test.HOST_TRADDR,
             'host-iface': Test.HOST_IFACE,
+            'host-nqn': Test.HOST_NQN,
         }
 
         self.tid = trid.TID(self.cid)

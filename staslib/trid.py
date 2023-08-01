@@ -30,6 +30,7 @@ class TID:  # pylint: disable=too-many-instance-attributes
             'trsvcid':     str, # [optional]
             'host-traddr': str, # [optional]
             'host-iface':  str, # [optional]
+            'host-nqn':    str, # [optional]
 
             # Connection parameters
             'dhchap-ctrl-secret': str, # [optional]
@@ -58,59 +59,54 @@ class TID:  # pylint: disable=too-many-instance-attributes
             self._trsvcid = (
                 trsvcid if trsvcid else (TID.RDMA_IP_PORT if self._transport == 'rdma' else TID.DISC_IP_PORT)
             )
+        sysconf = conf.SysConf()
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
+        self._host_nqn = cid.get('host-nqn', sysconf.hostnqn)
         self._subsysnqn = cid.get('subsysnqn', '')
-        self._key = (self._transport, self._traddr, self._trsvcid, self._subsysnqn, self._host_traddr, self._host_iface)
+        self._key = (
+            self._transport,
+            self._traddr,
+            self._trsvcid,
+            self._subsysnqn,
+            self._host_traddr,
+            self._host_iface,
+            self._host_nqn,
+        )
         self._hash = int.from_bytes(
             hashlib.md5(''.join(self._key).encode('utf-8')).digest(), 'big'
         )  # We need a consistent hash between restarts
         self._id = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'  # pylint: disable=line-too-long
 
-    @property
-    def transport(self):  # pylint: disable=missing-function-docstring
-        return self._transport
-
-    @property
-    def traddr(self):  # pylint: disable=missing-function-docstring
-        return self._traddr
-
-    @property
-    def trsvcid(self):  # pylint: disable=missing-function-docstring
-        return self._trsvcid
-
-    @property
-    def host_traddr(self):  # pylint: disable=missing-function-docstring
-        return self._host_traddr
-
-    @property
-    def host_iface(self):  # pylint: disable=missing-function-docstring
-        return self._host_iface
-
-    @property
-    def subsysnqn(self):  # pylint: disable=missing-function-docstring
-        return self._subsysnqn
-
-    @property
-    def cfg(self):  # pylint: disable=missing-function-docstring
-        return self._cfg
+    host_traddr = property(lambda self: self._host_traddr)
+    host_iface = property(lambda self: self._host_iface)
+    subsysnqn = property(lambda self: self._subsysnqn)
+    transport = property(lambda self: self._transport)
+    host_nqn = property(lambda self: self._host_nqn)
+    trsvcid = property(lambda self: self._trsvcid)
+    traddr = property(lambda self: self._traddr)
+    cfg = property(lambda self: self._cfg)
 
     def as_dict(self):
         '''Return object members as a dictionary'''
         data = {
-            'transport': self.transport,
             'traddr': self.traddr,
-            'subsysnqn': self.subsysnqn,
             'trsvcid': self.trsvcid,
-            'host-traddr': self.host_traddr,
+            'transport': self.transport,
+            'subsysnqn': self.subsysnqn,
             'host-iface': self.host_iface,
+            'host-traddr': self.host_traddr,
         }
 
-        # When migrating an old last known config, the "_cfg" member may
-        # not exist. Therefor retrive it with getattr() to avoid a crash.
+        # When migrating an old last known config, some members may not
+        # exist. Therefore retrieve them with getattr() to avoid a crash.
         cfg = getattr(self, '_cfg', None)
         if cfg:
             data.update(cfg)
+
+        sysconf = conf.SysConf()
+        data['host-nqn'] = getattr(self, '_host_nqn', sysconf.hostnqn)
+
         return data
 
     def __str__(self):

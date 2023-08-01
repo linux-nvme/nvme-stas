@@ -39,9 +39,10 @@ def _extract_cid(ctrl):
         ctrl['transport'],
         ctrl['traddr'],
         ctrl['trsvcid'],
+        ctrl['subsysnqn'],
         ctrl['host-traddr'],
         ctrl['host-iface'],
-        ctrl['subsysnqn'],
+        ctrl['host-nqn'],
     )
 
 
@@ -52,9 +53,9 @@ def status(args):  # pylint: disable=unused-argument
     info = json.loads(iface.process_info())
     info['controllers'] = iface.list_controllers(True)
     for controller in info['controllers']:
-        transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn = _extract_cid(controller)
+        transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn = _extract_cid(controller)
         controller.update(
-            json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn))
+            json.loads(iface.controller_info(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn))
         )
 
     print(pprint.pformat(info, width=120))
