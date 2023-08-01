@@ -15,7 +15,7 @@ import pprint
 from argparse import ArgumentParser
 import dasbus.error
 from dasbus.connection import SystemMessageBus
-from staslib import defs
+from staslib import conf, defs
 
 
 def tron(args):  # pylint: disable=unused-argument
@@ -39,9 +39,10 @@ def _extract_cid(ctrl):
         ctrl['transport'],
         ctrl['traddr'],
         ctrl['trsvcid'],
+        ctrl['subsysnqn'],
         ctrl['host-traddr'],
         ctrl['host-iface'],
-        ctrl['subsysnqn'],
+        ctrl['host-nqn'],
     )
 
 
@@ -52,10 +53,12 @@ def status(args):  # pylint: disable=unused-argument
     info = json.loads(iface.process_info())
     info['controllers'] = iface.list_controllers(True)
     for controller in info['controllers']:
-        transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn = _extract_cid(controller)
-        controller['log_pages'] = iface.get_log_pages(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
+        transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn = _extract_cid(controller)
+        controller['log_pages'] = iface.get_log_pages(
+            transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
+        )
         controller.update(
-            json.loads(iface.controller_info(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn))
+            json.loads(iface.controller_info(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn))
         )
 
     print(pprint.pformat(info, width=120))
@@ -75,7 +78,15 @@ def dlp(args):
     '''@brief retrieve a controller's discovery log pages from stafd'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
-    info = iface.get_log_pages(args.transport, args.traddr, args.trsvcid, args.host_traddr, args.host_iface, args.nqn)
+    info = iface.get_log_pages(
+        args.transport,
+        args.traddr,
+        args.trsvcid,
+        args.nqn,
+        args.host_traddr,
+        args.host_iface,
+        args.host_nqn,
+    )
     print(pprint.pformat(info, width=120))
 
 
@@ -152,6 +163,14 @@ PRSR.add_argument(
     action='store',
     help='This field specifies the network interface used on the host to connect to the Controller (default: "%(default)s")',
     default='',
+)
+PRSR.add_argument(
+    '-q',
+    '--host-nqn',
+    metavar='<nqn>',
+    action='store',
+    help='This field specifies the host NQN (default: "%(default)s")',
+    default=conf.SysConf().hostnqn,
 )
 PRSR.add_argument(
     '-n',

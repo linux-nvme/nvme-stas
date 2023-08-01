@@ -259,8 +259,13 @@ class Udev:
             cid.src_addr can only be read from the sysfs starting with kernel
             6.1.
         '''
-        # 'transport', 'traddr', 'trsvcid', and 'subsysnqn' must exactly match.
-        if cid['transport'] != tid.transport or cid['trsvcid'] != tid.trsvcid or cid['subsysnqn'] != tid.subsysnqn:
+        # 'transport', 'traddr', 'trsvcid', 'subsysnqn', and 'host-nqn' must exactly match.
+        if (
+            cid['transport'] != tid.transport
+            or cid['trsvcid'] != tid.trsvcid
+            or cid['subsysnqn'] != tid.subsysnqn
+            or cid['host-nqn'] != tid.host_nqn
+        ):
             return False
 
         if tid.transport in ('tcp', 'rdma'):
@@ -489,6 +494,7 @@ class Udev:
             'host-iface': Udev._get_property(device, 'NVME_HOST_IFACE'),
             'subsysnqn': Udev._get_attribute(device, 'subsysnqn'),
             'src-addr': Udev.get_key_from_attr(device, 'address', 'src_addr='),
+            'host-nqn': Udev._get_attribute(device, 'hostnqn'),
         }
         return cid
 

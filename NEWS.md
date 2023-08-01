@@ -13,13 +13,13 @@ Bug fixes:
 * For TCP transport: use `sysfs` controller  `src_addr` attribute when matching to a configured "candidate" controller. This is to determine when an existing controller (located under the `sysfs`) can be reused instead of creating a new one. This avoids creating unnecessary duplicate connections.
 * Udev event handling: use `systemctl restart` instead of `systemctl start`. There is a small chance that a `start` operation has not completed when a new `start` is required. Issuing a `start` while a `start` is being performed has no effect. However, a `restart` will be handled properly.
 * `stafd`: Do not delete and recreate DC objects on kernel events indicating that an nvme device associated to a discovery controller was removed by the kernel. This was done to kick start the reconnect process, but was also causing the DLPE (Discovery Log Page Entries) cache to be lost. This could potentially result in `stacd` disconnecting from I/O controllers. Instead, keep the existing DC object which contains a valid DLPE cache and simply restart the "retry to connect" timer. This way the DLPE cache is maintained throughout the reconnect to DC process.
+* While testing Boot from SAN (BFS) and using a Host NQN during boot that is different from the Host NQN used after boot (i.e. the Host NQN defined in `/etc/nvme/hostnqn`), we found that nvme-stas and libnvme are reusing existing connections even if the Host NQN doesn't match. nvme-stas will now take a connection's Host NQN into consideration before deciding if a connection can be reused. A similar fix will be provided in libnvme as well.
 
 ## Changes with release 2.2.3
 
 Bug fixes:
 
 * When processing kernel nvme events, only react to `rediscover` and not to `connected` events. The `connected` event happens too early (before the nvme device has been fully identified).
-* 
 
 ## Changes with release 2.2.2
 

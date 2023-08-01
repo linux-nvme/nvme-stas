@@ -9,9 +9,10 @@
             <arg direction="in" type="s" name="transport"/>
             <arg direction="in" type="s" name="traddr"/>
             <arg direction="in" type="s" name="trsvcid"/>
+            <arg direction="in" type="s" name="subsysnqn"/>
             <arg direction="in" type="s" name="host_traddr"/>
             <arg direction="in" type="s" name="host_iface"/>
-            <arg direction="in" type="s" name="subsysnqn"/>
+            <arg direction="in" type="s" name="host_nqn"/>
             <arg direction="out" type="s" name="info_json"/>
         </method>
     </interface>

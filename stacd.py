@@ -90,10 +90,10 @@ if __name__ == '__main__':
             return json.dumps(info)
 
         def controller_info(  # pylint: disable=too-many-arguments,no-self-use
-            self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn
+            self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
         ) -> str:
             '''@brief D-Bus method used to return information about a controller'''
-            controller = STAC.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
+            controller = STAC.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
             return json.dumps(controller.info()) if controller else '{}'
 
         def list_controllers(self, detailed) -> list:  # pylint: disable=no-self-use

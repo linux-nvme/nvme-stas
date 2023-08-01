@@ -70,9 +70,10 @@ if __name__ == '__main__':
             transport: str,
             traddr: str,
             trsvcid: str,
+            subsysnqn: str,
             host_traddr: str,
             host_iface: str,
-            subsysnqn: str,
+            host_nqn: str,
             device: str,
         ):
             '''@brief Signal sent when log pages have changed.'''
@@ -108,17 +109,17 @@ if __name__ == '__main__':
             return json.dumps(info)
 
         def controller_info(  # pylint: disable=no-self-use,too-many-arguments
-            self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn
+            self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
         ) -> str:
             '''@brief D-Bus method used to return information about a controller'''
-            controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
+            controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
             return json.dumps(controller.info()) if controller else '{}'
 
         def get_log_pages(  # pylint: disable=no-self-use,too-many-arguments
-            self, transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn
+            self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
         ) -> list:
             '''@brief D-Bus method used to retrieve the discovery log pages from one controller'''
-            controller = STAF.get_controller(transport, traddr, trsvcid, host_traddr, host_iface, subsysnqn)
+            controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
             return controller.log_pages() if controller else list()
 
         def get_all_log_pages(self, detailed) -> str:  # pylint: disable=no-self-use
