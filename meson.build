@@ -9,7 +9,7 @@
 project(
     'nvme-stas',
     meson_version: '>= 0.53.0',
-    version: '2.3-rc3',
+    version: '2.3-rc4',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -78,6 +78,7 @@ conf.set('STAFD_DBUS_NAME', 'org.nvmexpress.staf')
 conf.set('STAFD_DBUS_PATH', '/org/nvmexpress/staf')
 conf.set('STACD_DBUS_NAME', 'org.nvmexpress.stac')
 conf.set('STACD_DBUS_PATH', '/org/nvmexpress/stac')
+conf.set('ETC', etcdir)
 
 #===============================================================================
 stafd = configure_file(

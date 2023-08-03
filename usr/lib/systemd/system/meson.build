@@ -26,7 +26,7 @@ configure_file(
     input: 'stas-config@.service',
     output: 'stas-config@.service',
     install_dir: sd_unit_dir,
-    copy: true,
+    configuration: conf,
 )
 
 configure_file(

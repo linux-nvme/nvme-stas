@@ -38,13 +38,15 @@ jobs:
           python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
           python3 -m pip install --upgrade vermin pyfakefs importlib-resources
 
+      - name: "INSTALL: libnvme dependencies"
+        run: |
+          sudo apt-get install --yes --quiet swig
+          sudo apt-get install --yes --quiet libjson-c-dev
+
       - name: "INSTALL: libnvme"
         run: |
-          sudo apt-get install --yes --quiet swig libjson-c-dev
           meson subprojects download
-          meson setup .build subprojects/libnvme -Dlibdbus=disabled -Dopenssl=disabled -Dbuildtype=release -Dprefix=/usr -Dpython=enabled
-          ninja -C .build
-          sudo meson install -C .build
+          meson setup --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled .build
 
       - name: "CONFIG: PYTHONPATH"
         run: |
@@ -55,7 +57,7 @@ jobs:
         with:
           action: test
           directory: .build
-          setup-options: -Dman=true -Dhtml=true
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
           options: --print-errorlogs --suite nvme-stas
 
       # Preserve meson's log file on failure
@@ -67,9 +69,11 @@ jobs:
 
       - name: "Generate coverage report"
         run: |
-          python3 -m pip install pytest
-          python3 -m pip install pytest-cov
-          PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages/ pytest --cov=./staslib --cov-report=xml test/test-*.py
+          python3 -m pip install --upgrade pytest
+          python3 -m pip install --upgrade pytest-cov
+          echo $( pwd )
+          cp -r .build/staslib/* ./staslib/.
+          pytest --cov=./staslib --cov-report=xml test/test-*.py
 
       - uses: codecov/codecov-action@v3
         with:

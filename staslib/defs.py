@@ -41,13 +41,13 @@ WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 
 PROG_NAME = os.path.basename(sys.argv[0])
 
-NVME_HOSTID = '/etc/nvme/hostid'
-NVME_HOSTNQN = '/etc/nvme/hostnqn'
-NVME_HOSTKEY = '/etc/nvme/hostkey'
+NVME_HOSTID = '@ETC@/nvme/hostid'
+NVME_HOSTNQN = '@ETC@/nvme/hostnqn'
+NVME_HOSTKEY = '@ETC@/nvme/hostkey'
 
-SYS_CONF_FILE = '/etc/stas/sys.conf'
-STAFD_CONF_FILE = '/etc/stas/stafd.conf'
-STACD_CONF_FILE = '/etc/stas/stacd.conf'
+SYS_CONF_FILE = '@ETC@/stas/sys.conf'
+STAFD_CONF_FILE = '@ETC@/stas/stafd.conf'
+STACD_CONF_FILE = '@ETC@/stas/stacd.conf'
 
 HAS_NBFT_SUPPORT = hasattr(nvme, 'nbft_get')
 NBFT_SYSFS_PATH = "/sys/firmware/acpi/tables"
