@@ -6,8 +6,8 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-'''This module provides utility functions/classes to provide easier to use
-access to GLib/Gio/Gobject resources.
+'''This module provides utility functions (or classes) that simplify
+the use of certain GLib/Gio/Gobject functions/resources.
 '''
 
 import logging
@@ -443,7 +443,7 @@ class TcpChecker:  # pylint: disable=too-many-instance-attributes
         # the GLib context.
         family = socket.AF_INET if self._traddr.version == 4 else socket.AF_INET6
         self._native_sock = socket.socket(family, socket.SOCK_STREAM | socket.SOCK_NONBLOCK, socket.IPPROTO_TCP)
-        if isinstance(self._host_iface, str):
+        if self._host_iface and isinstance(self._host_iface, str):
             self._native_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, self._host_iface.encode('utf-8'))
 
         # Convert socket.socket() to a Gio.Socket() object

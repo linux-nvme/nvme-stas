@@ -9,15 +9,15 @@
 dbus_conf_dir = datadir / 'dbus-1' / 'system.d'
 
 configure_file(
-    input: 'org.nvmexpress.staf.in.conf',
-    output: 'org.nvmexpress.staf.conf',
+    input: conf.get('STAFD_DBUS_NAME') + '.in.conf',
+    output: conf.get('STAFD_DBUS_NAME') + '.conf',
     configuration: conf,
     install_dir: dbus_conf_dir,
 )
 
 configure_file(
-    input: 'org.nvmexpress.stac.in.conf',
-    output: 'org.nvmexpress.stac.conf',
+    input: conf.get('STACD_DBUS_NAME') + '.in.conf',
+    output: conf.get('STACD_DBUS_NAME') + '.conf',
     configuration: conf,
     install_dir: dbus_conf_dir,
 )

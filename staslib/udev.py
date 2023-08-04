@@ -242,8 +242,8 @@ class Udev:
         be re-used for the candidate controller (specified by tid).
 
         We do not have a match if the candidate's tid.transport, tid.traddr,
-        tid.trsvcid, and tid.subsysnqn are not identical to those of the cid.
-        These 4 parameters are mandatory for a match.
+        tid.trsvcid, tid.subsysnqn, and tid.host_nqn are not identical to those
+        of the cid. These 5 parameters are mandatory for a match.
 
         The tid.host_traddr and tid.host_iface depend on the transport type.
         These parameters may not apply or have a different syntax/meaning
@@ -274,8 +274,9 @@ class Udev:
             tid_traddr = iputil.get_ipaddress_obj(tid.traddr, ipv4_mapped_convert=True)
             cid_traddr = iputil.get_ipaddress_obj(cid['traddr'], ipv4_mapped_convert=True)
         else:
-            cid_traddr = cid['traddr']
-            tid_traddr = tid.traddr
+            # For FC and loop we can do a case-insensitive comparison
+            tid_traddr = tid.traddr.lower()
+            cid_traddr = cid['traddr'].lower()
 
         if cid_traddr != tid_traddr:
             return False
@@ -308,7 +309,7 @@ class Udev:
 
         elif tid.transport == 'fc':
             # host-traddr is mandatory for FC.
-            if tid.host_traddr != cid['host-traddr']:
+            if tid.host_traddr.lower() != cid['host-traddr'].lower():
                 return False
 
         elif tid.transport == 'rdma':
