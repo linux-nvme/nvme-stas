@@ -43,7 +43,7 @@ jobs:
           sudo apt-get install --yes --quiet swig
           sudo apt-get install --yes --quiet libjson-c-dev
 
-      - name: "INSTALL: libnvme"
+      - name: "SETUP: [nvme-stas, libnvme]"
         run: |
           meson subprojects download
           meson setup --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled .build
