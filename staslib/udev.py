@@ -154,7 +154,7 @@ class Udev:
         return False
 
     @staticmethod
-    def _cid_matches_tcp_tid_legacy(tid, cid):  # pylint: disable=too-many-return-statements,too-many-branches
+    def _cid_matches_tcp_tid_legacy(tid, cid, ifaces):  # pylint: disable=too-many-return-statements,too-many-branches
         '''On kernels older than 6.1, the src_addr parameter is not available
         from the sysfs. Therefore, we need to infer a match based on other
         parameters. And there are a few cases where we're simply not sure
@@ -192,7 +192,7 @@ class Udev:
             if tid.host_iface:
                 # With the existing cid.host_traddr, we can find the
                 # interface of the exisiting connection.
-                connection_iface = iputil.get_interface(str(cid_host_traddr))
+                connection_iface = iputil.get_interface(ifaces, cid_host_traddr)
                 if tid.host_iface != connection_iface:
                     return False
 
@@ -209,7 +209,7 @@ class Udev:
                 # However, if the existing host_iface has only one source
                 # address assigned to it, we can assume that the source
                 # address used for the existing connection is that address.
-                if_addrs = iputil.net_if_addrs().get(cid_host_iface, {4: [], 6: []})
+                if_addrs = ifaces.get(cid_host_iface, {4: [], 6: []})
                 tid_host_traddr = iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
                 source_addrs = if_addrs[tid_host_traddr.version]
                 if len(source_addrs) != 1:
@@ -233,7 +233,7 @@ class Udev:
         return True
 
     @staticmethod
-    def _cid_matches_tid(tid, cid):  #  pylint: disable=too-many-return-statements,too-many-branches
+    def _cid_matches_tid(tid, cid, ifaces):  #  pylint: disable=too-many-return-statements,too-many-branches
         '''Check if existing controller's cid matches candidate controller's tid.
         @param cid: The Connection ID of an existing controller (from the sysfs).
         @param tid: The Transport ID of a candidate controller.
@@ -291,7 +291,7 @@ class Udev:
                     # For legacy kernels (i.e. older than 6.1), the existing cid.src_addr
                     # is always undefined. We need to use advanced logic to determine
                     # whether cid and tid match.
-                    return Udev._cid_matches_tcp_tid_legacy(tid, cid)
+                    return Udev._cid_matches_tcp_tid_legacy(tid, cid, ifaces)
 
                 # The existing controller's cid.src_addr is always defined for kernel
                 # 6.1 and later. We can use the existing controller's cid.src_addr to
@@ -304,7 +304,7 @@ class Udev:
                         return False
 
                 # host-iface is an optional tcp-only parameter.
-                if tid.host_iface and tid.host_iface != iputil.get_interface(str(src_addr)):
+                if tid.host_iface and tid.host_iface != iputil.get_interface(ifaces, src_addr):
                     return False
 
         elif tid.transport == 'fc':
@@ -327,17 +327,20 @@ class Udev:
                 Discovery Controller.
         @return The device if a match is found, None otherwise.
         '''
-        for device in self._context.list_devices(
+        devices = self._context.list_devices(
             subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
-        ):
-            if not self.is_dc_device(device):
-                continue
+        )
+        if devices:
+            ifaces = iputil.net_if_addrs()
+            for device in devices:
+                if not self.is_dc_device(device):
+                    continue
 
-            cid = self.get_cid(device)
-            if not self._cid_matches_tid(tid, cid):
-                continue
+                cid = self.get_cid(device)
+                if not self._cid_matches_tid(tid, cid, ifaces):
+                    continue
 
-            return device
+                return device
 
         return None
 
@@ -346,17 +349,20 @@ class Udev:
                 I/O Controller.
         @return The device if a match is found, None otherwise.
         '''
-        for device in self._context.list_devices(
+        devices = self._context.list_devices(
             subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
-        ):
-            if not self.is_ioc_device(device):
-                continue
+        )
+        if devices:
+            ifaces = iputil.net_if_addrs()
+            for device in devices:
+                if not self.is_ioc_device(device):
+                    continue
 
-            cid = self.get_cid(device)
-            if not self._cid_matches_tid(tid, cid):
-                continue
+                cid = self.get_cid(device)
+                if not self._cid_matches_tid(tid, cid, ifaces):
+                    continue
 
-            return device
+                return device
 
         return None
 
@@ -365,14 +371,17 @@ class Udev:
         @return A list of pyudev.device._device.Device objects
         '''
         tids = []
-        for device in self._context.list_devices(subsystem='nvme'):
-            if device.properties.get('NVME_TRTYPE', '') not in transports:
-                continue
+        devices = self._context.list_devices(subsystem='nvme')
+        if devices:
+            ifaces = iputil.net_if_addrs()
+            for device in devices:
+                if device.properties.get('NVME_TRTYPE', '') not in transports:
+                    continue
 
-            if not self.is_ioc_device(device):
-                continue
+                if not self.is_ioc_device(device):
+                    continue
 
-            tids.append(self.get_tid(device))
+                tids.append(self.get_tid(device, ifaces))
 
         return tids
 
@@ -471,7 +480,7 @@ class Udev:
         return attr_str[start:end]
 
     @staticmethod
-    def get_tid(device):
+    def get_tid(device, ifaces):
         '''@brief return the Transport ID associated with a udev device'''
         cid = Udev.get_cid(device)
         if cid['transport'] == 'tcp':
@@ -480,7 +489,7 @@ class Udev:
                 # We'll try to find the interface from the source address on
                 # the connection. Only available if kernel exposes the source
                 # address (src_addr) in the "address" attribute.
-                cid['host-iface'] = iputil.get_interface(src_addr)
+                cid['host-iface'] = iputil.get_interface(ifaces, iputil.get_ipaddress_obj(src_addr))
 
         return trid.TID(cid)
 
