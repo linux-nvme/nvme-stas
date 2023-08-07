@@ -31,14 +31,17 @@ class Test(unittest.TestCase):
 
     def test_get_interface(self):
         '''Check that get_interface() returns the right info'''
+        ifaces = iputil.net_if_addrs()
         for iface in self.ifaces:
             for addr_entry in iface['addr_info']:
                 addr = ipaddress.ip_address(addr_entry['local'])
                 # Link local addresses may appear on more than one interface and therefore cannot be used.
                 if not addr.is_link_local:
-                    self.assertEqual(iface['ifname'], iputil.get_interface(str(addr)))
+                    self.assertEqual(iface['ifname'], iputil.get_interface(ifaces, addr))
 
-        self.assertEqual('', iputil.get_interface('255.255.255.255'))
+        self.assertEqual('', iputil.get_interface(ifaces, iputil.get_ipaddress_obj('255.255.255.255')))
+        self.assertEqual('', iputil.get_interface(ifaces, ''))
+        self.assertEqual('', iputil.get_interface(ifaces, None))
 
     def test_mac2iface(self):
         for iface in self.ifaces:
@@ -69,9 +72,7 @@ class Test(unittest.TestCase):
         self.assertNotIn(bad_trtype, l2)
 
     def test__data_matches_ip(self):
-        self.assertFalse(iputil._data_matches_ip(None, None, None))
-        self.assertFalse(iputil._data_matches_ip(socket.AF_INET, None, None))
-        self.assertFalse(iputil._data_matches_ip(socket.AF_INET6, None, None))
+        self.assertFalse(iputil.ip_equal(None, None))
 
 
 if __name__ == "__main__":
