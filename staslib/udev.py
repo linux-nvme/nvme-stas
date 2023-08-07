@@ -11,6 +11,7 @@
 import os
 import time
 import logging
+from functools import partial
 import pyudev
 from gi.repository import GLib
 from staslib import defs, iputil, trid
@@ -387,55 +388,47 @@ class Udev:
 
     def _process_udev_event(self, event_source, condition):  # pylint: disable=unused-argument
         if condition == GLib.IO_IN:
-            event_count = 0
-            while True:
-                try:
-                    device = self._monitor.poll(timeout=0)
-                except EnvironmentError as ex:
-                    device = None
-                    # This event seems to happen in bursts.  So, let's suppress
-                    # logging for 2 seconds to avoid filling the syslog.
-                    self._log_event_count += 1
-                    now = time.time()
-                    if now > self._log_event_soak_time:
-                        logging.debug('Udev._process_udev_event()         - %s [%s]', ex, self._log_event_count)
-                        self._log_event_soak_time = now + 2
-                        self._log_event_count = 0
+            try:
+                self.__handle_events()
 
-                if device is None:
-                    break
-
-                event_count += 1
-                self._device_event(device, event_count)
+            except EnvironmentError as ex:
+                # Exceptions seem to happen in bursts.  So, let's suppress
+                # logging for 2 seconds to avoid filling the syslog.
+                self._log_event_count += 1
+                now = time.time()
+                if now > self._log_event_soak_time:
+                    logging.debug('Udev._process_udev_event()         - %s [%s]', ex, self._log_event_count)
+                    self._log_event_soak_time = now + 2
+                    self._log_event_count = 0
 
         return GLib.SOURCE_CONTINUE
 
-    @staticmethod
-    def __cback_names(action_cbacks, device_cback):
-        names = []
-        for cback in action_cbacks:
-            names.append(cback.__name__ + '()')
-        if device_cback:
-            names.append(device_cback.__name__ + '()')
-        return names
+    def __handle_events(self):
+        event_count = 0
+        read_device = partial(self._monitor.poll, timeout=0)
+        for device in iter(read_device, None):
+            if device is None:  # This should never happen,...
+                break  # ...but better safe than sorry.
 
-    def _device_event(self, device, event_count):
-        action_cbacks = self._action_event_registry.get(device.action, set())
-        device_cback = self._device_event_registry.get(device.sys_name, None)
+            event_count += 1
 
-        logging.debug(
-            'Udev._device_event()               - %-8s %-6s  %-8s  %s',
-            f'{device.sys_name}:',
-            device.action,
-            f'{event_count:2}:{device.sequence_number}',
-            self.__cback_names(action_cbacks, device_cback),
-        )
+            action_cbacks = self._action_event_registry.get(device.action, None)
+            device_cback = self._device_event_registry.get(device.sys_name, None)
+            if action_cbacks or device_cback:
+                logging.debug(
+                    'Udev.__handle_events()             - %-7s %-6s  %2s:%s',
+                    device.sys_name,
+                    device.action,
+                    event_count,
+                    device.sequence_number,
+                )
 
-        for action_cback in action_cbacks:
-            GLib.idle_add(action_cback, device)
+                if action_cbacks:
+                    for action_cback in action_cbacks:
+                        GLib.idle_add(action_cback, device)
 
-        if device_cback is not None:
-            GLib.idle_add(device_cback, device)
+                if device_cback is not None:
+                    GLib.idle_add(device_cback, device)
 
     @staticmethod
     def _get_property(device, prop, default=''):
