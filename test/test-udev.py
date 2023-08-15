@@ -3,7 +3,6 @@ import json
 import shutil
 import logging
 import unittest
-import ipaddress
 import subprocess
 from staslib import defs, iputil, log, trid, udev
 

@@ -155,7 +155,7 @@ class Udev:
         return False
 
     @staticmethod
-    def _cid_matches_tcp_tid_legacy(tid, cid, ifaces):  # pylint: disable=too-many-return-statements,too-many-branches
+    def _cid_matches_tcp_tid_legacy(tid, cid, ifaces):  # pylint: disable=too-many-branches
         '''On kernels older than 6.1, the src_addr parameter is not available
         from the sysfs. Therefore, we need to infer a match based on other
         parameters. And there are a few cases where we're simply not sure
@@ -165,71 +165,61 @@ class Udev:
         cid_host_iface = cid['host-iface']
         cid_host_traddr = iputil.get_ipaddress_obj(cid['host-traddr'], ipv4_mapped_convert=True)
 
-        if not cid_host_iface:  # cid.host_iface is undefined
-            if not cid_host_traddr:  # cid.host_traddr is undefined
-                # When the existing cid.src_addr, cid.host_traddr, and cid.host_iface
-                # are all undefined (which can only happen on kernels prior to 6.1),
-                # we can't know for sure on which interface an existing connection
-                # was made. In this case, we can only declare a match if both
-                # tid.host_iface and tid.host_traddr are undefined as well.
-                logging.debug(
-                    'Udev._cid_matches_tcp_tid_legacy() - cid=%s, tid=%s - Not enough info. Assume "match" but this could be wrong.',
-                    cid,
-                    tid,
-                )
-                return True
+        # Only check host_traddr if candidate cares about it
+        if tid.host_traddr:
+            tid_host_traddr = iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
 
-            # cid.host_traddr is defined. If tid.host_traddr is also
-            # defined, then it must match the existing cid.host_traddr.
-            if tid.host_traddr:
-                tid_host_traddr = iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
+            if cid_host_traddr:
                 if tid_host_traddr != cid_host_traddr:
                     return False
 
-            # If tid.host_iface is defined, then the interface where
-            # the connection is located must match. If tid.host_iface
-            # is not defined, then we don't really care on which
-            # interface the connection was made and we can skip this test.
-            if tid.host_iface:
-                # With the existing cid.host_traddr, we can find the
-                # interface of the exisiting connection.
-                connection_iface = iputil.get_interface(ifaces, cid_host_traddr)
-                if tid.host_iface != connection_iface:
+            else:
+                # If c->cfg.host_traddr is unknown, then the controller (c)
+                # uses the interface's primary address as the source
+                # address. If c->cfg.host_iface is defined we can
+                # determine the primary address associated with that
+                # interface and compare that to the candidate->host_traddr.
+                if cid_host_iface:
+                    if_addrs = ifaces.get(cid_host_iface, {4: [], 6: []})
+                    source_addrs = if_addrs[tid_host_traddr.version]
+                    if len(source_addrs):  # Make sure it's not empty
+                        primary_addr = iputil.get_ipaddress_obj(source_addrs[0], ipv4_mapped_convert=True)
+                        if primary_addr != tid_host_traddr:
+                            return False
+
+                else:
+                    # If both c->cfg.host_traddr and c->cfg.host_iface are
+                    # unknown, we don't have enough information to make a
+                    # 100% positive match. Regardless, let's be optimistic
+                    # and assume that we have a match.
+                    logging.debug(
+                        'Udev._cid_matches_tcp_tid_legacy() - [1] cid=%s, tid=%s - Not enough info. Assume "match" but this could be wrong.',
+                        cid,
+                        tid,
+                    )
+
+        # Only check host_iface if candidate cares about it
+        if tid.host_iface:
+            if cid_host_iface:
+                if tid.host_iface != cid_host_iface:
                     return False
 
-            return True
+            else:
+                if cid_host_traddr:
+                    connection_iface = iputil.get_interface(ifaces, cid_host_traddr)
+                    if tid.host_iface != connection_iface:
+                        return False
 
-        # cid.host_iface is defined
-        if not cid_host_traddr:  # cid.host_traddr is undefined
-            if tid.host_iface and tid.host_iface != cid_host_iface:
-                return False
-
-            if tid.host_traddr:
-                # It's impossible to tell the existing connection source
-                # address. So, we can't tell if it matches tid.host_traddr.
-                # However, if the existing host_iface has only one source
-                # address assigned to it, we can assume that the source
-                # address used for the existing connection is that address.
-                if_addrs = ifaces.get(cid_host_iface, {4: [], 6: []})
-                tid_host_traddr = iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
-                source_addrs = if_addrs[tid_host_traddr.version]
-                if len(source_addrs) != 1:
-                    return False
-
-                src_addr0 = iputil.get_ipaddress_obj(source_addrs[0], ipv4_mapped_convert=True)
-                if src_addr0 != tid_host_traddr:
-                    return False
-
-            return True
-
-        # cid.host_traddr is defined
-        if tid.host_iface and tid.host_iface != cid_host_iface:
-            return False
-
-        if tid.host_traddr:
-            tid_host_traddr = iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
-            if tid_host_traddr != cid_host_traddr:
-                return False
+                else:
+                    # If both c->cfg.host_traddr and c->cfg.host_iface are
+                    # unknown, we don't have enough information to make a
+                    # 100% positive match. Regardless, let's be optimistic
+                    # and assume that we have a match.
+                    logging.debug(
+                        'Udev._cid_matches_tcp_tid_legacy() - [2] cid=%s, tid=%s - Not enough info. Assume "match" but this could be wrong.',
+                        cid,
+                        tid,
+                    )
 
         return True
 
