@@ -2,7 +2,7 @@
 import os
 import logging
 import unittest
-from staslib import conf, log
+from staslib import defs, conf, log
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -10,7 +10,7 @@ class TestStandardNvmeFabricsFile(unittest.TestCase):
     def test_regular_user(self):
         conf.NvmeOptions.destroy()  # Make sure singleton does not exist
         if os.path.exists('/dev/nvme-fabrics'):
-            if os.geteuid() != 0:
+            if os.geteuid() != 0 and defs.KERNEL_VERSION < defs.KERNEL_ALL_MIN_VERSION:
                 with self.assertRaises(PermissionError):
                     nvme_options = conf.NvmeOptions()
             else:

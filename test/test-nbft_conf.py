@@ -48,11 +48,12 @@ class Test(unittest.TestCase):
             self.assertEqual(nbft_conf.iocs, EXPECTED_IOCS)
 
     def test_dir_without_nbft_files(self):
-        conf.NbftConf.destroy()  # Make sure singleton does not exist
-        with self.assertNoLogs(logger=logging.getLogger(), level='DEBUG'):
-            nbft_conf = conf.NbftConf('/tmp')
-            self.assertEqual(nbft_conf.dcs, [])
-            self.assertEqual(nbft_conf.iocs, [])
+        if hasattr(self, 'assertNoLogs'):  # assertNoLogs only in Python 3.10 or later
+            conf.NbftConf.destroy()  # Make sure singleton does not exist
+            with self.assertNoLogs(logger=logging.getLogger(), level='DEBUG'):
+                nbft_conf = conf.NbftConf('/tmp')
+                self.assertEqual(nbft_conf.dcs, [])
+                self.assertEqual(nbft_conf.iocs, [])
 
 
 if __name__ == "__main__":
