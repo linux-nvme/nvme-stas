@@ -37,44 +37,26 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-#      - name: "UPGRADE: existing packages"
-#        run: |
-#          sudo apt-get update --yes --quiet || true
-#          sudo apt-get upgrade --yes --quiet || true
-
       - name: "INSTALL: additional packages"
         run: |
-          sudo apt-get install --yes --quiet python3-pip || true
-          sudo apt-get install --yes --quiet cmake || true
-          sudo apt-get install --yes --quiet libgirepository1.0-dev || true
-          sudo apt-get install --yes --quiet libsystemd-dev || true
-          sudo apt-get install --yes --quiet python3-systemd || true
-          sudo python3 -m pip install --upgrade pip
-          sudo python3 -m pip install --upgrade wheel
-          sudo python3 -m pip install --upgrade meson
-          sudo python3 -m pip install --upgrade ninja
-          python3 -m pip install --upgrade dasbus
-          python3 -m pip install --upgrade pylint
-          python3 -m pip install --upgrade pyflakes
-          python3 -m pip install --upgrade PyGObject
-          python3 -m pip install --upgrade lxml
-          python3 -m pip install --upgrade pyudev
+          sudo apt-get install --yes --quiet python3-pip cmake libgirepository1.0-dev libsystemd-dev python3-systemd swig libjson-c-dev || true
+          sudo python3 -m pip install --upgrade pip wheel meson ninja
+          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject lxml pyudev
 
-      - name: "BUILD: libnvme"
-        run: |
-          sudo apt-get install --yes --quiet swig libjson-c-dev || true
-          meson subprojects download
-          meson setup builddir subprojects/libnvme -Dlibdbus=disabled -Dopenssl=disabled -Dbuildtype=release -Dprefix=/usr -Dpython=enabled
-          ninja -C builddir
-          sudo meson install -C builddir
+      - name: "BUILD: [libnvme, nvme-stas]"
+        uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          directory: .build
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dlibnvme:buildtype=release -Dlibnvme:sysconfdir=/etc -Dlibnvme:prefix=/usr -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
 
       - name: Set PYTHONPATH
         run: |
-          echo "PYTHONPATH=builddir:builddir/subprojects/libnvme:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
+          echo "PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages" >> $GITHUB_ENV
 
       - name: Show test environment
         run: |
-          echo -e "Build Directory:\n$(ls -laF builddir)"
+          echo -e "Build Directory:\n$(ls -laF .build)"
           python3 -VV
           python3 -m site
           python3 -m pylint --version
@@ -82,12 +64,12 @@ jobs:
 
       - name: Pylint
         run: |
-          python3 -m pylint --rcfile=test/pylint.rc *.py staslib
+          python3 -m pylint -j 0 --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
       - name: Pyflakes
         if: always()
         run: |
-          python3 -m pyflakes *.py staslib
+          python3 -m pyflakes .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
   python-black:
     if: ${{ !github.event.act }} # skip during local actions testing
