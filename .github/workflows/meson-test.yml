@@ -17,36 +17,20 @@ jobs:
 
       - name: "INSTALL: Overall dependencies"
         run: |
-          sudo apt-mark hold grub-efi-amd64-signed  # Workaround for upstream issue
-          sudo apt-get update --yes --quiet
-          sudo apt-get upgrade --yes --quiet
           sudo apt-get install --yes --quiet python3-pip cmake iproute2
           sudo python3 -m pip install --upgrade pip
           sudo python3 -m pip install --upgrade wheel meson ninja
 
       - name: "INSTALL: nvme-stas dependencies"
         run: |
-          sudo apt-get install --yes --quiet docbook-xml
-          sudo apt-get install --yes --quiet docbook-xsl
-          sudo apt-get install --yes --quiet xsltproc
-          sudo apt-get install --yes --quiet libglib2.0-dev
-          sudo apt-get install --yes --quiet libgirepository1.0-dev
-          sudo apt-get install --yes --quiet libsystemd-dev
-          sudo apt-get install --yes --quiet python3-systemd
-          sudo apt-get install --yes --quiet python3-pyudev
-          sudo apt-get install --yes --quiet python3-lxml
+          sudo apt-get install --yes --quiet docbook-xml docbook-xsl xsltproc libglib2.0-dev libgirepository1.0-dev libsystemd-dev
+          sudo apt-get install --yes --quiet python3-systemd python3-pyudev python3-lxml
           python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
           python3 -m pip install --upgrade vermin pyfakefs importlib-resources
 
       - name: "INSTALL: libnvme dependencies"
         run: |
-          sudo apt-get install --yes --quiet swig
-          sudo apt-get install --yes --quiet libjson-c-dev
-
-      - name: "SETUP: [nvme-stas, libnvme]"
-        run: |
-          meson subprojects download
-          meson setup --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled .build
+          sudo apt-get install --yes --quiet swig libjson-c-dev
 
       - name: "CONFIG: PYTHONPATH"
         run: |
@@ -57,7 +41,7 @@ jobs:
         with:
           action: test
           directory: .build
-          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dlibnvme:buildtype=release -Dlibnvme:sysconfdir=/etc -Dlibnvme:prefix=/usr -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
           options: --print-errorlogs --suite nvme-stas
 
       # Preserve meson's log file on failure
