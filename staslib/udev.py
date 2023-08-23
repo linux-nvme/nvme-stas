@@ -251,12 +251,14 @@ class Udev:
             6.1.
         '''
         # 'transport', 'traddr', 'trsvcid', 'subsysnqn', and 'host-nqn' must exactly match.
-        if (
-            cid['transport'] != tid.transport
-            or cid['trsvcid'] != tid.trsvcid
-            or cid['subsysnqn'] != tid.subsysnqn
-            or cid['host-nqn'] != tid.host_nqn
-        ):
+        if tid.transport != cid['transport'] or tid.trsvcid != cid['trsvcid'] or tid.host_nqn != cid['host-nqn']:
+            return False
+
+        # With TP8013, Discovery Controllers may respond with a unique NQN even
+        # when a connection request is made with the well-known NQN. Therefore,
+        # the subsysnqn is not reliable when the candidate requests the well-
+        # known NQN.
+        if tid.subsysnqn not in (defs.WELL_KNOWN_DISC_NQN, cid['subsysnqn']):
             return False
 
         if tid.transport in ('tcp', 'rdma'):
