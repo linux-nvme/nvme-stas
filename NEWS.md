@@ -8,6 +8,7 @@ New features:
 - The Avahi driver will now verify reachability of services discovered through mDNS to make sure all discovered IP addresses can be connected to. This avoids invoking the NVMe kernel driver with invalid IP addresses and getting error messages in the syslog.
 - The Avahi driver will now print an error message if the same IP address is found on multiple interfaces. This indicates a misconfiguration of the network.
 - Simplify algorithm that determines if an existing connection (is sysfs) can be reused by stafd/stacd instead of creating a duplicate connection.
+- Improve scalability. First, the algorithm that handles kernel events was reworked to handle events faster. Second, limit the amount of times that the netlink kernel interface is invoked. Instead invoke netlink once and cache & reuse the data for the whole duration of the scanning loop.
 
 Bug fixes:
 
