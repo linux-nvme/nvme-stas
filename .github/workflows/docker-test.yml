@@ -13,7 +13,7 @@ jobs:
     if: ${{ !github.event.act }} # skip during local actions testing
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install requirements
         # make sure nvme-cli installed (we need it for /etc/nvme/hostnqn and /etc/nvme/hostid)
