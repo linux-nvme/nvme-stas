@@ -423,7 +423,9 @@ class Deferred:
 class TcpChecker:  # pylint: disable=too-many-instance-attributes
     '''@brief Verify that a TCP connection can be established with an enpoint'''
 
-    def __init__(self, traddr, trsvcid, host_iface, user_cback, *user_data):
+    def __init__(
+        self, traddr, trsvcid, host_iface, verbose, user_cback, *user_data
+    ):  # pylint: disable=too-many-arguments
         self._user_cback = user_cback
         self._host_iface = host_iface
         self._user_data = user_data
@@ -432,6 +434,7 @@ class TcpChecker:  # pylint: disable=too-many-instance-attributes
         self._cancellable = None
         self._gio_sock = None
         self._native_sock = None
+        self._verbose = verbose
 
     def connect(self):
         '''Attempt to connect'''
@@ -502,13 +505,14 @@ class TcpChecker:  # pylint: disable=too-many-instance-attributes
             if err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
                 logging.debug('TcpChecker._connect_async_cback()  - %s', err.message)  # pylint: disable=no-member
             else:
-                logging.info(
-                    'Unable to verify TCP connectivity  - (%-10s %-14s %s): %s',
-                    self._host_iface + ',',
-                    self._traddr.compressed + ',',
-                    self._trsvcid,
-                    err.message,  # pylint: disable=no-member
-                )
+                if self._verbose:
+                    logging.info(
+                        'Unable to verify TCP connectivity  - (%-10s %-14s %s): %s',
+                        self._host_iface + ',',
+                        self._traddr.compressed + ',',
+                        self._trsvcid,
+                        err.message,  # pylint: disable=no-member
+                    )
 
         self.close()
 
