@@ -71,6 +71,29 @@ def fmt_service_str(interface, protocol, name, stype, domain, flags):  # pylint:
     )
 
 
+class ValueRange:
+    '''Implement a range of values with ceiling. Once the ceiling has been
+    reached, then any further request for a new value will return the
+    ceiling (i.e last value).'''
+
+    def __init__(self, values: list):
+        self._values = values
+        self._index = 0
+
+    def get_next(self):
+        '''Get the next value (or last value if ceiling was reached)'''
+        value = self._values[self._index]
+        if self._index >= 0:
+            self._index += 1
+            if self._index >= len(self._values):
+                self._index = -1
+        return value
+
+    def reset(self):
+        '''Reset the range to start from the beginning'''
+        self._index = 0
+
+
 # ******************************************************************************
 class Service:  # pylint: disable=too-many-instance-attributes
     '''Object used to keep track of the services discovered from the avahi-daemon'''
@@ -107,6 +130,11 @@ class Service:  # pylint: disable=too-many-instance-attributes
 
         self._id = fmt_service_str(
             self._interface_id, self._protocol_id, self._name, self._stype, self._domain, self._flags
+        )
+
+        self._connect_check_retry_tmo = ValueRange([2, 5, 10, 30, 60, 300, 600])
+        self._connect_check_retry_tmr = gutil.GTimer(
+            self._connect_check_retry_tmo.get_next(), self._on_connect_check_retry
         )
 
         self._ip = None
@@ -151,8 +179,17 @@ class Service:  # pylint: disable=too-many-instance-attributes
             self._identified_cback()
             return
 
+        self._connect_check(verbose=True)  # Enable verbosity on first attempt
+
+    def _connect_check(self, verbose=False):
         self._reachable = False
-        connect_checker = gutil.TcpChecker(traddr, trsvcid, host_iface, self._tcp_connect_check_cback)
+        connect_checker = gutil.TcpChecker(
+            self._data['traddr'],
+            self._data['trsvcid'],
+            self._data['host-iface'],
+            verbose,
+            self._tcp_connect_check_cback,
+        )
 
         try:
             connect_checker.connect()
@@ -168,7 +205,16 @@ class Service:  # pylint: disable=too-many-instance-attributes
             self._connect_checker.close()
             self._connect_checker = None
             self._reachable = connected
-            self._identified_cback()
+
+            if self._reachable:
+                self._identified_cback()
+            else:
+                # Restart the timer but with incremented timeout
+                self._connect_check_retry_tmr.start(self._connect_check_retry_tmo.get_next())
+
+    def _on_connect_check_retry(self):
+        self._connect_check()
+        return GLib.SOURCE_REMOVE
 
     def set_resolver(self, resolver):
         '''Set the resolver object'''
