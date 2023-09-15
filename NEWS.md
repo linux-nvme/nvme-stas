@@ -5,7 +5,7 @@
 New features:
 
 - Support for nBFT (NVMe-oF Boot Table). 
-- The Avahi driver will now verify reachability of services discovered through mDNS to make sure all discovered IP addresses can be connected to. This avoids invoking the NVMe kernel driver with invalid IP addresses and getting error messages in the syslog.
+- The Avahi driver will now verify reachability of services discovered through mDNS to make sure all discovered IP addresses can be connected to. This avoids invoking the NVMe kernel driver with invalid IP addresses and getting error messages in the syslog. While testing this feature, we found that the CDC may advertise itself (using mDNS) before it is actually ready to receive connections from the host. If a host reacting to mDNS advertisements tries to connect to the CDC before the CDC is listening for connections, a "Connection refused" will happen and the host may conclude that the CDC is not reachable. For that reason the host will keep trying to connect in the background. Retries will initially happen at a face pace and gradually be done at a slower pace. 
 - The Avahi driver will now print an error message if the same IP address is found on multiple interfaces. This indicates a misconfiguration of the network.
 - Simplify algorithm that determines if an existing connection (is sysfs) can be reused by stafd/stacd instead of creating a duplicate connection.
 - Improve scalability. First, the algorithm that handles kernel events was reworked to handle events faster. Second, limit the amount of times that the netlink kernel interface is invoked. Instead invoke netlink once and cache & reuse the data for the whole duration of the scanning loop.
