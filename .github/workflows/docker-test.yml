@@ -17,7 +17,9 @@ jobs:
 
       - name: Install requirements
         # make sure nvme-cli installed (we need it for /etc/nvme/hostnqn and /etc/nvme/hostid)
-        run: sudo apt-get install --yes --quiet nvme-cli
+        run: |
+          sudo apt update
+          sudo apt-get install --yes --quiet nvme-cli
 
       - name: Load Kernel drivers
         run: sudo modprobe -v nvme-fabrics

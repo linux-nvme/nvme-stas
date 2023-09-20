@@ -39,6 +39,7 @@ jobs:
 
       - name: "INSTALL: additional packages"
         run: |
+          sudo apt update
           sudo apt-get install --yes --quiet python3-pip cmake libgirepository1.0-dev libsystemd-dev python3-systemd swig libjson-c-dev || true
           sudo python3 -m pip install --upgrade pip wheel meson ninja
           python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject lxml pyudev
