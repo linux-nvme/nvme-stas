@@ -17,6 +17,7 @@ jobs:
 
       - name: "INSTALL: Overall dependencies"
         run: |
+          sudo apt update
           sudo apt-get install --yes --quiet python3-pip cmake iproute2
           sudo python3 -m pip install --upgrade pip
           sudo python3 -m pip install --upgrade wheel meson ninja
