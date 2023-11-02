@@ -250,7 +250,7 @@ class _TaskRunner(GObject.Object):
         task.run_in_thread(in_thread_exec)
         return task
 
-    def communicate_finish(self, result):  # pylint: disable=no-self-use
+    def communicate_finish(self, result):
         '''@brief Use this function in your callback (see @cb_function) to
          extract data from the result object.
 

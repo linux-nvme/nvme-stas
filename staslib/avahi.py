@@ -580,7 +580,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
 
             self._check_for_duplicate_ips()
 
-    def _failure_handler(  # pylint: disable=no-self-use
+    def _failure_handler(
         self,
         _connection,
         _sender_name: str,

@@ -425,7 +425,7 @@ class Dc(Controller):
 
     @property
     def origin(self):
-        '''@brief Return how this controller came into existance. Was it
+        '''@brief Return how this controller came into existence. Was it
         "discovered" through mDNS service discovery (TP8009), was it manually
         "configured" in stafd.conf, or was it a "referral".
         '''
@@ -853,6 +853,6 @@ class Ioc(Controller):
                 self._try_to_connect_deferred.schedule()
 
     def _should_try_to_reconnect(self):
-        '''@brief This is used to determine when it's time to stop trying toi connect'''
+        '''@brief This is used to determine when it's time to stop trying to connect'''
         max_connect_attempts = conf.SvcConf().connect_attempts_on_ncc if self.ncc else 0
         return max_connect_attempts == 0 or self._connect_attempts < max_connect_attempts

@@ -12,7 +12,7 @@ jobs:
 
   docker-lint:
     if: ${{ !github.event.act }} # skip during local actions testing
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: hadolint/hadolint-action@v3.1.0
@@ -21,12 +21,12 @@ jobs:
           ignore: DL3041
 
   python-lint:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     steps:
       - name: "CHECKOUT: nvme-stas"
@@ -42,7 +42,7 @@ jobs:
           sudo apt update
           sudo apt-get install --yes --quiet python3-pip cmake libgirepository1.0-dev libsystemd-dev python3-systemd swig libjson-c-dev || true
           sudo python3 -m pip install --upgrade pip wheel meson ninja
-          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject lxml pyudev
+          python3 -m pip install --upgrade dasbus pylint==2.17.7 pyflakes PyGObject lxml pyudev
 
       - name: "BUILD: [libnvme, nvme-stas]"
         uses: BSFishy/meson-build@v1.0.3

@@ -29,7 +29,7 @@ except ImportError:
         # Pre Python 3.9 backport of importlib.resources (if installed)
         from importlib_resources import files
     except ImportError:
-        # Less efficient, but avalable on older versions of Python
+        # Less efficient, but available on older versions of Python
         import pkg_resources
 
         def load_idl(idl_fname):
@@ -248,7 +248,7 @@ class ControllerABC(abc.ABC):
             self._try_to_connect_deferred.schedule()
         return GLib.SOURCE_REMOVE
 
-    def _should_try_to_reconnect(self):  # pylint: disable=no-self-use
+    def _should_try_to_reconnect(self):
         return True
 
     def _try_to_connect(self):
@@ -537,7 +537,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         # controllers with traddr specified as hostname instead of IP address.
         # Because of this, we need to remove those excluded elements before
         # running name resolution. And we will need to remove excluded
-        # elements after name resolution is complete (i.e. in the calback
+        # elements after name resolution is complete (i.e. in the callback
         # function _config_ctrls_finish)
         logging.debug('ServiceABC._config_ctrls()')
         configured_controllers = [

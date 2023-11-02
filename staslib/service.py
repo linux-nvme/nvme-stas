@@ -725,7 +725,7 @@ class Staf(Service):
         '''@brief Finish discovery controllers configuration after
         hostnames (if any) have been resolved. All the logic associated
         with discovery controller creation/deletion is found here.  To
-        avoid calling this algorith repetitively for each and every events,
+        avoid calling this algorithm repetitively for each and every events,
         it is called after a soaking period controlled by self._cfg_soak_tmr.
 
         @param configured_ctrl_list: List of TIDs configured in stafd.conf with

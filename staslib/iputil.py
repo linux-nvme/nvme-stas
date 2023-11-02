@@ -132,7 +132,7 @@ def mac2iface(mac: str):  # pylint: disable=too-many-locals
 
 # ******************************************************************************
 def ip_equal(ip1, ip2):
-    '''Check whther two IP addresses are equal.
+    '''Check whether two IP addresses are equal.
     @param ip1: IPv4Address or IPv6Address object
     @param ip2: IPv4Address or IPv6Address object
     '''
