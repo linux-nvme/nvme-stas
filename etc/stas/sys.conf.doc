@@ -16,7 +16,7 @@
 #          indicates that the Host NQN can be retrieved from a separate file.
 #          Typically, nvme-cli saves the Host NQN in /etc/nvme/hostnqn. For
 #          compatibility with nvme-cli, nvme-stas defaults to looking for the
-#          existance of this file and will read the NQN from it. Otherwise, you
+#          existence of this file and will read the NQN from it. Otherwise, you
 #          can overwrite the default NQN by specifying its value here or
 #          specifying another file that contains the Host NQN to use.
 #          Type: string
@@ -28,7 +28,7 @@
 #          indicates that the Host ID can be retrieved from a separate file.
 #          Typically, nvme-cli saves the Host ID in /etc/nvme/hostid. For
 #          compatibility with nvme-cli, nvme-stas defaults to looking for the
-#          existance of this file and will read the ID from it. Otherwise, you
+#          existence of this file and will read the ID from it. Otherwise, you
 #          can overwrite the default ID by specifying its value here or
 #          specifying another file that contains the Host ID to use.
 #          Type: string
@@ -41,7 +41,7 @@
 #          A value starting with "file://" indicates that the Host Key can
 #          be retrieved from a separate file. Typically, nvme-cli saves the
 #          Host Key in /etc/nvme/hostkey. For compatibility with nvme-cli,
-#          nvme-stas defaults to looking for the existance of this file and
+#          nvme-stas defaults to looking for the existence of this file and
 #          will read the Key from it. Otherwise, you can overwrite the default
 #          Key by specifying its value here or specifying another file that
 #          contains an alternate Host Key to use.

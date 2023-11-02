@@ -188,7 +188,7 @@
                             DNS-SD/mDNS.
                         </para>
                         <para>
-                            Discovery Controllers that support zeroconf advertize
+                            Discovery Controllers that support zeroconf advertise
                             themselves over mDNS with the service type
                             <literal>_nvme-disc._tcp</literal>.
                         </para>

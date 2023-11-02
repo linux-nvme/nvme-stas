@@ -194,9 +194,9 @@ class StasSysConfUnitTest(unittest.TestCase):
         ],
         FNAME_4: [
             '[Host]\n',
-            'nqn=file:///some/non/exisiting/file/!@#\n',
-            'id=file:///some/non/exisiting/file/!@#\n',
-            'symname=file:///some/non/exisiting/file/!@#\n',
+            'nqn=file:///some/non/existing/file/!@#\n',
+            'id=file:///some/non/existing/file/!@#\n',
+            'symname=file:///some/non/existing/file/!@#\n',
         ],
     }
 
