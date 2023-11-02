@@ -248,7 +248,7 @@ class ControllerABC(abc.ABC):
             self._try_to_connect_deferred.schedule()
         return GLib.SOURCE_REMOVE
 
-    def _should_try_to_reconnect(self):  # pylint: disable=no-self-use
+    def _should_try_to_reconnect(self):
         return True
 
     def _try_to_connect(self):
