@@ -49,13 +49,4 @@ python3.install_sources(
     subdir: 'staslib',
 )
 
-#===============================================================================
-# Make a list of modules to lint
-skip = ['stafd.idl', 'stacd.idl']
-foreach file: files_to_install
-    fname = fs.name('@0@'.format(file))
-    if fname not in skip
-        modules_to_lint += file
-    endif
-endforeach
-
+packages_to_lint += meson.current_build_dir()
