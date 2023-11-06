@@ -65,7 +65,7 @@ else
         rcfile = srce_dir / 'pylint.rc'
 
         if pylint.found()
-            test('pylint', pylint, args: ['--rcfile=' + rcfile] + modules_to_lint, env: test_env)
+            test('pylint', pylint, args: ['--rcfile=' + rcfile] + modules_to_lint + packages_to_lint, env: test_env)
         else
             warning('Skiping some of the tests because "pylint" is missing.')
         endif

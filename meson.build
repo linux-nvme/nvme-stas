@@ -133,6 +133,7 @@ endforeach
 #===========================================================================
 # Make a list of modules to lint
 modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+packages_to_lint = []
 
 
 # Point Python Path to Current Build Dir.
