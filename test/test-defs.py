@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import contextlib
 import os
 import sys
 import unittest
@@ -9,13 +10,17 @@ class MockLibnvmeTestCase(unittest.TestCase):
     '''Testing defs.py by mocking the libnvme package'''
 
     def test_libnvme_version(self):
-        # For unknown reasons, this test does
-        # not work when run from GitHub Actions.
-        if not os.getenv('GITHUB_ACTIONS'):
-            from staslib import defs
+        # Ensure that we re-import staslib & staslib.defs if the current Python
+        # process has them already imported.
+        with contextlib.suppress(KeyError):
+            sys.modules.pop('staslib.defs')
+        with contextlib.suppress(KeyError):
+            sys.modules.pop('staslib')
 
-            libnvme_ver = defs.LIBNVME_VERSION
-            self.assertEqual(libnvme_ver, '?.?')
+        from staslib import defs
+
+        libnvme_ver = defs.LIBNVME_VERSION
+        self.assertEqual(libnvme_ver, '?.?')
 
     @classmethod
     def setUpClass(cls):  # called once before all the tests
