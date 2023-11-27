@@ -679,7 +679,7 @@ class Test(unittest.TestCase):
                         'host-nqn': '',
                     }
                 )
-                match = len(ipv6_addrs) == 1 and iputil.get_ipaddress_obj(
+                match = len(ipv6_addrs) >= 1 and iputil.get_ipaddress_obj(
                     ipv6_addrs[0], ipv4_mapped_convert=True
                 ) == iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
                 self.assertEqual(
