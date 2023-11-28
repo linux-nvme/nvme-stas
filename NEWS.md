@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.3.1
+
+Bug fix:
+
+* Properly handle big-endian data in `iputils.py`. This fix ensures that `struct.[pack|unpack]` is invoked with the CPU's native endianness. This fix is required for nvme-stas to work properly on big-endian CPUs (little-endian CPUs are not affected).
+
 ## Changes with release 2.3
 
 New features:
