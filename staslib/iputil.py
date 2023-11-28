@@ -42,7 +42,7 @@ def _nlmsghdr(nlmsg_type, nlmsg_flags, nlmsg_seq, nlmsg_pid, msg_len: int):
         __u32 nlmsg_pid;   /* Sending process port ID */
     };
     '''
-    return struct.pack('<LHHLL', NLMSG_LENGTH(msg_len), nlmsg_type, nlmsg_flags, nlmsg_seq, nlmsg_pid)
+    return struct.pack('=LHHLL', NLMSG_LENGTH(msg_len), nlmsg_type, nlmsg_flags, nlmsg_seq, nlmsg_pid)
 
 
 def _ifaddrmsg(family=0, prefixlen=0, flags=0, scope=0, index=0):
@@ -55,7 +55,7 @@ def _ifaddrmsg(family=0, prefixlen=0, flags=0, scope=0, index=0):
         __u32  ifa_index;      /* Link index           */
     };
     '''
-    return struct.pack('<BBBBL', family, prefixlen, flags, scope, index)
+    return struct.pack('=BBBBL', family, prefixlen, flags, scope, index)
 
 
 def _ifinfomsg(family=0, dev_type=0, index=0, flags=0, change=0):
@@ -69,7 +69,7 @@ def _ifinfomsg(family=0, dev_type=0, index=0, flags=0, change=0):
         unsigned int    ifi_change; /* change mask: IFF_* */
     };
     '''
-    return struct.pack('<BBHiII', family, 0, dev_type, index, flags, change)
+    return struct.pack('=BBHiII', family, 0, dev_type, index, flags, change)
 
 
 def _nlmsg(nlmsg_type, nlmsg_flags, msg: bytes):
@@ -102,7 +102,7 @@ def mac2iface(mac: str):  # pylint: disable=too-many-locals
                 nlmsg += sock.recv(8192)
 
             nlmsghdr = nlmsg[nlmsg_idx : nlmsg_idx + NLMSG_HDRLEN]
-            nlmsg_len, nlmsg_type, _, _, _ = struct.unpack('<LHHLL', nlmsghdr)
+            nlmsg_len, nlmsg_type, _, _, _ = struct.unpack('=LHHLL', nlmsghdr)
 
             if nlmsg_type == NLMSG_DONE:
                 break
@@ -110,13 +110,13 @@ def mac2iface(mac: str):  # pylint: disable=too-many-locals
             if nlmsg_type == RTM_BASE:
                 msg_indx = nlmsg_idx + NLMSG_HDRLEN
                 msg = nlmsg[msg_indx : msg_indx + IFINFOMSG_SZ]  # ifinfomsg
-                _, _, ifi_type, ifi_index, _, _ = struct.unpack('<BBHiII', msg)
+                _, _, ifi_type, ifi_index, _, _ = struct.unpack('=BBHiII', msg)
 
                 if ifi_type in (ARPHRD_LOOPBACK, ARPHRD_ETHER):
                     rtattr_indx = msg_indx + IFINFOMSG_SZ
                     while rtattr_indx < (nlmsg_idx + nlmsg_len):
                         rtattr = nlmsg[rtattr_indx : rtattr_indx + RTATTR_SZ]
-                        rta_len, rta_type = struct.unpack('<HH', rtattr)
+                        rta_len, rta_type = struct.unpack('=HH', rtattr)
                         if rta_type == IFLA_ADDRESS:
                             data = nlmsg[rtattr_indx + RTATTR_SZ : rtattr_indx + rta_len]
                             if _data_matches_mac(data, mac):
@@ -206,7 +206,7 @@ def net_if_addrs():  # pylint: disable=too-many-locals
                 nlmsg += sock.recv(8192)
 
             nlmsghdr = nlmsg[nlmsg_idx : nlmsg_idx + NLMSG_HDRLEN]
-            nlmsg_len, nlmsg_type, _, _, _ = struct.unpack('<LHHLL', nlmsghdr)
+            nlmsg_len, nlmsg_type, _, _, _ = struct.unpack('=LHHLL', nlmsghdr)
 
             if nlmsg_type == NLMSG_DONE:
                 break
@@ -214,7 +214,7 @@ def net_if_addrs():  # pylint: disable=too-many-locals
             if nlmsg_type == RTM_NEWADDR:
                 msg_indx = nlmsg_idx + NLMSG_HDRLEN
                 msg = nlmsg[msg_indx : msg_indx + IFADDRMSG_SZ]  # ifaddrmsg
-                ifa_family, _, _, _, ifa_index = struct.unpack('<BBBBL', msg)
+                ifa_family, _, _, _, ifa_index = struct.unpack('=BBBBL', msg)
 
                 if ifa_family in (socket.AF_INET, socket.AF_INET6):
                     interfaces.setdefault(ifa_index, {4: [], 6: []})
@@ -222,7 +222,7 @@ def net_if_addrs():  # pylint: disable=too-many-locals
                     rtattr_indx = msg_indx + IFADDRMSG_SZ
                     while rtattr_indx < (nlmsg_idx + nlmsg_len):
                         rtattr = nlmsg[rtattr_indx : rtattr_indx + RTATTR_SZ]
-                        rta_len, rta_type = struct.unpack('<HH', rtattr)
+                        rta_len, rta_type = struct.unpack('=HH', rtattr)
 
                         if rta_type == IFLA_IFNAME:
                             data = nlmsg[rtattr_indx + RTATTR_SZ : rtattr_indx + rta_len]
