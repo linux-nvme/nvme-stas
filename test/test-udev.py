@@ -295,6 +295,11 @@ class Test(unittest.TestCase):
     def test__cid_matches_tid(self):
         ifaces = iputil.net_if_addrs()
         for ifname, addrs in self.ifaces.items():
+            # <ifaces> contains a subset of the interfaces found in <self.ifaces>.
+            # So, let's make sure that we only test with the interfaces found in both.
+            if ifname not in ifaces:
+                continue
+
             ##############################################
             # IPV4
 
