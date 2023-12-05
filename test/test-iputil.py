@@ -68,6 +68,14 @@ class Test(unittest.TestCase):
         candidate_ifaces = [iface for iface in self.ifaces if self._is_ok_for_mac2iface(iface)]
 
         for iface in candidate_ifaces:
+            if len([x for x in candidate_ifaces if x['address'] == iface['address']]) >= 2:
+                # We need to be careful, sometimes we can have the same MAC address
+                # on multiple interfaces. This happens with VLAN interfaces for
+                # instance. mac2iface will obviously be confused when dealing with
+                # those so let's skip the interfaces that have duplicate MAC.
+                logging.warning('[%s] is not the only interface with address [%s]', iface['ifname'], iface['address'])
+                continue
+
             self.assertEqual(iface['ifname'], iputil.mac2iface(iface['address']))
 
     def test_remove_invalid_addresses(self):
