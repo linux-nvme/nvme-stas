@@ -43,11 +43,40 @@ class Test(unittest.TestCase):
         self.assertEqual('', iputil.get_interface(ifaces, ''))
         self.assertEqual('', iputil.get_interface(ifaces, None))
 
+    @staticmethod
+    def _is_ok_for_mac2iface(iface) -> bool:
+        '''mac2iface can only work with interfaces that have a proper MAC
+        address. One can use this function to filter out other interfaces
+        configured on the system.'''
+        if iface['link_type'] != 'ether':
+            # Some esoteric interface types (e.g., gre) use the address
+            # field to store something that is not a MAC address. Skip
+            # them.
+            return False
+        if 'address' not in iface:
+            return False
+        if iface['address'] == '00:00:00:00:00:00':
+            # All 0's is an invalid MAC address so do not bother.
+            # In practice, it often appears as the address of the loopback
+            # interface but it can also appear for other things like a gretap
+            # or erspan interface.
+            return False
+        return True
+
     def test_mac2iface(self):
-        for iface in self.ifaces:
-            address = iface.get('address', None)
-            if address:
-                self.assertEqual(iface['ifname'], iputil.mac2iface(address))
+        # We only test the interfaces that have a MAC address, and a valid one.
+        candidate_ifaces = [iface for iface in self.ifaces if self._is_ok_for_mac2iface(iface)]
+
+        for iface in candidate_ifaces:
+            if len([x for x in candidate_ifaces if x['address'] == iface['address']]) >= 2:
+                # We need to be careful, sometimes we can have the same MAC address
+                # on multiple interfaces. This happens with VLAN interfaces for
+                # instance. mac2iface will obviously be confused when dealing with
+                # those so let's skip the interfaces that have duplicate MAC.
+                logging.warning('[%s] is not the only interface with address [%s]', iface['ifname'], iface['address'])
+                continue
+
+            self.assertEqual(iface['ifname'], iputil.mac2iface(iface['address']))
 
     def test_remove_invalid_addresses(self):
         good_tcp = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': '', 'trsvcid': '8009'})
