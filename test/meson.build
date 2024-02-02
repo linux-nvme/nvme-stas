@@ -9,6 +9,8 @@
 
 srce_dir = meson.current_source_dir()
 test_env = environment({'MALLOC_PERTURB_': '0'})
+test_env.append('PYTHONMALLOC', 'malloc')
+test_list = modules_to_lint + packages_to_lint
 
 libnvme_location = '?'
 
@@ -23,9 +25,9 @@ if get_option('libnvme-sel') == 'pre-installed'
     rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__path__[0]}")', check: false, env: test_env)
     if rr.returncode() == 0
         libnvme_location = rr.stdout().strip()
-        pythonpath = fs.parent(libnvme_location)
-        test_env.prepend('PYTHONPATH', pythonpath) # Look in standard location first
-        test_env.append('PYTHONPATH', PYTHONPATH)  # Look in the build directory second
+        libnvme_path = fs.parent(libnvme_location)
+        PYTHONPATH = ':'.join([libnvme_path, PYTHONPATH])
+        test_env.prepend('PYTHONPATH', PYTHONPATH)
     endif
 endif
 
@@ -52,7 +54,7 @@ else
     #    python3 -m pip install --upgrade pylint==2.17.7
 
 
-    if modules_to_lint.length() != 0
+    if test_list.length() != 0
         pylint = find_program('pylint', required: false)
         pyflakes = find_program('pyflakes3', required: false)
         if not pyflakes.found()
@@ -65,12 +67,12 @@ else
         rcfile = srce_dir / 'pylint.rc'
 
         if pylint.found()
-            test('pylint', pylint, args: ['--rcfile=' + rcfile] + modules_to_lint + packages_to_lint, env: test_env)
+            test('pylint', pylint, args: ['--rcfile=' + rcfile] + test_list, env: test_env)
         else
             warning('Skiping some of the tests because "pylint" is missing.')
         endif
         if pyflakes.found()
-            test('pyflakes', pyflakes, args: modules_to_lint, env: test_env)
+            test('pyflakes', pyflakes, args: test_list, env: test_env)
         else
             warning('Skiping some of the tests because "pyflakes" is missing.')
         endif
@@ -156,8 +158,8 @@ tools = [
 ]
 vermin = find_program('vermin', required: false)
 if vermin.found()
-    if modules_to_lint.length() != 0
-        test('vermin code', vermin, args: ['--config-file', srce_dir / 'vermin.conf'] + modules_to_lint, env: test_env)
+    if test_list.length() != 0
+        test('vermin code', vermin, args: ['--config-file', srce_dir / 'vermin.conf'] + test_list, env: test_env)
     endif
     test('vermin tools', vermin, args: ['--config-file', srce_dir / 'vermin-tools.conf'] + tools, env: test_env)
 else

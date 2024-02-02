@@ -167,9 +167,11 @@ class Service:  # pylint: disable=too-many-instance-attributes
             'trsvcid': trsvcid,
             # host-iface permitted for tcp alone and not rdma
             'host-iface': host_iface,
-            'subsysnqn': txt.get('nqn', defs.WELL_KNOWN_DISC_NQN).strip()
-            if conf.NvmeOptions().discovery_supp
-            else defs.WELL_KNOWN_DISC_NQN,
+            'subsysnqn': (
+                txt.get('nqn', defs.WELL_KNOWN_DISC_NQN).strip()
+                if conf.NvmeOptions().discovery_supp
+                else defs.WELL_KNOWN_DISC_NQN
+            ),
         }
 
         self._ip = iputil.get_ipaddress_obj(traddr, ipv4_mapped_convert=True)

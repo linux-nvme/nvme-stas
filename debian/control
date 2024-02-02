@@ -1,23 +1,43 @@
 Source: nvme-stas
-Section: misc
+Section: net
 Priority: optional
 Maintainer: Martin Belanger <Martin.Belanger@dell.com>
-Build-Depends: debhelper-compat (= 12), python3-setuptools, dh-python, meson, ninja-build
-Standards-Version: 4.4.1
-Homepage: https://nvme-stas.readthedocs.io/en/latest/
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-python,
+ docbook-xml,
+ docbook-xsl,
+ iproute2,
+ libglib2.0-dev-bin,
+ meson,
+ python3-lxml,
+ python3:any,
+ xsltproc,
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/linux-nvme/nvme-stas
 Vcs-Browser: https://github.com/linux-nvme/nvme-stas
 Vcs-Git: https://github.com/linux-nvme/nvme-stas.git
-#Testsuite: autopkgtest-pkg-python
 
 Package: nvme-stas
+Section: net
 Architecture: all
-Depends: ${python3:Depends}, ${misc:Depends}, python3-pyudev, python3-systemd, python3-gi, python3-dasbus, python3-libnvme
-Description: NVMe STorage Appliance Services
- This package provides two daemons, stafd and stacd. The STorage Appliance
- Finder Daemon (stafd) automatically discovers NVMe-oF Discovery Controllers (DC)
- and retrieves the list of NVMe Storage Appliances. The STorage Appliance
- Connector Daemon (stacd) establishes I/O connections to the NVMe Storage
- Appliances discovered by stafd.
+Depends:
+ python3-dasbus,
+ python3-gi,
+ python3-libnvme,
+ python3-pyudev,
+ python3-systemd,
+ ${misc:Depends},
+ ${python3:Depends},
+Description: NVMe Storage Appliance Services (STAS)
+ NVMe over Fabrics (NVMe-oF) is the concept of using a transport protocol over
+ a network to connect remote NVMe devices. nvme-stas contains two services,
+ stafd and stacd, to be used to access NVMe over TCP:
  .
- This package installs the library for Python 3.
-
+   * Storage Appliance Finder (stafd):
+     automatically locate Central or Direct Discovery Controllers (CDC, DDC)
+     with zeroconf (mDNS).
+ .
+   * Storage Appliance Connector (stacd):
+     setup the I/O controller connections to each storage subsystem.
