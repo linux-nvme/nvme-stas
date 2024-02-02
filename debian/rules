@@ -6,7 +6,16 @@
 #export PYBUILD_NAME=nvme-stas
 
 %:
-	dh $@ --with python3 --buildsystem=meson+ninja
+	dh ${@} --buildsystem=meson+ninja --with python3
 
-override_dh_install:
+override_dh_auto_configure:
+	dh_auto_configure -- -Dman=true
 
+override_dh_auto_test:
+	dh_auto_test || true
+
+execute_after_dh_auto_install:
+	# Moving systemd unit directory (#1034225)
+	mkdir -p debian/nvme-stas/lib/systemd
+	mv debian/nvme-stas/usr/lib/systemd/system debian/nvme-stas/lib/systemd
+	rmdir -p --ignore-fail-on-non-empty debian/nvme-stas/usr/lib/systemd

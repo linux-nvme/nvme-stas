@@ -165,7 +165,7 @@ summary_dict = {
     'dbus_conf_dir ':       dbus_conf_dir,
     'sd_unit_dir ':         sd_unit_dir,
     'build location ':      meson.current_build_dir(),
-    'libnvme for tests ':   libnvme_location,
+    'libnvme location ':    libnvme_location,
 }
 summary(summary_dict, section: 'Directories')
 
