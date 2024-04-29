@@ -48,12 +48,6 @@ if libnvme_location == '?'
 else
     #---------------------------------------------------------------------------
     # pylint and pyflakes
-
-    # There's a bug with pylint 3.X. Tests should be run with pylint
-    # 2.17.7 (or less), which can be installed with:
-    #    python3 -m pip install --upgrade pylint==2.17.7
-
-
     if test_list.length() != 0
         pylint = find_program('pylint', required: false)
         pyflakes = find_program('pyflakes3', required: false)

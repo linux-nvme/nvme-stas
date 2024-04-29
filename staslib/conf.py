@@ -289,8 +289,6 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
     nr_write_queues = property(functools.partial(get_option, section='Global', option='nr-write-queues'))
     reconnect_delay = property(functools.partial(get_option, section='Global', option='reconnect-delay'))
 
-    zeroconf_enabled = property(functools.partial(get_option, section='Service Discovery', option='zeroconf'))
-
     zeroconf_persistence_sec = property(
         functools.partial(
             get_option, section='Discovery controller connection management', option='zeroconf-connections-persistence'
@@ -306,6 +304,11 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
     connect_attempts_on_ncc = property(
         functools.partial(get_option, section='I/O controller connection management', option='connect-attempts-on-ncc')
     )
+
+    @property  # pylint chokes on this when defined as zeroconf_enabled=property(...). Works fine using a decorator...
+    def zeroconf_enabled(self):
+        '''Return whether zeroconf is enabled'''
+        return self.get_option(section='Service Discovery', option='zeroconf')
 
     @property
     def stypes(self):
@@ -707,7 +710,7 @@ class NvmeOptions(metaclass=singleton.Singleton):
 
 
 # ******************************************************************************
-class NbftConf(metaclass=singleton.Singleton):
+class NbftConf(metaclass=singleton.Singleton):  # pylint: disable=too-few-public-methods
     '''Read and cache configuration file.'''
 
     def __init__(self, root_dir=defs.NBFT_SYSFS_PATH):
