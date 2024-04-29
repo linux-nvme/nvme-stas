@@ -28,5 +28,14 @@ RuntimeDirectory=stacd
 CacheDirectory=stacd
 RuntimeDirectoryPreserve=yes
 
+ProtectHome=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectProc=invisible
+RestrictRealtime=true
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
 [Install]
 WantedBy=multi-user.target
