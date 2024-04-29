@@ -200,8 +200,7 @@ def get_tids_to_test(family, src_ip, ifname):
     ]
 
 
-class DummyDevice:
-    ...
+class DummyDevice: ...
 
 
 class Test(unittest.TestCase):
