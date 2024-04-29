@@ -809,11 +809,7 @@ class Staf(Service):
             origin = (
                 'configured'
                 if tid in configured_ctrl_list
-                else 'referral'
-                if tid in referral_ctrl_list
-                else 'discovered'
-                if tid in discovered_ctrl_list
-                else None
+                else 'referral' if tid in referral_ctrl_list else 'discovered' if tid in discovered_ctrl_list else None
             )
             if origin is not None:
                 controller.origin = origin
