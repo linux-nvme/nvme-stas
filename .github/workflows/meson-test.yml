@@ -26,7 +26,7 @@ jobs:
         run: |
           sudo apt-get install --yes --quiet docbook-xml docbook-xsl xsltproc libglib2.0-dev libgirepository1.0-dev libsystemd-dev
           sudo apt-get install --yes --quiet python3-systemd python3-pyudev python3-lxml
-          python3 -m pip install --upgrade dasbus pylint==2.17.7 pyflakes PyGObject
+          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject
           python3 -m pip install --upgrade vermin pyfakefs importlib-resources
 
       - name: "INSTALL: libnvme dependencies"
