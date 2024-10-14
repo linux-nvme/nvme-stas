@@ -184,7 +184,7 @@ $ sudo ./nvmet.py clean
 This requires the [Python coverage package](https://coverage.readthedocs.io/en/6.4.1/), which can be installed as follows:
 
 ```bash
-$ sudo pip install coverage
+$ sudo apt-get install python3-coverage
 ```
 
 Note that this test cannot be run while `stafd` and `stacd` are running. Make sure to stop `stafd` and `stacd` if they are running (`systemctl stop [stafd|stacd]`). You may also need to mask those services (`systemctl mask [stafd|stacd]`) if coverage fails to start. 

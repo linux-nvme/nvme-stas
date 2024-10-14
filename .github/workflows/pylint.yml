@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - name: "CHECKOUT: nvme-stas"
@@ -37,12 +37,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: "INSTALL: additional packages"
+      - name: "INSTALL: apt-get packages"
         run: |
           sudo apt update
-          sudo apt-get install --yes --quiet python3-pip cmake libgirepository1.0-dev libsystemd-dev python3-systemd swig libjson-c-dev || true
-          sudo python3 -m pip install --upgrade pip wheel meson ninja
-          python3 -m pip install --upgrade dasbus pylint pyflakes PyGObject lxml pyudev
+          sudo apt-get install --yes --quiet meson ninja-build cmake libgirepository1.0-dev libsystemd-dev swig libjson-c-dev
+          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml pylint pyflakes3 python3-pyflakes python3-tomli
+
+      - name: "INSTALL: pip packages"
+        run: |
+          sudo pip install PyGObject --break-system-packages
 
       - name: "BUILD: [libnvme, nvme-stas]"
         uses: BSFishy/meson-build@v1.0.3
@@ -60,12 +63,12 @@ jobs:
           echo -e "Build Directory:\n$(ls -laF .build)"
           python3 -VV
           python3 -m site
-          python3 -m pylint --version
+          pylint --version
           echo "pyflakes $(python3 -m pyflakes --version)"
 
       - name: Pylint
         run: |
-          python3 -m pylint -j 0 --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+          pylint -j 0 --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
       - name: Pyflakes
         if: always()
