@@ -70,7 +70,7 @@ black:
 	black --diff --color --line-length 120 --skip-string-normalization --extend-exclude="(subprojects|debian|.build)" .
 
 # Coverage requirements:
-#   pip install coverage
+#   apt-get install python3-coverage
 .PHONY: coverage
 coverage: stas
 	cd ${BUILD-DIR} && ./coverage.sh

@@ -51,7 +51,7 @@ endif
 missing_runtime_mods = false
 py_modules_reqd = [
     ['libnvme', 'Install python3-libnvme (deb/rpm)'],
-    ['dasbus',  'Install python3-dasbus (deb/rpm) OR pip3 install dasbus'],
+    ['dasbus',  'Install python3-dasbus (deb/rpm) OR pip install dasbus'],
     ['pyudev',  'Install python3-pyudev (deb/rpm)'],
     ['systemd', 'Install python3-systemd (deb/rpm)'],
     ['gi',      'Install python3-gi (deb) OR python3-gobject (rpm)'],
