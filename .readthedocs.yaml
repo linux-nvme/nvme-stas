@@ -20,6 +20,8 @@ build:
     - xsltproc
     - pandoc
   jobs:
+    post_install:
+      - sudo pip install lxml --break-system-packages
     pre_build:
       - meson .build -Dreadthedocs=true || cat .build/meson-logs/meson-log.txt
       - ninja -C .build
