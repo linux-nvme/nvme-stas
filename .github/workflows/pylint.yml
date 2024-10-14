@@ -84,7 +84,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: "BLACK"
-        uses: psf/black@24.8.0
+        uses: psf/black@24.10.0
         with:
           options: "--check --diff --color --line-length 120 --skip-string-normalization --extend-exclude (subprojects|debian|.build)"
           src: "."
