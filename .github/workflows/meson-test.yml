@@ -10,7 +10,7 @@ on:
 
 jobs:
   meson-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: "CHECKOUT: nvme-stas"
         uses: actions/checkout@v4
@@ -22,22 +22,19 @@ jobs:
 
       - name: "INSTALL: python packages"
         run: |
-          sudo apt update
           sudo apt-get install --yes --quiet python3-pip python3-wheel pylint pyflakes3 python3-systemd python3-pyudev python3-lxml python3-dasbus python3-gi python3-importlib-resources python3-pyfakefs
 
       - name: "INSTALL: documentation packages"
         run: |
-          sudo apt update
           sudo apt-get install --yes --quiet docbook-xml docbook-xsl xsltproc
 
       - name: "INSTALL: remaining debian packages"
         run: |
-          sudo apt update
           sudo apt-get install --yes --quiet iproute2 libglib2.0-dev libgirepository1.0-dev libsystemd-dev
 
       - name: "INSTALL: pip packages"
         run: |
-          sudo pip install vermin --break-system-packages
+          pip install vermin
 
       - name: "INSTALL: libnvme packages (needed to build libnvme)"
         run: |

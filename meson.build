@@ -39,7 +39,13 @@ if want_man or want_html or want_readthedocs
     buildtime_modules += ['lxml']
 endif
 
-python3 = import('python').find_installation('python3', modules:buildtime_modules)
+# On older systems we had to invoke Python 3 as "python3". On newer systems,
+# Python 2 has been completely deprecated and Python 3 is simply named "python".
+pymod = import('python')
+python3 = pymod.find_installation('python3', modules:buildtime_modules, required:false)
+if not python3.found()
+    python3 = pymod.find_installation('python', modules:buildtime_modules)
+endif
 python_version = python3.language_version()
 python_version_req = '>=3.6'
 if not python_version.version_compare(python_version_req)

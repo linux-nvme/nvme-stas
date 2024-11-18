@@ -38,6 +38,7 @@ endif
 purge:
 ifneq ("$(wildcard ${BUILD-DIR})","")
 	rm -rf ${BUILD-DIR}
+	meson subprojects purge --confirm
 endif
 
 .PHONY: install

@@ -20,13 +20,27 @@ jobs:
           recursive: true
           ignore: DL3041
 
-  python-lint:
+  python-black:
+    if: ${{ !github.event.act }} # skip during local actions testing
+    name: python-black formatter
     runs-on: ubuntu-latest
+    steps:
+      - name: "CHECKOUT: nvme-stas"
+        uses: actions/checkout@v4
+
+      - name: "BLACK"
+        uses: psf/black@24.10.0
+        with:
+          options: "--check --diff --color --line-length 120 --skip-string-normalization --extend-exclude (subprojects|debian|.build)"
+          src: "."
+
+  python-lint-Jammy:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10"]
 
     steps:
       - name: "CHECKOUT: nvme-stas"
@@ -41,11 +55,12 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install --yes --quiet meson ninja-build cmake libgirepository1.0-dev libsystemd-dev swig libjson-c-dev
-          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml pylint pyflakes3 python3-pyflakes python3-tomli
+          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml pyflakes3 python3-tomli
 
       - name: "INSTALL: pip packages"
         run: |
-          sudo pip install PyGObject --break-system-packages
+          pip install pylint --upgrade
+          pip install PyGObject --upgrade
 
       - name: "BUILD: [libnvme, nvme-stas]"
         uses: BSFishy/meson-build@v1.0.3
@@ -64,27 +79,69 @@ jobs:
           python3 -VV
           python3 -m site
           pylint --version
-          echo "pyflakes $(python3 -m pyflakes --version)"
+          echo "pyflakes3 $(pyflakes3 --version)"
 
-      - name: Pylint
-        run: |
-          pylint -j 0 --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+      #- name: Pylint
+      #  run: |
+      #    pylint --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
       - name: Pyflakes
         if: always()
         run: |
-          python3 -m pyflakes .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+          pyflakes3 .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
-  python-black:
-    if: ${{ !github.event.act }} # skip during local actions testing
-    name: python-black formatter
-    runs-on: ubuntu-latest
+  python-lint-Noble:
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
     steps:
       - name: "CHECKOUT: nvme-stas"
         uses: actions/checkout@v4
 
-      - name: "BLACK"
-        uses: psf/black@24.10.0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5.3.0
         with:
-          options: "--check --diff --color --line-length 120 --skip-string-normalization --extend-exclude (subprojects|debian|.build)"
-          src: "."
+          python-version: ${{ matrix.python-version }}
+
+      - name: "INSTALL: apt-get packages"
+        run: |
+          sudo apt update
+          sudo apt-get install --yes --quiet meson ninja-build cmake libgirepository1.0-dev libsystemd-dev swig libjson-c-dev
+          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml pylint pyflakes3 python3-tomli
+
+      #- name: "INSTALL: pip packages"
+      #  run: |
+      #    pip install pylint
+      #    pip install PyGObject
+
+      - name: "BUILD: [libnvme, nvme-stas]"
+        uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          directory: .build
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dlibnvme:buildtype=release -Dlibnvme:sysconfdir=/etc -Dlibnvme:prefix=/usr -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
+
+      - name: Set PYTHONPATH
+        run: |
+          echo "PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages" >> $GITHUB_ENV
+
+      - name: Show test environment
+        run: |
+          echo -e "Build Directory:\n$(ls -laF .build)"
+          python3 -VV
+          python3 -m site
+          pylint --version
+          echo "pyflakes3 $(pyflakes3 --version)"
+
+      - name: Pylint
+        run: |
+          pylint --jobs=0 --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+
+      - name: Pyflakes
+        if: always()
+        run: |
+          pyflakes3 .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
