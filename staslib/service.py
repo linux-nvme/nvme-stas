@@ -510,7 +510,7 @@ class Stac(Service):
 UDEV_RULE_OVERRIDE = r'''
 ACTION=="change", SUBSYSTEM=="fc", ENV{FC_EVENT}=="nvmediscovery", \
   ENV{NVMEFC_HOST_TRADDR}=="*",  ENV{NVMEFC_TRADDR}=="*", \
-  RUN+="%s --no-block start nvmf-connect@--transport=fc\t--traddr=$env{NVMEFC_TRADDR}\t--trsvcid=none\t--host-traddr=$env{NVMEFC_HOST_TRADDR}.service"
+  RUN+="%s --no-block restart nvmf-connect@--device\x3dnone\x09--transport\x3dfc\x09--traddr\x3d$env{NVMEFC_TRADDR}\x09--trsvcid\x3dnone\x09--host-traddr\x3d$env{NVMEFC_HOST_TRADDR}.service"
 '''
 
 
@@ -864,10 +864,12 @@ class Staf(Service):
             return
 
         # We need to invoke "nvme connect-all" using nvme-cli's nvmf-connect@.service
-        # NOTE: Eventually, we'll be able to drop --host-traddr and --host-iface from
+        # NOTE 1: Eventually, we'll be able to drop --host-traddr and --host-iface from
         # the parameters passed to nvmf-connect@.service. A fix was added to connect-all
         # to infer these two values from the device used to connect to the DC.
         # Ref: https://github.com/linux-nvme/nvme-cli/pull/1812
+        #
+        # NOTE 2:--transport, --traddr, and --trsvcid, not needed when using --device
         cnf = [
             ('--device', udev_obj.sys_name),
             ('--host-traddr', udev_obj.properties.get('NVME_HOST_TRADDR', None)),
