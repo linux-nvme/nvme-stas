@@ -6,8 +6,8 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-''' Module that provides a way to retrieve discovered
-    services from the Avahi daemon over D-Bus.
+'''Module that provides a way to retrieve discovered
+services from the Avahi daemon over D-Bus.
 '''
 import socket
 import typing

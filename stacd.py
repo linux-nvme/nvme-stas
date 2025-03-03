@@ -7,8 +7,7 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-''' STorage Appliance Connector Daemon
-'''
+'''STorage Appliance Connector Daemon'''
 import sys
 from argparse import ArgumentParser
 from staslib import defs
