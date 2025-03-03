@@ -47,7 +47,8 @@ install: stas
 
 .PHONY: uninstall
 uninstall: ${BUILD-DIR}
-	sudo ninja $@ -C ${BUILD-DIR}
+	cd ${BUILD-DIR} && sudo meson --internal uninstall
+
 
 .PHONY: dist
 dist: stas
