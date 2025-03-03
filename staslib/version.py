@@ -6,12 +6,12 @@
 #
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
-''' distutils (and hence LooseVersion) is being deprecated. None of the
-    suggested replacements (e.g. from pkg_resources import parse_version) quite
-    work with Linux kernel versions the way LooseVersion does.
+'''distutils (and hence LooseVersion) is being deprecated. None of the
+suggested replacements (e.g. from pkg_resources import parse_version) quite
+work with Linux kernel versions the way LooseVersion does.
 
-    It was suggested to simply lift the LooseVersion code and vendor it in,
-    which is what this module is about.
+It was suggested to simply lift the LooseVersion code and vendor it in,
+which is what this module is about.
 '''
 
 import re
