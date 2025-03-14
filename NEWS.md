@@ -1,5 +1,15 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.4
+
+New features:
+
+Support for authentication
+
+Bug fix:
+
+* Various fixes related to unit testing and GitHub Actions
+
 ## Changes with release 2.3.1
 
 Bug fix:
