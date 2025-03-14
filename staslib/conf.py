@@ -341,6 +341,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
             'host-traddr':        [TRADDR],
             'host-iface':         [IFACE],
             'host-nqn':           [NQN],
+            'dhchap-secret':      [KEY],
             'dhchap-ctrl-secret': [KEY],
             'hdr-digest':         [BOOL]
             'data-digest':        [BOOL]

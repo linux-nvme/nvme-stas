@@ -52,19 +52,26 @@ def _get_loaded_nvmet_modules():
     return output
 
 
-def _runcmd(cmd: list, quiet=False):
+def _runcmd(cmd: list, quiet=False, capture_output=False):
     if not quiet:
         print(' '.join(cmd))
     if args.dry_run:
         return
-    subprocess.run(cmd)
+
+    try:
+        cp = subprocess.run(cmd, capture_output=capture_output, text=True)
+    except TypeError:
+        # For older Python versions that don't support "capture_output" or "text"
+        cp = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+
+    return cp.stdout if capture_output else None
 
 
 def _modprobe(module: str, args: list = None, quiet=False):
     cmd = ['/usr/sbin/modprobe', module]
     if args:
         cmd.extend(args)
-    _runcmd(cmd, quiet)
+    _runcmd(cmd, quiet=quiet)
 
 
 def _mkdir(dname: str):
@@ -93,12 +100,32 @@ def _symlink(port: str, subsysnqn: str):
     link.symlink_to(target)
 
 
-def _create_subsystem(subsysnqn: str) -> str:
+def _symlink_allowed_hosts(hostnqn: str, subsysnqn: str):
+    print(
+        f'$( cd "/sys/kernel/config/nvmet/subsystems/{subsysnqn}/allowed_hosts" && ln -s "../../../hosts/{hostnqn}" "{hostnqn}" )'
+    )
+    if args.dry_run:
+        return
+    target = os.path.join('/sys/kernel/config/nvmet/hosts', hostnqn)
+    link = pathlib.Path(os.path.join('/sys/kernel/config/nvmet/subsystems', subsysnqn, 'allowed_hosts', hostnqn))
+    link.symlink_to(target)
+
+
+def _create_subsystem(subsysnqn: str, allowed_hosts: list) -> str:
     print(f'###{Fore.GREEN} Create subsystem: {subsysnqn}{Style.RESET_ALL}')
     dname = os.path.join('/sys/kernel/config/nvmet/subsystems/', subsysnqn)
     _mkdir(dname)
-    _echo(1, os.path.join(dname, 'attr_allow_any_host'))
-    return dname
+    _echo(0 if allowed_hosts else 1, os.path.join(dname, 'attr_allow_any_host'))
+
+    # Configure all the hosts that are allowed to access this subsystem
+    for host in allowed_hosts:
+        hostnqn = host.get('nqn')
+        hostkey = host.get('key')
+        if all([hostnqn, hostkey]):
+            dname = os.path.join('/sys/kernel/config/nvmet/hosts/', hostnqn)
+            _mkdir(dname)
+            _echo(hostkey, os.path.join(dname, 'dhchap_key'))
+            _symlink_allowed_hosts(hostnqn, subsysnqn)
 
 
 def _create_namespace(subsysnqn: str, id: str, node: str) -> str:
@@ -107,7 +134,6 @@ def _create_namespace(subsysnqn: str, id: str, node: str) -> str:
     _mkdir(dname)
     _echo(node, os.path.join(dname, 'device_path'))
     _echo(1, os.path.join(dname, 'enable'))
-    return dname
 
 
 def _args_valid(id, traddr, trsvcid, trtype, adrfam):
@@ -215,8 +241,9 @@ def create(args):
             str(subsystem.get('port')),
             subsystem.get('namespaces'),
         )
+
         if None not in (subsysnqn, port, namespaces):
-            _create_subsystem(subsysnqn)
+            _create_subsystem(subsysnqn, subsystem.get('allowed_hosts', []))
             for id in namespaces:
                 _create_namespace(subsysnqn, str(id), dev_node)
         else:
@@ -235,10 +262,16 @@ def clean(args):
     if not args.dry_run and os.geteuid() != 0:
         sys.exit(f'Permission denied. You need root privileges to run {os.path.basename(__file__)}.')
 
+    print(f'###{Fore.GREEN} 1st) Remove the symlinks{Style.RESET_ALL}')
     print('rm -f /sys/kernel/config/nvmet/ports/*/subsystems/*')
     for dname in pathlib.Path('/sys/kernel/config/nvmet/ports').glob('*/subsystems/*'):
         _runcmd(['rm', '-f', str(dname)], quiet=True)
 
+    print('rm -f /sys/kernel/config/nvmet/subsystems/*/allowed_hosts/*')
+    for dname in pathlib.Path('/sys/kernel/config/nvmet/subsystems').glob('*/allowed_hosts/*'):
+        _runcmd(['rm', '-f', str(dname)], quiet=True)
+
+    print(f'###{Fore.GREEN} 2nd) Remove directories{Style.RESET_ALL}')
     print('rmdir /sys/kernel/config/nvmet/ports/*')
     for dname in pathlib.Path('/sys/kernel/config/nvmet/ports').glob('*'):
         _runcmd(['rmdir', str(dname)], quiet=True)
@@ -251,6 +284,11 @@ def clean(args):
     for dname in pathlib.Path('/sys/kernel/config/nvmet/subsystems').glob('*'):
         _runcmd(['rmdir', str(dname)], quiet=True)
 
+    print('rmdir /sys/kernel/config/nvmet/hosts/*')
+    for dname in pathlib.Path('/sys/kernel/config/nvmet/hosts').glob('*'):
+        _runcmd(['rmdir', str(dname)], quiet=True)
+
+    print(f'###{Fore.GREEN} 3rd) Unload kernel modules{Style.RESET_ALL}')
     for module in _get_loaded_nvmet_modules():
         _modprobe(module, ['--remove'])
 

@@ -221,23 +221,39 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
             host_traddr=self.tid.host_traddr if self.tid.host_traddr else None,
             host_iface=host_iface,
         )
-        self._ctrl.discovery_ctrl_set(self._discovery_ctrl)
+        self._ctrl.discovery_ctrl = self._discovery_ctrl
 
-        # Set the DHCHAP key on the controller
-        # NOTE that this will eventually have to
+        # Set the DHCHAP host key on the controller
+        # NOTE that this may eventually have to
         # change once we have support for AVE (TP8019)
-        ctrl_dhchap_key = self.tid.cfg.get('dhchap-ctrl-secret')
-        if ctrl_dhchap_key and self._nvme_options.dhchap_ctrlkey_supp:
-            has_dhchap_key = hasattr(self._ctrl, 'dhchap_key')
-            if not has_dhchap_key:
+        # This is used for in-band authentication
+        dhchap_host_key = self.tid.cfg.get('dhchap-secret')
+        if dhchap_host_key and self._nvme_options.dhchap_hostkey_supp:
+            try:
+                self._ctrl.dhchap_host_key = dhchap_host_key
+            except AttributeError:
                 logging.warning(
-                    '%s | %s - libnvme-%s does not allow setting the controller DHCHAP key. Please upgrade libnvme.',
+                    '%s | %s - libnvme-%s does not allow setting the host DHCHAP key on the controller. Please upgrade libnvme.',
                     self.id,
                     self.device,
                     defs.LIBNVME_VERSION,
                 )
-            else:
-                self._ctrl.dhchap_key = ctrl_dhchap_key
+
+        # Set the DHCHAP controller key on the controller
+        # NOTE that this may eventually have to
+        # change once we have support for AVE (TP8019)
+        # This is used for bidirectional authentication
+        dhchap_ctrl_key = self.tid.cfg.get('dhchap-ctrl-secret')
+        if dhchap_ctrl_key and self._nvme_options.dhchap_ctrlkey_supp:
+            try:
+                self._ctrl.dhchap_key = dhchap_ctrl_key
+            except AttributeError:
+                logging.warning(
+                    '%s | %s - libnvme-%s does not allow setting the controller DHCHAP key on the controller. Please upgrade libnvme.',
+                    self.id,
+                    self.device,
+                    defs.LIBNVME_VERSION,
+                )
 
         # Audit existing nvme devices. If we find a match, then
         # we'll just borrow that device instead of creating a new one.

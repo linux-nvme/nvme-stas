@@ -123,7 +123,7 @@ class NameResolver:  # pylint: disable=too-few-public-methods
         The callback @callback will be called once all hostnames have
         been resolved.
 
-        @param controllers: List of trid.TID
+        @param controllers_in: List of trid.TID
         '''
         pending_resolution_count = 0
         controllers_out = []
