@@ -33,6 +33,7 @@ class TID:  # pylint: disable=too-many-instance-attributes
             'host-nqn':    str, # [optional]
 
             # Connection parameters
+            'dhchap-secret':      str, # [optional]
             'dhchap-ctrl-secret': str, # [optional]
             'hdr-digest':         str, # [optional]
             'data-digest':        str, # [optional]

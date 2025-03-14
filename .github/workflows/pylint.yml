@@ -59,8 +59,8 @@ jobs:
 
       - name: "INSTALL: pip packages"
         run: |
-          pip install pylint --upgrade
-          pip install PyGObject --upgrade
+          pip install pylint
+      #    pip install PyGObject
 
       - name: "BUILD: [libnvme, nvme-stas]"
         uses: BSFishy/meson-build@v1.0.3

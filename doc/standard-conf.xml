@@ -376,6 +376,21 @@
                             </listitem>
                         </varlistentry>
 
+                        <varlistentry id='dhchap-secret'>
+                            <term><varname>dhchap-secret=</varname></term>
+                            <listitem>
+                                <para>
+                                    NVMe In-band authentication host secret (i.e. key);
+                                    needs to be in ASCII format as specified in NVMe 2.0
+                                    section 8.13.5.8 Secret representation. If this
+                                    option is not specified, the default is read
+                                    from /etc/stas/sys.conf (see the 'key' parameter
+                                    under the [Host] section). In-band authentication
+                                    is attempted when this is present.
+                                </para>
+                            </listitem>
+                        </varlistentry>
+
                         <varlistentry id='dhchap-ctrl-secret'>
                             <term><varname>dhchap-ctrl-secret=</varname></term>
                             <listitem>

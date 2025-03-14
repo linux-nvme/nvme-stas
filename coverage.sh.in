@@ -377,7 +377,7 @@ persistent-connections            = false
 zeroconf-connections-persistence  = 1:01
 
 [Controllers]
-controller = transport = tcp ; traddr = localhost ; ; ; kato=31; dhchap-ctrl-secret=not-so-secret
+controller = transport = tcp ; traddr = localhost ; ; ; kato=31; dhchap-ctrl-secret=DHHC-1:00:not-so-secret/not-so-secret/not-so-secret/not-so: ; dhchap-secret=DHHC-1:00:very-secret/very-secret/very-secret/very-secret/:
 controller=transport=tcp;traddr=1.1.1.1
 controller=transport=tcp;traddr=100.100.100.100
 controller=transport=tcp;traddr=2607:f8b0:4002:c2c::71
