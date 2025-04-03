@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 2.4.1
+
+Bug fix:
+
+* Restore backward compatibility with libnvme 1.11 and earlier. The controller attribute `discovery_ctrl` was added in libnvme 1.12. Prior to this version, the method `discovery_ctrl_set()` is to be used.
+
 ## Changes with release 2.4
 
 New features:

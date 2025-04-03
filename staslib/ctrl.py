@@ -221,7 +221,12 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
             host_traddr=self.tid.host_traddr if self.tid.host_traddr else None,
             host_iface=host_iface,
         )
-        self._ctrl.discovery_ctrl = self._discovery_ctrl
+        try:
+            self._ctrl.discovery_ctrl = self._discovery_ctrl
+        except AttributeError:
+            # Note: discovery_ctrl_set() is deprecated. We keep it
+            # for backward compatibility with libnvme 1.11 and earlier.
+            self._ctrl.discovery_ctrl_set(self._discovery_ctrl)
 
         # Set the DHCHAP host key on the controller
         # NOTE that this may eventually have to
