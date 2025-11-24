@@ -14,7 +14,7 @@ jobs:
     if: ${{ !github.event.act }} # skip during local actions testing
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: hadolint/hadolint-action@v3.3.0
         with:
           recursive: true
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "CHECKOUT: nvme-stas"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "BLACK"
         uses: psf/black@25.9.0
@@ -44,7 +44,7 @@ jobs:
 
     steps:
       - name: "CHECKOUT: nvme-stas"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
@@ -100,7 +100,7 @@ jobs:
 
     steps:
       - name: "CHECKOUT: nvme-stas"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
