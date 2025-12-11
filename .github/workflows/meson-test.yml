@@ -42,14 +42,14 @@ jobs:
 
       - name: "CONFIG: PYTHONPATH"
         run: |
-          echo "PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
+          echo "PYTHONPATH=.build:.build/subprojects/nvme-cli/libnvme:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
 
       - name: "TEST: nvme-stas"
         uses: BSFishy/meson-build@v1.0.3
         with:
           action: test
           directory: .build
-          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dlibnvme:buildtype=release -Dlibnvme:sysconfdir=/etc -Dlibnvme:prefix=/usr -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dman=true -Dhtml=true -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
           options: --print-errorlogs --suite nvme-stas
 
       # Preserve meson's log file on failure

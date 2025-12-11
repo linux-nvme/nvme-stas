@@ -54,7 +54,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Global', 'ignore-iface'): False,
             ('Global', 'ip-family'): (4, 6),
-            ('Global', 'persistent-connections'): False,  # Deprecated
             ('Discovery controller connection management', 'persistent-connections'): True,
             ('Global', 'pleo'): True,
             ('Service Discovery', 'zeroconf'): True,

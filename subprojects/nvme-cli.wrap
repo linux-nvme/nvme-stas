@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/linux-nvme/nvme-cli.git
+depth = 1
+revision = HEAD
+
+[provide]
+python3_libnvme_dep = python3_libnvme_dep

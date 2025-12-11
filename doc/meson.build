@@ -41,7 +41,7 @@ if want_man or want_html or want_readthedocs
 
     # Generate DocBooks from IDL queried directly from the D-Bus services.
     out_dir = conf.get('BUILD_DIR') / 'man-tmp'
-    env = environment({'PYTHONPATH': PYTHONPATH})
+    env = environment({'PYTHONPATH': conf.get('PYTHONPATH')})
     idls = [ 'stafd.idl', 'stacd.idl' ]
     foreach idl : idls
         rr = run_command(

@@ -8,7 +8,7 @@ concurrency=thread
 omit =
 	/usr/*
 	*/test/test-*.py
-	subprojects/libnvme/*
+	subprojects/nvme-cli/libnvme/*
 
 # Regexes for lines to exclude from consideration
 exclude_lines =

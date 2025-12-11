@@ -25,7 +25,7 @@ Architecture: all
 Depends:
  python3-dasbus,
  python3-gi,
- python3-libnvme,
+ python3-libnvme (>=3.0),
  python3-pyudev,
  python3-systemd,
  ${misc:Depends},

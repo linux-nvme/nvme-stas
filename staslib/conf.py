@@ -164,13 +164,6 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
             'reconnect-delay': {
                 'convert': _to_int,
             },
-            ### BEGIN: LEGACY SECTION TO BE REMOVED ###
-            'persistent-connections': {
-                'convert': _to_bool,
-                'default': False,
-                'txt-chk': lambda text: _parse_single_val(text).lower() in ('false', 'true'),
-            },
-            ### END: LEGACY SECTION TO BE REMOVED ###
         },
         'Service Discovery': {
             'zeroconf': {
@@ -322,12 +315,10 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         option = 'persistent-connections'
 
         value = self.get_option(section, option, ignore_default=True)
-        legacy = self.get_option('Global', option, ignore_default=True)
+        if value is not None:
+            return value
 
-        if value is None and legacy is None:
-            return self._defaults.get((section, option), True)
-
-        return value or legacy
+        return self._defaults.get((section, option), True)
 
     def get_controllers(self):
         '''@brief Return the list of controllers in the config file.

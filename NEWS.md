@@ -1,5 +1,13 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 3.0
+
+**Support for libnvme 3.0**:
+
+nvme-stas 3.0 has been updated to align with the libnvme 3.0 release. The libnvme 3.0 update includes significant API changes and removes compatibility with prior libnvme versions (≤1.x). As a result, nvme-stas 3.0 requires libnvme 3.0 at runtime and is not compatible with earlier libnvme releases. Users upgrading to nvme-stas 3.0 must ensure that libnvme 3.0 is installed in their environment. 
+
+***Note**: The last version of libnvme prior to 3.0 is 1.16.1. And the last version of nvme-cli prior to 3.0 is 2.16. There will be no libnvme 2.x. Instead, and to synchronize libnvme with nvme-cli, the next release of both libnvme and nvme-cli will be 3.0.*
+
 ## Changes with release 2.4.1
 
 Bug fix:

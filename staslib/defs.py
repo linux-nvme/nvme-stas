@@ -11,15 +11,10 @@ import os
 import sys
 import shutil
 import platform
-from libnvme import nvme
+import libnvme
 from staslib.version import KernelVersion
 
-try:
-    import libnvme
-
-    LIBNVME_VERSION = libnvme.__version__
-except (AttributeError, ModuleNotFoundError):
-    LIBNVME_VERSION = '?.?'
+LIBNVME_VERSION = libnvme.__version__
 
 VERSION = '@VERSION@'
 LICENSE = '@LICENSE@'
@@ -55,7 +50,6 @@ SYS_CONF_FILE = '@ETC@/stas/sys.conf'
 STAFD_CONF_FILE = '@ETC@/stas/stafd.conf'
 STACD_CONF_FILE = '@ETC@/stas/stacd.conf'
 
-HAS_NBFT_SUPPORT = hasattr(nvme, 'nbft_get')
 NBFT_SYSFS_PATH = "/sys/firmware/acpi/tables"
 NBFT_SYSFS_FILENAME = "NBFT*"
 
