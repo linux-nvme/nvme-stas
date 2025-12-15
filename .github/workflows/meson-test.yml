@@ -53,7 +53,7 @@ jobs:
           options: --print-errorlogs --suite nvme-stas
 
       # Preserve meson's log file on failure
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: "Linux_Meson_Testlog"
