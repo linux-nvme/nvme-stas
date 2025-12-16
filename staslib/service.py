@@ -583,7 +583,6 @@ class Staf(Service):
             ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
             ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
             ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
-            ('Global', 'persistent-connections'): False,  # Deprecated
             ('Discovery controller connection management', 'persistent-connections'): True,
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
                 '72hours'

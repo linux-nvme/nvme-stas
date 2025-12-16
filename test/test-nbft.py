@@ -80,16 +80,10 @@ class Test(unittest.TestCase):
     """Unit tests for NBFT"""
 
     def setUp(self):
-        # Depending on the version of libnvme installed
-        # we may or may not have access to NBFT support.
-        nbft_get = getattr(nvme, "nbft_get", None)
-        if defs.HAS_NBFT_SUPPORT:
-            self.expected_nbft = {
-                NBFT_FILE: NBFT_DATA,
-                EMPTY_NBFT_FILE: {},
-            }
-        else:
-            self.expected_nbft = {}
+        self.expected_nbft = {
+            NBFT_FILE: NBFT_DATA,
+            EMPTY_NBFT_FILE: {},
+        }
 
     def test_dir_with_nbft_files(self):
         """Make sure we get expected data when reading from binary NBFT file"""

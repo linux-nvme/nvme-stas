@@ -1,3 +1,14 @@
+nvme-stas (3.0) stable; urgency=medium
+
+  * Support for libnvme 3.0: nvme-stas 3.0 has been updated to align with the
+    libnvme 3.0 release. The libnvme 3.0 update includes significant API changes
+    and removes compatibility with prior libnvme versions (≤1.x). As a result,
+    nvme-stas 3.0 requires libnvme 3.0 at runtime and is not compatible with
+    earlier libnvme releases. Users upgrading to nvme-stas 3.0 must ensure that
+    libnvme 3.0 is installed in their environment.
+
+ -- Martin Belanger <martin.belanger@dell.com>  Thu, 11 Dec 2025 11:30:00 -0500
+
 nvme-stas (0.1) stable; urgency=medium
 
   * Initial release.

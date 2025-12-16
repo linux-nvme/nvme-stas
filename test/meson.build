@@ -8,40 +8,14 @@
 #
 
 srce_dir = meson.current_source_dir()
-test_env = environment({'MALLOC_PERTURB_': '0'})
-test_env.append('PYTHONMALLOC', 'malloc')
+test_env = environment(
+    {
+        'PYTHONPATH': conf.get('PYTHONPATH'),
+        'MALLOC_PERTURB_': '0',
+        'PYTHONMALLOC': 'malloc',
+    }
+)
 test_list = modules_to_lint + packages_to_lint
-
-libnvme_location = '?'
-
-# We require libnvme in order to run the tests. We have two choices, either
-# run the tests using a pre-installed version of libnvme (i.e. from /usr) or
-# build libnvme as a meson subproject and run the tests using that version
-# of libnvme. The decision to use one method over the other is controlled
-# by the option "libnvme-sel". Note that if a pre-intalled libnvme is selected
-# but one cannot be found, then we fall back to using the subproject libnvme.
-if get_option('libnvme-sel') == 'pre-installed'
-    # Check if a pre-installed libnvme can be found
-    rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__path__[0]}")', check: false, env: test_env)
-    if rr.returncode() == 0
-        libnvme_location = rr.stdout().strip()
-        libnvme_path = fs.parent(libnvme_location)
-        PYTHONPATH = ':'.join([libnvme_path, PYTHONPATH])
-        test_env.prepend('PYTHONPATH', PYTHONPATH)
-    endif
-endif
-
-if libnvme_location == '?'
-    # Second, if libnvme is not already installed or "libnvme-sel" is not
-    # set to "pre-installed", let's fallback to using the subproject.
-    libnvme_dep = dependency('python3-libnvme', fallback: ['libnvme', 'libnvme_dep'], required: false)
-
-    test_env.prepend('PYTHONPATH', PYTHONPATH) # This sets the path to look in the build directory
-    rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__path__[0]}")', check: false, env: test_env)
-    if rr.returncode() == 0
-        libnvme_location = rr.stdout().strip()
-    endif
-endif
 
 if libnvme_location == '?'
     warning('Missing runtime package needed to run the tests: python3-libnvme.')

@@ -54,12 +54,12 @@ jobs:
       - name: "INSTALL: apt-get packages"
         run: |
           sudo apt update
-          sudo apt-get install --yes --quiet meson ninja-build cmake libgirepository1.0-dev libsystemd-dev swig libjson-c-dev
+          sudo apt-get install --yes --quiet ninja-build cmake libgirepository1.0-dev libsystemd-dev swig libjson-c-dev
           sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml pyflakes3 python3-tomli
 
       - name: "INSTALL: pip packages"
         run: |
-          pip install pylint
+          pip install pylint meson==0.62.0
       #    pip install PyGObject
 
       - name: "BUILD: [libnvme, nvme-stas]"
@@ -67,11 +67,11 @@ jobs:
         with:
           action: build
           directory: .build
-          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dlibnvme:buildtype=release -Dlibnvme:sysconfdir=/etc -Dlibnvme:prefix=/usr -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
 
       - name: Set PYTHONPATH
         run: |
-          echo "PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages" >> $GITHUB_ENV
+          echo "PYTHONPATH=.build:.build/subprojects/nvme-cli/libnvme:/usr/lib/python3/dist-packages" >> $GITHUB_ENV
 
       - name: Show test environment
         run: |
@@ -123,11 +123,11 @@ jobs:
         with:
           action: build
           directory: .build
-          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dlibnvme:buildtype=release -Dlibnvme:sysconfdir=/etc -Dlibnvme:prefix=/usr -Dlibnvme:python=enabled -Dlibnvme:libdbus=disabled -Dlibnvme:openssl=disabled -Dlibnvme:json-c=disabled -Dlibnvme:keyutils=disabled
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
 
       - name: Set PYTHONPATH
         run: |
-          echo "PYTHONPATH=.build:.build/subprojects/libnvme:/usr/lib/python3/dist-packages" >> $GITHUB_ENV
+          echo "PYTHONPATH=.build:.build/subprojects/nvme-cli/libnvme:/usr/lib/python3/dist-packages" >> $GITHUB_ENV
 
       - name: Show test environment
         run: |

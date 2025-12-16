@@ -19,7 +19,7 @@ Python Version
 --------------
 
 The latest Python 3 version is always recommended, since it has all the latest bells and
-whistles. libnvme supports Python 3.6 and above.
+whistles. nvme-stas works with Python 3.6 and above.
 
 Dependencies
 ------------

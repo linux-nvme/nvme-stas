@@ -1,70 +1,94 @@
-# Notes to Linux distributors
+# Notes for Linux Distributors
 
-This document contains information about the packaging of nvme-stas.
+This document describes the requirements and guidelines for packaging **nvme-stas** for Linux distributions. It covers build-time and runtime dependencies, kernel feature requirements, post-installation tasks, and interactions with `nvme-cli`.
 
-## Compile-time dependencies
+## Build-time dependencies
 
-nvme-stas is a Python 3 project and does not require compile-time libraries per se. However, we use the meson build system for installation and testing. 
+`nvme-stas` is a Python 3 project and does not require build-time libraries. However, it uses **Meson** for installation and testing. 
 
-| Library / Program | Purpose                                           | Mandatory / Optional |
-| ----------------- | ------------------------------------------------- | -------------------- |
-| meson             | Project configuration, installation, and testing. | Mandatory            |
+| Library / Program | Purpose                                         | Madatory? |
+| ----------------- | ----------------------------------------------- | --------- |
+| meson             | Project configuration, installation, and tests. | Yes       |
 
-## Unit tests dependencies
+## Unit test dependencies
 
-nvme-stas provides static code analysis (pylint, pyflakes), which can be run with "`meson test`".
+Static code analysis tools can be executed via `meson test`. These tools are **not required for runtime packaging**, but may be useful for distro QA.
 
-| Library / Program | Purpose                                                      | Mandatory / Optional |
-| ----------------- | ------------------------------------------------------------ | -------------------- |
-| pylint            | Static code analysis                                         | Optional             |
-| python3-pyflakes  | Static code analysis                                         | Optional             |
-| python3-pyfakefs  | Static code analysis                                         | Optional             |
-| vermin            | Check that code meets minimum Python version requirement (3.6) | Optional             |
+| Library / Program | Purpose                                                      | Mandatory? |
+| ----------------- | ------------------------------------------------------------ | ---------- |
+| pylint            | Static code analysis                                         | Optional   |
+| python3-pyflakes  | Static code analysis                                         | Optional   |
+| python3-pyfakefs  | Filesystem-related test mocking                              | Optional   |
+| vermin            | Verify minimum Python version requirements (currently Python 3.6) | Optional   |
 
-## Run-time dependencies
+## Runtime dependencies
 
-Python 3.6 is the minimum version required to run nvme-stas. nvme-stas is built on top of libnvme, which is used to interact with the kernel's NVMe driver (i.e. `drivers/nvme/host/`). To support all the features of nvme-stas, several changes to the Linux kernel are required. nvme-stas can also operate with older kernels, but with limited functionality. Kernel 5.18 provides all the features needed by nvme-stas. nvme-stas can also work with older kernels that include back-ported changes to the NVMe driver.
+### **Python and nvme-stas Requirements**
 
-The next table shows different features that were added to the NVMe driver and in which version of the Linux kernel they were added (the list of git patches can be found in addendum). Note that the ability to query the NVMe driver to determine what options it supports was added in 5.17. This is needed if nvme-stas is to make the right decision on whether a feature is supported. Otherwise, nvme-stas can only rely on the kernel version to decide what is supported. This can greatly limit the features supported on back-ported kernels.
+- **Minimum Python version:** **3.6**
+- nvme-stas relies on **libnvme** for kernel interaction. nvme-stas **3.0** requires **libnvme 3.0 or later**.
+- Full nvme-stas functionality requires **Linux kernel 5.18**.
+  - Older kernels work but will have reduced functionality unless distribution kernels have appropriate backports.
 
-| Feature                                                      | Introduced in kernel version |
-| ------------------------------------------------------------ | ---------------------------- |
-| **`host-iface` option** - Ability to force TCP connections over a specific interface. Needed for zeroconf provisioning. | 5.14                         |
-| **TP8013 Support** - Discovery Controller (DC) Unique NQN. Allow the creation of connections to DC with a NQN other than the default `nqn.2014-08.org.nvmexpress.discovery` | 5.16                         |
-| **Query supported options** - Allow user-space applications to query which options the NVMe driver supports | 5.17                         |
-| **TP8010 Support** - Ability for a Host to register with a Discovery Controller. This version of the kernel introduces a new event to indicate to user-space apps (e.g. nvme-stas) when a connection to a DC is restored. This is used to trigger a re-registration of the host. This kernel also exposes the DC Type (dctype) attribute through the sysfs, which is needed to determine whether registration is supported. | 5.18                         |
-| - Print actual source IP address (`src_addr`) through sysfs "address" attr. This is needed to verify that TCP connections were made on the right interface.<br />- Consider also `host_iface` when checking IP options.<br />- Send a rediscover uevent when a persistent discovery controller reconnects. | 6.1                          |
+### **Kernel Feature Requirements**
 
-nvme-stas also depends on the following run-time libraries and modules. Note that versions listed are the versions that were tested with at the time the code was developed. 
+The following NVMe driver features affect nvme-stas behavior. Kernel 5.17+ is strongly recommended because it allows querying driver capabilities at runtime.
 
-| Package / Module                                           | Min version | stafd         | stacd         | How to determine the  currently installed version            |
-| ---------------------------------------------------------- | ----------- | ------------- | ------------- | ------------------------------------------------------------ |
-| python3                                                    | 3.6         | **Mandatory** | **Mandatory** | `python3 --version`<br />`nvme-stas` requires Python 3.6 as a minimum. |
-| python3-dasbus                                             | 1.6         | **Mandatory** | **Mandatory** | pip list \| grep dasbus                                      |
-| python3-pyudev                                             | 0.22.0      | **Mandatory** | **Mandatory** | `python3 -c 'import pyudev; print(f"{pyudev.__version__}")'` |
-| python3-systemd                                            | 240         | **Mandatory** | **Mandatory** | `systemd --version`                                          |
-| python3-gi (Debian) OR python3-gobject (Fedora)            | 3.36.0      | **Mandatory** | **Mandatory** | `python3 -c 'import gi; print(f"{gi.__version__}")'`         |
-| nvme-tcp (kernel module)                                   | 5.18 *      | **Mandatory** | **Mandatory** | N/A                                                          |
-| dbus-daemon                                                | 1.12.2      | **Mandatory** | **Mandatory** | `dbus-daemon --version`                                      |
-| avahi-daemon                                               | 0.7         | **Mandatory** | Not required  | `avahi-daemon --version`                                     |
-| python3-libnvme                                            | 1.3         | **Mandatory** | **Mandatory** | `python3 -c 'import libnvme; print(f"{libnvme.__version__}")'` |
-| importlib.resources.files() OR importlib_resources.files() | ***         | Optional      | Optional      | `importlib.resources.files()` was introduced in Python 3.9 and backported to earlier versions as `importlib_resources.files()`. If neither modules can be found, `nvme-stas` will default to using the less efficient `pkg_resources.resource_string()` instead. When `nvme-stas` is no longer required to support Python 3.6 and is allowed a minimum of 3.9 or later, only `importlib.resources.files()` will be required. |
+| Feature                     | Introduced in Kernel | Notes                                                        |
+| --------------------------- | -------------------- | ------------------------------------------------------------ |
+| `host-iface` option         | **5.14**             | Required for correct TCP interface selection (zeroconf provisioning) |
+| TP8013 (DC Unique NQN)      | **5.16**             | Allows Discovery Controllers to use a non-default NQN        |
+| Query supported options     | **5.17**             | Enables user-space feature detection instead of relying on kernel version |
+| TP8010 (Host Registration)  | **5.18**             | Adds DC reconnect events and exposes `dctype` via sysfs      |
+| Additional TCP improvements | **6.1**              | Source IP exposure, `host_iface` improvements, rediscover events |
 
-* Kernel 5.18 provides full functionality. nvme-stas can work with older kernels, but with limited functionality, unless the kernels contain back-ported features (see Addendum for the list of kernel patches that could be back-ported to an older kernel). 
+### **nvme-stas 3.0: Required Runtime Packages and Modules**
 
-## Things to do post installation
+The following were validated during development; equivalent or newer versions should work.
 
-### D-Bus configuration
+| Package / Module                            | Min Version | stafd     | stacd        | Version Check                                             | Notes                                                    |
+| ------------------------------------------- | ----------- | --------- | ------------ | --------------------------------------------------------- | -------------------------------------------------------- |
+| **python3**                                 | 3.6         | Mandatory | Mandatory    | `python3 --version`                                       | Minimum supported Python                                 |
+| **python3-libnvme**                         | **3.0**     | Mandatory | Mandatory    | `python3 -c 'import libnvme; print(libnvme.__version__)'` | Userspace NVMe library                                   |
+| **python3-gi / python3-gobject**            | 3.36.0      | Mandatory | Mandatory    | `python3 -c 'import gi; print(gi.__version__)'`           | GObject introspection                                    |
+| **python3-dasbus**                          | 1.6         | Mandatory | Mandatory    | `pip list \| grep dasbus`                                 | D-Bus bindings                                           |
+| **python3-pyudev**                          | 0.22.0      | Mandatory | Mandatory    | `python3 -c 'import pyudev; print(pyudev.__version__)'`   | udev integration                                         |
+| **python3-systemd**                         | 240         | Mandatory | Mandatory    | `systemd --version`                                       | Journaling and notifications                             |
+| **nvme-tcp (kernel module)**                | 5.18*       | Mandatory | Mandatory    | N/A                                                       | Required for TCP transports                              |
+| **dbus-daemon**                             | 1.12.2      | Mandatory | Mandatory    | `dbus-daemon --version`                                   | System D-Bus services                                    |
+| **avahi-daemon**                            | 0.7         | Mandatory | Not required | `avahi-daemon --version`                                  | mDNS discovery (stafd only)                              |
+| **importlib.resources.files()** or backport | —           | Optional  | Optional     | Built-in / backport                                       | `importlib_resources` is used automatically if available |
 
-We install D-Bus configuration files under `/usr/share/dbus-1/system.d`. One needs to run **`systemctl reload dbus-broker.service`** (Fedora) OR **`systemctl reload dbus.service`** (SuSE, Debian) for the new configuration to take effect.
+\* Kernel 5.18 provides full feature coverage. Earlier kernels may work with appropriate NVMe driver backports.
 
-### Configuration shared with `libnvme` and `nvme-cli`
+## Post-installation Tasks
 
-`stafd` and `stacd` use the `libnvme` library to interact with the Linux kernel. And `libnvme` as well as `nvme-cli` rely on two configuration files, `/etc/nvme/hostnqn` and `/etc/nvme/hostid`, to retrieve the Host NQN and ID respectively. These files should be created post installation with the help of the `stadadm` utility. Here's an example for Debian-based systems:
+### **D-Bus Configuration Reload**
+
+nvme-stas installs configuration files under:
+
+```
+/usr/share/dbus-1/system.d
+```
+
+After installation, reload D-Bus:
+
+- **Fedora:** `systemctl reload dbus-broker.service`
+- **SUSE, Debian:** `systemctl reload dbus.service`
+
+### **Host Identity Configuration (Shared with libnvme / nvme-cli)**
+
+Both `libnvme` and `nvme-cli` rely on:
+
+- `/etc/nvme/hostnqn`
+- `/etc/nvme/hostid`
+
+Distributions should create these files on install using `stasadm`.
+ Example (Debian maintainer script):
 
 ```
 if [ "$1" = "configure" ]; then
-    if [ ! -d "/etc/nvme" ]
+    if [ ! -d "/etc/nvme" ]; then
         mkdir /etc/nvme
     fi
     if [ ! -s "/etc/nvme/hostnqn" ]; then
@@ -76,328 +100,56 @@ if [ "$1" = "configure" ]; then
 fi
 ```
 
-The utility program `stasadm` gets installed with `nvme-stas`. `stasadm` also manages the creation (and updating) of `/etc/stas/sys.conf`, the `nvme-stas` system configuration file.
+`stasadm` is installed with nvme-stas and also manages:
 
-### Configuration specific to nvme-stas
+```
+/etc/stas/sys.conf
+```
 
-The [README](./README.md) file defines the following three configuration files:
+### nvme-stas Configuration Files
+
+nvme-stas uses three configuration files:
 
 - `/etc/stas/sys.conf`
 - `/etc/stas/stafd.conf`
 - `/etc/stas/stacd.conf`
 
-Care should be taken during upgrades to preserve customer configuration and not simply overwrite it.  The process to migrate the configuration data and the list of parameters to migrate is still to be defined.
+**Guidelines for packagers:**
 
-### Enabling and starting the daemons
+- Do **not** overwrite these files on upgrade.
+- Preserve user configurations.
+- A future migration mechanism will define how parameters are updated during upgrades.
 
-Lastly, the two daemons, `stafd` and `stacd`, should be enabled (e.g. `systemctl enable stafd.service stacd.service`) and started (e.g. `systemctl start stafd.service stacd.service`).
+### Enabling and starting services
 
-# Compatibility between nvme-stas and nvme-cli
-
-Udev rules are installed along with `nvme-cli` (e.g. `/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules`). These udev rules allow `nvme-cli` to perform tasks similar to those performed by `nvme-stas`. However, the udev rules in `nvme-cli` version 2.1.2 and prior drop the `host-iface` parameter when making TCP connections to I/O controllers. `nvme-stas`, on the other hand, always makes sure that TCP connections to I/O controllers are made over the right interface using the `host-iface` parameter. 
-
-We essentially have a race condition because `nvme-stas` and `nvme-cli` react to the same kernel events. Both try to perform the same task in parallel, which is to connect to I/O controllers. Because `nvme-stas` is written in Python and the udevd daemon (i.e. the process running the udev rules) in C, `nvme-stas` usually loses the race and TCP connections are made by the udev rules without specifying the `host-iface`.
-
-To remedy to this problem, `nvme-stas` disables `nvme-cli` udev rules and assumes the tasks performed by the udev rules. This way, only one process will take action on kernel events eliminating any race conditions. This also ensure that the right `host-iface` is used when making TCP connections.
-
-# Addendum
-
-## Kernel patches for nvme-stas 1.x
-
-Here's the list of kernel patches (added in kernels 5.14 to 5.18) that will enable all features of nvme-stas.
+stafd and stacd must be enabled and started:
 
 ```
-commit e3448b134426741902b6e2c07cbaf5f66cfd2ebc
-Author: Martin Belanger <martin.belanger@dell.com>
-Date:   Tue Feb 8 14:18:02 2022 -0500
-
-    nvme: Expose cntrltype and dctype through sysfs
-
-    TP8010 introduces the Discovery Controller Type attribute (dctype).
-    The dctype is returned in the response to the Identify command. This
-    patch exposes the dctype through the sysfs. Since the dctype depends on
-    the Controller Type (cntrltype), another attribute of the Identify
-    response, the patch also exposes the cntrltype as well. The dctype will
-    only be displayed for discovery controllers.
-
-    A note about the naming of this attribute:
-    Although TP8010 calls this attribute the Discovery Controller Type,
-    note that the dctype is now part of the response to the Identify
-    command for all controller types. I/O, Discovery, and Admin controllers
-    all share the same Identify response PDU structure. Non-discovery
-    controllers as well as pre-TP8010 discovery controllers will continue
-    to set this field to 0 (which has always been the default for reserved
-    bytes). Per TP8010, the value 0 now means "Discovery controller type is
-    not reported" instead of "Reserved". One could argue that this
-    definition is correct even for non-discovery controllers, and by
-    extension, exposing it in the sysfs for non-discovery controllers is
-    appropriate.
-
-    Signed-off-by: Martin Belanger <martin.belanger@dell.com>
-
-commit 68c483a105ce7107f1cf8e1ed6c2c2abb5baa551
-Author: Martin Belanger <martin.belanger@dell.com>
-Date:   Thu Feb 3 16:04:29 2022 -0500
-
-    nvme: send uevent on connection up
-
-    When connectivity with a controller is lost, the driver will keep
-    trying to reconnect once every 10 sec. When connection is restored,
-    user-space apps need to be informed so that they can take proper
-    action. For example, TP8010 introduces the DIM PDU, which is used to
-    register with a discovery controller (DC). The DIM PDU is sent from
-    user-space.  The DIM PDU must be sent every time a connection is
-    established with a DC. Therefore, the kernel must tell user-space apps
-    when connection is restored so that registration can happen.
-
-    The uevent sent is a "change" uevent with environmental data
-    set to: "NVME_EVENT=connected".
-
-    Signed-off-by: Martin Belanger <martin.belanger@dell.com>
-    Reviewed-by: Hannes Reinecke <hare@suse.de>
-    Reviewed-by: Sagi Grimberg <sagi@grimberg.me>
-    Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
-
-commit f18ee3d988157ebcadc9b7e5fd34811938f50223
-Author: Hannes Reinecke <hare@suse.de>
-Date:   Tue Dec 7 14:55:49 2021 +0100
-
-    nvme-fabrics: print out valid arguments when reading from /dev/nvme-fabrics
-
-    Currently applications have a hard time figuring out which
-    nvme-over-fabrics arguments are supported for any given kernel;
-    the ioctl will return an error code on failure, and the application
-    has to guess whether this was due to an invalid argument or due
-    to a connection or controller error.
-    With this patch applications can read a list of supported
-    arguments by simply reading from /dev/nvme-fabrics, allowing
-    them to validate the connection string.
-
-    Signed-off-by: Hannes Reinecke <hare@suse.de>
-    Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-
-commit e5ea42faa773c6a6bb5d9e9f5c2cc808940b5a55
-Author: Hannes Reinecke <hare@suse.de>
-Date:   Wed Sep 22 08:35:25 2021 +0200
-
-    nvme: display correct subsystem NQN
-
-    With discovery controllers supporting unique subsystem NQNs the
-    actual subsystem NQN might be different from that one passed in
-    via the connect args. So add a helper to display the resulting
-    subsystem NQN.
-
-    Signed-off-by: Hannes Reinecke <hare@suse.de>
-    Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-commit 20e8b689c9088027b7495ffd6f80812c11ecc872
-Author: Hannes Reinecke <hare@suse.de>
-Date:   Wed Sep 22 08:35:24 2021 +0200
-
-    nvme: Add connect option 'discovery'
-
-    Add a connect option 'discovery' to specify that the connection
-    should be made to a discovery controller, not a normal I/O controller.
-    With discovery controllers supporting unique subsystem NQNs we
-    cannot easily distinguish by the subsystem NQN if this should be
-    a discovery connection, but we need this information to blank out
-    options not supported by discovery controllers.
-
-    Signed-off-by: Hannes Reinecke <hare@suse.de>
-    Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-commit 954ae16681f6bdf684f016ca626329302a38e177
-Author: Hannes Reinecke <hare@suse.de>
-Date:   Wed Sep 22 08:35:23 2021 +0200
-
-    nvme: expose subsystem type in sysfs attribute 'subsystype'
-
-    With unique discovery controller NQNs we cannot distinguish the
-    subsystem type by the NQN alone, but need to check the subsystem
-    type, too.
-    So expose the subsystem type in a new sysfs attribute 'subsystype'.
-
-    Signed-off-by: Hannes Reinecke <hare@suse.de>
-    Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-
-commit 3ede8f72a9a2825efca23a3552e80a1202ea88fd
-Author: Martin Belanger <martin.belanger@dell.com>
-Date:   Thu May 20 15:09:34 2021 -0400
-
-    nvme-tcp: allow selecting the network interface for connections
-
-    In our application, we need a way to force TCP connections to go out a
-    specific IP interface instead of letting Linux select the interface
-    based on the routing tables.
-
-    Add the 'host-iface' option to allow specifying the interface to use.
-    When the option host-iface is specified, the driver uses the specified
-    interface to set the option SO_BINDTODEVICE on the TCP socket before
-    connecting.
-
-    This new option is needed in addtion to the existing host-traddr for
-    the following reasons:
-
-    Specifying an IP interface by its associated IP address is less
-    intuitive than specifying the actual interface name and, in some cases,
-    simply doesn't work. That's because the association between interfaces
-    and IP addresses is not predictable. IP addresses can be changed or can
-    change by themselves over time (e.g. DHCP). Interface names are
-    predictable [1] and will persist over time. Consider the following
-    configuration.
-
-    1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state ...
-        link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-        inet 100.0.0.100/24 scope global lo
-           valid_lft forever preferred_lft forever
-    2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc ...
-        link/ether 08:00:27:21:65:ec brd ff:ff:ff:ff:ff:ff
-        inet 100.0.0.100/24 scope global enp0s3
-           valid_lft forever preferred_lft forever
-    3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc ...
-        link/ether 08:00:27:4f:95:5c brd ff:ff:ff:ff:ff:ff
-        inet 100.0.0.100/24 scope global enp0s8
-           valid_lft forever preferred_lft forever
-
-    The above is a VM that I configured with the same IP address
-    (100.0.0.100) on all interfaces. Doing a reverse lookup to identify the
-    unique interface associated with 100.0.0.100 does not work here. And
-    this is why the option host_iface is required. I understand that the
-    above config does not represent a standard host system, but I'm using
-    this to prove a point: "We can never know how users will configure
-    their systems". By te way, The above configuration is perfectly fine
-    by Linux.
-
-    The current TCP implementation for host_traddr performs a
-    bind()-before-connect(). This is a common construct to set the source
-    IP address on a TCP socket before connecting. This has no effect on how
-    Linux selects the interface for the connection. That's because Linux
-    uses the Weak End System model as described in RFC1122 [2]. On the other
-    hand, setting the Source IP Address has benefits and should be supported
-    by linux-nvme. In fact, setting the Source IP Address is a mandatory
-    FedGov requirement (e.g. connection to a RADIUS/TACACS+ server).
-    Consider the following configuration.
-
-    $ ip addr list dev enp0s8
-    3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc ...
-        link/ether 08:00:27:4f:95:5c brd ff:ff:ff:ff:ff:ff
-        inet 192.168.56.101/24 brd 192.168.56.255 scope global enp0s8
-           valid_lft 426sec preferred_lft 426sec
-        inet 192.168.56.102/24 scope global secondary enp0s8
-           valid_lft forever preferred_lft forever
-        inet 192.168.56.103/24 scope global secondary enp0s8
-           valid_lft forever preferred_lft forever
-        inet 192.168.56.104/24 scope global secondary enp0s8
-           valid_lft forever preferred_lft forever
-
-    Here we can see that several addresses are associated with interface
-    enp0s8. By default, Linux always selects the default IP address,
-    192.168.56.101, as the source address when connecting over interface
-    enp0s8. Some users, however, want the ability to specify a different
-    source address (e.g., 192.168.56.102, 192.168.56.103, ...). The option
-    host_traddr can be used as-is to perform this function.
-
-    In conclusion, I believe that we need 2 options for TCP connections.
-    One that can be used to specify an interface (host-iface). And one that
-    can be used to set the source address (host-traddr). Users should be
-    allowed to use one or the other, or both, or none. Of course, the
-    documentation for host_traddr will need some clarification. It should
-    state that when used for TCP connection, this option only sets the
-    source address. And the documentation for host_iface should say that
-    this option is only available for TCP connections.
-
-    References:
-    [1] https://www.freedesktop.org/wiki/Software/systemd/PredictableNetworkInterfaceNames/
-    [2] https://tools.ietf.org/html/rfc1122
-
-    Tested both IPv4 and IPv6 connections.
-
-    Signed-off-by: Martin Belanger <martin.belanger@dell.com>
-    Reviewed-by: Sagi Grimberg <sagi@grimberg.me>
-    Reviewed-by: Hannes Reinecke <hare@suse.de>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>
+systemctl enable --now stafd.service stacd.service
 ```
 
-## Kernel patches for nvme-stas 2.x
+## Compatibility with nvme-cli
 
-These patches are not essential for nvme-stas 2.x, but they allow nvme-stas to operate better.
+`nvme-cli` installs udev rules such as:
 
 ```
-commit f46ef9e87c9e8941b7acee45611c7c6a322592bb
-Author: Sagi Grimberg <sagi@grimberg.me>
-Date:   Thu Sep 22 11:15:37 2022 +0300
-
-    nvme: send a rediscover uevent when a persistent discovery controller reconnects
-    
-    When a discovery controller is disconnected, no AENs will arrive to
-    notify the host about discovery log change events.
-    
-    In order to solve this, send a uevent notification when a
-    persistent discovery controller reconnects. We add a new ctrl
-    flag NVME_CTRL_STARTED_ONCE that will be set on the first
-    start, and consecutive calls will find it set, and send the
-    event to userspace if the controller is a discovery controller.
-    
-    Upon the event reception, userspace will re-read the discovery
-    log page and will act upon changes as it sees fit.
-    
-    Signed-off-by: Sagi Grimberg <sagi@grimberg.me>
-    Reviewed-by: Daniel Wagner <dwagner@suse.de>
-    Reviewed-by: James Smart <jsmart2021@gmail.com>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-commit 02c57a82c0081141abc19150beab48ef47f97f18 (tag: nvme-6.1-2022-09-20)
-Author: Martin Belanger <martin.belanger@dell.com>
-Date:   Wed Sep 7 08:27:37 2022 -0400
-
-    nvme-tcp: print actual source IP address through sysfs "address" attr
-    
-    TCP transport relies on the routing table to determine which source
-    address and interface to use when making a connection. Currently, there
-    is no way to tell from userspace where a connection was made. This
-    patch exposes the actual source address using a new field named
-    "src_addr=" in the "address" attribute.
-    
-    This is needed to diagnose and identify connectivity issues. With the
-    source address we can infer the interface associated with each
-    connection.
-    
-    This was tested with nvme-cli 2.0 to verify it does not have any
-    adverse effect. The new "src_addr=" field will simply be displayed in
-    the output of the "list-subsys" or "list -v" commands as shown here.
-    
-    $ nvme list-subsys
-    nvme-subsys0 - NQN=nqn.2014-08.org.nvmexpress.discovery
-    \
-     +- nvme0 tcp traddr=192.168.56.1,trsvcid=8009,src_addr=192.168.56.101 live
-    
-    Signed-off-by: Martin Belanger <martin.belanger@dell.com>
-    Reviewed-by: Sagi Grimberg <sagi@grimberg.me>
-    Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>
-    
-commit 4cde03d82e2d0056d20fd5af6a264c7f5e6a3e76
-Author: Daniel Wagner <dwagner@suse.de>
-Date:   Fri Jul 29 16:26:30 2022 +0200
-
-    nvme: consider also host_iface when checking ip options
-    
-    It's perfectly fine to use the same traddr and trsvcid more than once
-    as long we use different host interface. This is used in setups where
-    the host has more than one interface but the target exposes only one
-    traddr/trsvcid combination.
-    
-    Use the same acceptance rules for host_iface as we have for
-    host_traddr.
-    
-    Signed-off-by: Daniel Wagner <dwagner@suse.de>
-    Reviewed-by: Chao Leng <lengchao@huawei.com>
-    Signed-off-by: Christoph Hellwig <hch@lst.de>    
+/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules
 ```
 
+These rules attempt to auto-connect I/O controllers on kernel events.
+
+### The Race Condition
+
+- `nvme-cli` (via udev rules) and `nvme-stas` both react to the same NVMe events.
+- The udev rules in **nvme-cli ≤ 2.1.2** do **not** propagate the `host-iface` argument.
+- Because udev rules run in C and nvme-stas runs in Python, the udev rules typically win the race.
+- Result: connections may be established using the wrong TCP interface.
+
+### Resolution
+
+nvme-stas **disables nvme-cli’s udev rules** and assumes those responsibilities. It does that by installing a new udev rulefile,  `/run/udev/rules.d/70-nvmf-autoconnect.rules`., which takes precedence over the file installed by the nvme-cli package.
+This ensures:
+
+- A single orchestrator handles connection events
+- Race conditions are eliminated
+- All NVMe/TCP connections consistently use the correct `host-iface`

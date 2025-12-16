@@ -2,7 +2,7 @@
 
 PRIMARY_GRP=$( id -ng )
 PRIMARY_USR=$( id -nu )
-PYTHON_PATH=.:./subprojects/libnvme
+PYTHON_PATH=.:./subprojects/nvme-cli/libnvme
 AVAHI_PUBLISHER=mdns_publisher.service
 
 file=/tmp/stafd.conf.XXXXXX
@@ -675,7 +675,7 @@ sd_start "stafd"
 # Change ownership of files that were created as root
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage  >/dev/null 2>&1
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" staslib/__pycache__  >/dev/null 2>&1
-sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/libnvme/libnvme/__pycache__  >/dev/null 2>&1
+sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/nvme-cli/libnvme/libnvme/__pycache__  >/dev/null 2>&1
 
 #*******************************************************************************
 # Run unit tests

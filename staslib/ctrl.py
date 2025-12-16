@@ -10,15 +10,14 @@
 Dc (Discovery Controller) and Ioc (I/O Controller) objects are derived.'''
 
 import time
-import inspect
 import logging
 from gi.repository import GLib
 from libnvme import nvme
-from staslib import conf, defs, gutil, trid, udev, stas
+from staslib import conf, gutil, trid, udev, stas
 
 
 DLP_CHANGED = (
-    (nvme.NVME_LOG_LID_DISCOVER << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
+    (nvme.NVME_LOG_LID_DISCOVERY << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
 
 
@@ -51,7 +50,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
     def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
-        self._root = nvme.root()
+        self._root = nvme.global_ctx()
         self._host = nvme.host(
             self._root, hostnqn=sysconf.hostnqn, hostid=sysconf.hostid, hostsymname=sysconf.hostsymname
         )
@@ -221,12 +220,8 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
             host_traddr=self.tid.host_traddr if self.tid.host_traddr else None,
             host_iface=host_iface,
         )
-        try:
-            self._ctrl.discovery_ctrl = self._discovery_ctrl
-        except AttributeError:
-            # Note: discovery_ctrl_set() is deprecated. We keep it
-            # for backward compatibility with libnvme 1.11 and earlier.
-            self._ctrl.discovery_ctrl_set(self._discovery_ctrl)
+
+        self._ctrl.discovery_ctrl = self._discovery_ctrl
 
         # Set the DHCHAP host key on the controller
         # NOTE that this may eventually have to
@@ -234,15 +229,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         # This is used for in-band authentication
         dhchap_host_key = self.tid.cfg.get('dhchap-secret')
         if dhchap_host_key and self._nvme_options.dhchap_hostkey_supp:
-            try:
-                self._ctrl.dhchap_host_key = dhchap_host_key
-            except AttributeError:
-                logging.warning(
-                    '%s | %s - libnvme-%s does not allow setting the host DHCHAP key on the controller. Please upgrade libnvme.',
-                    self.id,
-                    self.device,
-                    defs.LIBNVME_VERSION,
-                )
+            self._ctrl.dhchap_host_key = dhchap_host_key
 
         # Set the DHCHAP controller key on the controller
         # NOTE that this may eventually have to
@@ -250,15 +237,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         # This is used for bidirectional authentication
         dhchap_ctrl_key = self.tid.cfg.get('dhchap-ctrl-secret')
         if dhchap_ctrl_key and self._nvme_options.dhchap_ctrlkey_supp:
-            try:
-                self._ctrl.dhchap_key = dhchap_ctrl_key
-            except AttributeError:
-                logging.warning(
-                    '%s | %s - libnvme-%s does not allow setting the controller DHCHAP key on the controller. Please upgrade libnvme.',
-                    self.id,
-                    self.device,
-                    defs.LIBNVME_VERSION,
-                )
+            self._ctrl.dhchap_key = dhchap_ctrl_key
 
         # Audit existing nvme devices. If we find a match, then
         # we'll just borrow that device instead of creating a new one.
@@ -575,19 +554,9 @@ class Dc(Controller):
         return self._udev.find_nvme_dc_device(self.tid)
 
     def _post_registration_actions(self):
-        # Need to check that supported_log_pages() is available (introduced in libnvme 1.2)
-        get_slp = getattr(self._ctrl, 'supported_log_pages', None)
-        if get_slp is None:
-            logging.warning(
-                '%s | %s - libnvme-%s does not support "Get supported log pages". Please upgrade libnvme.',
-                self.id,
-                self.device,
-                defs.LIBNVME_VERSION,
-            )
-
-        if conf.SvcConf().pleo_enabled and self._is_ddc() and get_slp is not None:
+        if conf.SvcConf().pleo_enabled and self._is_ddc():
             self._get_supported_op = gutil.AsyncTask(
-                self._on_get_supported_success, self._on_get_supported_fail, get_slp
+                self._on_get_supported_success, self._on_get_supported_fail, self._ctrl.supported_log_pages
             )
             self._get_supported_op.run_async()
         else:
@@ -692,7 +661,7 @@ class Dc(Controller):
             return
 
         try:
-            dlp_supp_opts = data[nvme.NVME_LOG_LID_DISCOVER] >> 16
+            dlp_supp_opts = data[nvme.NVME_LOG_LID_DISCOVERY] >> 16
         except (TypeError, IndexError):
             dlp_supp_opts = 0
 
@@ -704,19 +673,8 @@ class Dc(Controller):
             dlp_supp_opts_as_string(dlp_supp_opts),
         )
 
-        if 'lsp' in inspect.signature(self._ctrl.discover).parameters:
-            lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
-            self._get_log_op = gutil.AsyncTask(
-                self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp
-            )
-        else:
-            logging.warning(
-                '%s | %s - libnvme-%s does not support setting PLEO bit. Please upgrade.',
-                self.id,
-                self.device,
-                defs.LIBNVME_VERSION,
-            )
-            self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
+        lsp = nvme.NVMF_LOG_DISC_LSP_PLEO if dlp_supp_opts & nvme.NVMF_LOG_DISC_LID_PLEOS else 0
+        self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover, lsp)
         self._get_log_op.run_async()
 
     def _on_get_supported_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):

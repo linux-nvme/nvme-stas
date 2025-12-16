@@ -8,8 +8,8 @@
 #
 project(
     'nvme-stas',
-    meson_version: '>= 0.53.0',
-    version: '2.4.1',
+    meson_version: '>= 0.62.0',
+    version: '3.0',
     license: 'Apache-2.0',
     default_options: [
         'buildtype=release',
@@ -17,6 +17,9 @@ project(
         'sysconfdir=/etc',
     ]
 )
+
+# Minimum version of the libnvme python bindings required
+python3_libnvme_version = '>=3.0'
 
 fs = import('fs')
 
@@ -39,8 +42,6 @@ if want_man or want_html or want_readthedocs
     buildtime_modules += ['lxml']
 endif
 
-# On older systems we had to invoke Python 3 as "python3". On newer systems,
-# Python 2 has been completely deprecated and Python 3 is simply named "python".
 pymod = import('python')
 python3 = pymod.find_installation('python3', modules:buildtime_modules, required:false)
 if not python3.found()
@@ -85,6 +86,60 @@ conf.set('STAFD_DBUS_PATH', '/org/nvmexpress/staf')
 conf.set('STACD_DBUS_NAME', 'org.nvmexpress.stac')
 conf.set('STACD_DBUS_PATH', '/org/nvmexpress/stac')
 conf.set('ETC', etcdir)
+
+#===========================================================================
+# Let's try to locate the libnvme python bindings. We'll need libnvme to run
+# the tests. We have two choices:
+#
+# 1) Use a pre-installed version of libnvme (i.e. from /usr/lib/...)
+# 2) Build libnvme as a meson subproject
+#
+# The decision to use one method over the other is controlled by the option
+# "libnvme-sel=['subproject', 'pre-installed']". The default is to use the
+# subproject. Note that if a pre-intalled libnvme is selected but one cannot
+# be found, then the subproject is used as a fallback.
+libnvme_location = '?'
+if get_option('libnvme-sel') == 'pre-installed'
+    # Check if a pre-installed libnvme can be found
+    rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__version__}")', check: false)
+    if rr.returncode() == 0
+        libnvme_version = rr.stdout().strip()
+        if libnvme_version.version_compare(python3_libnvme_version)
+            rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__path__[0]}")', check: false)
+            if rr.returncode() == 0
+                libnvme_location = rr.stdout().strip()
+            endif
+        else
+            warning('libnvme version is @0@ but [@1@] required. Will try nvme-cli subproject...'.format(libnvme_version, python3_libnvme_version))
+        endif
+    endif
+endif
+
+if libnvme_location == '?'
+    # fallback to subproject
+    nvme_cli_subproject = subproject(
+        'nvme-cli',
+        default_options: [
+            'buildtype=release',
+            'prefix=/usr',
+            'sysconfdir=/etc',
+            'nvme=disabled',
+            'python=enabled',
+        ],
+        required: false,
+        version: python3_libnvme_version,
+    )
+    if nvme_cli_subproject.found()
+        python3_libnvme_dep = nvme_cli_subproject.get_variable('python3_libnvme_dep')
+        libnvme_location = fs.parent(fs.parent(python3_libnvme_dep.get_variable('nvme_py_path')))
+    endif
+endif
+
+PYTHONPATH = conf.get('BUILD_DIR')
+if libnvme_location != '?'
+    PYTHONPATH = ':'.join([libnvme_location, PYTHONPATH])
+endif
+conf.set('PYTHONPATH', PYTHONPATH)
 
 #===============================================================================
 stafd = configure_file(
@@ -141,15 +196,6 @@ endforeach
 modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
 packages_to_lint = []
 
-
-# Point Python Path to Current Build Dir.
-# This is used by other meson.build files.
-PYTHON_SEARCH_PATHS = [
-    conf.get('BUILD_DIR'),
-    conf.get('BUILD_DIR') / 'subprojects' / 'libnvme',
-]
-PYTHONPATH = ':'.join(PYTHON_SEARCH_PATHS)
-
 #===========================================================================
 subdir('staslib')
 subdir('etc/dbus-1/system.d')
@@ -180,11 +226,11 @@ summary_dict = {
     'want_html ':           want_html,
     'want_readthedocs ':    want_readthedocs,
 }
-if meson.version().version_compare('>=0.57.0')  # conf.keys()
-    foreach key : conf.keys()
-        if key not in ['BUILD_DIR', 'VERSION', 'LICENSE']
-            summary_dict += { key + ' ': conf.get(key) }
-        endif
-    endforeach
-endif
+
+foreach key : conf.keys()
+    if key not in ['BUILD_DIR', 'VERSION', 'LICENSE']
+        summary_dict += { key + ' ': conf.get(key) }
+    endif
+endforeach
+
 summary(summary_dict, section: 'Configuration', bool_yn: true)
