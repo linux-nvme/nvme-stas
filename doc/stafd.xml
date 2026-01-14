@@ -2,7 +2,7 @@
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
 "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" [
 <!ENTITY daemon "stafd">
-<!ENTITY deamondesc "STorage Appliance Finder">
+<!ENTITY daemondesc "STorage Appliance Finder">
 <!ENTITY control "stafctl">
 ]>
 
@@ -34,7 +34,7 @@
 
     <refnamediv>
         <refname>&daemon;</refname>
-        <refpurpose>&deamondesc;</refpurpose>
+        <refpurpose>&daemondesc;</refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>
@@ -125,7 +125,7 @@
             operations are supported:
         </para>
 
-        <table frame='all'>
+        <table align='left' frame='all'>
             <tgroup cols="2" align='left' colsep='1' rowsep='1'>
                 <thead>
                     <row>
@@ -163,7 +163,7 @@
       <title>Design</title>
 
       <para>
-          <command>&daemon;</command> use the <code>GLib</code> main loop.
+          <command>&daemon;</command> uses the <code>GLib</code> main loop.
           The <code>GLib</code> Python module provides several low-level
           building blocks that <command>&daemon;</command> requires. In
           addition, many Python modules "play nice" with <code>GLib</code>
