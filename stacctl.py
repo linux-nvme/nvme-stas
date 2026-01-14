@@ -61,7 +61,7 @@ def status(args):  # pylint: disable=unused-argument
 
 
 def ls(args):
-    '''@brief list the I/O controller's that stacd is
+    '''@brief List the I/O controllers that stacd is
     connected (or trying to connect) to.
     '''
     bus = SystemMessageBus()

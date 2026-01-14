@@ -470,7 +470,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
     def _alive(self):
         '''It's a good idea to check that this object hasn't been
         cancelled (i.e. is still alive) when entering a callback function.
-        Callback functrions can be invoked after, for example, a process has
+        Callback functions can be invoked after, for example, a process has
         been signalled to stop or restart, in which case it makes no sense to
         proceed with the callback.
         '''

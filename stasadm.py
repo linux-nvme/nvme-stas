@@ -145,7 +145,7 @@ def set_symname(args):
 
 
 def clr_symname(args):
-    '''@brief Undefine the host NQN'''
+    '''@brief Clear the host symbolic name'''
     save('Host', 'symname', None, args.conf_file, None)
 
 
@@ -176,14 +176,14 @@ def get_parser():  # pylint: disable=missing-function-docstring
     )
     prsr.set_defaults(cmd=hostid)
 
-    prsr = subparser.add_parser('set-symname', help='Set the host symbolic')
+    prsr = subparser.add_parser('set-symname', help='Set the host symbolic name')
     prsr.add_argument(
         '-f', '--file', action='store', help='Optional file where to save the symbolic name.', type=str, metavar='FILE'
     )
     prsr.add_argument('symname', action='store', help='Symbolic name', default=None, metavar='SYMNAME')
     prsr.set_defaults(cmd=set_symname)
 
-    prsr = subparser.add_parser('clear-symname', help='Clear the host symbolic')
+    prsr = subparser.add_parser('clear-symname', help='Clear the host symbolic name')
     prsr.set_defaults(cmd=clr_symname)
 
     return parser
