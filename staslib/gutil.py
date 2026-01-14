@@ -423,9 +423,7 @@ class Deferred:
 class TcpChecker:  # pylint: disable=too-many-instance-attributes
     '''@brief Verify that a TCP connection can be established with an endpoint'''
 
-    def __init__(
-        self, traddr, trsvcid, host_iface, verbose, user_cback, *user_data
-    ):  # pylint: disable=too-many-arguments
+    def __init__(self, traddr, trsvcid, host_iface, verbose, user_cback, *user_data):  # pylint: disable=too-many-arguments
         self._user_cback = user_cback
         self._host_iface = host_iface
         self._user_data = user_data

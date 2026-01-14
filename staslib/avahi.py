@@ -9,6 +9,7 @@
 '''Module that provides a way to retrieve discovered
 services from the Avahi daemon over D-Bus.
 '''
+
 import socket
 import typing
 import logging

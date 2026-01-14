@@ -8,6 +8,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 '''STorage Appliance Connector Control Utility'''
+
 import sys
 import json
 import pprint

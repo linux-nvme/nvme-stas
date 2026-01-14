@@ -352,9 +352,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         # the object. This would invariably lead to unpredictable outcome.
         GLib.idle_add(disconnected_cb, self, True)
 
-    def _on_disconn_fail(
-        self, op_obj: gutil.AsyncTask, err, fail_cnt, disconnected_cb
-    ):  # pylint: disable=unused-argument
+    def _on_disconn_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt, disconnected_cb):  # pylint: disable=unused-argument
         logging.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback

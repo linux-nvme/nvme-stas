@@ -20,20 +20,6 @@ jobs:
           recursive: true
           ignore: DL3041
 
-  python-black:
-    if: ${{ !github.event.act }} # skip during local actions testing
-    name: python-black formatter
-    runs-on: ubuntu-latest
-    steps:
-      - name: "CHECKOUT: nvme-stas"
-        uses: actions/checkout@v6
-
-      - name: "BLACK"
-        uses: psf/black@25.12.0
-        with:
-          options: "--check --diff --color --line-length 120 --skip-string-normalization --extend-exclude (subprojects|debian|.build)"
-          src: "."
-
   python-lint-Jammy:
     runs-on: ubuntu-22.04
 
@@ -55,12 +41,11 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install --yes --quiet ninja-build cmake libgirepository1.0-dev libsystemd-dev swig libjson-c-dev
-          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml pyflakes3 python3-tomli
+          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml python3-tomli
 
       - name: "INSTALL: pip packages"
         run: |
-          pip install pylint meson==0.62.0
-      #    pip install PyGObject
+          pip install meson==0.62.0 ruff
 
       - name: "BUILD: [libnvme, nvme-stas]"
         uses: BSFishy/meson-build@v1.0.3
@@ -78,17 +63,16 @@ jobs:
           echo -e "Build Directory:\n$(ls -laF .build)"
           python3 -VV
           python3 -m site
-          pylint --version
-          echo "pyflakes3 $(pyflakes3 --version)"
+          ruff --version
 
-      #- name: Pylint
-      #  run: |
-      #    pylint --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+      - name: "Ruff: lint"
+        run: |
+          ruff check --diff .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
-      - name: Pyflakes
+      - name: "Ruff: format"
         if: always()
         run: |
-          pyflakes3 .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+          ruff format --check --diff .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
   python-lint-Noble:
     runs-on: ubuntu-24.04
@@ -111,12 +95,11 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install --yes --quiet meson ninja-build cmake libgirepository1.0-dev libsystemd-dev swig libjson-c-dev
-          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml pylint pyflakes3 python3-tomli
+          sudo apt-get install --yes --quiet python3-wheel python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml python3-tomli
 
-      #- name: "INSTALL: pip packages"
-      #  run: |
-      #    pip install pylint
-      #    pip install PyGObject
+      - name: "INSTALL: pip packages"
+        run: |
+          pip install ruff
 
       - name: "BUILD: [libnvme, nvme-stas]"
         uses: BSFishy/meson-build@v1.0.3
@@ -134,14 +117,13 @@ jobs:
           echo -e "Build Directory:\n$(ls -laF .build)"
           python3 -VV
           python3 -m site
-          pylint --version
-          echo "pyflakes3 $(pyflakes3 --version)"
+          ruff --version
 
-      - name: Pylint
+      - name: "Ruff: lint"
         run: |
-          pylint --jobs=0 --rcfile=test/pylint.rc .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+          ruff check --diff .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
-      - name: Pyflakes
+      - name: "Ruff: format"
         if: always()
         run: |
-          pyflakes3 .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+          ruff format --check --diff .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib

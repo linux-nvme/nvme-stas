@@ -67,9 +67,9 @@ loc:
 loc-full:
 	@cloc --by-file --exclude-dir=${BUILD-DIR},subprojects,debian,obj-x86_64-linux-gnu,.github .
 
-.PHONY: black
-black:
-	black --diff --color --line-length 120 --skip-string-normalization --extend-exclude="(subprojects|debian|.build)" .
+.PHONY: check-format
+check-format:
+	ruff --check --diff
 
 # Coverage requirements:
 #   apt-get install python3-coverage

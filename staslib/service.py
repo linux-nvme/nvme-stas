@@ -808,7 +808,11 @@ class Staf(Service):
             origin = (
                 'configured'
                 if tid in configured_ctrl_list
-                else 'referral' if tid in referral_ctrl_list else 'discovered' if tid in discovered_ctrl_list else None
+                else 'referral'
+                if tid in referral_ctrl_list
+                else 'discovered'
+                if tid in discovered_ctrl_list
+                else None
             )
             if origin is not None:
                 controller.origin = origin
@@ -876,8 +880,8 @@ class Staf(Service):
         ]
         # Use systemd's escaped syntax (i.e. '=' is replaced by '\x3d', '\t' by '\x09', etc.
         options = r'\x09'.join(
-            [fr'{option}\x3d{value}' for option, value in cnf if value not in (None, 'none', 'None', '')]
+            [rf'{option}\x3d{value}' for option, value in cnf if value not in (None, 'none', 'None', '')]
         )
         logging.debug('Invoking: systemctl restart nvmf-connect@%s.service', options)
-        cmd = [defs.SYSTEMCTL, '--quiet', '--no-block', 'restart', fr'nvmf-connect@{options}.service']
+        cmd = [defs.SYSTEMCTL, '--quiet', '--no-block', 'restart', rf'nvmf-connect@{options}.service']
         subprocess.run(cmd, check=False)

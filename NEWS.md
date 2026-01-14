@@ -8,6 +8,8 @@ nvme-stas 3.0 has been updated to align with the libnvme 3.0 release. The libnvm
 
 ***Note**: The last version of libnvme prior to 3.0 is 1.16.1. And the last version of nvme-cli prior to 3.0 is 2.16. There will be no libnvme 2.x. Instead, and to synchronize libnvme with nvme-cli, the next release of both libnvme and nvme-cli will be 3.0.*
 
+This release also replaces "black" with "ruff" as the code formatter to the GitHub actions. A new command, `make check-format`, was added to allow users to verify their code before submitting a pull request.
+
 ## Changes with release 2.4.1
 
 Bug fix:
