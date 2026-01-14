@@ -59,7 +59,7 @@ To streamline Meson workflows, several operations are wrapped in convenient `mak
 | **`make test`**               | Executes the unit test suite.                                |
 | **`make clean`**              | Removes build artifacts but preserves the Meson configuration in `.build`. |
 | **`make purge`**              | Removes *all* build artifacts, including the `.build` directory. |
-| **`make update-subprojects`** | Updates subprojects such as `libnvme`.                       |
+| **`make update-subprojects`** | Updates subprojects such as `nvme-cli`.                      |
 | **`make black`**              | Verifies compliance with `black` coding style.               |
 
 ------
