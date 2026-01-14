@@ -217,7 +217,6 @@
                 <refentrytitle>stacd</refentrytitle>
                 <manvolnum>8</manvolnum>
             </citerefentry>
-            <citerefentry project="man-pages"/>
         </para>
     </refsect1>
 </refentry>

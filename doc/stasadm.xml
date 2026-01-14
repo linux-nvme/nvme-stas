@@ -78,7 +78,7 @@
                         installation step to generate <filename>/etc/nvme/hostnqn</filename>.
                     </para>
                     <para>
-                        The NVMe base specifications says: <quote>An NQN is 
+                        The NVMe base specification says: <quote>An NQN is 
                         permanent for the lifetime of the host</quote>. For 
                         this reason, the host NQN should only be generated
                         if <filename>/etc/nvme/hostnqn</filename> does not exist

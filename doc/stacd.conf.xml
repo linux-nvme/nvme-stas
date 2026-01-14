@@ -91,7 +91,7 @@
                     <listitem>
                         <para>
                             Takes a value in the range 1...N. Overrides the
-                            default number of I/O queues create by the driver.
+                            default number of I/O queues created by the driver.
                         </para>
 
                         <para>Note: This parameter is identical to that provided by nvme-cli.</para>

@@ -157,11 +157,15 @@
             different Host NQN and/or ID. In that case, one can specify them
             in <filename>/etc/stas/sys.conf</filename>.
         </para>
-            A new optional configuration parameters introduced in TP8010, the
+        <para>
+            A new optional configuration parameter introduced in TP8010, the
             Host Symbolic Name, can also be specified in <filename>/etc/stas/sys.conf</filename>.
             The documentation for <filename>/etc/stas/sys.conf</filename>
-            can be found <filename>/etc/stas/sys.conf.doc</filename>.
-        <para>
+            can be found in
+            <citerefentry>
+                <refentrytitle>sys.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
         </para>
     </refsect2>
 
