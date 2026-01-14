@@ -75,13 +75,13 @@ To streamline Meson workflows, several operations are wrapped in convenient `mak
 
 Install the following packages depending on your distribution:
 
-**Debian-based systems (tested on Ubuntu 20.04 and 22.04):**
+**Debian-based systems (e.g., Ubuntu 20.04+, Debian 11+):**
 
 ```
 sudo apt-get install -y docbook-xml docbook-xsl xsltproc libglib2.0-dev
 ```
 
-**RPM-based systems (tested on Fedora 34–37 and SLES15):**
+**RPM-based systems (e.g., Fedora 34+, RHEL 9+, SLES 15+):**
 
 ```
 sudo dnf install -y docbook-style-xsl libxslt glib2-devel

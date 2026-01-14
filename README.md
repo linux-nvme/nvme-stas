@@ -15,7 +15,7 @@
 
 - A **Central Discovery Controller (CDC) client** for Linux
 - **Asynchronous Event Notifications (AEN)** handling
-- **Automated connection management** for NVMe subsystem
+- **Automated connection management** for NVMe subsystems
 - **Error handling and reporting**
 - Support for both **automatic (zeroconf)** and **manual configuration**
 
@@ -25,7 +25,7 @@
 
 ***stafd*** - **STorage Appliance Finder Daemon**. 
 
-*stafd* is responsible for discovering storage appliances and discovery controllers::
+*stafd* is responsible for discovering storage appliances and discovery controllers:
 
 - Registers with the Avahi daemon for `_nvme-disc._tcp` mDNS service announcements, enabling **zero-touch provisioning (ZTP)**.
 - Supports **manual discovery configurations** as an alternative to mDNS.
@@ -80,10 +80,11 @@ Both services can operate with **automatically discovered controllers** (via Ava
 
 ## System Requirements
 
-Linux kernel **5.14 or later**.
+Linux kernel **5.14 or later** (kernel **5.18+** recommended for full feature support).
 
 Required user-space dependencies include:
 
+- **libnvme 3.0+** (Python bindings: `python3-libnvme`)
 - Python 3 system bindings: `dasbus`, `pyudev`, `python3-systemd`, `python3-gi` (package names vary by distro). 
 
 ## Host Identification
