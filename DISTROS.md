@@ -6,7 +6,7 @@ This document describes the requirements and guidelines for packaging **nvme-sta
 
 `nvme-stas` is a Python 3 project and does not require build-time libraries. However, it uses **Meson** for installation and testing. 
 
-| Library / Program | Purpose                                         | Madatory? |
+| Library / Program | Purpose                                         | Mandatory? |
 | ----------------- | ----------------------------------------------- | --------- |
 | meson             | Project configuration, installation, and tests. | Yes       |
 
@@ -147,7 +147,7 @@ These rules attempt to auto-connect I/O controllers on kernel events.
 
 ### Resolution
 
-nvme-stas **disables nvme-cli’s udev rules** and assumes those responsibilities. It does that by installing a new udev rulefile,  `/run/udev/rules.d/70-nvmf-autoconnect.rules`., which takes precedence over the file installed by the nvme-cli package.
+nvme-stas **disables nvme-cli's udev rules** and assumes those responsibilities. It does that by installing a new udev rulefile, `/run/udev/rules.d/70-nvmf-autoconnect.rules`, which takes precedence over the file installed by the nvme-cli package.
 This ensures:
 
 - A single orchestrator handles connection events

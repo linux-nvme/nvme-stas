@@ -5,7 +5,7 @@ title: Testing nvme-stas
 
 # Overview
 
-For quick an easy testing, it's possible to run a storage subsystem simulator using the `nvmet` driver. This is how most of the testing was done during `nvme-stas` development. The main feature that cannot be tested this way is mDNS discovery. 
+For quick and easy testing, it's possible to run a storage subsystem simulator using the `nvmet` driver. This is how most of the testing was done during `nvme-stas` development. The main feature that cannot be tested this way is mDNS discovery.
 
 There are two ways to run the tests. 
 
