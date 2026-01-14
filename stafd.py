@@ -79,7 +79,8 @@ if __name__ == '__main__':
 
         @dasbus.server.interface.dbus_signal
         def dc_removed(self):
-            '''@brief Signal sent when log pages have changed.'''
+            '''@brief Signal sent when a discovery controller is removed
+            (indicated by a change in the discovery log pages).'''
 
         @property
         def tron(self):

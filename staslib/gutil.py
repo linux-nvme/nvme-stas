@@ -409,7 +409,7 @@ class Deferred:
             self._source = GLib.main_context_default().find_source_by_id(srce_id)
 
     def is_scheduled(self):
-        '''Check if deferred is currently schedules to run'''
+        '''Check if deferred is currently scheduled to run'''
         return self._source and not self._source.is_destroyed()
 
     def cancel(self):
@@ -421,7 +421,7 @@ class Deferred:
 
 # ******************************************************************************
 class TcpChecker:  # pylint: disable=too-many-instance-attributes
-    '''@brief Verify that a TCP connection can be established with an enpoint'''
+    '''@brief Verify that a TCP connection can be established with an endpoint'''
 
     def __init__(
         self, traddr, trsvcid, host_iface, verbose, user_cback, *user_data

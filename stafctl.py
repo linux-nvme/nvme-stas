@@ -64,7 +64,7 @@ def status(args):  # pylint: disable=unused-argument
 
 
 def ls(args):
-    '''@brief list the discovery controller's that stafd is
+    '''@brief List the discovery controllers that stafd is
     connected (or trying to connect) to.
     '''
     bus = SystemMessageBus()

@@ -372,9 +372,9 @@ class Dc(Controller):
     the cached discovery log pages accordingly.
     '''
 
-    GET_LOG_PAGE_RETRY_RERIOD_SEC = 20
-    REGISTRATION_RETRY_RERIOD_SEC = 5
-    GET_SUPPORTED_RETRY_RERIOD_SEC = 5
+    GET_LOG_PAGE_RETRY_PERIOD_SEC = 20
+    REGISTRATION_RETRY_PERIOD_SEC = 5
+    GET_SUPPORTED_RETRY_PERIOD_SEC = 5
 
     def __init__(self, staf, tid: trid.TID, log_pages=None, origin=None):
         super().__init__(tid, staf, discovery_ctrl=True)
@@ -638,11 +638,11 @@ class Dc(Controller):
             self.id,
             self.device,
             err,
-            Dc.REGISTRATION_RETRY_RERIOD_SEC,
+            Dc.REGISTRATION_RETRY_PERIOD_SEC,
         )
         if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
             logging.error('%s | %s - Failed to register with Discovery Controller. %s', self.id, self.device, err)
-        op_obj.retry(Dc.REGISTRATION_RETRY_RERIOD_SEC)
+        op_obj.retry(Dc.REGISTRATION_RETRY_PERIOD_SEC)
 
     # --------------------------------------------------------------------------
     def _on_get_supported_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
@@ -697,7 +697,7 @@ class Dc(Controller):
             self.id,
             self.device,
             err,
-            Dc.GET_SUPPORTED_RETRY_RERIOD_SEC,
+            Dc.GET_SUPPORTED_RETRY_PERIOD_SEC,
         )
         if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
             logging.error(
@@ -706,7 +706,7 @@ class Dc(Controller):
                 self.device,
                 err,
             )
-        op_obj.retry(Dc.GET_SUPPORTED_RETRY_RERIOD_SEC)
+        op_obj.retry(Dc.GET_SUPPORTED_RETRY_PERIOD_SEC)
 
     # --------------------------------------------------------------------------
     def _on_get_log_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
@@ -773,11 +773,11 @@ class Dc(Controller):
             self.id,
             self.device,
             err,
-            Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC,
+            Dc.GET_LOG_PAGE_RETRY_PERIOD_SEC,
         )
         if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
             logging.error('%s | %s - Failed to retrieve log pages. %s', self.id, self.device, err)
-        op_obj.retry(Dc.GET_LOG_PAGE_RETRY_RERIOD_SEC)
+        op_obj.retry(Dc.GET_LOG_PAGE_RETRY_PERIOD_SEC)
 
 
 # ******************************************************************************
