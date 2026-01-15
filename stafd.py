@@ -52,7 +52,7 @@ if __name__ == '__main__':
     import json
     import logging
     import dasbus.server.interface
-    from staslib import log, service, stas, udev  # pylint: disable=ungrouped-imports
+    from staslib import log, service, stas, udev
 
     # Before going any further, make sure the script is allowed to run.
     stas.check_if_allowed_to_continue()
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         __dbus_xml__ = stas.load_idl('stafd.idl')
 
         @dasbus.server.interface.dbus_signal
-        def log_pages_changed(  # pylint: disable=too-many-arguments
+        def log_pages_changed(
             self,
             transport: str,
             traddr: str,
@@ -109,16 +109,12 @@ if __name__ == '__main__':
             info.update(STAF.info())
             return json.dumps(info)
 
-        def controller_info(  # pylint: disable=too-many-arguments
-            self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
-        ) -> str:
+        def controller_info(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn) -> str:
             '''@brief D-Bus method used to return information about a controller'''
             controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
             return json.dumps(controller.info()) if controller else '{}'
 
-        def get_log_pages(  # pylint: disable=too-many-arguments
-            self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
-        ) -> list:
+        def get_log_pages(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn) -> list:
             '''@brief D-Bus method used to retrieve the discovery log pages from one controller'''
             controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
             return controller.log_pages() if controller else list()

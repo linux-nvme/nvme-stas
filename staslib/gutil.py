@@ -22,7 +22,7 @@ class GTimer:
 
     def __init__(
         self, interval_sec: float = 0, user_cback=lambda: GLib.SOURCE_REMOVE, *user_data, priority=GLib.PRIORITY_DEFAULT
-    ):  # pylint: disable=keyword-arg-before-vararg
+    ):
         self._source = None
         self._interval_sec = float(interval_sec)
         self._user_cback = user_cback
@@ -107,7 +107,7 @@ class GTimer:
 
 
 # ******************************************************************************
-class NameResolver:  # pylint: disable=too-few-public-methods
+class NameResolver:
     '''@brief DNS resolver to convert host names to IP addresses.'''
 
     def __init__(self):
@@ -136,10 +136,9 @@ class NameResolver:  # pylint: disable=too-few-public-methods
             except GLib.GError as err:
                 # We don't need to report "cancellation" errors.
                 if err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
-                    # pylint: disable=no-member
                     logging.debug('NameResolver.resolve_ctrl_async()  - %s %s', err.message, controller)
                 else:
-                    logging.error('%s', err.message)  # pylint: disable=no-member
+                    logging.error('%s', err.message)
 
                 # if err.matches(Gio.resolver_error_quark(), Gio.ResolverError.TEMPORARY_FAILURE):
                 # elif err.matches(Gio.resolver_error_quark(), Gio.ResolverError.NOT_FOUND):
@@ -234,7 +233,7 @@ class _TaskRunner(GObject.Object):
         @param cb_args: User arguments to pass to @cb_function
         '''
 
-        def in_thread_exec(task, self, task_data, cancellable):  # pylint: disable=unused-argument
+        def in_thread_exec(task, self, task_data, cancellable):
             if task.return_error_if_cancelled():
                 return  # Bail out if task has been cancelled
 
@@ -242,7 +241,7 @@ class _TaskRunner(GObject.Object):
                 value = GObject.Object()
                 value.result = self._user_function(*self._user_args)
                 task.return_value(value)
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:
                 task.return_error(GLib.Error(message=str(ex), domain=type(ex).__name__))
 
         task = Gio.Task.new(self, cancellable, cb_function, *cb_args)
@@ -265,7 +264,7 @@ class _TaskRunner(GObject.Object):
 
 
 # ******************************************************************************
-class AsyncTask:  # pylint: disable=too-many-instance-attributes
+class AsyncTask:
     '''Object used to manage an asynchronous GLib operation. The operation
     can be cancelled or retried.
     '''
@@ -420,10 +419,10 @@ class Deferred:
 
 
 # ******************************************************************************
-class TcpChecker:  # pylint: disable=too-many-instance-attributes
+class TcpChecker:
     '''@brief Verify that a TCP connection can be established with an endpoint'''
 
-    def __init__(self, traddr, trsvcid, host_iface, verbose, user_cback, *user_data):  # pylint: disable=too-many-arguments
+    def __init__(self, traddr, trsvcid, host_iface, verbose, user_cback, *user_data):
         self._user_cback = user_cback
         self._host_iface = host_iface
         self._user_data = user_data
@@ -451,7 +450,7 @@ class TcpChecker:  # pylint: disable=too-many-instance-attributes
         try:
             self._gio_sock = Gio.Socket.new_from_fd(self._native_sock.fileno())  # returns None on error
         except GLib.Error as err:
-            logging.error('Cannot create socket: %s', err.message)  # pylint: disable=no-member
+            logging.error('Cannot create socket: %s', err.message)
             self._gio_sock = None
 
         if self._gio_sock is None:
@@ -475,7 +474,7 @@ class TcpChecker:  # pylint: disable=too-many-instance-attributes
             try:
                 self._gio_sock.close()
             except GLib.Error as err:
-                logging.debug('TcpChecker.close() gio_sock.close  - %s', err.message)  # pylint: disable=no-member
+                logging.debug('TcpChecker.close() gio_sock.close  - %s', err.message)
 
             self._gio_sock = None
 
@@ -501,7 +500,7 @@ class TcpChecker:  # pylint: disable=too-many-instance-attributes
             connected = False
             # We don't need to report "cancellation" errors.
             if err.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
-                logging.debug('TcpChecker._connect_async_cback()  - %s', err.message)  # pylint: disable=no-member
+                logging.debug('TcpChecker._connect_async_cback()  - %s', err.message)
             else:
                 if self._verbose:
                     logging.info(
@@ -509,7 +508,7 @@ class TcpChecker:  # pylint: disable=too-many-instance-attributes
                         self._host_iface + ',',
                         self._traddr.compressed + ',',
                         self._trsvcid,
-                        err.message,  # pylint: disable=no-member
+                        err.message,
                     )
 
         self.close()

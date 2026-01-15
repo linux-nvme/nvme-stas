@@ -60,7 +60,7 @@ def mk_service_key(interface, protocol, name, stype, domain):
     return (interface, protocol, name, stype, domain)
 
 
-def fmt_service_str(interface, protocol, name, stype, domain, flags):  # pylint: disable=too-many-arguments
+def fmt_service_str(interface, protocol, name, stype, domain, flags):
     '''Return service identifier as a string'''
     return (
         f'interface={interface}:{(socket.if_indextoname(interface) + ","):<9} '
@@ -96,7 +96,7 @@ class ValueRange:
 
 
 # ******************************************************************************
-class Service:  # pylint: disable=too-many-instance-attributes
+class Service:
     '''Object used to keep track of the services discovered from the avahi-daemon'''
 
     interface_name = property(lambda self: self._interface_name)
@@ -153,7 +153,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
     def __str__(self):
         return self._id
 
-    def set_identity(self, transport, address, port, txt):  # pylint: disable=too-many-arguments
+    def set_identity(self, transport, address, port, txt):
         '''Complete identification and check connectivity (if needed)
         Return True if identification is complete. Return False if
         we need to check connectivity.
@@ -239,7 +239,7 @@ class Service:  # pylint: disable=too-many-instance-attributes
 
 
 # ******************************************************************************
-class Avahi:  # pylint: disable=too-many-instance-attributes
+class Avahi:
     '''@brief Avahi Server proxy. Set up the D-Bus connection to the Avahi
     daemon and register to be notified when services of a certain
     type (stype) are discovered or lost.
@@ -545,7 +545,7 @@ class Avahi:  # pylint: disable=too-many-instance-attributes
         if self._change_cb is not None:
             self._change_cb()
 
-    def _service_identified(  # pylint: disable=too-many-locals
+    def _service_identified(
         self,
         _connection,
         _sender_name: str,

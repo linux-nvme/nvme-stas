@@ -21,28 +21,14 @@ if libnvme_location == '?'
     warning('Missing runtime package needed to run the tests: python3-libnvme.')
 else
     #---------------------------------------------------------------------------
-    # pylint and pyflakes
+    # Code style checker
     if test_list.length() != 0
-        pylint = find_program('pylint', required: false)
-        pyflakes = find_program('pyflakes3', required: false)
-        if not pyflakes.found()
-            temp = find_program('pyflakes', required: false)
-            if temp.found() and run_command(temp, '--version', check: false).stdout().contains('Python 3')
-                pyflakes = temp
-            endif
-        endif
-
-        rcfile = srce_dir / 'pylint.rc'
-
-        if pylint.found()
-            test('pylint', pylint, args: ['--rcfile=' + rcfile] + test_list, env: test_env)
+        ruff = find_program('ruff', required: false)
+        if ruff.found()
+            test('ruff format', ruff, args: ['format', '--check', '--diff', '--no-respect-gitignore'] + test_list, env: test_env)
+            test('ruff check', ruff, args: ['check', '--no-respect-gitignore'] + test_list, env: test_env)
         else
-            warning('Skiping some of the tests because "pylint" is missing.')
-        endif
-        if pyflakes.found()
-            test('pyflakes', pyflakes, args: test_list, env: test_env)
-        else
-            warning('Skiping some of the tests because "pyflakes" is missing.')
+            warning('Skiping some of the tests because "ruff" is missing.')
         endif
     endif
 

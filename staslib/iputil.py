@@ -24,10 +24,10 @@ IFADDRMSG_SZ = 8
 IFINFOMSG_SZ = 16
 ARPHRD_ETHER = 1
 ARPHRD_LOOPBACK = 772
-NLMSG_LENGTH = lambda msg_len: msg_len + NLMSG_HDRLEN  # pylint: disable=unnecessary-lambda-assignment
+NLMSG_LENGTH = lambda msg_len: msg_len + NLMSG_HDRLEN  # noqa: E731
 
 RTATTR_SZ = 4
-RTA_ALIGN = lambda length: ((length + 3) & ~3)  # pylint: disable=unnecessary-lambda-assignment
+RTA_ALIGN = lambda length: ((length + 3) & ~3)  # noqa: E731
 IFLA_ADDRESS = 1
 IFLA_IFNAME = 3
 
@@ -89,7 +89,7 @@ def _data_matches_mac(data, mac):
     return mac.lower() == ':'.join([f'{x:02x}' for x in data[0:6]])
 
 
-def mac2iface(mac: str):  # pylint: disable=too-many-locals
+def mac2iface(mac: str):
     '''@brief Find the interface that has @mac as its assigned MAC address.
     @param mac: The MAC address to match
     '''
@@ -97,7 +97,7 @@ def mac2iface(mac: str):  # pylint: disable=too-many-locals
         sock.sendall(GETLINKCMD)
         nlmsg = sock.recv(8192)
         nlmsg_idx = 0
-        while True:  # pylint: disable=too-many-nested-blocks
+        while True:
             if nlmsg_idx >= len(nlmsg):
                 nlmsg += sock.recv(8192)
 
@@ -136,9 +136,9 @@ def ip_equal(ip1, ip2):
     @param ip1: IPv4Address or IPv6Address object
     @param ip2: IPv4Address or IPv6Address object
     '''
-    if not isinstance(ip1, ipaddress._BaseAddress):  # pylint: disable=protected-access
+    if not isinstance(ip1, ipaddress._BaseAddress):
         return False
-    if not isinstance(ip2, ipaddress._BaseAddress):  # pylint: disable=protected-access
+    if not isinstance(ip2, ipaddress._BaseAddress):
         return False
 
     if ip1.version == 4 and ip2.version == 6:
@@ -171,7 +171,7 @@ def get_ipaddress_obj(ipaddr, ipv4_mapped_convert=False):
 
 
 # ******************************************************************************
-def net_if_addrs():  # pylint: disable=too-many-locals
+def net_if_addrs():
     '''@brief Return a dictionary listing every IP addresses for each interface.
     The first IP address of a list is the primary address used as the default
     source address.
@@ -201,7 +201,7 @@ def net_if_addrs():  # pylint: disable=too-many-locals
         sock.sendall(GETADDRCMD)
         nlmsg = sock.recv(8192)
         nlmsg_idx = 0
-        while True:  # pylint: disable=too-many-nested-blocks
+        while True:
             if nlmsg_idx >= len(nlmsg):
                 nlmsg += sock.recv(8192)
 
@@ -256,7 +256,7 @@ def get_interface(ifaces: dict, src_addr):
     @param ifaces: Interface info previously returned by @net_if_addrs()
     @param src_addr: IPv4Address or IPv6Address object
     '''
-    if not isinstance(src_addr, ipaddress._BaseAddress):  # pylint: disable=protected-access
+    if not isinstance(src_addr, ipaddress._BaseAddress):
         return ''
 
     for iface, addr_map in ifaces.items():

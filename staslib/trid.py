@@ -13,7 +13,7 @@ import hashlib
 from staslib import conf
 
 
-class TID:  # pylint: disable=too-many-instance-attributes
+class TID:
     '''Transport Identifier'''
 
     RDMA_IP_PORT = '4420'
@@ -77,7 +77,7 @@ class TID:  # pylint: disable=too-many-instance-attributes
         self._hash = int.from_bytes(
             hashlib.md5(''.join(self._key).encode('utf-8')).digest(), 'big'
         )  # We need a consistent hash between restarts
-        self._id = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'  # pylint: disable=line-too-long
+        self._id = f'({self._transport}, {self._traddr}, {self._trsvcid}{", " + self._subsysnqn if self._subsysnqn else ""}{", " + self._host_iface if self._host_iface else ""}{", " + self._host_traddr if self._host_traddr else ""})'
 
     host_traddr = property(lambda self: self._host_traddr)
     host_iface = property(lambda self: self._host_iface)

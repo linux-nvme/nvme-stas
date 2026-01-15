@@ -356,7 +356,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case A4.1 failed'
+                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case A4.1 failed'
                 )
 
                 cid_legacy = {
@@ -379,12 +379,12 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case A4.2 failed'
+                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case A4.2 failed'
                 )
                 self.assertEqual(
                     True,
                     udev.UDEV._cid_matches_tcp_tid_legacy(tid, cid_legacy, ifaces),
-                    msg=f'Legacy Test Case A4.3 failed',
+                    msg='Legacy Test Case A4.3 failed',
                 )
 
                 cid_legacy = {
@@ -408,7 +408,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case B4 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case B4 failed'
                 )
 
                 tid = trid.TID(
@@ -422,7 +422,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case C4 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case C4 failed'
                 )
 
                 tid = trid.TID(
@@ -436,7 +436,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case D4 failed'
+                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case D4 failed'
                 )
 
                 cid_legacy = {
@@ -461,7 +461,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case E4 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case E4 failed'
                 )
 
                 tid = trid.TID(
@@ -475,7 +475,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case F4 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case F4 failed'
                 )
 
                 tid = trid.TID(
@@ -492,7 +492,7 @@ class Test(unittest.TestCase):
                     ipv4_addrs[0], ipv4_mapped_convert=True
                 ) == iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
                 self.assertEqual(
-                    match, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case G4 failed'
+                    match, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case G4 failed'
                 )
 
             ##############################################
@@ -551,7 +551,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case A6.1 failed'
+                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case A6.1 failed'
                 )
 
                 cid_legacy = {
@@ -574,12 +574,12 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case A6.2 failed'
+                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case A6.2 failed'
                 )
                 self.assertEqual(
                     True,
                     udev.UDEV._cid_matches_tcp_tid_legacy(tid, cid_legacy, ifaces),
-                    msg=f'Legacy Test Case A6.3 failed',
+                    msg='Legacy Test Case A6.3 failed',
                 )
 
                 cid_legacy = {
@@ -603,7 +603,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case B6 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case B6 failed'
                 )
 
                 tid = trid.TID(
@@ -617,7 +617,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case C6 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case C6 failed'
                 )
 
                 tid = trid.TID(
@@ -631,7 +631,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case D6 failed'
+                    True, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case D6 failed'
                 )
 
                 cid_legacy = {
@@ -656,7 +656,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case E6 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case E6 failed'
                 )
 
                 tid = trid.TID(
@@ -670,7 +670,7 @@ class Test(unittest.TestCase):
                     }
                 )
                 self.assertEqual(
-                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case F6 failed'
+                    False, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case F6 failed'
                 )
 
                 tid = trid.TID(
@@ -687,7 +687,7 @@ class Test(unittest.TestCase):
                     ipv6_addrs[0], ipv4_mapped_convert=True
                 ) == iputil.get_ipaddress_obj(tid.host_traddr, ipv4_mapped_convert=True)
                 self.assertEqual(
-                    match, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg=f'Legacy Test Case G6 failed'
+                    match, udev.UDEV._cid_matches_tid(tid, cid_legacy, ifaces), msg='Legacy Test Case G6 failed'
                 )
 
             ##############################################
@@ -712,7 +712,7 @@ class Test(unittest.TestCase):
                     'host-nqn': '',
                 }
             )
-            self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg=f'Test Case FC-1 failed')
+            self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case FC-1 failed')
 
             tid = trid.TID(
                 {
@@ -724,7 +724,7 @@ class Test(unittest.TestCase):
                     'host-nqn': '',
                 }
             )
-            self.assertEqual(False, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg=f'Test Case FC-2 failed')
+            self.assertEqual(False, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case FC-2 failed')
 
             ##############################################
             # RDMA
@@ -748,7 +748,7 @@ class Test(unittest.TestCase):
                     'host-nqn': '',
                 }
             )
-            self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg=f'Test Case RDMA-1 failed')
+            self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case RDMA-1 failed')
 
             tid = trid.TID(
                 {
@@ -760,7 +760,7 @@ class Test(unittest.TestCase):
                     'host-nqn': '',
                 }
             )
-            self.assertEqual(False, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg=f'Test Case RDMA-2 failed')
+            self.assertEqual(False, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case RDMA-2 failed')
 
             tid = trid.TID(
                 {
@@ -771,7 +771,7 @@ class Test(unittest.TestCase):
                     'host-nqn': '',
                 }
             )
-            self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg=f'Test Case RDMA-3 failed')
+            self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case RDMA-3 failed')
 
 
 if __name__ == '__main__':

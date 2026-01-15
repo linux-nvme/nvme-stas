@@ -203,7 +203,7 @@ class Service(stas.ServiceABC):
 class Stac(Service):
     '''STorage Appliance Connector (STAC)'''
 
-    CONF_STABILITY_LONG_SOAK_TIME_SEC = 10  # pylint: disable=invalid-name
+    CONF_STABILITY_LONG_SOAK_TIME_SEC = 10
     ADD_EVENT_SOAK_TIME_SEC = 1
 
     def __init__(self, args, dbus):
@@ -373,7 +373,7 @@ class Stac(Service):
 
         return list()
 
-    def _config_ctrls_finish(self, configured_ctrl_list: list):  # pylint: disable=too-many-locals
+    def _config_ctrls_finish(self, configured_ctrl_list: list):
         '''@param configured_ctrl_list: list of TIDs'''
         # This is a callback function, which may be called after the service
         # has been signalled to stop. So let's make sure the service is still
@@ -455,7 +455,7 @@ class Stac(Service):
         except dasbus.error.DBusError:
             logging.error('Failed to connect to staf')
 
-    def _destroy_staf_comlink(self, watcher):  # pylint: disable=unused-argument
+    def _destroy_staf_comlink(self, watcher):
         if self._staf:
             self._staf.log_pages_changed.disconnect(self._log_pages_changed)
             self._staf.dc_removed.disconnect(self._dc_removed)
@@ -476,9 +476,7 @@ class Stac(Service):
 
         logging.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
 
-    def _log_pages_changed(  # pylint: disable=too-many-arguments
-        self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn, device
-    ):
+    def _log_pages_changed(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn, device):
         if not self._alive():
             return
 
@@ -532,7 +530,7 @@ def _udev_rule_ctrl(suppress):
         if not udev_rule_file.exists():
             pathlib.Path('/run/udev/rules.d').mkdir(parents=True, exist_ok=True)
             text = UDEV_RULE_OVERRIDE % (defs.SYSTEMCTL)
-            udev_rule_file.write_text(text)  # pylint: disable=unspecified-encoding
+            udev_rule_file.write_text(text)
     else:
         try:
             udev_rule_file.unlink()

@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import json
 import shutil
-import socket
 import logging
 import unittest
 import ipaddress

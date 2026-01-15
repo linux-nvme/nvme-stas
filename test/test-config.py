@@ -28,7 +28,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'controller=transport=tcp;traddr=100.100.100.200;host-iface=enp0s7;dhchap-ctrl-secret=super-secret;hdr-digest=true;data-digest=true;nr-io-queues=8;nr-write-queues=6;nr-poll-queues=4;queue-size=400;kato=71;reconnect-delay=13;ctrl-loss-tmo=666;disable-sqflow=true\n',
             'exclude=transport=tcp;traddr=10.10.10.10\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  # pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
             f.writelines(data)
 
     @classmethod
@@ -118,7 +118,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'disconnect-trtypes = tcp+rdma+fc\n',
             'connect-attempts-on-ncc = hello\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  # pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
             f.writelines(data)
         service_conf.reload()
         self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
@@ -128,7 +128,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[Global]\n',
             'ip-family=ipv4\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
             f.writelines(data)
         service_conf.reload()
         self.assertIn(4, service_conf.ip_family)
@@ -138,7 +138,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[Global]\n',
             'ip-family=ipv4+ipv6\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
             f.writelines(data)
         service_conf.reload()
         self.assertIn(4, service_conf.ip_family)
@@ -148,7 +148,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[Global]\n',
             'ip-family=ipv6+ipv4\n',
         ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:  #  pylint: disable=unspecified-encoding
+        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
             f.writelines(data)
         service_conf.reload()
         self.assertIn(4, service_conf.ip_family)
@@ -203,7 +203,7 @@ class StasSysConfUnitTest(unittest.TestCase):
     def setUpClass(cls):
         '''Create a temporary configuration file'''
         for file, data in StasSysConfUnitTest.DATA.items():
-            with open(file, 'w') as f:  #  pylint: disable=unspecified-encoding
+            with open(file, 'w') as f:
                 f.writelines(data)
 
     @classmethod

@@ -24,12 +24,12 @@ def init(syslog: bool):
     if syslog:
         try:
             # Try journal logger first
-            import systemd.journal  # pylint: disable=import-outside-toplevel
+            import systemd.journal
 
             handler = systemd.journal.JournalHandler(SYSLOG_IDENTIFIER=defs.PROG_NAME)
         except ModuleNotFoundError:
             # Go back to standard syslog handler
-            from logging.handlers import SysLogHandler  # pylint: disable=import-outside-toplevel
+            from logging.handlers import SysLogHandler
 
             handler = SysLogHandler(address="/dev/log")
             handler.setFormatter(logging.Formatter(f'{defs.PROG_NAME}: %(message)s'))

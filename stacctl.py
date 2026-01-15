@@ -18,19 +18,19 @@ from dasbus.connection import SystemMessageBus
 from staslib import defs
 
 
-def tron(args):  # pylint: disable=unused-argument
+def tron(args):
     '''@brief Trace ON'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
-    iface.tron = True  # pylint: disable=assigning-non-slot
+    iface.tron = True
     print(f'tron = {iface.tron}')  # Read value back from stacd and print
 
 
-def troff(args):  # pylint: disable=unused-argument
+def troff(args):
     '''@brief Trace OFF'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
-    iface.tron = False  # pylint: disable=assigning-non-slot
+    iface.tron = False
     print(f'tron = {iface.tron}')  # Read value back from stacd and print
 
 
@@ -46,7 +46,7 @@ def _extract_cid(ctrl):
     )
 
 
-def status(args):  # pylint: disable=unused-argument
+def status(args):
     '''@brief retrieve stacd's status information'''
     bus = SystemMessageBus()
     iface = bus.get_proxy(defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)

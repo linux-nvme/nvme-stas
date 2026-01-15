@@ -46,7 +46,7 @@ except ImportError:
         def load_idl(idl_fname):
             '''@brief Load D-Bus Interface Description Language File'''
             try:
-                return files('staslib').joinpath(idl_fname).read_text()  # pylint: disable=unspecified-encoding
+                return files('staslib').joinpath(idl_fname).read_text()
             except FileNotFoundError:
                 pass
 
@@ -57,7 +57,7 @@ else:
     def load_idl(idl_fname):
         '''@brief Load D-Bus Interface Description Language File'''
         try:
-            return files('staslib').joinpath(idl_fname).read_text()  # pylint: disable=unspecified-encoding
+            return files('staslib').joinpath(idl_fname).read_text()
         except FileNotFoundError:
             pass
 
@@ -316,7 +316,7 @@ class ControllerABC(abc.ABC):
 
 
 # ******************************************************************************
-class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
+class ServiceABC(abc.ABC):
     '''@brief Base class used to manage a STorage Appliance Service'''
 
     CONF_STABILITY_SOAK_TIME_SEC = 1.5
@@ -398,7 +398,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         '''@brief Start the main loop execution'''
         try:
             self._loop.run()
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             logging.critical('exception: %s', ex)
 
         self._loop = None
@@ -426,7 +426,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         host_traddr: str,
         host_iface: str,
         host_nqn: str,
-    ):  # pylint: disable=too-many-arguments
+    ):
         '''@brief get the specified controller object from the list of controllers'''
         cid = {
             'transport': transport,
@@ -458,7 +458,7 @@ class ServiceABC(abc.ABC):  # pylint: disable=too-many-instance-attributes
         else:
             logging.debug('ServiceABC._remove_ctrl_from_dict()- already removed')
 
-    def remove_controller(self, controller, success):  # pylint: disable=unused-argument
+    def remove_controller(self, controller, success):
         '''@brief remove the specified controller object from the list of controllers
         @param controller: the controller object
         @param success: whether the disconnect was successful'''
