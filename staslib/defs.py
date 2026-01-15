@@ -7,6 +7,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 
 '''@brief This file gets automagically configured by meson at build time.'''
+
 import os
 import sys
 import shutil

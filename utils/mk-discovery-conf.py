@@ -13,4 +13,4 @@ KEYS = [
 ]
 
 for ctrl in eval(sys.stdin.read()):
-    print(f"{' '.join([f'--{kout or kin}={ctrl[kin]}' for kin,kout in KEYS if ctrl[kin] != ''])}")
+    print(f"{' '.join([f'--{kout or kin}={ctrl[kin]}' for kin, kout in KEYS if ctrl[kin] != ''])}")

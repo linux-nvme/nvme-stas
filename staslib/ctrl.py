@@ -44,7 +44,7 @@ def dlp_supp_opts_as_string(dlp_supp_opts: int):
 
 
 # ******************************************************************************
-class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attributes
+class Controller(stas.ControllerABC):
     '''@brief Base class used to manage the connection to a controller.'''
 
     def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
@@ -163,7 +163,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
                 udev_obj.action,
             )
 
-    def _on_ctrl_removed(self, udev_obj):  # pylint: disable=unused-argument
+    def _on_ctrl_removed(self, udev_obj):
         if self._udev:
             self._udev.unregister_for_device_events(self._on_udev_notification)
         self._kill_ops()  # Kill all pending operations
@@ -284,7 +284,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         self._connect_attempts = 0
         self._udev.register_for_device_events(self._device, self._on_udev_notification)
 
-    def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):  # pylint: disable=unused-argument
+    def _on_connect_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt):
         '''@brief Function called when we fail to connect to the Controller.'''
         op_obj.kill()
         self._connect_op = None
@@ -343,7 +343,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
             # the object. This would invariably lead to unpredictable outcome.
             GLib.idle_add(disconnected_cb, self, True)
 
-    def _on_disconn_success(self, op_obj: gutil.AsyncTask, data, disconnected_cb):  # pylint: disable=unused-argument
+    def _on_disconn_success(self, op_obj: gutil.AsyncTask, data, disconnected_cb):
         logging.debug('Controller._on_disconn_success()   - %s | %s', self.id, self.device)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback
@@ -352,9 +352,7 @@ class Controller(stas.ControllerABC):  # pylint: disable=too-many-instance-attri
         # the object. This would invariably lead to unpredictable outcome.
         GLib.idle_add(disconnected_cb, self, True)
 
-    def _on_disconn_fail(
-        self, op_obj: gutil.AsyncTask, err, fail_cnt, disconnected_cb
-    ):  # pylint: disable=unused-argument
+    def _on_disconn_fail(self, op_obj: gutil.AsyncTask, err, fail_cnt, disconnected_cb):
         logging.debug('Controller._on_disconn_fail()      - %s | %s: %s', self.id, self.device, err)
         op_obj.kill()
         # Defer callback to the next main loop's idle period. The callback
@@ -596,7 +594,7 @@ class Dc(Controller):
             self._handle_lost_controller()
 
     # --------------------------------------------------------------------------
-    def _on_registration_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
+    def _on_registration_success(self, op_obj: gutil.AsyncTask, data):
         '''@brief Function called when we successfully register with the
         Discovery Controller. See self._register_op object
         for details.
@@ -645,7 +643,7 @@ class Dc(Controller):
         op_obj.retry(Dc.REGISTRATION_RETRY_PERIOD_SEC)
 
     # --------------------------------------------------------------------------
-    def _on_get_supported_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
+    def _on_get_supported_success(self, op_obj: gutil.AsyncTask, data):
         '''@brief Function called when we successfully retrieved the supported
         log pages from the Discovery Controller. See self._get_supported_op object
         for details.
@@ -709,7 +707,7 @@ class Dc(Controller):
         op_obj.retry(Dc.GET_SUPPORTED_RETRY_PERIOD_SEC)
 
     # --------------------------------------------------------------------------
-    def _on_get_log_success(self, op_obj: gutil.AsyncTask, data):  # pylint: disable=unused-argument
+    def _on_get_log_success(self, op_obj: gutil.AsyncTask, data):
         '''@brief Function called when we successfully retrieve the log pages
         from the Discovery Controller. See self._get_log_op object
         for details.

@@ -1,0 +1,32 @@
+# Copyright (c) 2026, Dell Inc. or its subsidiaries.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Ruff configuration for nvme-stas
+
+# Exclude directories
+extend-exclude = [
+    "subprojects",
+    "debian",
+]
+
+target-version = "py37"
+line-length = 120
+
+[lint]
+# Enable pyflakes (F) and a subset of pycodestyle (E, W)
+select = [
+    "F",      # pyflakes
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[format]
+quote-style = "preserve"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

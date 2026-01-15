@@ -62,7 +62,7 @@ def _to_int(text):
     try:
         return int(_parse_single_val(text))
     except (ValueError, TypeError):
-        raise InvalidOption  # pylint: disable=raise-missing-from
+        raise InvalidOption from None
 
 
 def _to_bool(text, positive='true'):
@@ -103,7 +103,7 @@ class OrderedMultisetDict(dict):
         return value
 
 
-class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public-methods
+class SvcConf(metaclass=singleton.Singleton):
     '''Read and cache configuration file.'''
 
     OPTION_CHECKER = {
@@ -249,7 +249,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         self._conf_file = fname
         self.reload()
 
-    def get_option(self, section, option, ignore_default=False):  # pylint: disable=too-many-locals
+    def get_option(self, section, option, ignore_default=False):
         '''Retrieve @option from @section, convert raw text to
         appropriate object type, and validate.'''
         try:
@@ -298,7 +298,7 @@ class SvcConf(metaclass=singleton.Singleton):  # pylint: disable=too-many-public
         functools.partial(get_option, section='I/O controller connection management', option='connect-attempts-on-ncc')
     )
 
-    @property  # pylint chokes on this when defined as zeroconf_enabled=property(...). Works fine using a decorator...
+    @property
     def zeroconf_enabled(self):
         '''Return whether zeroconf is enabled'''
         return self.get_option(section='Service Discovery', option='zeroconf')
@@ -628,7 +628,7 @@ class SysConf(metaclass=singleton.Singleton):
             file = default_file
 
         try:
-            with open(file) as f:  # pylint: disable=unspecified-encoding
+            with open(file) as f:
                 return f.readline().split()[0]
         except IndexError:
             return None
@@ -660,7 +660,7 @@ class NvmeOptions(metaclass=singleton.Singleton):
         # backported to that kernel.
         if not all(self._supported_options.values()):  # At least one option is False.
             try:
-                with open('/dev/nvme-fabrics') as f:  # pylint: disable=unspecified-encoding
+                with open('/dev/nvme-fabrics') as f:
                     options = [option.split('=')[0].strip() for option in f.readline().rstrip('\n').split(',')]
             except PermissionError:  # Must be root to read this file
                 raise
@@ -702,7 +702,7 @@ class NvmeOptions(metaclass=singleton.Singleton):
 
 
 # ******************************************************************************
-class NbftConf(metaclass=singleton.Singleton):  # pylint: disable=too-few-public-methods
+class NbftConf(metaclass=singleton.Singleton):
     '''Read and cache configuration file.'''
 
     def __init__(self, root_dir=defs.NBFT_SYSFS_PATH):

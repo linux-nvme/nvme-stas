@@ -16,7 +16,7 @@ class StaslibLogTest(TestCase):
         try:
             # We can't proceed with this test if the
             # module systemd.journal is not installed.
-            import systemd.journal  # pylint: disable=import-outside-toplevel
+            import systemd.journal
         except ModuleNotFoundError:
             return
 
@@ -44,7 +44,7 @@ class StaslibLogTest(TestCase):
             # default logging handler (if present). Therefore, in order to force
             # log.py to use SysLogHandler as the handler, we need to mock
             # systemd.journal.JournalHandler() with an invalid class.
-            import systemd.journal  # pylint: disable=import-outside-toplevel
+            import systemd.journal
         except ModuleNotFoundError:
             original_handler = None
         else:

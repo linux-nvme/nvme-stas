@@ -15,7 +15,7 @@ All contributions should be made through pull requests. Before submitting make s
 1. Fork the repo
 2. Make changes. Try to split you changes into distinct commits and avoid making big reformatting as it makes it harder to review the changes.
 3. If possible, add unit tests for new features.
-4. Run `make black` to make sure the changes conform to coding styles. See [Coding styles]() below.
+4. Run `make check-format` to make sure the changes conform to coding styles. See [Coding styles]() below.
 5. Run `make test` and make sure all tests pass.
 6. Commit to your fork with descriptive message and use the "`--signoff, -s`" option
 7. Send the pull request
@@ -24,16 +24,10 @@ All contributions should be made through pull requests. Before submitting make s
 
 ## Coding style
 
-nvme-stas uses [black](https://black.readthedocs.io/en/stable/), [pylint](https://pylint.readthedocs.io/en/latest/), and [pyflakes](https://pypi.org/project/pyflakes/) to check that the code meets minimum style requirements. We use `black` with the following options.
-
-```bash
-black --diff --color --line-length 120 --skip-string-normalization [file or directory]
-```
-
-You can also use this convenience make command:
+nvme-stas uses [ruff](https://docs.astral.sh/ruff/) to check that the code meets minimum style requirements. You can use this convenience make command:
 
 ```
-make black
+make check-format
 ```
 
 ## Minimum Python version required
@@ -50,4 +44,4 @@ Unit tests can be run with this command:
 make test
 ```
 
-This command not only runs the unit tests, but also pylint, pyflakes, and vermin. Make sure that these programs are installed otherwise the tests will be skipped.
+This command not only runs the unit tests, but also ruff and vermin. Make sure that these programs are installed otherwise the tests will be skipped.

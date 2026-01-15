@@ -16,8 +16,7 @@ Static code analysis tools can be executed via `meson test`. These tools are **n
 
 | Library / Program | Purpose                                                      | Mandatory? |
 | ----------------- | ------------------------------------------------------------ | ---------- |
-| pylint            | Static code analysis                                         | Optional   |
-| python3-pyflakes  | Static code analysis                                         | Optional   |
+| ruff              | Static code analysis                                         | Optional   |
 | python3-pyfakefs  | Filesystem-related test mocking                              | Optional   |
 | vermin            | Verify minimum Python version requirements (currently Python 3.6) | Optional   |
 

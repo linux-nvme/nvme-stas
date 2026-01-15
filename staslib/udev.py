@@ -113,7 +113,7 @@ class Udev:
                     try:
                         value = udev.attributes.asstring(attr_id).strip()
                         attrs[attr_id] = '' if value == '(efault)' else value
-                    except Exception:  # pylint: disable=broad-except
+                    except Exception:
                         pass
 
         return attrs
@@ -155,7 +155,7 @@ class Udev:
         return False
 
     @staticmethod
-    def _cid_matches_tcp_tid_legacy(tid, cid, ifaces):  # pylint: disable=too-many-branches
+    def _cid_matches_tcp_tid_legacy(tid, cid, ifaces):
         '''On kernels older than 6.1, the src_addr parameter is not available
         from the sysfs. Therefore, we need to infer a match based on other
         parameters. And there are a few cases where we're simply not sure
@@ -224,7 +224,7 @@ class Udev:
         return True
 
     @staticmethod
-    def _cid_matches_tid(tid, cid, ifaces):  #  pylint: disable=too-many-return-statements,too-many-branches
+    def _cid_matches_tid(tid, cid, ifaces):
         '''Check if existing controller's cid matches candidate controller's tid.
         @param cid: The Connection ID of an existing controller (from the sysfs).
         @param tid: The Transport ID of a candidate controller.
@@ -378,7 +378,7 @@ class Udev:
 
         return tids
 
-    def _process_udev_event(self, event_source, condition):  # pylint: disable=unused-argument
+    def _process_udev_event(self, event_source, condition):
         if condition == GLib.IO_IN:
             try:
                 self.__handle_events()
@@ -431,7 +431,7 @@ class Udev:
     def _get_attribute(device, attr_id, default=''):
         try:
             attr = device.attributes.asstring(attr_id).strip()
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             attr = default
 
         return '' if attr.lower() == 'none' else attr
@@ -499,6 +499,6 @@ UDEV = Udev()  # Singleton
 
 def shutdown():
     '''Destroy the UDEV singleton'''
-    global UDEV  # pylint: disable=global-statement,global-variable-not-assigned
+    global UDEV
     UDEV.release_resources()
     del UDEV

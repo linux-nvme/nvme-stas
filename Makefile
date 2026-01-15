@@ -67,9 +67,14 @@ loc:
 loc-full:
 	@cloc --by-file --exclude-dir=${BUILD-DIR},subprojects,debian,obj-x86_64-linux-gnu,.github .
 
-.PHONY: black
-black:
-	black --diff --color --line-length 120 --skip-string-normalization --extend-exclude="(subprojects|debian|.build)" .
+.PHONY: check-format
+check-format:
+	@echo "-------------------------------------------------------"
+	ruff format --check --diff stacctl.py stacd.py stafctl.py stafd.py stasadm.py staslib/
+
+	@echo ""
+	@echo "-------------------------------------------------------"
+	ruff check stacctl.py stacd.py stafctl.py stafd.py stasadm.py staslib/
 
 # Coverage requirements:
 #   apt-get install python3-coverage

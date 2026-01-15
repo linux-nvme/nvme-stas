@@ -8,6 +8,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 '''STorage Appliance Services Admin Tool'''
+
 import os
 import sys
 import uuid
@@ -23,9 +24,9 @@ except (ImportError, ModuleNotFoundError):
     hashlib = None
 
 
-def read_from_file(fname, size):  # pylint: disable=missing-function-docstring
+def read_from_file(fname, size):
     try:
-        with open(fname) as f:  # pylint: disable=unspecified-encoding
+        with open(fname) as f:
             data = f.read(size)
         if len(data) == size:
             return data
@@ -100,7 +101,7 @@ def save(section, option, string, conf_file, fname):
     @param fname: Optional file where @string will be saved
     '''
     if fname and string is not None:
-        with open(fname, 'w') as f:  # pylint: disable=unspecified-encoding
+        with open(fname, 'w') as f:
             print(string, file=f)
 
     if conf_file:
@@ -123,7 +124,7 @@ def save(section, option, string, conf_file, fname):
         else:
             config.remove_option(section, option)
 
-        with open(conf_file, 'w') as f:  # pylint: disable=unspecified-encoding
+        with open(conf_file, 'w') as f:
             config.write(f)
 
 
@@ -149,7 +150,7 @@ def clr_symname(args):
     save('Host', 'symname', None, args.conf_file, None)
 
 
-def get_parser():  # pylint: disable=missing-function-docstring
+def get_parser():
     parser = ArgumentParser(description='Configuration utility for STAS.')
     parser.add_argument('-v', '--version', action='store_true', help='Print version, then exit', default=False)
     parser.add_argument(

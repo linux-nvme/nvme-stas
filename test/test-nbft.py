@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 import os
 import unittest
-from staslib import defs, nbft
-from libnvme import nvme
-from argparse import ArgumentParser
+from staslib import nbft
 
 TEST_DIR = os.path.dirname(__file__)
 NBFT_FILE = os.path.join(TEST_DIR, "NBFT")

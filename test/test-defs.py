@@ -1,7 +1,4 @@
 #!/usr/bin/python3
-import contextlib
-import os
-import sys
 import unittest
 
 

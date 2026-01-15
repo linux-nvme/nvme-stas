@@ -8,6 +8,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 '''STorage Appliance Connector Daemon'''
+
 import sys
 from argparse import ArgumentParser
 from staslib import defs
@@ -50,7 +51,7 @@ if ARGS.version:
 if __name__ == '__main__':
     import json
     import logging
-    from staslib import log, service, stas, udev  # pylint: disable=ungrouped-imports
+    from staslib import log, service, stas, udev
 
     # Before going any further, make sure the script is allowed to run.
     stas.check_if_allowed_to_continue()
@@ -88,9 +89,7 @@ if __name__ == '__main__':
             info.update(STAC.info())
             return json.dumps(info)
 
-        def controller_info(  # pylint: disable=too-many-arguments
-            self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
-        ) -> str:
+        def controller_info(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn) -> str:
             '''@brief D-Bus method used to return information about a controller'''
             controller = STAC.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
             return json.dumps(controller.info()) if controller else '{}'

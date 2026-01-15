@@ -52,13 +52,13 @@ def _opt(string):
 
 
 def _optsep(string):
-    return fr'(?:{string}\s*(?:{SEPARATORS}\s*)?)?'
+    return rf'(?:{string}\s*(?:{SEPARATORS}\s*)?)?'
 
 
 TIMEFORMATS = [
-    fr'{_optsep(DAYS)}\s*{_optsep(HOURS)}\s*{_optsep(MINS)}\s*{_opt(SECS)}',
+    rf'{_optsep(DAYS)}\s*{_optsep(HOURS)}\s*{_optsep(MINS)}\s*{_opt(SECS)}',
     f'{MINCLOCK}',
-    fr'{_optsep(DAYS)}\s*{HOURCLOCK}',
+    rf'{_optsep(DAYS)}\s*{HOURCLOCK}',
     f'{DAYCLOCK}',
     f'{SECCLOCK}',
 ]
