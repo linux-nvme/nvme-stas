@@ -121,7 +121,7 @@ jobs:
 
       - name: "Ruff: lint"
         run: |
-          ruff check --diff .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
+          ruff check .build/stacctl .build/stacd .build/stafctl .build/stafd .build/stasadm .build/staslib
 
       - name: "Ruff: format"
         if: always()

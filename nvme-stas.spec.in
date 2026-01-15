@@ -16,9 +16,6 @@ BuildRequires: systemd-rpm-macros
 
 BuildRequires: python3
 #BuildRequires: python3-devel
-#BuildRequires: python3-pyflakes
-#BuildRequires: python3-pylint
-#BuildRequires: pylint
 
 #BuildRequires: python3-dasbus
 #BuildRequires: python3-pyudev

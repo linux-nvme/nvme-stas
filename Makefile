@@ -69,7 +69,12 @@ loc-full:
 
 .PHONY: check-format
 check-format:
-	ruff --check --diff
+	@echo "-------------------------------------------------------"
+	ruff format --check --diff stacctl.py stacd.py stafctl.py stafd.py stasadm.py staslib/
+
+	@echo ""
+	@echo "-------------------------------------------------------"
+	ruff check stacctl.py stacd.py stafctl.py stafd.py stasadm.py staslib/
 
 # Coverage requirements:
 #   apt-get install python3-coverage

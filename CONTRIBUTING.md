@@ -44,4 +44,4 @@ Unit tests can be run with this command:
 make test
 ```
 
-This command not only runs the unit tests, but also pylint, pyflakes, and vermin. Make sure that these programs are installed otherwise the tests will be skipped.
+This command not only runs the unit tests, but also ruff and vermin. Make sure that these programs are installed otherwise the tests will be skipped.
