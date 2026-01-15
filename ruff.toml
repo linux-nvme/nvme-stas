@@ -7,7 +7,6 @@
 extend-exclude = [
     "subprojects",
     "debian",
-    ".build",
 ]
 
 target-version = "py37"
