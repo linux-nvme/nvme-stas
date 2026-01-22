@@ -17,4 +17,5 @@ from staslib import defs
 def get_nbft_files(root_dir=defs.NBFT_SYSFS_PATH):
     """Return a dictionary containing the NBFT data for all the NBFT binary files located in @root_dir"""
     pathname = os.path.join(root_dir, defs.NBFT_SYSFS_FILENAME)
-    return {fname: nvme.nbft_get(fname) or {} for fname in glob.iglob(pathname=pathname)}
+    root = nvme.global_ctx()
+    return {fname: nvme.nbft_get(root, fname) or {} for fname in glob.iglob(pathname=pathname)}
