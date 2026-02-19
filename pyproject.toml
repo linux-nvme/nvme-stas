@@ -1,0 +1,122 @@
+# Copyright (c) 2021, Dell Inc. or its subsidiaries.  All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# See the LICENSE file for details.
+#
+# This file is part of NVMe STorage Appliance Services (nvme-stas).
+#
+# Authors: Martin Belanger <Martin.Belanger@dell.com>
+
+# ---------------------------------------------------------------------------
+# Build system
+# ---------------------------------------------------------------------------
+# meson-python is the PEP 517 build backend for Meson projects. It allows
+# "pip install -e ." for development. Note that a pip install only delivers
+# the staslib package; a full system installation (systemd units, D-Bus
+# config files, man pages, etc.) still requires:
+#   meson setup .build && meson install -C .build
+[build-system]
+requires = ["meson-python"]
+build-backend = "mesonpy"
+
+# ---------------------------------------------------------------------------
+# Project metadata
+# ---------------------------------------------------------------------------
+[project]
+name = "nvme-stas"
+version = "3.0"
+description = "NVMe over Fabrics STorage Appliance Services"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Martin Belanger", email = "Martin.Belanger@dell.com" },
+]
+keywords = [
+    "nvme", "nvme-of", "nvme-over-fabrics",
+    "storage", "discovery", "fabrics", "linux",
+    "zeroconf", "mdns", "avahi", "CDC", "DDC",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Hardware",
+    "Topic :: System :: Networking",
+    "Topic :: System :: Systems Administration",
+]
+requires-python = ">=3.6"
+# libnvme (>= 3.0), PyGObject (gi), and python-systemd are system-level
+# packages not available on PyPI. Install them via your distribution:
+#   apt:  python3-libnvme  python3-gi  python3-systemd
+#   dnf:  python3-libnvme  python3-gobject  python3-systemd
+dependencies = [
+    "dasbus",
+    "pyudev",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "vermin",
+    "pyfakefs",
+    "pytest",
+    "pytest-cov",
+]
+
+[project.urls]
+Homepage = "https://github.com/linux-nvme/nvme-stas"
+Repository = "https://github.com/linux-nvme/nvme-stas.git"
+"Bug Tracker" = "https://github.com/linux-nvme/nvme-stas/issues"
+
+# ---------------------------------------------------------------------------
+# Ruff — linter and formatter
+# Migrated from ruff.toml; that file can now be deleted.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+extend-exclude = [
+    "subprojects",
+    "debian",
+]
+target-version = "py37"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "F",   # pyflakes
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "preserve"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+# [tool.coverage] is intentionally absent. Coverage for integration tests
+# is configured via .coveragerc.in → .build/.coveragerc, because coverage.sh
+# runs from .build/ and needs paths (data_file, directory) to resolve
+# relative to that directory, not the source root.
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test-*.py"]
