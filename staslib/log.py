@@ -37,6 +37,7 @@ def init(syslog: bool):
         # Log to stdout
         handler = logging.StreamHandler(stream=sys.stdout)
 
+    log.handlers.clear()  # Remove any pre-existing handlers before adding the new one
     log.addHandler(handler)
     log.setLevel(logging.INFO if syslog else logging.DEBUG)
 

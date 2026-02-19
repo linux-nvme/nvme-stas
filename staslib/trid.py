@@ -119,8 +119,5 @@ class TID:
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self._key == other._key
 
-    def __ne__(self, other):
-        return not isinstance(other, self.__class__) or self._key != other._key
-
     def __hash__(self):
         return self._hash

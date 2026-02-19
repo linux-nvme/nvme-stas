@@ -66,7 +66,8 @@ def _to_int(text):
 
 
 def _to_bool(text, positive='true'):
-    return _parse_single_val(text).lower() == positive
+    val = _parse_single_val(text)
+    return val is not None and val.lower() == positive
 
 
 def _to_ncc(text):
@@ -77,7 +78,7 @@ def _to_ncc(text):
 
 
 def _to_ip_family(text):
-    return tuple((4 if text == 'ipv4' else 6 for text in _parse_single_val(text).split('+')))
+    return tuple((4 if token == 'ipv4' else 6 for token in _parse_single_val(text).split('+')))
 
 
 # ******************************************************************************
@@ -86,6 +87,11 @@ class OrderedMultisetDict(dict):
     and allow multiple configuration parameters with the same key. The
     result is a list of values, where values are sorted by the order they
     appear in the file.
+
+    Note: configparser internally joins repeated keys with '\\n' when
+    strict=False. __getitem__ splits on '\\n' to reconstruct the list, so
+    callers always receive a list of strings rather than a single newline-
+    joined string.
     '''
 
     def __setitem__(self, key, value):
@@ -214,12 +220,6 @@ class SvcConf(metaclass=singleton.Singleton):
                 'convert': _parse_list,
                 'default': [],
             },
-            ### BEGIN: LEGACY SECTION TO BE REMOVED ###
-            'blacklist': {
-                'convert': _parse_list,
-                'default': [],
-            },
-            ### END: LEGACY SECTION TO BE REMOVED ###
         },
     }
 
@@ -316,6 +316,10 @@ class SvcConf(metaclass=singleton.Singleton):
         section = 'Discovery controller connection management'
         option = 'persistent-connections'
 
+        # Use ignore_default=True so we can distinguish "not set in file" from
+        # "set to false". The per-daemon default (stafd vs stacd) differs and is
+        # held in self._defaults rather than in OPTION_CHECKER, so we fall back
+        # to that dict explicitly.
         value = self.get_option(section, option, ignore_default=True)
         if value is not None:
             return value
@@ -379,11 +383,6 @@ class SvcConf(metaclass=singleton.Singleton):
         }
         '''
         controller_list = self.get_option('Controllers', 'exclude')
-
-        # 2022-09-20: Look for "blacklist". This is for backwards compatibility
-        # with releases 1.0 to 1.1.x. This is to be phased out (i.e. remove by 2024)
-        controller_list += self.get_option('Controllers', 'blacklist')
-
         excluded = [_parse_controller(controller) for controller in controller_list]
         for controller in excluded:
             controller.pop('host-traddr', None)  # remove host-traddr
@@ -544,8 +543,11 @@ class SysConf(metaclass=singleton.Singleton):
         except FileNotFoundError as ex:
             sys.exit(f'Error reading mandatory Host NQN (see stasadm --help): {ex}')
 
-        if value is not None and not value.startswith('nqn.'):
-            sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
+        if value is not None:
+            if not value.startswith('nqn.'):
+                sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
+            if len(value) > 223:
+                sys.exit(f'Error Host NQN is too long ({len(value)} chars, max 223 per NVMe spec)')
 
         return value
 

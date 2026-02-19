@@ -136,9 +136,9 @@ def ip_equal(ip1, ip2):
     @param ip1: IPv4Address or IPv6Address object
     @param ip2: IPv4Address or IPv6Address object
     '''
-    if not isinstance(ip1, ipaddress._BaseAddress):
+    if not isinstance(ip1, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
         return False
-    if not isinstance(ip2, ipaddress._BaseAddress):
+    if not isinstance(ip2, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
         return False
 
     if ip1.version == 4 and ip2.version == 6:
@@ -256,7 +256,7 @@ def get_interface(ifaces: dict, src_addr):
     @param ifaces: Interface info previously returned by @net_if_addrs()
     @param src_addr: IPv4Address or IPv6Address object
     '''
-    if not isinstance(src_addr, ipaddress._BaseAddress):
+    if not isinstance(src_addr, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
         return ''
 
     for iface, addr_map in ifaces.items():

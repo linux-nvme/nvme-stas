@@ -29,5 +29,21 @@ class GutilUnitTest(unittest.TestCase):
         self.assertEqual(op.as_dict().get('error'), errmsg)
 
 
+    def test_Deferred(self):
+        called = []
+        d = gutil.Deferred(lambda: called.append(1))
+        self.assertFalse(d.is_scheduled())
+        d.schedule()
+        self.assertTrue(d.is_scheduled())
+        # Scheduling again is a no-op (idempotent)
+        d.schedule()
+        self.assertTrue(d.is_scheduled())
+        d.cancel()
+        self.assertFalse(d.is_scheduled())
+        # Cancel when already cancelled is safe
+        d.cancel()
+        self.assertFalse(d.is_scheduled())
+
+
 if __name__ == '__main__':
     unittest.main()

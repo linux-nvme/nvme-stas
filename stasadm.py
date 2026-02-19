@@ -62,6 +62,10 @@ def get_machine_app_specific(app_id):
     if not data:
         return None
 
+    # app_id is a public domain-separation constant (per systemd's design).
+    # It intentionally does NOT need to be secret: its only purpose is to
+    # make the derived ID unique to this application so that two different
+    # applications deriving from the same machine-id produce different values.
     hmac_obj = hmac.new(app_id, uuid.UUID(data).bytes, hashlib.sha256)
     id128_bytes = hmac_obj.digest()[0:16]
     return str(uuid.UUID(bytes=id128_bytes, version=4))
@@ -196,8 +200,8 @@ if ARGS.version:
     print(f'nvme-stas {defs.VERSION}')
     sys.exit(0)
 
-try:
-    ARGS.cmd(ARGS)
-except AttributeError as ex:
-    print(str(ex))
+if not hasattr(ARGS, 'cmd'):
     PARSER.print_usage()
+    sys.exit(1)
+
+ARGS.cmd(ARGS)

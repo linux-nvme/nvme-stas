@@ -96,6 +96,10 @@ if ARGS.version:
     print(f'nvme-stas {defs.VERSION}')
     sys.exit(0)
 
+if not hasattr(ARGS, 'func'):
+    PARSER.print_usage()
+    sys.exit(1)
+
 try:
     ARGS.func(ARGS)
 except dasbus.error.DBusError:

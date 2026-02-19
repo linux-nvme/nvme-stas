@@ -700,9 +700,9 @@ class Staf(Service):
         )
 
     def dc_removed(self):
-        '''@brief Function invoked when a controller's cached log pages
-        have changed. This will emit a D-Bus signal to inform
-        other applications that the cached log pages have changed.
+        '''@brief Function invoked when one or more discovery controllers have
+        been removed. This will emit a D-Bus signal to inform other applications
+        (e.g. stacd) that they should re-evaluate their I/O controller list.
         '''
         self._dbus_iface.dc_removed.emit()
 

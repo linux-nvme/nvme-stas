@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+import tempfile
 import unittest
 from staslib import nbft
 
@@ -91,6 +92,15 @@ class Test(unittest.TestCase):
     def test_dir_without_nbft_files(self):
         actual_nbft = nbft.get_nbft_files("/tmp")
         self.assertEqual(actual_nbft, {})
+
+    def test_corrupt_nbft_file(self):
+        """Make sure a corrupt/garbage NBFT binary does not crash and returns {}"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            corrupt_file = os.path.join(tmpdir, 'NBFT')
+            with open(corrupt_file, 'wb') as f:
+                f.write(b'\xca\xfe\xba\xbe' * 64)  # 256 bytes of garbage
+            result = nbft.get_nbft_files(tmpdir)
+            self.assertEqual(result, {corrupt_file: {}})
 
 
 if __name__ == "__main__":

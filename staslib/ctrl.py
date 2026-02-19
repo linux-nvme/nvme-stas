@@ -170,7 +170,8 @@ class Controller(stas.ControllerABC):
         self._ctrl = None
         self._device = None
         self._connect_attempts = 0
-        self._retry_connect_tmr.start()
+        # Reset the retry interval to fast since this is effectively a fresh start
+        self._retry_connect_tmr.start(self.FAST_CONNECT_RETRY_PERIOD_SEC)
 
     def _get_cfg(self):
         '''Get configuration parameters. These may either come from the [Global]
