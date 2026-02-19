@@ -187,8 +187,10 @@ class SvcConf(metaclass=singleton.Singleton):
             'disconnect-scope': {
                 'convert': _parse_single_val,
                 'default': 'only-stas-connections',
-                'txt-chk': lambda text: _parse_single_val(text)
-                in ('only-stas-connections', 'all-connections-matching-disconnect-trtypes', 'no-disconnect'),
+                'txt-chk': lambda text: (
+                    _parse_single_val(text)
+                    in ('only-stas-connections', 'all-connections-matching-disconnect-trtypes', 'no-disconnect')
+                ),
             },
             'disconnect-trtypes': {
                 # Use set() to eliminate potential duplicates
