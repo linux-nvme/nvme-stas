@@ -91,12 +91,20 @@ class Udev:
         '''@brief Register a callback function to be called when udev events
         are received for a specific nvme device.
         @param sys_name: The device system name (e.g. 'nvme1')
+        @param user_cback: Callback with signature cback(udev_obj)
         '''
         if sys_name:
             self._device_event_registry[sys_name] = user_cback
 
     def unregister_for_device_events(self, user_cback):
-        '''@brief The opposite of register_for_device_events()'''
+        '''@brief The opposite of register_for_device_events().
+
+        Note: The registration API takes (sys_name, user_cback) but the
+        unregistration API takes only (user_cback). This asymmetry is
+        intentional: when a device is removed the caller no longer knows
+        its sys_name, so the registry is searched by callback value instead.
+        Each callback may only be registered for one device at a time.
+        '''
         entries = list(self._device_event_registry.items())
         for sys_name, _user_cback in entries:
             if user_cback == _user_cback:

@@ -21,44 +21,41 @@ from systemd.daemon import notify as sd_notify
 from staslib import conf, defs, gutil, iputil, log, trid
 
 try:
-    # Python 3.9 or later
-    # This is the preferred way, but may not be available before Python 3.9
-    from importlib.resources import files
+    # Python 3.9 or later (preferred)
+    from importlib.resources import files as _importlib_files
 except ImportError:
     try:
-        # Pre Python 3.9 backport of importlib.resources (if installed)
-        from importlib_resources import files
+        # Pre-3.9 backport of importlib.resources (if installed)
+        from importlib_resources import files as _importlib_files
     except ImportError:
-        # Less efficient, but available on older versions of Python
-        import pkg_resources
+        _importlib_files = None
 
-        def load_idl(idl_fname):
-            '''@brief Load D-Bus Interface Description Language File'''
-            try:
-                return pkg_resources.resource_string('staslib', idl_fname).decode()
-            except (FileNotFoundError, AttributeError):
-                pass
-
-            return ''
-
-    else:
-
-        def load_idl(idl_fname):
-            '''@brief Load D-Bus Interface Description Language File'''
-            try:
-                return files('staslib').joinpath(idl_fname).read_text()
-            except FileNotFoundError:
-                pass
-
-            return ''
-
-else:
+if _importlib_files is not None:
 
     def load_idl(idl_fname):
-        '''@brief Load D-Bus Interface Description Language File'''
+        '''@brief Load a D-Bus Introspection XML file from the staslib package.
+        @param idl_fname: File name of the IDL file (e.g. 'stafd.idl').
+        @return: File contents as a string, or empty string if not found.
+        '''
         try:
-            return files('staslib').joinpath(idl_fname).read_text()
+            return _importlib_files('staslib').joinpath(idl_fname).read_text()
         except FileNotFoundError:
+            pass
+
+        return ''
+
+else:
+    # Less efficient fallback available on older Python versions
+    import pkg_resources
+
+    def load_idl(idl_fname):
+        '''@brief Load a D-Bus Introspection XML file from the staslib package.
+        @param idl_fname: File name of the IDL file (e.g. 'stafd.idl').
+        @return: File contents as a string, or empty string if not found.
+        '''
+        try:
+            return pkg_resources.resource_string('staslib', idl_fname).decode()
+        except (FileNotFoundError, AttributeError):
             pass
 
         return ''
@@ -547,11 +544,17 @@ class ServiceABC(abc.ABC):
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
     def _read_lkc(self):
-        '''@brief Read Last Known Config from file'''
+        '''@brief Read Last Known Config from file.
+
+        Security note: pickle.load() is used here. This is safe because the
+        LKC file is written exclusively by this process to a path under
+        RUNTIME_DIRECTORY (e.g. /run/nvme-stas/), which is only writable by
+        root. No untrusted data can reach this code path.
+        '''
         try:
             with open(self._lkc_file, 'rb') as file:
                 return pickle.load(file)
-        except (FileNotFoundError, AttributeError, EOFError):
+        except (FileNotFoundError, AttributeError, EOFError, pickle.UnpicklingError):
             return None
 
     def _write_lkc(self, config):

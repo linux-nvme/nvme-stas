@@ -96,6 +96,22 @@ Required user-space dependencies include:
 
 This ensures consistency with other NVMe tools like `nvme-cli` and `libnvme`. Alternative values can be set in `/etc/stas/sys.conf`.
 
+## D-Bus Security and Trust
+
+Both *stafd* and *stacd* communicate over the **system D-Bus bus**. D-Bus policy
+files (installed under `/usr/share/dbus-1/system.d/`) control which callers are
+allowed to own or interact with the service names. Only processes running as
+**root** (or with explicit D-Bus policy permission) can invoke the service
+interfaces.
+
+*stacd* subscribes to D-Bus signals emitted by *stafd* (`log_pages_changed` and
+`dc_removed`). These signals arrive over the trusted system bus — *stacd* does
+not accept instructions from untrusted sources.
+
+The host credentials written to `/run/nvme-stas/` by the daemons (e.g. the
+last-known-config pickle file) are protected by root-only filesystem
+permissions. Do not grant untrusted users write access to that directory.
+
 ## Build, Install & Tests
 
 This Python project uses **Meson** as its build system:

@@ -36,6 +36,24 @@ class Test(unittest.TestCase):
         srv.kill()
         self.assertEqual(srv.info(), {'avahi wake up timer': 'None', 'service types': [], 'services': {}})
 
+    def test_ValueRange(self):
+        vr = avahi.ValueRange([2, 5, 10, 30])
+        self.assertEqual(vr.get_next(), 2)
+        self.assertEqual(vr.get_next(), 5)
+        self.assertEqual(vr.get_next(), 10)
+        self.assertEqual(vr.get_next(), 30)
+        # Ceiling: should keep returning last value
+        self.assertEqual(vr.get_next(), 30)
+        self.assertEqual(vr.get_next(), 30)
+        # Reset brings it back to the start
+        vr.reset()
+        self.assertEqual(vr.get_next(), 2)
+
+    def test_ValueRange_empty(self):
+        vr = avahi.ValueRange([])
+        # Empty list must not crash; returns 0
+        self.assertEqual(vr.get_next(), 0)
+
     def test__txt2dict(self):
         txt = [
             list('NqN=Starfleet'.encode('utf-8')),

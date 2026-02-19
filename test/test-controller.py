@@ -298,7 +298,27 @@ class Test(TestCase):
             self.assertNotEqual(-1, captured.records[0].getMessage().find("nvme666: keep_connection=False"))
             self.assertNotEqual(-1, captured.records[1].getMessage().find("nvme666 - Disconnect initiated"))
 
-    # def test_disconnect(self):
+    def test_disconnect(self):
+        '''Test the fast-path (no async operation) cases of disconnect()'''
+        self.svcconf.set_conf_file(self.stafd_conf_file1)
+        controller = TestDc(TestStaf(), tid=self.NVME_TID)
+
+        # keep_connection=True → no async disconnect even when the ctrl IS connected
+        controller.set_connected(True)
+        with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+            controller.disconnect(lambda *args: None, keep_connection=True)
+        self.assertEqual(len(captured.records), 1)
+        self.assertIn('keep_connection=True', captured.records[0].getMessage())
+        # "Disconnect initiated" must NOT appear when keep_connection=True
+        self.assertNotIn('Disconnect initiated', captured.records[0].getMessage())
+
+        # keep_connection=False but ctrl is NOT connected → no async disconnect either
+        controller.set_connected(False)
+        with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+            controller.disconnect(lambda *args: None, keep_connection=False)
+        self.assertEqual(len(captured.records), 1)
+        self.assertIn('keep_connection=False', captured.records[0].getMessage())
+        self.assertNotIn('Disconnect initiated', captured.records[0].getMessage())
 
 
 if __name__ == '__main__':

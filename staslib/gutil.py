@@ -57,7 +57,16 @@ class GTimer:
             self._source = None
 
     def start(self, new_interval_sec: float = -1.0):
-        '''@brief Start (or restart) timer'''
+        '''@brief Start (or restart) timer.
+
+        If the timer is not yet running, create and attach a new GLib source
+        that will fire after @new_interval_sec (or the previously set interval
+        if @new_interval_sec is negative).
+
+        If the timer is already running, reschedule it to fire @new_interval_sec
+        from NOW (i.e. the deadline is reset relative to the current monotonic
+        clock, not the original start time).
+        '''
         if new_interval_sec >= 0:
             self._interval_sec = float(new_interval_sec)
 

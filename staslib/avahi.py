@@ -13,7 +13,6 @@ services from the Avahi daemon over D-Bus.
 import socket
 import typing
 import logging
-import functools
 import dasbus.error
 import dasbus.connection
 import dasbus.client.proxy
@@ -29,7 +28,7 @@ def _txt2dict(txt: list):
     the_dict = dict()
     for list_of_chars in txt:
         try:
-            string = functools.reduce(lambda accumulator, c: accumulator + chr(c), list_of_chars, '')
+            string = ''.join(chr(c) for c in list_of_chars)
             if string.isprintable():
                 key, val = string.split('=')
                 if key:  # Make sure the key is not an empty string
@@ -83,6 +82,8 @@ class ValueRange:
 
     def get_next(self):
         '''Get the next value (or last value if ceiling was reached)'''
+        if not self._values:
+            return 0
         value = self._values[self._index]
         if self._index >= 0:
             self._index += 1
@@ -146,7 +147,7 @@ class Service:
 
     def info(self):
         '''Return debug info'''
-        info = self._data
+        info = dict(self._data)
         info['reachable'] = str(self._reachable)
         return info
 
@@ -417,7 +418,7 @@ class Avahi:
         self._kick_avahi_tmr.clear()
 
     def _remove_service(self, service_to_rm: typing.Tuple[int, int, str, str, str]):
-        service = self._services.pop(service_to_rm)
+        service = self._services.pop(service_to_rm, None)
         if service is not None:
             service.close()
 
