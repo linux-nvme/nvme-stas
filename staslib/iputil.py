@@ -27,7 +27,7 @@ ARPHRD_LOOPBACK = 772
 NLMSG_LENGTH = lambda msg_len: msg_len + NLMSG_HDRLEN  # noqa: E731
 
 RTATTR_SZ = 4
-RTA_ALIGN = lambda length: ((length + 3) & ~3)  # noqa: E731
+RTA_ALIGN = lambda length: (length + 3) & ~3  # noqa: E731
 IFLA_ADDRESS = 1
 IFLA_IFNAME = 3
 
