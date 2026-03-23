@@ -19,6 +19,14 @@
 - **Error handling and reporting**
 - Support for both **automatic (zeroconf)** and **manual configuration**
 
+## Why nvme-stas Instead of nvme-cli?
+
+*nvme-stas* was designed specifically to support the NVMe-oF Technical Proposals **TP8009** (Automated Discovery of NVMe-oF Discovery Controllers for IP Networks) and **TP8010** (NVMe-oF Centralized Discovery Controller), which cannot be implemented in [nvme-cli](https://github.com/linux-nvme/nvme-cli) / libnvme.
+
+The fundamental reason is that **nvme-cli is stateless**: it issues one-off commands and exits. TP8009 and TP8010 require a host to *maintain persistent state* — registering with a Central Discovery Controller (CDC), tracking Asynchronous Event Notifications (AENs), reacting to Fabric Zoning changes with automatic connect and disconnect operations, and retrying failed connections. These are inherently long-running, event-driven behaviors that a stateless CLI tool cannot provide.
+
+*nvme-stas* fills that gap by implementing two cooperating systemd daemons (*stafd* and *stacd*) that continuously monitor the NVMe-oF fabric and manage controller connections on behalf of the host. For a detailed feature-by-feature comparison, see [NVME-STAS-CLI_COMPARISON.md](./NVME-STAS-CLI_COMPARISON.md).
+
 ## High-Level Overview
 
 *nvme-stas* is composed of two cooperating services:
