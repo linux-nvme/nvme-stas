@@ -343,6 +343,13 @@ class TestSysConfNqnTooLong(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        # IMPORTANT: reset the SysConf singleton to an empty config BEFORE
+        # deleting the temp file.  SysConf caches _config in memory; simply
+        # deleting the file leaves the 224-char NQN in the cache.  When pytest
+        # runs all test files in one process, trid.TID.__init__ unconditionally
+        # evaluates sysconf.hostnqn (as the default arg to dict.get), so every
+        # TID construction in later test files would hit sys.exit.
+        conf.SysConf().set_conf_file('/dev/null')
         if os.path.exists(cls.FNAME):
             os.remove(cls.FNAME)
 
