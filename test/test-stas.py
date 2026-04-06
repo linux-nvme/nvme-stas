@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 import os
 import unittest
+from unittest.mock import patch
 from staslib import conf, stas, trid
+from pyfakefs.fake_filesystem_unittest import TestCase as FakeTestCase
 
 HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
 SUBSYSNQN = 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8'
@@ -256,6 +258,49 @@ class TestRemoveInvalidAddresses(unittest.TestCase):
         conf.SvcConf().set_conf_file(self.FNAME_BOTH)
         t = self._make_tid('unknown', '10.10.10.10')
         self.assertEqual(stas.remove_invalid_addresses([t]), [])
+
+
+# ==============================================================================
+class TestLoadIdl(unittest.TestCase):
+    '''Unit tests for stas.load_idl().'''
+
+    def test_stafd_idl_returns_content(self):
+        content = stas.load_idl('stafd.idl')
+        self.assertIsInstance(content, str)
+        self.assertGreater(len(content), 0)
+
+    def test_stacd_idl_returns_content(self):
+        content = stas.load_idl('stacd.idl')
+        self.assertIsInstance(content, str)
+        self.assertGreater(len(content), 0)
+
+    def test_nonexistent_idl_returns_empty_string(self):
+        content = stas.load_idl('nonexistent.idl')
+        self.assertEqual(content, '')
+
+
+# ==============================================================================
+class TestCheckIfAllowedToContinue(FakeTestCase):
+    '''Unit tests for stas.check_if_allowed_to_continue() using a fake filesystem.'''
+
+    def setUp(self):
+        self.setUpPyfakefs()
+
+    def test_exits_when_not_root(self):
+        with patch('os.geteuid', return_value=1000):
+            with self.assertRaises(SystemExit):
+                stas.check_if_allowed_to_continue()
+
+    def test_exits_when_nvme_fabrics_missing(self):
+        # /dev/nvme-fabrics is absent in the fake filesystem by default
+        with patch('os.geteuid', return_value=0):
+            with self.assertRaises(SystemExit):
+                stas.check_if_allowed_to_continue()
+
+    def test_returns_normally_when_root_and_nvme_fabrics_present(self):
+        self.fs.create_file('/dev/nvme-fabrics')
+        with patch('os.geteuid', return_value=0):
+            stas.check_if_allowed_to_continue()  # Must not raise
 
 
 if __name__ == '__main__':

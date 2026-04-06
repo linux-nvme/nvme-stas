@@ -38,6 +38,30 @@ class Test(unittest.TestCase):
         self.assertEqual(tmr.time_remaining(), 0)
         self.assertEqual(str(tmr), '1.0s [0s]')
 
+    def test_callback_source_remove_clears_source(self):
+        from gi.repository import GLib
+
+        tmr = gutil.GTimer(interval_sec=1, user_cback=lambda: GLib.SOURCE_REMOVE)
+        tmr.start()
+        self.assertIsNotNone(tmr._source)
+        result = tmr._callback()
+        self.assertEqual(result, GLib.SOURCE_REMOVE)
+        # _callback() must clear _source when the user callback returns SOURCE_REMOVE
+        self.assertIsNone(tmr._source)
+
+    def test_restart_running_timer_reschedules_in_place(self):
+        from gi.repository import GLib
+
+        tmr = gutil.GTimer(interval_sec=10, user_cback=lambda: GLib.SOURCE_REMOVE)
+        tmr.start()
+        self.assertIsNotNone(tmr._source)
+        source_before = tmr._source
+        # start() on an already-running timer must reuse the existing GLib source
+        # (via set_ready_time) rather than creating a new one.
+        tmr.start()
+        self.assertIs(tmr._source, source_before)
+        tmr.kill()
+
 
 if __name__ == '__main__':
     unittest.main()

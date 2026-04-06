@@ -681,21 +681,22 @@ sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/nvme-cli/libnvme/lib
 # Run unit tests
 TEST_DIR=$( realpath ../test )
 run_unit_test ${TEST_DIR}/test-avahi.py
-run_unit_test ${TEST_DIR}/test-avahi.py
 run_unit_test ${TEST_DIR}/test-config.py
 run_unit_test ${TEST_DIR}/test-controller.py
+run_unit_test ${TEST_DIR}/test-defs.py
 run_unit_test ${TEST_DIR}/test-gtimer.py
+run_unit_test ${TEST_DIR}/test-gutil.py
 run_unit_test ${TEST_DIR}/test-iputil.py
 run_unit_test ${TEST_DIR}/test-log.py
-run_unit_test ${TEST_DIR}/test-nbft.py
 run_unit_test ${TEST_DIR}/test-nbft_conf.py
+run_unit_test ${TEST_DIR}/test-nbft.py
 run_unit_test sudo ${TEST_DIR}/test-nvme_options.py  # Test both with super user...
 run_unit_test ${TEST_DIR}/test-nvme_options.py       # ... and with regular user
 run_unit_test ${TEST_DIR}/test-service.py
+run_unit_test ${TEST_DIR}/test-stasadm.py
+run_unit_test ${TEST_DIR}/test-stas.py
 run_unit_test ${TEST_DIR}/test-timeparse.py
 run_unit_test ${TEST_DIR}/test-transport_id.py
-run_unit_test ${TEST_DIR}/test-defs.py
-run_unit_test ${TEST_DIR}/test-gutil.py
 run_unit_test ${TEST_DIR}/test-udev.py
 run_unit_test ${TEST_DIR}/test-version.py
 
