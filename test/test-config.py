@@ -264,5 +264,93 @@ class StasSysConfUnitTest(unittest.TestCase):
         self.assertIsNone(system_conf.hostsymname)
 
 
+class TestParseController(unittest.TestCase):
+    '''Unit tests for conf._parse_controller() — a pure function.'''
+
+    def test_empty_string_returns_empty_dict(self):
+        self.assertEqual(conf._parse_controller(''), {})
+
+    def test_malformed_token_with_no_equals_is_silently_skipped(self):
+        # Token without '=' causes ValueError in unpacking → silently ignored
+        result = conf._parse_controller('noequalsign')
+        self.assertEqual(result, {})
+
+    def test_token_with_extra_equals_is_silently_skipped(self):
+        # 'key=val=extra' splits into 3 parts → ValueError → silently ignored
+        result = conf._parse_controller('key=val=extra')
+        self.assertEqual(result, {})
+
+    def test_mixed_valid_and_malformed_tokens(self):
+        result = conf._parse_controller('transport=tcp;noequalsign;traddr=10.10.10.10')
+        self.assertEqual(result, {'transport': 'tcp', 'traddr': '10.10.10.10'})
+
+
+class TestSvcConfEdgeCases(unittest.TestCase):
+    '''Edge-case tests for SvcConf validation: out-of-range values, invalid
+    sections/options.  These tests rely on the SvcConf singleton having been
+    initialised with a default_conf (which happens in StasProcessConfUnitTest),
+    so they are defined after that class.
+    '''
+
+    FNAME_OOR = '/tmp/stas-test-svc-oor.conf'
+    FNAME_BADSEC = '/tmp/stas-test-svc-badsec.conf'
+    FNAME_BADOPT = '/tmp/stas-test-svc-badopt.conf'
+    FNAME_VALID = '/tmp/stas-test-svc-valid.conf'
+
+    @classmethod
+    def setUpClass(cls):
+        with open(cls.FNAME_OOR, 'w') as f:
+            f.write('[Global]\nqueue-size=5\n')  # 5 is below the valid range [16, 1024]
+        with open(cls.FNAME_BADSEC, 'w') as f:
+            f.write('[BadSection]\nfoo=bar\n')
+        with open(cls.FNAME_BADOPT, 'w') as f:
+            f.write('[Global]\nbad-option=something\n')
+        with open(cls.FNAME_VALID, 'w') as f:
+            f.write('[Global]\nip-family=ipv4+ipv6\n')
+
+    @classmethod
+    def tearDownClass(cls):
+        for fname in (cls.FNAME_OOR, cls.FNAME_BADSEC, cls.FNAME_BADOPT, cls.FNAME_VALID):
+            if os.path.exists(fname):
+                os.remove(fname)
+
+    def setUp(self):
+        conf.SvcConf().set_conf_file(self.FNAME_VALID)
+
+    def test_queue_size_out_of_range_falls_back_to_none(self):
+        conf.SvcConf().set_conf_file(self.FNAME_OOR)
+        self.assertIsNone(conf.SvcConf().queue_size)
+
+    def test_invalid_section_logs_error(self):
+        with self.assertLogs(level='ERROR'):
+            conf.SvcConf().set_conf_file(self.FNAME_BADSEC)
+
+    def test_invalid_option_in_valid_section_logs_error(self):
+        with self.assertLogs(level='ERROR'):
+            conf.SvcConf().set_conf_file(self.FNAME_BADOPT)
+
+
+class TestSysConfNqnTooLong(unittest.TestCase):
+    '''Tests for SysConf NQN length validation (> 223 chars → sys.exit).'''
+
+    FNAME = '/tmp/stas-test-long-nqn.conf'
+
+    @classmethod
+    def setUpClass(cls):
+        long_nqn = 'nqn.' + 'a' * 220  # 224 chars — exceeds 223-char NVMe spec limit
+        with open(cls.FNAME, 'w') as f:
+            f.write(f'[Host]\nnqn={long_nqn}\n')
+
+    @classmethod
+    def tearDownClass(cls):
+        if os.path.exists(cls.FNAME):
+            os.remove(cls.FNAME)
+
+    def test_hostnqn_too_long_causes_exit(self):
+        system_conf = conf.SysConf()
+        system_conf.set_conf_file(self.FNAME)
+        self.assertRaises(SystemExit, lambda: system_conf.hostnqn)
+
+
 if __name__ == '__main__':
     unittest.main()
