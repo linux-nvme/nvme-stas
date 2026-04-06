@@ -1,6 +1,7 @@
 # nvme-stas - NVMe STorage Appliance Services (STAS)
 
 ![Build](https://github.com/linux-nvme/nvme-stas/actions/workflows/meson-test.yml/badge.svg)
+![CodeQL](https://github.com/linux-nvme/nvme-stas/actions/workflows/codeql.yml/badge.svg)
 ![GitHub](https://img.shields.io/github/license/linux-nvme/nvme-stas)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Release](https://img.shields.io/github/v/release/linux-nvme/nvme-stas?include_prereleases&style=)](https://github.com/linux-nvme/nvme-stas/releases)
