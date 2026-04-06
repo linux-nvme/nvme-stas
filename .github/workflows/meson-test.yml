@@ -5,12 +5,19 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 4 * * 0'  # Sundays at 4:00 AM UTC
 
   workflow_dispatch:
 
 jobs:
   meson-build:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
     steps:
       - name: "CHECKOUT: nvme-stas"
         uses: actions/checkout@v6
@@ -18,7 +25,13 @@ jobs:
       - name: "INSTALL: build packages"
         run: |
           sudo apt update
-          sudo apt-get install --yes --quiet meson ninja-build cmake
+          sudo apt-get install --yes --quiet ninja-build cmake
+          # Jammy ships meson 0.61 which is too old; install a newer version via pip
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            pip install meson
+          else
+            sudo apt-get install --yes --quiet meson
+          fi
 
       - name: "INSTALL: python packages"
         run: |
