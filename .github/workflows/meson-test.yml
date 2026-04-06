@@ -75,7 +75,7 @@ jobs:
           sudo apt-get install python3-pytest python3-pytest-cov
           echo $( pwd )
           cp -r .build/staslib/* ./staslib/.
-          pytest --cov=./staslib --cov-report=xml test/test-*.py
+          python3 -m pytest --cov=./staslib --cov-report=xml test/test-*.py
 
       - uses: codecov/codecov-action@v6
         with:
