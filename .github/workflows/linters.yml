@@ -48,11 +48,9 @@ jobs:
           pip install meson==0.62.0 ruff
 
       - name: "BUILD: [libnvme, nvme-stas]"
-        uses: BSFishy/meson-build@v1.0.3
-        with:
-          action: build
-          directory: .build
-          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
+        run: |
+          meson setup .build --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
+          meson compile -C .build
 
       - name: Set PYTHONPATH
         run: |
@@ -102,11 +100,9 @@ jobs:
           pip install ruff
 
       - name: "BUILD: [libnvme, nvme-stas]"
-        uses: BSFishy/meson-build@v1.0.3
-        with:
-          action: build
-          directory: .build
-          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
+        run: |
+          meson setup .build --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
+          meson compile -C .build
 
       - name: Set PYTHONPATH
         run: |
