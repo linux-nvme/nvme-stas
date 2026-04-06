@@ -1,0 +1,64 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '15 3 * * 2'  # Tuesdays at 3:15 AM UTC
+
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze (python)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: "CHECKOUT: nvme-stas"
+        uses: actions/checkout@v6
+
+      - name: "INSTALL: build packages"
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --quiet meson ninja-build cmake
+
+      - name: "INSTALL: python packages"
+        run: |
+          sudo apt-get install --yes --quiet python3-systemd python3-pyudev python3-dasbus python3-gi python3-lxml python3-tomli
+
+      - name: "INSTALL: remaining debian packages"
+        run: |
+          sudo apt-get install --yes --quiet libgirepository1.0-dev libsystemd-dev
+
+      - name: "INSTALL: libnvme packages (needed to build libnvme)"
+        run: |
+          sudo apt-get install --yes --quiet swig libjson-c-dev
+
+      - name: "INIT: CodeQL"
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: "BUILD: [libnvme, nvme-stas] (generates configured files in .build/)"
+        uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          directory: .build
+          setup-options: --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
+
+      - name: "CONFIG: PYTHONPATH"
+        run: |
+          echo "PYTHONPATH=.build:.build/subprojects/nvme-cli/libnvme:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
+
+      - name: "ANALYZE: CodeQL"
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
