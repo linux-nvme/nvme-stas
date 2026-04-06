@@ -57,6 +57,7 @@ else
     # Unit tests
     things_to_test = [
         ['Test Configuration', [],           [srce_dir / 'test-config.py',       ]],
+        ['Test stas',          [],           [srce_dir / 'test-stas.py',         ]],
         ['Test Controller',    ['pyfakefs'], [srce_dir / 'test-controller.py',   ]],
         ['Test GTimer',        [],           [srce_dir / 'test-gtimer.py',       ]],
         ['Test iputil',        [],           [srce_dir / 'test-iputil.py',       ]],
