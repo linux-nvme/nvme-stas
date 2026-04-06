@@ -4,6 +4,7 @@ PRIMARY_GRP=$( id -ng )
 PRIMARY_USR=$( id -nu )
 PYTHON_PATH=.:./subprojects/nvme-cli/libnvme
 AVAHI_PUBLISHER=mdns_publisher.service
+SCRATCH_FILE=/tmp/stas-coverage-out.txt
 
 file=/tmp/stafd.conf.XXXXXX
 stafd_conf_fname=$(mktemp $file)
@@ -55,9 +56,9 @@ sd_stop() {
 	unit="${app}"-cov.service
 	if systemctl-exists "${unit}" >/dev/null 2>&1; then
 		log "Stop ${app}"
-		sudo systemctl stop "${unit}" >/tmp/output.txt 2>&1
-		if [ -s /tmp/output.txt ]; then
-			log_file_contents $? /tmp/output.txt
+		sudo systemctl stop "${unit}" >${SCRATCH_FILE} 2>&1
+		if [ -s ${SCRATCH_FILE} ]; then
+			log_file_contents $? ${SCRATCH_FILE}
 		else
 			printf "   sudo systemctl stop %s\n" "${unit}"
 		fi
@@ -87,8 +88,8 @@ sd_start() {
 	sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
 
 	log "Start ${app}"
-	sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --property="SyslogIdentifier=${app}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >/tmp/output.txt 2>&1
-	log_file_contents $? /tmp/output.txt
+	sudo systemd-run --unit="${unit}" --working-directory=. --property=Type=dbus --property=BusName="${dbus}" --property="SyslogIdentifier=${app}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >${SCRATCH_FILE} 2>&1
+	log_file_contents $? ${SCRATCH_FILE}
 	printf "\n"
 	sleep 1
 }
@@ -99,8 +100,8 @@ sd_restart() {
 
 	if systemctl is-active "${unit}" >/dev/null 2>&1; then
 		log "Restart ${app}"
-		sudo systemctl restart "${unit}" && printf "systemctl restart %s\n" "${unit}" >/tmp/output.txt 2>&1
-		log_file_contents $? /tmp/output.txt
+		sudo systemctl restart "${unit}" && printf "systemctl restart %s\n" "${unit}" >${SCRATCH_FILE} 2>&1
+		log_file_contents $? ${SCRATCH_FILE}
 		sleep 1
 	else
 		msg="Cannot restart ${app}, which is not currently running."
@@ -114,24 +115,29 @@ reload_cfg() {
 	unit="${app}"-cov.service
 	pid=$( systemctl show --property MainPID --value "${unit}" )
 	log "Reload config ${app} - SIGHUP ${pid}"
-	#sudo systemctl reload "${unit}" && printf "systemctl reload %s\n" "${unit}" >/tmp/output.txt 2>&1
-	sudo kill -HUP "${pid}" >/tmp/output.txt 2>&1
-	log_file_contents $? /tmp/output.txt
+	#sudo systemctl reload "${unit}" && printf "systemctl reload %s\n" "${unit}" >${SCRATCH_FILE} 2>&1
+	sudo kill -HUP "${pid}" >${SCRATCH_FILE} 2>&1
+	log_file_contents $? ${SCRATCH_FILE}
 	printf "\n"
 	sleep 1
 }
 
 run_unit_test() {
-	input=$@
+	local input="$*"
+	local -a cov_cmd
 	if [ "$1" == "sudo" ]; then
 		shift
-		COVERAGE="sudo coverage"
+		cov_cmd=(sudo coverage)
 	else
-		COVERAGE="coverage"
+		cov_cmd=(coverage)
 	fi
-	args=$@
 	log "Run unit test: ${input}"
-	PYTHONPATH=${PYTHON_PATH} ${COVERAGE} run --rcfile=.coveragerc "${args}" >/dev/null 2>&1
+	PYTHONPATH=${PYTHON_PATH} "${cov_cmd[@]}" run --rcfile=.coveragerc "$@" >${SCRATCH_FILE} 2>&1
+	local rc=$?
+	if [ ${rc} -ne 0 ]; then
+		log "WARNING: Unit test FAILED (rc=${rc}): ${input}"
+		log_file_contents ${rc} ${SCRATCH_FILE}
+	fi
 }
 
 run_cmd_coverage() {
@@ -144,16 +150,16 @@ run_cmd_coverage() {
 	fi
 	cmd="$@"
 	log "Invoke: ${input}"
-	${COVERAGE} run --rcfile=.coveragerc ${cmd} >/tmp/output.txt 2>&1
-	log_file_contents $? /tmp/output.txt
+	${COVERAGE} run --rcfile=.coveragerc ${cmd} >${SCRATCH_FILE} 2>&1
+	log_file_contents $? ${SCRATCH_FILE}
 	printf "\n"
 }
 
 run_cmd() {
 	cmd="$@"
-	${cmd} >/tmp/output.txt 2>&1
-	if [ -s /tmp/output.txt ]; then
-		log_file_contents $? /tmp/output.txt
+	${cmd} >${SCRATCH_FILE} 2>&1
+	if [ -s ${SCRATCH_FILE} ]; then
+		log_file_contents $? ${SCRATCH_FILE}
 	else
 		printf "   %s\n" "${cmd}"
 	fi
@@ -183,8 +189,8 @@ postrun_cleanup() {
 	sd_stop "stacd"
 
 	log "Stop nvmet"
-	sudo ../utils/nvmet/nvmet.py clean >/tmp/output.txt 2>&1
-	log_file_contents $? /tmp/output.txt
+	sudo ../utils/nvmet/nvmet.py clean >${SCRATCH_FILE} 2>&1
+	log_file_contents $? ${SCRATCH_FILE}
 	printf "\n"
 
 	log "nvme disconnect-all"
@@ -219,7 +225,7 @@ postrun_cleanup() {
 }
 
 trap postrun_cleanup EXIT
-trap postrun_cleanup SIGINT
+trap 'exit 130' SIGINT
 
 ################################################################################
 ################################################################################
@@ -312,8 +318,8 @@ run_cmd_coverage stacctl invalid-command
 # Start nvme target simulator
 log "Start nvmet"
 sudo ../utils/nvmet/nvmet.py clean >/dev/null 2>&1
-sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf >/tmp/output.txt 2>&1
-log_file_contents $? /tmp/output.txt
+sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf >${SCRATCH_FILE} 2>&1
+log_file_contents $? ${SCRATCH_FILE}
 printf "\n"
 
 sleep 2
@@ -668,14 +674,14 @@ sleep 2
 
 sd_stop "stafd"
 sleep 5
-sd_start "stafd"
+sd_start "stafd" "@STAFD_DBUS_NAME@"
 
 
 #*******************************************************************************
 # Change ownership of files that were created as root
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage  >/dev/null 2>&1
-sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" staslib/__pycache__  >/dev/null 2>&1
-sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" subprojects/nvme-cli/libnvme/libnvme/__pycache__  >/dev/null 2>&1
+find staslib/__pycache__ -maxdepth 0 -type d 2>/dev/null | xargs -r sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}"
+find subprojects/nvme-cli/libnvme/libnvme/__pycache__ -maxdepth 0 -type d 2>/dev/null | xargs -r sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}"
 
 #*******************************************************************************
 # Run unit tests
