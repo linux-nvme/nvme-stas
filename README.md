@@ -75,6 +75,8 @@ systemctl reload stafd    # Reload config without restarting
 
 Equivalent service units exist for *stacd*. Signals like `SIGTERM` and `SIGHUP` are used for orderly shutdowns and configuration reloads respectively.
 
+> **Deployment note:** `stafd` and `stacd` are systemd services designed to run directly on the host. Running them inside containers (Docker, Podman, etc.) is not a supported deployment model. See [CONTAINERS.md](./CONTAINERS.md) for a detailed explanation.
+
 ## Configuration
 
 Configuration is stored under `/etc/stas/`:
