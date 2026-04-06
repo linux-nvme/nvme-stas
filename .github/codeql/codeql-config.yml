@@ -1,0 +1,7 @@
+# Analyze only the Meson build output (.build/), which contains fully
+# configured files (Meson template substitutions resolved). Exclude
+# subprojects/ — that is nvme-cli/libnvme code, not nvme-stas.
+paths:
+  - .build
+paths-ignore:
+  - .build/subprojects
