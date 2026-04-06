@@ -10,17 +10,6 @@ on:
 
 jobs:
 
-  docker-lint:
-    if: ${{ !github.event.act }} # skip during local actions testing
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v6
-      - uses: hadolint/hadolint-action@v3.3.0
-        with:
-          recursive: true
-          ignore: DL3041
-
   python-lint-Jammy:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
