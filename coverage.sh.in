@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-PRIMARY_GRP=$( id -ng )
-PRIMARY_USR=$( id -nu )
+PRIMARY_USR=$( [ -n "${SUDO_USER}" ] && echo "${SUDO_USER}" || id -nu )
+PRIMARY_GRP=$( id -ng "${PRIMARY_USR}" )
 PYTHON_PATH=.:./subprojects/nvme-cli/libnvme
 AVAHI_PUBLISHER=mdns_publisher.service
-SCRATCH_FILE=/tmp/stas-coverage-out.txt
+SCRATCH_FILE=$(mktemp /tmp/stas-coverage-out.XXXXXX)
 
 file=/tmp/stafd.conf.XXXXXX
 stafd_conf_fname=$(mktemp $file)
@@ -200,6 +200,7 @@ postrun_cleanup() {
 	log "Remove ${stafd_conf_fname} and ${stacd_conf_fname}"
 	rm "${stafd_conf_fname}"
 	rm "${stacd_conf_fname}"
+	rm -f "${SCRATCH_FILE}"
 	printf "\n"
 
 	for file in staf stac; do
