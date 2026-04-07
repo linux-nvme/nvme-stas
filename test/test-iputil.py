@@ -99,9 +99,28 @@ class Test(unittest.TestCase):
         self.assertNotIn(bad_tcp, l2)
         self.assertNotIn(bad_trtype, l2)
 
-    def test__data_matches_ip(self):
-        self.assertFalse(iputil.ip_equal(None, None))
+    def test_ip_equal(self):
+        self.assertFalse(iputil.ip_equal(None, ipaddress.IPv4Address('1.1.1.1')))
+        self.assertFalse(iputil.ip_equal(ipaddress.IPv4Address('1.1.1.1'), None))
+        self.assertTrue(iputil.ip_equal(ipaddress.IPv4Address('1.1.1.1'), ipaddress.IPv4Address('1.1.1.1')))
+        self.assertTrue(iputil.ip_equal(ipaddress.IPv4Address('1.2.3.4'), ipaddress.IPv6Address('::ffff:102:304')))
 
+    def test_get_ipaddress_obj(self):
+        # Invalid/empty input → None regardless of flag
+        self.assertIsNone(iputil.get_ipaddress_obj('', ipv4_mapped_convert=True))
+        self.assertIsNone(iputil.get_ipaddress_obj('not-an-ip', ipv4_mapped_convert=True))
+
+        # Regular IPv4 address: no ipv4_mapped attribute, returned as-is
+        self.assertEqual(ipaddress.IPv4Address('1.2.3.4'), iputil.get_ipaddress_obj('1.2.3.4', ipv4_mapped_convert=True))
+
+        # Regular IPv6 address (not IPv4-mapped): no conversion, returned as-is
+        self.assertEqual(ipaddress.IPv6Address('::1'), iputil.get_ipaddress_obj('::1', ipv4_mapped_convert=True))
+
+        # IPv4-mapped IPv6 address with convert=True → returns the IPv4 equivalent
+        self.assertEqual(ipaddress.IPv4Address('1.2.3.4'), iputil.get_ipaddress_obj('::ffff:1.2.3.4', ipv4_mapped_convert=True))
+
+        # IPv4-mapped IPv6 address with convert=False → stays as IPv6
+        self.assertEqual(ipaddress.IPv6Address('::ffff:102:304'), iputil.get_ipaddress_obj('::ffff:1.2.3.4', ipv4_mapped_convert=False))
 
 if __name__ == "__main__":
     unittest.main()
