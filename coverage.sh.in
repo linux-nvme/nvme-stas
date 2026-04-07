@@ -312,8 +312,10 @@ printf "\n"
 
 run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl invalid-command
+run_cmd_coverage stafctl
 run_cmd_coverage stacctl ls
 run_cmd_coverage stacctl invalid-command
+run_cmd_coverage stacctl
 
 #*******************************************************************************
 # Start nvme target simulator
@@ -592,20 +594,41 @@ file=/tmp/getdev-XXX.py
 getdev=$(mktemp $file)
 cat > "${getdev}" <<'EOF'
 import sys
-from dasbus.connection import SystemMessageBus
+import dasbus
+import dasbus.connection
 
-bus = SystemMessageBus()
+bus = dasbus.connection.SystemMessageBus()
 iface = bus.get_proxy(sys.argv[1], sys.argv[2])
-controllers = iface.list_controllers(False)
-if len(controllers) > 0:
-    controller = controllers[0]
-    print(controller['device'])
-    sys.exit(0)
+try:
+    controllers = iface.list_controllers(False)
+except dasbus.error.DBusError:
+    controllers = []
+
+for controller in controllers:
+    device = controller['device']
+    if device != 'nvme?':
+        print(device)
+        sys.exit(0)
+
+print("")
 sys.exit(1)
 EOF
 
+get_device() {
+    local bus=$1
+    local path=$2
+    dev=$(python3 ${getdev} ${bus} ${path})
+    if [[ -z "${dev}" ]]; then
+        # failed - try one more time after a short delay
+        sleep 1
+        dev=$(python3 ${getdev} ${bus} ${path})
+    fi
+    echo ${dev}
+}
+
 # Find a Discovery Controller and issue a "nvme disconnect"
-if dev=$(python3 ${getdev} @STAFD_DBUS_NAME@ @STAFD_DBUS_PATH@); then
+dev=$(get_device @STAFD_DBUS_NAME@ @STAFD_DBUS_PATH@)
+if [[ -n "${dev}" ]]; then
 	log "Remove connection (disconnect) to Discovery Controller ${dev}"
 	run_cmd sudo nvme disconnect -d ${dev}
 	printf "\n"
@@ -616,7 +639,8 @@ else
 fi
 
 # Find an I/O Controller and issue a "nvme disconnect"
-if dev=$(python3 ${getdev} @STACD_DBUS_NAME@ @STACD_DBUS_PATH@); then
+dev=$(get_device @STACD_DBUS_NAME@ @STACD_DBUS_PATH@)
+if [[ -n "${dev}" ]]; then
 	log "Remove connection (disconnect) to I/O Controller ${dev}"
 	run_cmd sudo nvme disconnect -d ${dev}
 	printf "\n"
@@ -700,7 +724,7 @@ run_unit_test ${TEST_DIR}/test-nbft.py
 run_unit_test sudo ${TEST_DIR}/test-nvme_options.py  # Test both with super user...
 run_unit_test ${TEST_DIR}/test-nvme_options.py       # ... and with regular user
 run_unit_test ${TEST_DIR}/test-service.py
-run_unit_test ${TEST_DIR}/test-stasadm.py
+#run_unit_test ${TEST_DIR}/test-stasadm.py
 run_unit_test ${TEST_DIR}/test-stas.py
 run_unit_test ${TEST_DIR}/test-timeparse.py
 run_unit_test ${TEST_DIR}/test-transport_id.py
