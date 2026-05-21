@@ -4,11 +4,13 @@ This document describes the requirements and guidelines for packaging **nvme-sta
 
 ## Build-time dependencies
 
-`nvme-stas` is a Python 3 project and does not require build-time libraries. However, it uses **Meson** for installation and testing. 
+`nvme-stas` is a Python 3 project and does not require build-time libraries. However, it uses **Meson** for build configuration, installation, and testing.
 
-| Library / Program | Purpose                                         | Mandatory? |
-| ----------------- | ----------------------------------------------- | --------- |
-| meson             | Project configuration, installation, and tests. | Yes       |
+Meson is a fundamental requirement — not merely a convenience wrapper. `nvme-stas` depends on **libnvme**, which is a C library that is part of the **nvme-cli** project and is itself built with Meson. By also using Meson, `nvme-stas` can declare `nvme-cli` as a [Meson subproject](https://mesonbuild.com/Subprojects.html), allowing the entire stack (libnvme → nvme-cli → nvme-stas) to be configured and built with a single `meson setup` + `meson compile` invocation. This is especially important for development and CI environments where a specific, unreleased version of libnvme must be paired with a matching nvme-stas.
+
+| Library / Program | Purpose                                                              | Mandatory? |
+| ----------------- | -------------------------------------------------------------------- | ---------- |
+| meson             | Project configuration, installation, tests, and subproject assembly. | Yes        |
 
 ## Unit test dependencies
 
@@ -50,7 +52,7 @@ The following were validated during development; equivalent or newer versions sh
 | **python3**                                 | 3.6         | Mandatory | Mandatory    | `python3 --version`                                       | Minimum supported Python                                 |
 | **python3-libnvme**                         | **3.0**     | Mandatory | Mandatory    | `python3 -c 'import libnvme; print(libnvme.__version__)'` | Userspace NVMe library                                   |
 | **python3-gi / python3-gobject**            | 3.36.0      | Mandatory | Mandatory    | `python3 -c 'import gi; print(gi.__version__)'`           | GObject introspection                                    |
-| **python3-dasbus**                          | 1.6         | Mandatory | Mandatory    | `pip list \| grep dasbus`                                 | D-Bus bindings                                           |
+| **python3-dasbus**                          | 1.6         | Mandatory | Mandatory    | `pip list | grep dasbus`                                  | D-Bus bindings                                           |
 | **python3-pyudev**                          | 0.22.0      | Mandatory | Mandatory    | `python3 -c 'import pyudev; print(pyudev.__version__)'`   | udev integration                                         |
 | **python3-systemd**                         | 240         | Mandatory | Mandatory    | `systemd --version`                                       | Journaling and notifications                             |
 | **nvme-tcp (kernel module)**                | 5.18*       | Mandatory | Mandatory    | N/A                                                       | Required for TCP transports                              |
@@ -83,7 +85,7 @@ Both `libnvme` and `nvme-cli` rely on:
 - `/etc/nvme/hostid`
 
 Distributions should create these files on install using `stasadm`.
- Example (Debian maintainer script):
+Example (Debian maintainer script):
 
 ```
 if [ "$1" = "configure" ]; then
