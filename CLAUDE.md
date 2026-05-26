@@ -76,6 +76,46 @@ Both daemons are driven by the **GLib main loop** — no `asyncio`, no threading
 
 **Last-known-config**: Persisted as a pickle file in `$RUNTIME_DIRECTORY` (typically `/run/nvme-stas/`). `pickle.load()` is safe here because that directory is root-only writable.
 
+## NVMe Specification Context
+
+### Key Terms (NVMe Base Spec 2.3, §1.5)
+
+| Term | Definition |
+|------|-----------|
+| **Centralized Discovery controller (CDC)** | A Discovery controller that reports discovery information registered by Direct Discovery controllers and hosts |
+| **Direct Discovery controller (DDC)** | A Discovery controller that is capable of registering discovery information with a Centralized Discovery controller |
+| **Discovery controller** | A controller that allows a host to retrieve a Discovery Log Page; does not implement I/O Queues or access non-volatile storage |
+| **Fabric Zoning** | A technique to specify access control configurations between hosts and NVM subsystems |
+| **I/O controller** | A controller that implements I/O queues intended to access a non-volatile storage medium |
+
+Capitalisation: the spec writes "Centralized Discovery **c**ontroller" (lowercase c). Always **Centralized**, never "Central".
+
+### TP8009 vs. TP8010 Scope
+
+**TP8009** — *Automated Discovery of NVMe-oF Discovery Controllers for IP Networks*  
+Defines how hosts find CDC/DDC IP addresses using DNS-SD (mDNS or unicast DNS). IP fabrics only.  
+- mDNS service name: `_nvme-disc._tcp` (TCP/iWARP) or `_nvme-disc._udp` (RoCE)  
+- CDC detection subtype: `_cdc._sub._nvme-disc._tcp`  
+- Host reads the A/AAAA record IP and issues a Fabrics Connect command  
+- This is called **zeroconf** (zero-configuration networking) — never "ZTP" (zero-touch provisioning, a different concept)  
+- TP8009 has **no registration mechanism** — registration is exclusively TP8010
+
+**TP8010** — *NVMe-oF Centralized Discovery Controller*  
+Defines everything that requires persistent host state:
+- Host/DDC registration with the CDC via the Discovery Information Management (DIM) command (push or pull model)
+- AENs from the CDC when Host Discovery Log Page changes (new/removed subsystems visible to the host)
+- Fabric Zoning: CDC controls which hosts see which subsystems; zone changes trigger connect/disconnect in nvme-stas
+- Kernel support: `host-iface` (5.14), DC unique NQN (5.16), runtime feature detection (5.17), full TP8010 (5.18)
+
+### Terminology Decisions
+
+| Avoid | Use instead | Reason |
+|-------|-------------|--------|
+| "Central Discovery Controller" | **Centralized** Discovery controller | NVMe Base Spec §1.5.16 |
+| "zero-touch provisioning / ZTP" | **zeroconf** | TP8009 and all nvme-stas docs use this term |
+| "caches storage subsystem information" | "caches discovery log pages" | Log pages contain both I/O controller entries and DC referrals |
+| Attributing CDC registration to TP8009 | TP8009 = mDNS discovery only; TP8010 = registration/AEN/Zoning | TP8009 has no registration mechanism |
+
 ## Tests
 
 Test files are in `test/` and are named `test-*.py`. They use `unittest` (not pytest, despite pytest being listed as a dev dependency — Meson runs them directly with `python3`).
