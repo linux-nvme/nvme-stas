@@ -56,7 +56,7 @@
                 <para>
                     Register for mDNS service type <parameter>_nvme-disc._tcp</parameter>
                     with Avahi, the service discovery daemon. This allows <code>stafd</code>
-                    to automatically locate Central or Direct Discovery
+                    to automatically locate Centralized or Direct Discovery
                     Controllers (CDC, DDC) with zero-configuration networking
                     (zeroconf). <code>stafd</code> also allows users to manually enter CDCs
                     and DDCs in a configuration file

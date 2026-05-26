@@ -14,17 +14,17 @@
 
 *nvme-stas* implements services that support NVMe-over-Fabrics (NVMe-oF) access by a Linux host. Specifically, it provides:
 
-- A **Central Discovery Controller (CDC) client** for Linux
+- A **Centralized Discovery Controller (CDC) client** for Linux (Ref. TP8010)
+- **Fabric Zoning-aware** automated connection management for NVMe subsystems (Ref. TP8010)
+- Support for both **automatic (zeroconf, Ref. TP8009)** and **manual configuration**
 - **Asynchronous Event Notifications (AEN)** handling
-- **Automated connection management** for NVMe subsystems
 - **Error handling and reporting**
-- Support for both **automatic (zeroconf)** and **manual configuration**
 
 ## Why nvme-stas Instead of nvme-cli?
 
 *nvme-stas* was designed specifically to support the NVMe-oF Technical Proposals **TP8009** (Automated Discovery of NVMe-oF Discovery Controllers for IP Networks) and **TP8010** (NVMe-oF Centralized Discovery Controller), which cannot be implemented in [nvme-cli](https://github.com/linux-nvme/nvme-cli) / libnvme.
 
-The fundamental reason is that **nvme-cli is stateless**: it issues one-off commands and exits. TP8009 and TP8010 require a host to *maintain persistent state* — registering with a Central Discovery Controller (CDC), tracking Asynchronous Event Notifications (AENs), reacting to Fabric Zoning changes with automatic connect and disconnect operations, and retrying failed connections. These are inherently long-running, event-driven behaviors that a stateless CLI tool cannot provide.
+The fundamental reason is that **nvme-cli is stateless**: it issues one-off commands and exits. TP8009 requires persistent mDNS monitoring to detect Discovery Controllers as they appear and disappear on the network. TP8010 additionally requires a host to maintain state — registering with a Centralized Discovery Controller (CDC), tracking Asynchronous Event Notifications (AENs), reacting to Fabric Zoning changes with automatic connect and disconnect operations, and retrying failed connections. These are inherently long-running, event-driven behaviors that a stateless CLI tool cannot provide.
 
 *nvme-stas* fills that gap by implementing two cooperating systemd daemons (*stafd* and *stacd*) that continuously monitor the NVMe-oF fabric and manage controller connections on behalf of the host. For a detailed feature-by-feature comparison, see [NVME-STAS-CLI_COMPARISON.md](./NVME-STAS-CLI_COMPARISON.md).
 
@@ -36,11 +36,11 @@ The fundamental reason is that **nvme-cli is stateless**: it issues one-off comm
 
 *stafd* is responsible for discovering storage appliances and discovery controllers:
 
-- Registers with the Avahi daemon for `_nvme-disc._tcp` mDNS service announcements, enabling **zero-touch provisioning (ZTP)**.
+- Registers with the Avahi daemon for `_nvme-disc._tcp` mDNS service announcements, enabling **zero-configuration networking (zeroconf)**.
 - Supports **manual discovery configurations** as an alternative to mDNS.
-- Connects to discovered or configured Central or Direct Discovery Controllers (CDC/DDC).
+- Connects to discovered or configured Centralized or Direct Discovery Controllers (CDC/DDC).
 - Retrieves discovery log pages from controllers.
-- Caches discovered storage subsystem information.
+- Caches discovery log pages retrieved from controllers.
 - Exposes a **D-Bus API** for querying discovery status and metadata.
 
 ***stacd*** - **STorage Appliance Connector Daemon**. 
@@ -60,7 +60,7 @@ Both *stafd* and *stacd* are implemented in Python and are driven using the **[G
 
 GLib, along with libraries like `dasbus` and `pyudev`, provides core building blocks such as timers, DNS name resolution, and signal handling integration.
 
-*stafd* leverages the `avahi-daemon` to detect Central Discovery Controllers (CDC) and Direct Discovery Controllers (DDC). It then uses **libnvme** to interface with the kernel NVMe stack and establish persistent connections to controllers.
+*stafd* leverages the `avahi-daemon` to detect Centralized Discovery Controllers (CDC) and Direct Discovery Controllers (DDC). It then uses **libnvme** to interface with the kernel NVMe stack and establish persistent connections to controllers.
 
 ## Service Management
 
@@ -96,6 +96,7 @@ Linux kernel **5.14 or later** (kernel **5.18+** recommended for full feature su
 Required user-space dependencies include:
 
 - **libnvme 3.0+** (Python bindings: `python3-libnvme`)
+- **avahi-daemon 0.7+** — required by `stafd` for mDNS-based Discovery Controller discovery
 - Python 3 system bindings: `dasbus`, `pyudev`, `python3-systemd`, `python3-gi` (package names vary by distro). 
 
 ## Host Identification
