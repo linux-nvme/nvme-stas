@@ -77,6 +77,6 @@ jobs:
           cp -r .build/staslib/* ./staslib/.
           python3 -m pytest --cov=./staslib --cov-report=xml test/test-*.py
 
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         with:
           fail_ci_if_error: false
