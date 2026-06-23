@@ -20,7 +20,7 @@ jobs:
         os: [ubuntu-22.04, ubuntu-24.04]
     steps:
       - name: "CHECKOUT: nvme-stas"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "INSTALL: build packages"
         run: |
