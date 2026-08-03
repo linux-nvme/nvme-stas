@@ -10,7 +10,7 @@
 
 import os
 import glob
-from libnvme import nvme
+from libnvme3 import nvme
 from staslib import defs
 
 

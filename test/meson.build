@@ -18,7 +18,7 @@ test_env = environment(
 test_list = modules_to_lint + packages_to_lint
 
 if libnvme_location == '?'
-    warning('Missing runtime package needed to run the tests: python3-libnvme.')
+    warning('Missing runtime package needed to run the tests: python3-libnvme3.')
 else
     #---------------------------------------------------------------------------
     # Code style checker

@@ -737,7 +737,7 @@ sd_start "stafd" "@STAFD_DBUS_NAME@"
 # Change ownership of files that were created as root
 sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}" coverage  >/dev/null 2>&1
 find staslib/__pycache__ -maxdepth 0 -type d 2>/dev/null | xargs -r sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}"
-find subprojects/nvme-cli/libnvme/libnvme/__pycache__ -maxdepth 0 -type d 2>/dev/null | xargs -r sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}"
+find subprojects/nvme-cli/libnvme/libnvme3/__pycache__ -maxdepth 0 -type d 2>/dev/null | xargs -r sudo chown -R "${PRIMARY_USR}":"${PRIMARY_GRP}"
 
 #*******************************************************************************
 # Run unit tests

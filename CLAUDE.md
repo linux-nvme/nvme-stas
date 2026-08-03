@@ -55,7 +55,7 @@ Both daemons are driven by the **GLib main loop** — no `asyncio`, no threading
 | Module | Purpose |
 |--------|---------|
 | `stas.py` | Abstract base classes `ControllerABC` and `ServiceABC`; `load_idl()` for D-Bus introspection XML; `_read_lkc()` / `_write_lkc()` for pickle-based last-known-config |
-| `ctrl.py` | Concrete `Controller` base (wraps `libnvme.nvme.ctrl`), `Dc` (discovery controller), `Ioc` (I/O controller) |
+| `ctrl.py` | Concrete `Controller` base (wraps `libnvme3.nvme.ctrl`), `Dc` (discovery controller), `Ioc` (I/O controller) |
 | `service.py` | `Service` subclass wiring together D-Bus, Avahi, udev, and controller lifecycle |
 | `conf.py` | `SvcConf`, `SysConf`, `NvmeOptions`, `NbftConf` — all **singletons** (see `singleton.py`); `OrderedMultisetDict` for repeated config keys |
 | `gutil.py` | GLib utilities: `GTimer` (restartable one-shot timer), `Deferred` (idle-scheduled callback), `AsyncTask` (thread-pool operation with GLib callbacks), `NameResolver` |
@@ -63,7 +63,7 @@ Both daemons are driven by the **GLib main loop** — no `asyncio`, no threading
 | `trid.py` | `TID` — immutable transport ID (transport, traddr, trsvcid, subsysnqn, host-iface, host-traddr) used as dict key throughout |
 | `iputil.py` | IP address utilities, interface enumeration |
 | `udev.py` | `UDEV` singleton wrapping `pyudev`; device add/remove/change event dispatch |
-| `nbft.py` | NBFT (NVMe Boot Firmware Table) reader via `libnvme.nvme.nbft_get()` |
+| `nbft.py` | NBFT (NVMe Boot Firmware Table) reader via `libnvme3.nvme.nbft_get()` |
 | `log.py` | Logging initialisation (syslog + stderr) |
 
 ### Key Design Patterns

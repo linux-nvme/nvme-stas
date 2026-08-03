@@ -49,7 +49,7 @@ jobs:
         run: |
           pip install vermin ruff
 
-      - name: "INSTALL: libnvme packages (needed to build libnvme)"
+      - name: "INSTALL: libnvme3 packages (needed to build libnvme3)"
         run: |
           sudo apt-get install --yes --quiet swig libjson-c-dev
 

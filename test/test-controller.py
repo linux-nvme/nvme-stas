@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import logging
 import unittest
-from libnvme import nvme
+from libnvme3 import nvme
 from staslib import conf, ctrl, timeparse, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
 
