@@ -12,10 +12,10 @@ import os
 import sys
 import shutil
 import platform
-import libnvme
+import libnvme3
 from staslib.version import KernelVersion
 
-LIBNVME_VERSION = libnvme.__version__
+LIBNVME_VERSION = libnvme3.__version__
 
 VERSION = '@VERSION@'
 LICENSE = '@LICENSE@'

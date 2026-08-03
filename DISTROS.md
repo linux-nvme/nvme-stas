@@ -6,7 +6,7 @@ This document describes the requirements and guidelines for packaging **nvme-sta
 
 `nvme-stas` is a Python 3 project and does not require build-time libraries. However, it uses **Meson** for build configuration, installation, and testing.
 
-Meson is a fundamental requirement — not merely a convenience wrapper. `nvme-stas` depends on **libnvme**, which is a C library that is part of the **nvme-cli** project and is itself built with Meson. By also using Meson, `nvme-stas` can declare `nvme-cli` as a [Meson subproject](https://mesonbuild.com/Subprojects.html), allowing the entire stack (libnvme → nvme-cli → nvme-stas) to be configured and built with a single `meson setup` + `meson compile` invocation. This is especially important for development and CI environments where a specific, unreleased version of libnvme must be paired with a matching nvme-stas.
+Meson is a fundamental requirement — not merely a convenience wrapper. `nvme-stas` depends on **libnvme3**, which is a C library that is part of the **nvme-cli** project and is itself built with Meson. By also using Meson, `nvme-stas` can declare `nvme-cli` as a [Meson subproject](https://mesonbuild.com/Subprojects.html), allowing the entire stack (libnvme3 → nvme-cli → nvme-stas) to be configured and built with a single `meson setup` + `meson compile` invocation. This is especially important for development and CI environments where a specific, unreleased version of libnvme must be paired with a matching nvme-stas.
 
 | Library / Program | Purpose                                                              | Mandatory? |
 | ----------------- | -------------------------------------------------------------------- | ---------- |
@@ -27,7 +27,7 @@ Static code analysis tools can be executed via `meson test`. These tools are **n
 ### **Python and nvme-stas Requirements**
 
 - **Minimum Python version:** **3.6**
-- nvme-stas relies on **libnvme** for kernel interaction. nvme-stas **3.0** requires **libnvme 3.0 or later**.
+- nvme-stas relies on **libnvme3** for kernel interaction. nvme-stas **3.0** requires **libnvme 3.0 or later**.
 - Full nvme-stas functionality requires **Linux kernel 5.18**.
   - Older kernels work but will have reduced functionality unless distribution kernels have appropriate backports.
 
@@ -47,18 +47,18 @@ The following NVMe driver features affect nvme-stas behavior. Kernel 5.17+ is st
 
 The following were validated during development; equivalent or newer versions should work.
 
-| Package / Module                            | Min Version | stafd     | stacd        | Version Check                                             | Notes                                                    |
-| ------------------------------------------- | ----------- | --------- | ------------ | --------------------------------------------------------- | -------------------------------------------------------- |
-| **python3**                                 | 3.6         | Mandatory | Mandatory    | `python3 --version`                                       | Minimum supported Python                                 |
-| **python3-libnvme**                         | **3.0**     | Mandatory | Mandatory    | `python3 -c 'import libnvme; print(libnvme.__version__)'` | Userspace NVMe library                                   |
-| **python3-gi / python3-gobject**            | 3.36.0      | Mandatory | Mandatory    | `python3 -c 'import gi; print(gi.__version__)'`           | GObject introspection                                    |
-| **python3-dasbus**                          | 1.6         | Mandatory | Mandatory    | `pip list | grep dasbus`                                  | D-Bus bindings                                           |
-| **python3-pyudev**                          | 0.22.0      | Mandatory | Mandatory    | `python3 -c 'import pyudev; print(pyudev.__version__)'`   | udev integration                                         |
-| **python3-systemd**                         | 240         | Mandatory | Mandatory    | `systemd --version`                                       | Journaling and notifications                             |
-| **nvme-tcp (kernel module)**                | 5.18*       | Mandatory | Mandatory    | N/A                                                       | Required for TCP transports                              |
-| **dbus-daemon**                             | 1.12.2      | Mandatory | Mandatory    | `dbus-daemon --version`                                   | System D-Bus services                                    |
-| **avahi-daemon**                            | 0.7         | Mandatory | Not required | `avahi-daemon --version`                                  | mDNS discovery (stafd only)                              |
-| **importlib.resources.files()** or backport | —           | Optional  | Optional     | Built-in / backport                                       | `importlib_resources` is used automatically if available |
+| Package / Module                            | Min Version | stafd     | stacd        | Version Check                                               | Notes                                                    |
+| ------------------------------------------- | ----------- | --------- | ------------ | ----------------------------------------------------------- | -------------------------------------------------------- |
+| **python3**                                 | 3.6         | Mandatory | Mandatory    | `python3 --version`                                         | Minimum supported Python                                 |
+| **python3-libnvme3**                        | **3.0**     | Mandatory | Mandatory    | `python3 -c 'import libnvme3; print(libnvme3.__version__)'` | Userspace NVMe library                                   |
+| **python3-gi / python3-gobject**            | 3.36.0      | Mandatory | Mandatory    | `python3 -c 'import gi; print(gi.__version__)'`             | GObject introspection                                    |
+| **python3-dasbus**                          | 1.6         | Mandatory | Mandatory    | `pip list | grep dasbus`                                    | D-Bus bindings                                           |
+| **python3-pyudev**                          | 0.22.0      | Mandatory | Mandatory    | `python3 -c 'import pyudev; print(pyudev.__version__)'`     | udev integration                                         |
+| **python3-systemd**                         | 240         | Mandatory | Mandatory    | `systemd --version`                                         | Journaling and notifications                             |
+| **nvme-tcp (kernel module)**                | 5.18*       | Mandatory | Mandatory    | N/A                                                         | Required for TCP transports                              |
+| **dbus-daemon**                             | 1.12.2      | Mandatory | Mandatory    | `dbus-daemon --version`                                     | System D-Bus services                                    |
+| **avahi-daemon**                            | 0.7         | Mandatory | Not required | `avahi-daemon --version`                                    | mDNS discovery (stafd only)                              |
+| **importlib.resources.files()** or backport | —           | Optional  | Optional     | Built-in / backport                                         | `importlib_resources` is used automatically if available |
 
 \* Kernel 5.18 provides full feature coverage. Earlier kernels may work with appropriate NVMe driver backports.
 
@@ -77,9 +77,9 @@ After installation, reload D-Bus:
 - **Fedora:** `systemctl reload dbus-broker.service`
 - **SUSE, Debian:** `systemctl reload dbus.service`
 
-### **Host Identity Configuration (Shared with libnvme / nvme-cli)**
+### **Host Identity Configuration (Shared with libnvme3 / nvme-cli)**
 
-Both `libnvme` and `nvme-cli` rely on:
+Both `libnvme3` and `nvme-cli` rely on:
 
 - `/etc/nvme/hostnqn`
 - `/etc/nvme/hostid`

@@ -9,7 +9,7 @@ class LibnvmeUnitTest(unittest.TestCase):
         try:
             # We can't proceed with this test if the
             # module libnvme is not installed.
-            import libnvme
+            import libnvme3
         except ModuleNotFoundError:
             return
 

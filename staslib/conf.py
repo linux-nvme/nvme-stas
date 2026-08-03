@@ -673,6 +673,14 @@ class NvmeOptions(metaclass=singleton.Singleton):
         return self._supported_options['dhchap_ctrl_secret']
 
 
+# NBFT bit positions the libnvme Python bindings no longer decode for us --
+# they hand back the raw descriptor "flags"/"trflags" field instead (NVMe
+# Boot Specification: Host Descriptor Flags / SSNS Transport Specific Flags).
+_NBFT_HOST_HOSTNQN_CONFIGURED = 1 << 2
+_NBFT_SSNS_PDU_HEADER_DIGEST = 1 << 1
+_NBFT_SSNS_DATA_DIGEST = 1 << 2
+
+
 # ******************************************************************************
 class NbftConf(metaclass=singleton.Singleton):
     '''Read and cache configuration file.'''
@@ -690,7 +698,7 @@ class NbftConf(metaclass=singleton.Singleton):
             discovery = data.get('discovery', [])
             subsystem = data.get('subsystem', [])
             host = data.get('host', {})
-            hostnqn = host.get('nqn', None) if host.get('host_nqn_configured', False) else None
+            hostnqn = host.get('nqn', None) if host.get('flags', 0) & _NBFT_HOST_HOSTNQN_CONFIGURED else None
 
             self._disc_ctrls.extend(NbftConf.__nbft_disc_to_cids(hostnqn, discovery, hfis))
             self._subs_ctrls.extend(NbftConf.__nbft_subs_to_cids(hostnqn, subsystem, hfis))
@@ -730,13 +738,14 @@ class NbftConf(metaclass=singleton.Singleton):
         cids = []
 
         for ctrl in subsystem:
+            trflags = ctrl.get('trflags', 0)
             cid = {
                 'transport': ctrl['trtype'],
                 'traddr': ctrl['traddr'],
                 'trsvcid': ctrl['trsvcid'],
                 'subsysnqn': ctrl['subsys_nqn'],
-                'hdr-digest': ctrl['pdu_header_digest_required'],
-                'data-digest': ctrl['data_digest_required'],
+                'hdr-digest': bool(trflags & _NBFT_SSNS_PDU_HEADER_DIGEST),
+                'data-digest': bool(trflags & _NBFT_SSNS_DATA_DIGEST),
             }
             if hostnqn:
                 cid['host-nqn'] = hostnqn

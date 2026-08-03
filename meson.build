@@ -57,11 +57,11 @@ endif
 # to build nvme-stas, but will be needed to run the tests.
 missing_runtime_mods = false
 py_modules_reqd = [
-    ['libnvme', 'Install python3-libnvme (deb/rpm)'],
-    ['dasbus',  'Install python3-dasbus (deb/rpm) OR pip install dasbus'],
-    ['pyudev',  'Install python3-pyudev (deb/rpm)'],
-    ['systemd', 'Install python3-systemd (deb/rpm)'],
-    ['gi',      'Install python3-gi (deb) OR python3-gobject (rpm)'],
+    ['libnvme3', 'Install python3-libnvme3 (deb/rpm)'],
+    ['dasbus',   'Install python3-dasbus (deb/rpm) OR pip install dasbus'],
+    ['pyudev',   'Install python3-pyudev (deb/rpm)'],
+    ['systemd',  'Install python3-systemd (deb/rpm)'],
+    ['gi',       'Install python3-gi (deb) OR python3-gobject (rpm)'],
 ]
 foreach p : py_modules_reqd
     if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
@@ -88,29 +88,29 @@ conf.set('STACD_DBUS_PATH', '/org/nvmexpress/stac')
 conf.set('ETC', etcdir)
 
 #===========================================================================
-# Let's try to locate the libnvme python bindings. We'll need libnvme to run
-# the tests. We have two choices:
+# Let's try to locate the libnvme3 python bindings. We'll need libnvme3 to
+# run the tests. We have two choices:
 #
-# 1) Use a pre-installed version of libnvme (i.e. from /usr/lib/...)
-# 2) Build libnvme as a meson subproject
+# 1) Use a pre-installed version of libnvme3 (i.e. from /usr/lib/...)
+# 2) Build libnvme3 as a meson subproject
 #
 # The decision to use one method over the other is controlled by the option
 # "libnvme-sel=['subproject', 'pre-installed']". The default is to use the
-# subproject. Note that if a pre-intalled libnvme is selected but one cannot
+# subproject. Note that if a pre-intalled libnvme3 is selected but one cannot
 # be found, then the subproject is used as a fallback.
 libnvme_location = '?'
 if get_option('libnvme-sel') == 'pre-installed'
-    # Check if a pre-installed libnvme can be found
-    rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__version__}")', check: false)
+    # Check if a pre-installed libnvme3 can be found
+    rr = run_command(python3, '-c', 'import libnvme3; print(f"{libnvme3.__version__}")', check: false)
     if rr.returncode() == 0
         libnvme_version = rr.stdout().strip()
         if libnvme_version.version_compare(python3_libnvme_version)
-            rr = run_command(python3, '-c', 'import libnvme; print(f"{libnvme.__path__[0]}")', check: false)
+            rr = run_command(python3, '-c', 'import libnvme3; print(f"{libnvme3.__path__[0]}")', check: false)
             if rr.returncode() == 0
                 libnvme_location = rr.stdout().strip()
             endif
         else
-            warning('libnvme version is @0@ but [@1@] required. Will try nvme-cli subproject...'.format(libnvme_version, python3_libnvme_version))
+            warning('libnvme3 version is @0@ but [@1@] required. Will try nvme-cli subproject...'.format(libnvme_version, python3_libnvme_version))
         endif
     endif
 endif

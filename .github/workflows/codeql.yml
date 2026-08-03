@@ -37,7 +37,7 @@ jobs:
         run: |
           sudo apt-get install --yes --quiet libgirepository1.0-dev libsystemd-dev
 
-      - name: "INSTALL: libnvme packages (needed to build libnvme)"
+      - name: "INSTALL: libnvme3 packages (needed to build libnvme3)"
         run: |
           sudo apt-get install --yes --quiet swig libjson-c-dev
 
@@ -47,7 +47,7 @@ jobs:
           languages: python
           config-file: ./.github/codeql/codeql-config.yml
 
-      - name: "BUILD: [libnvme, nvme-stas] (generates configured files in .build/)"
+      - name: "BUILD: [libnvme3, nvme-stas] (generates configured files in .build/)"
         run: |
           meson setup .build --buildtype=release --sysconfdir=/etc --prefix=/usr -Dnvme-cli:buildtype=release -Dnvme-cli:sysconfdir=/etc -Dnvme-cli:prefix=/usr -Dnvme-cli:python=enabled -Dnvme-cli:libdbus=disabled -Dnvme-cli:openssl=disabled -Dnvme-cli:json-c=disabled -Dnvme-cli:keyutils=disabled
           meson compile -C .build

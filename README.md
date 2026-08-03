@@ -95,7 +95,7 @@ Linux kernel **5.14 or later** (kernel **5.18+** recommended for full feature su
 
 Required user-space dependencies include:
 
-- **libnvme 3.0+** (Python bindings: `python3-libnvme`)
+- **libnvme 3.0+** (Python bindings: `python3-libnvme3`)
 - **avahi-daemon 0.7+** — required by `stafd` for mDNS-based Discovery Controller discovery
 - Python 3 system bindings: `dasbus`, `pyudev`, `python3-systemd`, `python3-gi` (package names vary by distro). 
 

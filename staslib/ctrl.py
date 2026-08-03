@@ -13,7 +13,7 @@ import time
 import logging
 from typing import Optional
 from gi.repository import GLib
-from libnvme import nvme
+from libnvme3 import nvme
 from staslib import conf, gutil, trid, udev, stas
 
 
@@ -50,7 +50,9 @@ class Controller(stas.ControllerABC):
     def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
-        self._ctx = nvme.GlobalCtx()
+        self._ctx = nvme.GlobalCtx(owner="stas")
+        self._ctx.hostnqn = sysconf.hostnqn
+        self._ctx.hostid = sysconf.hostid
         self._host = nvme.Host(
             self._ctx, hostnqn=sysconf.hostnqn, hostid=sysconf.hostid, hostsymname=sysconf.hostsymname
         )

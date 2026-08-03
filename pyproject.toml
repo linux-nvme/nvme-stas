@@ -55,10 +55,10 @@ classifiers = [
     "Topic :: System :: Systems Administration",
 ]
 requires-python = ">=3.6"
-# libnvme (>= 3.0), PyGObject (gi), and python-systemd are system-level
+# libnvme3 (>= 3.0), PyGObject (gi), and python-systemd are system-level
 # packages not available on PyPI. Install them via your distribution:
-#   apt:  python3-libnvme  python3-gi  python3-systemd
-#   dnf:  python3-libnvme  python3-gobject  python3-systemd
+#   apt:  python3-libnvme3  python3-gi  python3-systemd
+#   dnf:  python3-libnvme3  python3-gobject  python3-systemd
 dependencies = [
     "dasbus",
     "pyudev",
