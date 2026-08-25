@@ -38,8 +38,8 @@ class TID:
             'host-nqn':    str, # [optional]
 
             # Connection parameters
-            'dhchap-secret':      str, # [optional]
-            'dhchap-ctrl-secret': str, # [optional]
+            'kxchap-secret':      str, # [optional]
+            'kxchap-ctrl-secret': str, # [optional]
             'hdr-digest':         str, # [optional]
             'data-digest':        str, # [optional]
             'nr-io-queues':       str, # [optional]

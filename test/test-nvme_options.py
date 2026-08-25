@@ -67,8 +67,8 @@ class Test(TestCase):
         nvme_options = conf.NvmeOptions()
         self.assertTrue(nvme_options.discovery_supp)
         self.assertTrue(nvme_options.host_iface_supp)
-        self.assertTrue(nvme_options.dhchap_hostkey_supp)
-        self.assertTrue(nvme_options.dhchap_ctrlkey_supp)
+        self.assertTrue(nvme_options.kxchap_hostkey_supp)
+        self.assertTrue(nvme_options.kxchap_ctrlkey_supp)
         self.assertEqual(
             nvme_options.get(),
             {'discovery': True, 'host_iface': True, 'dhchap_secret': True, 'dhchap_ctrl_secret': True},
