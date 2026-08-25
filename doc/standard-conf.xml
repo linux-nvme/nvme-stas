@@ -376,8 +376,8 @@
                             </listitem>
                         </varlistentry>
 
-                        <varlistentry id='dhchap-secret'>
-                            <term><varname>dhchap-secret=</varname></term>
+                        <varlistentry id='kxchap-secret'>
+                            <term><varname>kxchap-secret=</varname></term>
                             <listitem>
                                 <para>
                                     NVMe In-band authentication host secret (i.e. key);
@@ -391,8 +391,8 @@
                             </listitem>
                         </varlistentry>
 
-                        <varlistentry id='dhchap-ctrl-secret'>
-                            <term><varname>dhchap-ctrl-secret=</varname></term>
+                        <varlistentry id='kxchap-ctrl-secret'>
+                            <term><varname>kxchap-ctrl-secret=</varname></term>
                             <listitem>
                                 <para>
                                     This is an optional field that specifies the

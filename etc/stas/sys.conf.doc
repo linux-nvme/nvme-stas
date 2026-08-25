@@ -36,7 +36,7 @@
 #id=file:///etc/nvme/hostid
 
 
-# key:     The host's DHCHAP key to be used for authentication. This is an
+# key:     The host's KXCHAP key to be used for authentication. This is an
 #          optional parameter only required when authentication is needed.
 #          A value starting with "file://" indicates that the Host Key can
 #          be retrieved from a separate file. Typically, nvme-cli saves the

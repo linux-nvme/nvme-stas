@@ -56,7 +56,7 @@ class Controller(stas.ControllerABC):
         self._host = nvme.Host(
             self._ctx, hostnqn=sysconf.hostnqn, hostid=sysconf.hostid, hostsymname=sysconf.hostsymname
         )
-        self._host.dhchap_host_key = sysconf.hostkey if self._nvme_options.dhchap_hostkey_supp else None
+        self._host.kxchap_host_key = sysconf.hostkey if self._nvme_options.kxchap_hostkey_supp else None
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
         self._ctrl = None  # libnvme's nvme.Ctrl object
@@ -224,21 +224,21 @@ class Controller(stas.ControllerABC):
 
         self._ctrl.discovery_ctrl = self._discovery_ctrl
 
-        # Set the DHCHAP host key on the controller
+        # Set the KXCHAP host key on the controller
         # NOTE that this may eventually have to
         # change once we have support for AVE (TP8019)
         # This is used for in-band authentication
-        dhchap_host_key = self.tid.cfg.get('dhchap-secret')
-        if dhchap_host_key and self._nvme_options.dhchap_hostkey_supp:
-            self._ctrl.dhchap_host_key = dhchap_host_key
+        kxchap_host_key = self.tid.cfg.get('kxchap-secret')
+        if kxchap_host_key and self._nvme_options.kxchap_hostkey_supp:
+            self._ctrl.kxchap_host_key = kxchap_host_key
 
-        # Set the DHCHAP controller key on the controller
+        # Set the KXCHAP controller key on the controller
         # NOTE that this may eventually have to
         # change once we have support for AVE (TP8019)
         # This is used for bidirectional authentication
-        dhchap_ctrl_key = self.tid.cfg.get('dhchap-ctrl-secret')
-        if dhchap_ctrl_key and self._nvme_options.dhchap_ctrlkey_supp:
-            self._ctrl.dhchap_ctrl_key = dhchap_ctrl_key
+        kxchap_ctrl_key = self.tid.cfg.get('kxchap-ctrl-secret')
+        if kxchap_ctrl_key and self._nvme_options.kxchap_ctrlkey_supp:
+            self._ctrl.kxchap_ctrl_key = kxchap_ctrl_key
 
         # Audit existing nvme devices. If we find a match, then
         # we'll just borrow that device instead of creating a new one.

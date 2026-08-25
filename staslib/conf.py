@@ -332,8 +332,8 @@ class SvcConf(metaclass=singleton.Singleton):
             'host-traddr':        [TRADDR],
             'host-iface':         [IFACE],
             'host-nqn':           [NQN],
-            'dhchap-secret':      [KEY],
-            'dhchap-ctrl-secret': [KEY],
+            'kxchap-secret':      [KEY],
+            'kxchap-ctrl-secret': [KEY],
             'hdr-digest':         [BOOL]
             'data-digest':        [BOOL]
             'nr-io-queues':       [NUMBER]
@@ -554,7 +554,7 @@ class SysConf(metaclass=singleton.Singleton):
 
     @property
     def hostkey(self):
-        '''Return the host DH-CHAP key, or None if not configured.
+        '''Return the host KXCHAP key, or None if not configured.
         The key is optional unless in-band authentication is required.'''
         try:
             value = self.__get_value('Host', 'key', defs.NVME_HOSTKEY)
@@ -619,6 +619,10 @@ class NvmeOptions(metaclass=singleton.Singleton):
         # have been backported to older kernels. In any case, if the kernel
         # version meets the minimum version for that option, then we don't
         # even need to read '/dev/nvme-fabrics'.
+        #
+        # The keys must match the option names the kernel prints in
+        # '/dev/nvme-fabrics'. TP4201 renamed DHCHAP to KXCHAP in the libnvme
+        # API, but the kernel option names are unchanged.
         self._supported_options = {
             'discovery': defs.KERNEL_VERSION >= defs.KERNEL_TP8013_MIN_VERSION,
             'host_iface': defs.KERNEL_VERSION >= defs.KERNEL_IFACE_MIN_VERSION,
@@ -663,13 +667,13 @@ class NvmeOptions(metaclass=singleton.Singleton):
         return self._supported_options['host_iface']
 
     @property
-    def dhchap_hostkey_supp(self):
-        '''This option allows specifying the host DHCHAP key used for authentication.'''
+    def kxchap_hostkey_supp(self):
+        '''This option allows specifying the host KXCHAP key used for authentication.'''
         return self._supported_options['dhchap_secret']
 
     @property
-    def dhchap_ctrlkey_supp(self):
-        '''This option allows specifying the controller DHCHAP key used for authentication.'''
+    def kxchap_ctrlkey_supp(self):
+        '''This option allows specifying the controller KXCHAP key used for authentication.'''
         return self._supported_options['dhchap_ctrl_secret']
 
 

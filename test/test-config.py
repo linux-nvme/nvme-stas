@@ -25,7 +25,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '\n',
             '[Controllers]\n',
             'controller=transport=tcp;traddr=100.100.100.100;host-iface=enp0s8\n',
-            'controller=transport=tcp;traddr=100.100.100.200;host-iface=enp0s7;dhchap-ctrl-secret=super-secret;hdr-digest=true;data-digest=true;nr-io-queues=8;nr-write-queues=6;nr-poll-queues=4;queue-size=400;kato=71;reconnect-delay=13;ctrl-loss-tmo=666;disable-sqflow=true\n',
+            'controller=transport=tcp;traddr=100.100.100.200;host-iface=enp0s7;kxchap-ctrl-secret=super-secret;hdr-digest=true;data-digest=true;nr-io-queues=8;nr-write-queues=6;nr-poll-queues=4;queue-size=400;kato=71;reconnect-delay=13;ctrl-loss-tmo=666;disable-sqflow=true\n',
             'exclude=transport=tcp;traddr=10.10.10.10\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:
@@ -91,7 +91,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
                     'transport': 'tcp',
                     'traddr': '100.100.100.200',
                     'host-iface': 'enp0s7',
-                    'dhchap-ctrl-secret': 'super-secret',
+                    'kxchap-ctrl-secret': 'super-secret',
                     'hdr-digest': True,
                     'data-digest': True,
                     'nr-io-queues': 8,
@@ -276,7 +276,7 @@ class TestParseController(unittest.TestCase):
         self.assertEqual(result, {})
 
     def test_token_with_extra_equals_preserves_value(self):
-        # split('=', maxsplit=1) keeps extra '=' in value (needed for base64-padded DH-CHAP secrets)
+        # split('=', maxsplit=1) keeps extra '=' in value (needed for base64-padded KXCHAP secrets)
         result = conf._parse_controller('key=val=extra')
         self.assertEqual(result, {'key': 'val=extra'})
 
