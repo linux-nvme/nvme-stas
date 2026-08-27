@@ -42,7 +42,7 @@ def _extract_cid(ctrl):
         ctrl['subsysnqn'],
         ctrl['host-traddr'],
         ctrl['host-iface'],
-        ctrl['host-nqn'],
+        ctrl['hostnqn'],
     )
 
 
@@ -53,12 +53,12 @@ def status(args):
     info = json.loads(iface.process_info())
     info['controllers'] = iface.list_controllers(True)
     for controller in info['controllers']:
-        transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn = _extract_cid(controller)
+        transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn = _extract_cid(controller)
         controller['log_pages'] = iface.get_log_pages(
-            transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn
+            transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn
         )
         controller.update(
-            json.loads(iface.controller_info(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn))
+            json.loads(iface.controller_info(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn))
         )
 
     print(pprint.pformat(info, width=120))
@@ -83,7 +83,7 @@ def dlp(args):
         args.nqn,
         args.host_traddr,
         args.host_iface,
-        args.host_nqn,
+        args.hostnqn,
     )
     print(pprint.pformat(info, width=120))
 
@@ -164,7 +164,7 @@ PRSR.add_argument(
 )
 PRSR.add_argument(
     '-q',
-    '--host-nqn',
+    '--hostnqn',
     metavar='<nqn>',
     action='store',
     help='This field specifies the host NQN (default: "%(default)s")',

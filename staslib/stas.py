@@ -108,7 +108,7 @@ def remove_invalid_addresses(controllers: list):
 
 
 # ******************************************************************************
-def tid_from_dlpe(dlpe, host_traddr, host_iface, host_nqn):
+def tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn):
     '''Convert a Discovery Log Page Entry (DLPE) to a controller ID dict.'''
     cid = {
         'transport': dlpe['trtype'],
@@ -118,19 +118,64 @@ def tid_from_dlpe(dlpe, host_traddr, host_iface, host_nqn):
         'host-iface': host_iface,
         'subsysnqn': dlpe['subnqn'],
     }
-    if host_nqn:
-        cid['host-nqn'] = host_nqn
+    if hostnqn:
+        cid['hostnqn'] = hostnqn
     return trid.TID(cid)
 
 
 # ******************************************************************************
+def _fc_wwn(traddr: str):
+    '''Normalize an FC WWN pair. Some Discovery Controllers report it as
+    "nn-0x...,pn-0x..." (comma) instead of the spec's "nn-0x...:pn-0x..."
+    (colon). Mirrors libnvme's fc_wwn_normalize().'''
+    return traddr.replace(',', ':', 1)
+
+
+def _addresses_match(val: str, ctrl_val: str, transport: str):
+    '''Return True if two addresses designate the same thing. Addresses are
+    compared in normalized form, the way libnvme's exclusion list does it, so
+    that two spellings of one address match: "fe80::1" designates the same
+    controller as "fe80:0000:0000:0000:0000:0000:0000:0001".'''
+    if transport == 'fc':
+        return _fc_wwn(val) == _fc_wwn(ctrl_val)
+
+    ip = iputil.get_ipaddress_obj(val)
+    ctrl_ip = iputil.get_ipaddress_obj(ctrl_val)
+    if ip is not None and ctrl_ip is not None:
+        return ip == ctrl_ip
+
+    # Not a numeric address on either side. This is how a hostname in an
+    # "exclude=" entry gets matched before name resolution has taken place.
+    return val == ctrl_val
+
+
+def _values_match(key: str, val: str, ctrl_val, transport: str):
+    '''Return True if the value of an exclusion entry matches a controller's.'''
+    if ctrl_val is None:
+        return False
+
+    if key in ('traddr', 'host-traddr'):
+        return _addresses_match(val, ctrl_val, transport)
+
+    return val == ctrl_val
+
+
 def _excluded(excluded_ctrl_list, controller: dict):
     '''Return True if controller matches any entry in excluded_ctrl_list.'''
+    transport = controller.get('transport', '')
     for excluded_ctrl in excluded_ctrl_list:
-        test_results = [val == controller.get(key, None) for key, val in excluded_ctrl.items()]
+        test_results = [
+            _values_match(key, val, controller.get(key, None), transport) for key, val in excluded_ctrl.items()
+        ]
         if all(test_results):
             return True
     return False
+
+
+# ******************************************************************************
+def excluded(controller):
+    '''Return True if controller is excluded by the configuration file.'''
+    return _excluded(conf.SvcConf().get_excluded(), controller.as_dict())
 
 
 # ******************************************************************************
@@ -240,6 +285,14 @@ class ControllerABC(abc.ABC):
         # the source of the deferred is still good.
         source = GLib.main_current_source()
         if source and source.is_destroyed():
+            return GLib.SOURCE_REMOVE
+
+        # The exclusion list may have changed since this controller was
+        # configured. Check it on every attempt so that a controller that
+        # is now excluded does not get (re)connected while we wait for the
+        # normal reconfiguration to dispose of it.
+        if excluded(self.tid):
+            logging.info('%s - Controller is excluded. Do not connect.', self.id)
             return GLib.SOURCE_REMOVE
 
         self._connect_attempts += 1
@@ -404,7 +457,7 @@ class ServiceABC(abc.ABC):
         subsysnqn: str,
         host_traddr: str,
         host_iface: str,
-        host_nqn: str,
+        hostnqn: str,
     ):
         '''Return the specified controller object, or None if not found.'''
         cid = {
@@ -414,7 +467,7 @@ class ServiceABC(abc.ABC):
             'subsysnqn': subsysnqn,
             'host-traddr': host_traddr,
             'host-iface': host_iface,
-            'host-nqn': host_nqn,
+            'hostnqn': hostnqn,
         }
         return self._controllers.get(trid.TID(cid))
 

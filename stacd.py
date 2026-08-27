@@ -87,9 +87,9 @@ if __name__ == '__main__':
             info.update(STAC.info())
             return json.dumps(info)
 
-        def controller_info(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn) -> str:
+        def controller_info(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn) -> str:
             '''Return a JSON string with information about the specified controller.'''
-            controller = STAC.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
+            controller = STAC.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn)
             return json.dumps(controller.info()) if controller else '{}'
 
         def list_controllers(self, detailed) -> list:

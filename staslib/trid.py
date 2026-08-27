@@ -35,7 +35,7 @@ class TID:
             'trsvcid':     str, # [optional]
             'host-traddr': str, # [optional]
             'host-iface':  str, # [optional]
-            'host-nqn':    str, # [optional]
+            'hostnqn':     str, # [optional]
 
             # Connection parameters
             'kxchap-secret':      str, # [optional]
@@ -68,7 +68,7 @@ class TID:
         sysconf = conf.SysConf()
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
-        self._host_nqn = cid.get('host-nqn', sysconf.hostnqn)
+        self._hostnqn = cid.get('hostnqn', sysconf.hostnqn)
         self._subsysnqn = cid.get('subsysnqn', '')
         self._key = (
             self._transport,
@@ -77,7 +77,7 @@ class TID:
             self._subsysnqn,
             self._host_traddr,
             self._host_iface,
-            self._host_nqn,
+            self._hostnqn,
         )
         self._hash = int.from_bytes(
             hashlib.md5(''.join(self._key).encode('utf-8'), **_MD5_KWARGS).digest(), 'big'
@@ -96,7 +96,7 @@ class TID:
     host_iface = property(lambda self: self._host_iface)
     subsysnqn = property(lambda self: self._subsysnqn)
     transport = property(lambda self: self._transport)
-    host_nqn = property(lambda self: self._host_nqn)
+    hostnqn = property(lambda self: self._hostnqn)
     trsvcid = property(lambda self: self._trsvcid)
     traddr = property(lambda self: self._traddr)
     cfg = property(lambda self: self._cfg)
@@ -119,7 +119,7 @@ class TID:
             data.update(cfg)
 
         sysconf = conf.SysConf()
-        data['host-nqn'] = getattr(self, '_host_nqn', sysconf.hostnqn)
+        data['hostnqn'] = getattr(self, '_hostnqn', sysconf.hostnqn)
 
         return data
 

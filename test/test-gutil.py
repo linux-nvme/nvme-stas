@@ -82,7 +82,7 @@ class TestNameResolver(unittest.TestCase):
         conf.SvcConf().set_conf_file(self.FNAME_BOTH)
 
     def _make_tid(self, transport, traddr):
-        return trid.TID({'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'host-nqn': HOSTNQN})
+        return trid.TID({'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'hostnqn': HOSTNQN})
 
     def test_empty_list_calls_callback_immediately(self):
         resolver = gutil.NameResolver()

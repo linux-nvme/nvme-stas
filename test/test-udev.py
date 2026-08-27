@@ -32,7 +32,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'hello',
                     'host-traddr': src_ip,
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             True,
@@ -47,7 +47,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'hello',
                     'host-traddr': src_ip,
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             False,
@@ -62,7 +62,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'hello',
                     'host-traddr': src_ip,
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             False,
@@ -77,7 +77,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'hello',
                     'host-traddr': src_ip,
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             False,
@@ -92,7 +92,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'hello',
                     'host-traddr': '255.255.255.255',
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             False,
@@ -107,7 +107,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'hello',
                     'host-traddr': src_ip,
                     'host-iface': 'blah',
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             False,
@@ -122,7 +122,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'bob',
                     'host-traddr': src_ip,
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             False,
@@ -136,7 +136,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'trsvcid': '8009',
                     'subsysnqn': 'hello',
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             True,
@@ -150,7 +150,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'trsvcid': '8009',
                     'subsysnqn': 'hello',
                     'host-traddr': src_ip,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             True,
@@ -163,7 +163,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'traddr': traddr(family),
                     'trsvcid': '8009',
                     'subsysnqn': 'hello',
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             True,
@@ -178,7 +178,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'subsysnqn': 'hello',
                     'host-traddr': src_ip,
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             True,
@@ -192,7 +192,7 @@ def get_tids_to_test(family, src_ip, ifname):
                     'trsvcid': '8009',
                     'subsysnqn': 'hello',
                     'host-iface': ifname,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             ),
             True,
@@ -312,7 +312,7 @@ class Test(unittest.TestCase):
                     'host-traddr': src_ipv4,
                     'host-iface': ifname,
                     'src-addr': src_ipv4,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 cid_legacy = {
                     'transport': 'tcp',
@@ -322,7 +322,7 @@ class Test(unittest.TestCase):
                     'host-traddr': src_ipv4,
                     'host-iface': ifname,
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 for case_id, tid, match in get_tids_to_test(4, src_ipv4, ifname):
                     self.assertEqual(
@@ -343,7 +343,7 @@ class Test(unittest.TestCase):
                     'host-traddr': '',
                     'host-iface': '',
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -352,7 +352,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': '1.1.1.1',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -367,7 +367,7 @@ class Test(unittest.TestCase):
                     'host-traddr': '',
                     'host-iface': ifname,
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -375,7 +375,7 @@ class Test(unittest.TestCase):
                         'traddr': traddr(4),
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -395,7 +395,7 @@ class Test(unittest.TestCase):
                     'host-traddr': src_ipv4,
                     'host-iface': '',
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -404,7 +404,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': '1.1.1.1',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -418,7 +418,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-iface': 'blah',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -432,7 +432,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-iface': ifname,
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -447,7 +447,7 @@ class Test(unittest.TestCase):
                     'host-traddr': '',
                     'host-iface': ifname,
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -457,7 +457,7 @@ class Test(unittest.TestCase):
                         'subsysnqn': 'hello',
                         'host-traddr': '1.1.1.1',
                         'host-iface': 'blah',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -471,7 +471,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': '1.1.1.1',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -485,7 +485,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': ipv4_addrs[0],
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 match = len(ipv4_addrs) == 1 and iputil.get_ipaddress_obj(
@@ -508,7 +508,7 @@ class Test(unittest.TestCase):
                     'host-traddr': src_ipv6,
                     'host-iface': ifname,
                     'src-addr': src_ipv6,
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 cid_legacy = {
                     'transport': 'tcp',
@@ -518,7 +518,7 @@ class Test(unittest.TestCase):
                     'host-traddr': src_ipv6,
                     'host-iface': ifname,
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 for case_id, tid, match in get_tids_to_test(6, src_ipv6, ifname):
                     self.assertEqual(
@@ -538,7 +538,7 @@ class Test(unittest.TestCase):
                     'host-traddr': '',
                     'host-iface': '',
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -547,7 +547,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': 'AAAA::FFFF',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -562,7 +562,7 @@ class Test(unittest.TestCase):
                     'host-traddr': '',
                     'host-iface': ifname,
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -570,7 +570,7 @@ class Test(unittest.TestCase):
                         'traddr': traddr(6),
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -590,7 +590,7 @@ class Test(unittest.TestCase):
                     'host-traddr': src_ipv6,
                     'host-iface': '',
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -599,7 +599,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': 'AAAA::FFFF',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -613,7 +613,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-iface': 'blah',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -627,7 +627,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-iface': ifname,
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -642,7 +642,7 @@ class Test(unittest.TestCase):
                     'host-traddr': '',
                     'host-iface': ifname,
                     'src-addr': '',  # Legacy
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
                 tid = trid.TID(
                     {
@@ -652,7 +652,7 @@ class Test(unittest.TestCase):
                         'subsysnqn': 'hello',
                         'host-traddr': 'AAA::BBBB',
                         'host-iface': 'blah',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -666,7 +666,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': 'AAA::BBB',
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 self.assertEqual(
@@ -680,7 +680,7 @@ class Test(unittest.TestCase):
                         'trsvcid': '8009',
                         'subsysnqn': 'hello',
                         'host-traddr': ipv6_addrs[0],
-                        'host-nqn': '',
+                        'hostnqn': '',
                     }
                 )
                 match = len(ipv6_addrs) >= 1 and iputil.get_ipaddress_obj(
@@ -700,7 +700,7 @@ class Test(unittest.TestCase):
                 'host-traddr': 'AAA::BBBB',
                 'host-iface': '',
                 'src-addr': '',
-                'host-nqn': '',
+                'hostnqn': '',
             }
             tid = trid.TID(
                 {
@@ -709,7 +709,7 @@ class Test(unittest.TestCase):
                     'trsvcid': '',
                     'subsysnqn': 'hello',
                     'host-traddr': 'AAA::BBBB',
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             )
             self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case FC-1 failed')
@@ -721,7 +721,7 @@ class Test(unittest.TestCase):
                     'trsvcid': '',
                     'subsysnqn': 'hello',
                     'host-traddr': 'BBBB::AAA',
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             )
             self.assertEqual(False, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case FC-2 failed')
@@ -736,7 +736,7 @@ class Test(unittest.TestCase):
                 'host-traddr': '5.4.3.2',
                 'host-iface': '',
                 'src-addr': '',
-                'host-nqn': '',
+                'hostnqn': '',
             }
             tid = trid.TID(
                 {
@@ -745,7 +745,7 @@ class Test(unittest.TestCase):
                     'trsvcid': '4444',
                     'subsysnqn': 'hello',
                     'host-traddr': '5.4.3.2',
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             )
             self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case RDMA-1 failed')
@@ -757,7 +757,7 @@ class Test(unittest.TestCase):
                     'trsvcid': '4444',
                     'subsysnqn': 'hello',
                     'host-traddr': '5.5.6.6',
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             )
             self.assertEqual(False, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case RDMA-2 failed')
@@ -768,7 +768,7 @@ class Test(unittest.TestCase):
                     'traddr': '2.3.4.5',
                     'trsvcid': '4444',
                     'subsysnqn': 'hello',
-                    'host-nqn': '',
+                    'hostnqn': '',
                 }
             )
             self.assertEqual(True, udev.UDEV._cid_matches_tid(tid, cid, ifaces), msg='Test Case RDMA-3 failed')
@@ -791,7 +791,7 @@ class Test(unittest.TestCase):
             'host-traddr': '',
             'host-iface': '',
             'src-addr': '',
-            'host-nqn': '',
+            'hostnqn': '',
         }
         tid = trid.TID(
             {
@@ -800,7 +800,7 @@ class Test(unittest.TestCase):
                 'trsvcid': '8009',
                 'subsysnqn': 'hello',
                 'host-iface': 'eth0',
-                'host-nqn': '',
+                'hostnqn': '',
             }
         )
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:

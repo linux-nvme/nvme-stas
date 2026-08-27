@@ -15,9 +15,16 @@ import logging
 import functools
 import configparser
 from urllib.parse import urlparse
+from libnvme3 import nvme
 from staslib import defs, iputil, nbft, singleton, timeparse
 
 __TOKEN_RE = re.compile(r'\s*;\s*')
+
+_LIBNVME_CTX = None
+
+# The keys libnvme accepts in an exclusion entry. Anything else makes the
+# entry inert (see _libnvme_excluded()).
+_EXCLUSION_KEYS = frozenset(('transport', 'traddr', 'trsvcid', 'nqn', 'host-traddr', 'host-iface', 'hostnqn', 'hostid'))
 
 
 class InvalidOption(Exception):
@@ -38,6 +45,73 @@ def _parse_controller(controller):
                 pass
 
     return options
+
+
+def libnvme_ctx():
+    '''Return the libnvme context used to read libnvme's host-wide config files.
+
+    This context is only ever used to read files; it never connects. It
+    therefore declares no owner, for the same reason staslib/nbft.py does not.
+    Tests can redirect the files it reads with ctx.set_test_base_dir().
+    '''
+    global _LIBNVME_CTX  # pylint: disable=global-statement
+    if _LIBNVME_CTX is None:
+        _LIBNVME_CTX = nvme.GlobalCtx()
+    return _LIBNVME_CTX
+
+
+def _libnvme_excluded():
+    '''Return libnvme's host-wide exclusion list, in the same format as the
+    "exclude=" entries of stafd.conf/stacd.conf.
+
+    The list (/etc/nvme/exclusions.conf and /etc/nvme/exclusions.conf.d/) is
+    read live, on every call. It is a host-wide file that other tools
+    ("nvme exclusion add", "nvme disconnect --exclude") write behind our back,
+    so an entry added there must take effect on the next connection attempt
+    without reloading stafd/stacd.
+    '''
+    ctx = libnvme_ctx()
+    try:
+        entries = list(nvme.exclusion_entries(ctx, None))  # name=None: the main list
+        for name in nvme.exclusion_lists(ctx):  # named drop-in lists
+            entries.extend(nvme.exclusion_entries(ctx, name))
+    except OSError as ex:
+        # A list we can't read must never block connectivity.
+        logging.warning('Unable to read libnvme\'s exclusion list: %s', ex)
+        return []
+
+    excluded = []
+    for entry in entries:
+        cid = _parse_controller(entry)
+
+        # libnvme ignores an entry it cannot parse: an unknown key, a bare
+        # token, or an empty value makes the whole entry match nothing. We
+        # must do the same, and not merely skip the offending key. Note that
+        # "subsysnqn=" is one of those unknown keys: it is a documented typo
+        # for "nqn=" that libnvme deliberately leaves inert, yet it happens to
+        # be the spelling our own matching uses.
+        if not cid or any(key not in _EXCLUSION_KEYS or not val for key, val in cid.items()):
+            continue
+
+        try:
+            # libnvme spells the subsystem NQN "nqn".
+            cid['subsysnqn'] = cid.pop('nqn')
+        except KeyError:
+            pass
+
+        # Our TIDs carry no hostid, so an entry naming one is resolved here
+        # instead of at match time: our own hostid is satisfied by definition,
+        # another host's can never match anything here. Only look up our
+        # hostid if an entry asks for it.
+        satisfied = 'hostid' in cid
+        if satisfied and cid.pop('hostid') != SysConf().hostid:
+            continue
+
+        # _excluded() reads an empty dict as "matches everything", which is
+        # exactly what an entry naming only our hostid means.
+        excluded.append(cid)
+
+    return excluded
 
 
 def _parse_single_val(text):
@@ -331,7 +405,7 @@ class SvcConf(metaclass=singleton.Singleton):
             'subsysnqn':          [NQN],
             'host-traddr':        [TRADDR],
             'host-iface':         [IFACE],
-            'host-nqn':           [NQN],
+            'hostnqn':            [NQN],
             'kxchap-secret':      [KEY],
             'kxchap-ctrl-secret': [KEY],
             'hdr-digest':         [BOOL]
@@ -365,15 +439,25 @@ class SvcConf(metaclass=singleton.Singleton):
         return cids
 
     def get_excluded(self):
-        '''Return the list of excluded controllers from the config file.
+        '''Return the list of excluded controllers. This is the union of the
+        "exclude=" entries of this daemon's config file and libnvme's host-wide
+        exclusion list: a controller is excluded if it matches either.
+
         Each entry is a dict with optional keys:
         {
-            'transport':  [TRANSPORT],
-            'traddr':     [TRADDR],
-            'trsvcid':    [TRSVCID],
-            'host-iface': [IFACE],
-            'subsysnqn':  [NQN],
+            'transport':   [TRANSPORT],
+            'traddr':      [TRADDR],
+            'trsvcid':     [TRSVCID],
+            'host-iface':  [IFACE],
+            'host-traddr': [TRADDR],   (libnvme entries only)
+            'hostnqn':     [NQN],      (libnvme entries only)
+            'subsysnqn':   [NQN],
         }
+
+        Note that "exclude=" is deprecated in favour of libnvme's list, and
+        that the two are not read the same way: "exclude=" is read from the
+        config file we already hold, whereas libnvme's list is re-read from
+        disk on every call (see _libnvme_excluded()).
         '''
         controller_list = self.get_option('Controllers', 'exclude')
         excluded = [_parse_controller(controller) for controller in controller_list]
@@ -384,7 +468,11 @@ class SvcConf(metaclass=singleton.Singleton):
                 controller['subsysnqn'] = controller.pop('nqn')
             except KeyError:
                 pass
-        return excluded
+
+        # An entry that sets no field would match every controller.
+        excluded = [controller for controller in excluded if controller]
+
+        return excluded + _libnvme_excluded()
 
     def _check(self, text, section, option, default):
         checker = self.OPTION_CHECKER[section][option]
@@ -727,7 +815,7 @@ class NbftConf(metaclass=singleton.Singleton):
             cid = NbftConf.__uri2cid(ctrl['uri'])
             cid['subsysnqn'] = ctrl['nqn']
             if hostnqn:
-                cid['host-nqn'] = hostnqn
+                cid['hostnqn'] = hostnqn
 
             host_iface = NbftConf.__get_host_iface(ctrl.get('hfi_index'), hfis)
             if host_iface:
@@ -752,7 +840,7 @@ class NbftConf(metaclass=singleton.Singleton):
                 'data-digest': bool(trflags & _NBFT_SSNS_DATA_DIGEST),
             }
             if hostnqn:
-                cid['host-nqn'] = hostnqn
+                cid['hostnqn'] = hostnqn
 
             indexes = ctrl.get('hfi_indexes')
             if isinstance(indexes, list) and len(indexes) > 0:

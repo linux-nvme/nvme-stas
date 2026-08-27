@@ -386,10 +386,10 @@ class Stac(Service):
         for staf_data in self._get_log_pages_from_stafd():
             host_traddr = staf_data['discovery-controller']['host-traddr']
             host_iface = staf_data['discovery-controller']['host-iface']
-            host_nqn = staf_data['discovery-controller']['host-nqn']
+            hostnqn = staf_data['discovery-controller']['hostnqn']
             for dlpe in staf_data['log-pages']:
                 if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
-                    tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, host_nqn)
+                    tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn)
                     discovered_ctrls[tid] = dlpe
 
         discovered_ctrl_list = list(discovered_ctrls.keys())
@@ -469,19 +469,19 @@ class Stac(Service):
 
         logging.debug('Stac._disconnect_from_staf()       - Disconnected from staf')
 
-    def _log_pages_changed(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn, device):
+    def _log_pages_changed(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn, device):
         if not self._alive():
             return
 
         logging.debug(
-            'Stac._log_pages_changed()          - transport=%s, traddr=%s, trsvcid=%s, subsysnqn=%s, host_traddr=%s, host_iface=%s, host_nqn=%s, device=%s',
+            'Stac._log_pages_changed()          - transport=%s, traddr=%s, trsvcid=%s, subsysnqn=%s, host_traddr=%s, host_iface=%s, hostnqn=%s, device=%s',
             transport,
             traddr,
             trsvcid,
             subsysnqn,
             host_traddr,
             host_iface,
-            host_nqn,
+            hostnqn,
             device,
         )
         if self._cfg_soak_tmr:
@@ -673,7 +673,7 @@ class Staf(Service):
             controller.tid.subsysnqn,
             controller.tid.host_traddr,
             controller.tid.host_iface,
-            controller.tid.host_nqn,
+            controller.tid.hostnqn,
             device,
         )
 
@@ -687,7 +687,7 @@ class Staf(Service):
                 dlpe,
                 controller.tid.host_traddr,
                 controller.tid.host_iface,
-                controller.tid.host_nqn,
+                controller.tid.hostnqn,
             )
             for controller in self.get_controllers()
             for dlpe in controller.referrals()

@@ -62,7 +62,7 @@ class Test(TestCase):
                 subsysnqn='nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 host_traddr='1.2.3.4',
                 host_iface='wlp0s20f3',
-                host_nqn='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab',
+                hostnqn='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab',
             ),
             None,
         )

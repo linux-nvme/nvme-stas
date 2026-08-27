@@ -383,7 +383,7 @@ class Avahi:
                 'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
                 'host-traddr': str(),
                 'host-iface': str(),
-                'host-nqn': str(),
+                'hostnqn': str(),
             },
             {
                 'transport': tcp,
@@ -392,7 +392,7 @@ class Avahi:
                 'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
                 'host-traddr': str(),
                 'host-iface': str(),
-                'host-nqn': str(),
+                'hostnqn': str(),
             },
             [...]
         ]

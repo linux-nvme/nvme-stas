@@ -106,9 +106,11 @@ class Controller(stas.ControllerABC):
     def details(self) -> dict:
         '''Return detailed debug info about this controller.'''
         details = super().details()
-        details.update(
-            self._udev.get_attributes(self.device, ('hostid', 'hostnqn', 'model', 'serial', 'dctype', 'cntrltype'))
-        )
+        # Note that 'hostnqn' is deliberately not read from the sysfs here:
+        # the TID already provides it, and the two are equal by construction
+        # for a controller we manage (see Udev._cid_matches_tid()). Reading it
+        # would only overwrite it with an empty string while disconnected.
+        details.update(self._udev.get_attributes(self.device, ('hostid', 'model', 'serial', 'dctype', 'cntrltype')))
         details['connected'] = str(self.connected())
         return details
 
