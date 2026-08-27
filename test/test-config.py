@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 import os
+import shutil
+import tempfile
 import unittest
 from staslib import conf
 
@@ -12,6 +14,12 @@ class StasProcessConfUnitTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         '''Create a temporary configuration file'''
+        # get_excluded() also reads libnvme's host-wide exclusion list. Point
+        # libnvme at an empty sandbox so this test doesn't depend on what
+        # /etc/nvme/exclusions.conf happens to hold on the build machine.
+        cls.SANDBOX = tempfile.mkdtemp(dir='/tmp')
+        conf.libnvme_ctx().set_test_base_dir(cls.SANDBOX)
+
         data = [
             '[Global]\n',
             'tron=true\n',
@@ -36,6 +44,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
         '''Delete the temporary configuration file'''
         if os.path.exists(StasProcessConfUnitTest.FNAME):
             os.remove(StasProcessConfUnitTest.FNAME)
+        shutil.rmtree(StasProcessConfUnitTest.SANDBOX, ignore_errors=True)
 
     def test_config(self):
         '''Check we can read the temporary configuration file'''

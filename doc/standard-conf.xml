@@ -541,6 +541,26 @@ controller = transport=fc;traddr=nn-0x204600a098cbcac6:pn-0x204700a098cbcac6
                 </para>
 
                 <para>
+                    <emphasis>Deprecated.</emphasis> Use libnvme's host-wide
+                    exclusion list instead:
+                    <filename>/etc/nvme/exclusions.conf</filename> and
+                    <filename>/etc/nvme/exclusions.conf.d/</filename>, which are
+                    managed with <command>nvme exclusion</command>. That list is
+                    honored by every NVMe-oF tool on the host, not just
+                    <command>stafd</command> and <command>stacd</command>, and it
+                    is read live: an entry added there takes effect on the next
+                    connection attempt, without reloading
+                    <command>stafd</command> or <command>stacd</command>.
+                </para>
+
+                <para>
+                    <varname>exclude=</varname> still works and is honored in
+                    addition to libnvme's list &mdash; a controller is excluded
+                    if it matches either &mdash; but it will be removed in a
+                    future release.
+                </para>
+
+                <para>
                     The syntax is the same as for "controller", except that only
                     <parameter>transport</parameter>, <parameter>traddr</parameter>,
                     <parameter>trsvcid</parameter>, <parameter>nqn</parameter>, and

@@ -124,10 +124,49 @@ def tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn):
 
 
 # ******************************************************************************
+def _fc_wwn(traddr: str):
+    '''Normalize an FC WWN pair. Some Discovery Controllers report it as
+    "nn-0x...,pn-0x..." (comma) instead of the spec's "nn-0x...:pn-0x..."
+    (colon). Mirrors libnvme's fc_wwn_normalize().'''
+    return traddr.replace(',', ':', 1)
+
+
+def _addresses_match(val: str, ctrl_val: str, transport: str):
+    '''Return True if two addresses designate the same thing. Addresses are
+    compared in normalized form, the way libnvme's exclusion list does it, so
+    that two spellings of one address match: "fe80::1" designates the same
+    controller as "fe80:0000:0000:0000:0000:0000:0000:0001".'''
+    if transport == 'fc':
+        return _fc_wwn(val) == _fc_wwn(ctrl_val)
+
+    ip = iputil.get_ipaddress_obj(val)
+    ctrl_ip = iputil.get_ipaddress_obj(ctrl_val)
+    if ip is not None and ctrl_ip is not None:
+        return ip == ctrl_ip
+
+    # Not a numeric address on either side. This is how a hostname in an
+    # "exclude=" entry gets matched before name resolution has taken place.
+    return val == ctrl_val
+
+
+def _values_match(key: str, val: str, ctrl_val, transport: str):
+    '''Return True if the value of an exclusion entry matches a controller's.'''
+    if ctrl_val is None:
+        return False
+
+    if key in ('traddr', 'host-traddr'):
+        return _addresses_match(val, ctrl_val, transport)
+
+    return val == ctrl_val
+
+
 def _excluded(excluded_ctrl_list, controller: dict):
     '''Return True if controller matches any entry in excluded_ctrl_list.'''
+    transport = controller.get('transport', '')
     for excluded_ctrl in excluded_ctrl_list:
-        test_results = [val == controller.get(key, None) for key, val in excluded_ctrl.items()]
+        test_results = [
+            _values_match(key, val, controller.get(key, None), transport) for key, val in excluded_ctrl.items()
+        ]
         if all(test_results):
             return True
     return False
