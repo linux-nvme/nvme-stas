@@ -174,6 +174,65 @@ class TestRemoveExcluded(unittest.TestCase):
 
 
 # ==============================================================================
+class TestExcludedController(unittest.TestCase):
+    '''Unit tests for stas.excluded().'''
+
+    FNAME = '/tmp/stas-test-excluded.conf'
+    EXCLUSIONS = [
+        '[Controllers]\n',
+        'exclude=transport=tcp;traddr=10.10.10.10\n',
+        'exclude=host-iface=enp0s8\n',
+    ]
+
+    @classmethod
+    def _write_conf(cls, lines):
+        with open(cls.FNAME, 'w') as f:
+            f.writelines(lines)
+
+    @classmethod
+    def setUpClass(cls):
+        cls._write_conf(cls.EXCLUSIONS)
+        conf.SvcConf().set_conf_file(cls.FNAME)
+
+    @classmethod
+    def tearDownClass(cls):
+        if os.path.exists(cls.FNAME):
+            os.remove(cls.FNAME)
+
+    def _make_tid(self, transport, traddr, host_iface=None):
+        cid = {'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'host-nqn': HOSTNQN}
+        if host_iface:
+            cid['host-iface'] = host_iface
+        return trid.TID(cid)
+
+    def test_excluded_controller(self):
+        self.assertTrue(stas.excluded(self._make_tid('tcp', '10.10.10.10')))
+
+    def test_non_excluded_controller(self):
+        self.assertFalse(stas.excluded(self._make_tid('tcp', '1.1.1.1')))
+
+    def test_partial_match_is_excluded(self):
+        # An "exclude=" entry that only sets host-iface excludes
+        # every controller on that interface.
+        self.assertFalse(stas.excluded(self._make_tid('rdma', '1.1.1.1', 'enp0s3')))
+        self.assertTrue(stas.excluded(self._make_tid('rdma', '1.1.1.1', 'enp0s8')))
+
+    def test_exclusion_list_read_at_every_call(self):
+        # The exclusion list is consulted on each call, so a controller that
+        # was not excluded before a config reload is excluded after it.
+        self.addCleanup(self._restore_conf)
+        tid = self._make_tid('tcp', '5.5.5.5')
+        self.assertFalse(stas.excluded(tid))
+        self._write_conf(['[Controllers]\n', 'exclude=transport=tcp;traddr=5.5.5.5\n'])
+        conf.SvcConf().reload()
+        self.assertTrue(stas.excluded(tid))
+
+    def _restore_conf(self):
+        self._write_conf(self.EXCLUSIONS)
+        conf.SvcConf().reload()
+
+
+# ==============================================================================
 class TestRemoveInvalidAddresses(unittest.TestCase):
     '''Unit tests for stas.remove_invalid_addresses().'''
 

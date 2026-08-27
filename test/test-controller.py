@@ -128,6 +128,11 @@ stafd_conf_2 = '''
 zeroconf-connections-persistence=-1
 '''
 
+stafd_conf_3 = '''
+[Controllers]
+exclude=transport=tcp;traddr=10.10.10.10
+'''
+
 
 class Test(TestCase):
     '''Unit tests for class Controller'''
@@ -182,6 +187,9 @@ class Test(TestCase):
 
         self.stafd_conf_file2 = '/etc/stas/stafd2.conf'
         self.fs.create_file(self.stafd_conf_file2, contents=stafd_conf_2)
+
+        self.stafd_conf_file3 = '/etc/stas/stafd3.conf'
+        self.fs.create_file(self.stafd_conf_file3, contents=stafd_conf_3)
 
         self.svcconf = conf.SvcConf(default_conf=default_conf)
         self.svcconf.set_conf_file(self.stafd_conf_file1)
@@ -284,6 +292,23 @@ class Test(TestCase):
             )
         )
         self.assertEqual(controller._connect_attempts, 1)
+
+    def test_excluded_controller_does_not_connect(self):
+        '''A controller that gets excluded while the daemon is running must not
+        be reconnected by the retry timer'''
+        controller = TestController(tid=self.NVME_TID, service=TestStaf())
+        controller._find_existing_connection = lambda: None
+        controller._try_to_connect()
+        self.assertEqual(controller._connect_attempts, 1)
+
+        # Exclude the controller and make sure no new attempt is made
+        self.svcconf.set_conf_file(self.stafd_conf_file3)
+        with self.assertLogs(logger=logging.getLogger(), level='INFO') as captured:
+            controller._try_to_connect()
+        self.assertTrue(captured.records[0].getMessage().endswith('Controller is excluded. Do not connect.'))
+        self.assertEqual(controller._connect_attempts, 1)
+
+        controller.kill()
 
     def test_dlp_supp_opts_as_string(self):
         dlp_supp_opts = 0x7

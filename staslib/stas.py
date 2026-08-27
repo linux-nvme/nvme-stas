@@ -134,6 +134,12 @@ def _excluded(excluded_ctrl_list, controller: dict):
 
 
 # ******************************************************************************
+def excluded(controller):
+    '''Return True if controller is excluded by the configuration file.'''
+    return _excluded(conf.SvcConf().get_excluded(), controller.as_dict())
+
+
+# ******************************************************************************
 def remove_excluded(controllers: list):
     '''Return a filtered copy of controllers with excluded entries removed.'''
     excluded_ctrl_list = conf.SvcConf().get_excluded()
@@ -240,6 +246,14 @@ class ControllerABC(abc.ABC):
         # the source of the deferred is still good.
         source = GLib.main_current_source()
         if source and source.is_destroyed():
+            return GLib.SOURCE_REMOVE
+
+        # The exclusion list may have changed since this controller was
+        # configured. Check it on every attempt so that a controller that
+        # is now excluded does not get (re)connected while we wait for the
+        # normal reconfiguration to dispose of it.
+        if excluded(self.tid):
+            logging.info('%s - Controller is excluded. Do not connect.', self.id)
             return GLib.SOURCE_REMOVE
 
         self._connect_attempts += 1
