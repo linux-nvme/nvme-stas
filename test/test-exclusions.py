@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+import atexit
 import shutil
 import tempfile
 import unittest
@@ -7,6 +8,22 @@ from staslib import conf, stas, trid
 
 HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
 SUBSYSNQN = 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8'
+
+
+def libnvme_sandbox():
+    '''Return a directory where libnvme reads its host-wide config files.
+
+    libnvme's test base dir is process-global and only the first call takes
+    effect, so every test file that needs one must agree on the same path:
+    "meson test" runs each file in its own process, but pytest runs them all
+    in one. The path must be under /tmp.
+    '''
+    path = os.path.join(tempfile.gettempdir(), 'nvme-stas-test-%d' % os.getpid())
+    if not os.path.exists(path):
+        os.makedirs(path)
+        atexit.register(shutil.rmtree, path, ignore_errors=True)
+    conf.libnvme_ctx().set_test_base_dir(path)
+    return path
 
 
 # ==============================================================================
@@ -21,25 +38,35 @@ class TestLibnvmeExclusions(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # The test base dir must be under /tmp. Layout is flat:
-        # <base>/exclusions.conf and <base>/exclusions.conf.d/<name>.conf
-        cls.SANDBOX = tempfile.mkdtemp(dir='/tmp')
+        # Layout under the base dir is flat: <base>/exclusions.conf and
+        # <base>/exclusions.conf.d/<name>.conf
+        cls.SANDBOX = libnvme_sandbox()
         cls.DROPIN_DIR = os.path.join(cls.SANDBOX, 'exclusions.conf.d')
         cls.CONF_FILE = os.path.join(cls.SANDBOX, 'stafd.conf')
-        os.mkdir(cls.DROPIN_DIR)
-        conf.libnvme_ctx().set_test_base_dir(cls.SANDBOX)
+        if not os.path.exists(cls.DROPIN_DIR):
+            os.mkdir(cls.DROPIN_DIR)
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(cls.SANDBOX, ignore_errors=True)
+        # Remove only what we created: the sandbox is shared with any other
+        # test file running in this process.
+        cls._write_exclusions(None)
+        shutil.rmtree(cls.DROPIN_DIR, ignore_errors=True)
+        if os.path.exists(cls.CONF_FILE):
+            os.remove(cls.CONF_FILE)
+        try:
+            os.rmdir(cls.SANDBOX)
+        except OSError:
+            pass
 
     def setUp(self):
         self._write_exclusions(None)
         self._write_conf()
 
-    def _write_exclusions(self, entries, name=None):
+    @classmethod
+    def _write_exclusions(cls, entries, name=None):
         '''Write libnvme's main exclusion list, or a named drop-in list.'''
-        fname = os.path.join(self.DROPIN_DIR, name + '.conf') if name else os.path.join(self.SANDBOX, 'exclusions.conf')
+        fname = os.path.join(cls.DROPIN_DIR, name + '.conf') if name else os.path.join(cls.SANDBOX, 'exclusions.conf')
         if entries is None:
             if os.path.exists(fname):
                 os.remove(fname)

@@ -1,9 +1,26 @@
 #!/usr/bin/python3
 import os
+import atexit
 import shutil
 import tempfile
 import unittest
 from staslib import conf
+
+
+def libnvme_sandbox():
+    '''Return a directory where libnvme reads its host-wide config files.
+
+    libnvme's test base dir is process-global and only the first call takes
+    effect, so every test file that needs one must agree on the same path:
+    "meson test" runs each file in its own process, but pytest runs them all
+    in one. The path must be under /tmp.
+    '''
+    path = os.path.join(tempfile.gettempdir(), 'nvme-stas-test-%d' % os.getpid())
+    if not os.path.exists(path):
+        os.makedirs(path)
+        atexit.register(shutil.rmtree, path, ignore_errors=True)
+    conf.libnvme_ctx().set_test_base_dir(path)
+    return path
 
 
 class StasProcessConfUnitTest(unittest.TestCase):
@@ -15,10 +32,12 @@ class StasProcessConfUnitTest(unittest.TestCase):
     def setUpClass(cls):
         '''Create a temporary configuration file'''
         # get_excluded() also reads libnvme's host-wide exclusion list. Point
-        # libnvme at an empty sandbox so this test doesn't depend on what
+        # libnvme at a sandbox so this test doesn't depend on what
         # /etc/nvme/exclusions.conf happens to hold on the build machine.
-        cls.SANDBOX = tempfile.mkdtemp(dir='/tmp')
-        conf.libnvme_ctx().set_test_base_dir(cls.SANDBOX)
+        cls.SANDBOX = libnvme_sandbox()
+        for fname in (os.path.join(cls.SANDBOX, 'exclusions.conf'), os.path.join(cls.SANDBOX, 'exclusions.conf.d')):
+            if os.path.exists(fname):
+                shutil.rmtree(fname, ignore_errors=True) if os.path.isdir(fname) else os.remove(fname)
 
         data = [
             '[Global]\n',
@@ -44,7 +63,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
         '''Delete the temporary configuration file'''
         if os.path.exists(StasProcessConfUnitTest.FNAME):
             os.remove(StasProcessConfUnitTest.FNAME)
-        shutil.rmtree(StasProcessConfUnitTest.SANDBOX, ignore_errors=True)
 
     def test_config(self):
         '''Check we can read the temporary configuration file'''

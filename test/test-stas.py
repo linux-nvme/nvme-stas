@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 import os
+import shutil
+import atexit
+import tempfile
 import unittest
 from unittest.mock import patch
 from staslib import conf, stas, trid
@@ -7,6 +10,27 @@ from pyfakefs.fake_filesystem_unittest import TestCase as FakeTestCase
 
 HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
 SUBSYSNQN = 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8'
+
+
+def libnvme_sandbox():
+    '''Return a directory where libnvme reads its host-wide config files.
+
+    libnvme's test base dir is process-global and only the first call takes
+    effect, so every test file that needs one must agree on the same path:
+    "meson test" runs each file in its own process, but pytest runs them all
+    in one. The path must be under /tmp.
+    '''
+    path = os.path.join(tempfile.gettempdir(), 'nvme-stas-test-%d' % os.getpid())
+    if not os.path.exists(path):
+        os.makedirs(path)
+        atexit.register(shutil.rmtree, path, ignore_errors=True)
+    conf.libnvme_ctx().set_test_base_dir(path)
+    return path
+
+
+# get_excluded() also reads libnvme's host-wide exclusion list. Keep these
+# tests independent of what /etc/nvme/exclusions.conf holds on this machine.
+libnvme_sandbox()
 
 
 # ==============================================================================
@@ -129,11 +153,13 @@ class TestRemoveExcluded(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         with open(cls.FNAME, 'w') as f:
-            f.writelines([
-                '[Controllers]\n',
-                'exclude=transport=tcp;traddr=10.10.10.10\n',
-                'exclude=transport=rdma;traddr=192.168.1.1\n',
-            ])
+            f.writelines(
+                [
+                    '[Controllers]\n',
+                    'exclude=transport=tcp;traddr=10.10.10.10\n',
+                    'exclude=transport=rdma;traddr=192.168.1.1\n',
+                ]
+            )
         conf.SvcConf().set_conf_file(cls.FNAME)
 
     @classmethod
