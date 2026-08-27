@@ -293,8 +293,7 @@ ctrl-loss-tmo     = 1
 disable-sqflow    = true
 
 [I/O controller connection management]
-disconnect-scope   = blah-blah
-disconnect-trtypes = boing-boing
+honor-fabric-zoning = blah-blah
 EOF
 log_file_contents 0 "${stacd_conf_fname}"
 printf "\n"
@@ -434,8 +433,7 @@ ctrl-loss-tmo=1
 disable-sqflow=true
 
 [I/O controller connection management]
-disconnect-scope=all-connections-matching-disconnect-trtypes
-disconnect-trtypes=tcp+rdma
+honor-fabric-zoning=no
 EOF
 log_file_contents 0 "${stacd_conf_fname}"
 printf "\n"

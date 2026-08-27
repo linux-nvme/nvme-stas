@@ -374,7 +374,7 @@
                             changes. On DLPE removal, the host should remove the
                             connection to the IOC matching that DLPE. This
                             behavior is configurable using the
-                            <varname>disconnect-scope=</varname> parameter
+                            <varname>honor-fabric-zoning=</varname> parameter
                             described below.
                         </para>
                     </listitem>
@@ -390,199 +390,44 @@
             <para>
                 The decision by the host to automatically disconnect from an
                 IOC following connectivity configuration changes is controlled
-                by two parameters: <code>disconnect-scope</code>
-                and <code>disconnect-trtypes</code>.
+                by the <code>honor-fabric-zoning</code> parameter.
             </para>
 
             <variablelist>
                 <varlistentry>
-                    <term><varname>disconnect-scope=</varname></term>
+                    <term><varname>honor-fabric-zoning=</varname></term>
                     <listitem>
                         <para>
-                            Takes one of: <parameter>only-stas-connections</parameter>,
-                            <parameter>all-connections-matching-disconnect-trtypes</parameter>, or <parameter>no-disconnect</parameter>.
+                            Takes <parameter>yes</parameter> or
+                            <parameter>no</parameter>. Whether <code>stacd</code>
+                            acts on fabric zoning changes.
                         </para>
 
                         <para>
-                            In theory, hosts should only connect to IOCs that have
-                            been zoned for them. Connections to IOCs that a host
-                            is not zoned to have access to should simply not exist.
-                            In practice, however, users may not want hosts to
-                            disconnect from all IOCs in reaction to connectivity
-                            configuration changes (or at least for some of the IOC
-                            connections).
+                            With <parameter>yes</parameter>, the removal of a
+                            DLPE means the subsystem is no longer zoned for this
+                            host, and <code>stacd</code> disconnects the I/O
+                            controllers it had connected for it. With
+                            <parameter>no</parameter>, zoning is disregarded
+                            entirely and every connection <code>stacd</code> has
+                            made is kept, whatever the CDC says. Connections can
+                            then only be removed with the <code>nvme-cli</code>
+                            command "<code>nvme disconnect</code>", by adding an
+                            <varname>exclude=</varname> entry, or by rebooting.
                         </para>
 
                         <para>
-                            Some users may prefer for IOC connections to be "sticky" 
-                            and only be removed manually (<code>nvme-cli</code> or 
-                            <varname>exclude=</varname>) or removed by a system 
-                            reboot. Specifically, they don't want IOC connections 
-                            to be removed unexpectedly on DLPE removal. These users 
-                            may want to set <varname>disconnect-scope</varname>
-                            to <parameter>no-disconnect</parameter>.
+                            This only ever applies to connections
+                            <code>stacd</code> made itself. A connection that
+                            belongs to another orchestrator, or one made at boot
+                            from the NBFT, is never disconnected by
+                            <code>stacd</code>: that is decided by libnvme's
+                            ownership registry and by the NBFT, not by this
+                            parameter.
                         </para>
 
                         <para>
-                            It is important to note that when IOC connections 
-                            are removed, ongoing I/O transactions will be 
-                            terminated immediately. There is no way to tell what
-                            happens to the data being exchanged when such an abrupt
-                            termination happens. If a host was in the middle of writing
-                            to a storage subsystem, there is a chance that outstanding
-                            I/O operations may not successfully complete.
-                        </para>
-
-                        <refsect3>
-                            <title>Values:</title>
-                            <variablelist>
-                                <varlistentry>
-                                    <term><parameter>only-stas-connections</parameter></term>
-                                    <listitem>
-                                        <para>
-                                            Only remove connections previously made by <code>stacd</code>.
-                                        </para>
-                                        <para>
-                                            In this mode, when a DLPE is removed as a result of
-                                            connectivity configuration changes, the corresponding
-                                            IOC connection will be removed by <code>stacd</code>.
-                                        </para>
-                                        <para>
-                                            Connections to IOCs made externally, e.g. using <code>nvme-cli</code>,
-                                            will not be affected, unless they happen to be duplicates
-                                            of connections made by <code>stacd</code>. It's simply not
-                                            possible for <code>stacd</code> to tell that a connection
-                                            was previously made with <code>nvme-cli</code> (or any other external tool).
-                                            So, it's good practice to avoid duplicating
-                                            configuration between <code>stacd</code> and external tools.
-                                        </para>
-                                        <para>
-                                            Users wanting to persist some of their IOC connections
-                                            regardless of connectivity configuration changes should not use
-                                            <code>nvme-cli</code> to make those connections. Instead, 
-                                            they should hard-code them in <filename>stacd.conf</filename>
-                                            with the <varname>controller=</varname> parameter. Using the
-                                            <varname>controller=</varname> parameter is the only way for a user
-                                            to tell <code>stacd</code> that a connection must be made and
-                                            not be deleted "<emphasis>no-matter-what</emphasis>".
-                                        </para>
-                                    </listitem>
-                                </varlistentry>
-
-                                <varlistentry>
-                                    <term><parameter>all-connections-matching-disconnect-trtypes</parameter></term>
-                                    <listitem>
-                                        <para>
-                                            All connections that match the transport type specified by 
-                                            <varname>disconnect-trtypes=</varname>, whether they were 
-                                            made automatically by <code>stacd</code> or externally 
-                                            (e.g., <code>nvme-cli</code>), will be audited and are 
-                                            subject to removal on DLPE removal.
-                                        </para>
-                                        <para>
-                                            In this mode, as DLPEs are removed as a result of
-                                            connectivity configuration changes, the corresponding
-                                            IOC connections will be removed by the host immediately
-                                            whether they were made by <code>stacd</code>, <code>nvme-cli</code>,
-                                            or any other way. Basically, <code>stacd</code> audits 
-                                            <emphasis>all</emphasis> IOC connections matching the 
-                                            transport type specified by <varname>disconnect-trtypes=</varname>.
-                                        </para>
-                                        <formalpara><title><emphasis>NOTE</emphasis></title>
-                                            <para>
-                                                This mode implies that <code>stacd</code> will
-                                                only allow Manually Configured or Automatically
-                                                Configured IOC connections to exist. Externally
-                                                Configured connections using <code>nvme-cli</code>
-                                                (or other external mechanism)
-                                                that do not match any Manual Config
-                                                (<filename>stacd.conf</filename>)
-                                                or Automatic Config (DLPEs) will get deleted
-                                                immediately by <code>stacd</code>.
-                                            </para>
-                                        </formalpara>
-                                    </listitem>
-                                </varlistentry>
-
-                                <varlistentry>
-                                    <term><parameter>no-disconnect</parameter></term>
-                                    <listitem>
-                                        <para>
-                                            <code>stacd</code> does not disconnect from IOCs 
-                                            when a DPLE is removed or a <varname>controller=</varname> 
-                                            entry is removed from <filename>stacd.conf</filename>.
-                                            All IOC connections are "sticky".
-                                        </para>
-
-                                        <para>
-                                            Instead, users can remove connections 
-                                            by issuing the <code>nvme-cli</code>
-                                            command "<code>nvme disconnect</code>", add an
-                                            <varname>exclude=</varname> entry to
-                                            <filename>stacd.conf</filename>, or wait
-                                            until the next system reboot at which time all
-                                            connections will be removed.
-                                        </para>
-                                    </listitem>
-                                </varlistentry>
-                            </variablelist>
-                        </refsect3>
-
-                        <para>
-                            Defaults to <parameter>only-stas-connections</parameter>.
-                        </para>
-                    </listitem>
-                </varlistentry>
-
-                <varlistentry>
-                    <term><varname>disconnect-trtypes=</varname></term>
-                    <listitem>
-                        <para>
-                            This parameter only applies when <varname>disconnect-scope</varname>
-                            is set to <parameter>all-connections-matching-disconnect-trtypes</parameter>. 
-                            It limits the scope of the audit to specific transport types.
-                        </para>
-
-                        <para>
-                            Can take the values <parameter>tcp</parameter>,
-                            <parameter>rdma</parameter>, <parameter>fc</parameter>, or
-                            a combination thereof by separating them with a plus (+) sign.
-                            For example: <parameter>tcp+fc</parameter>. No spaces
-                            are allowed between values and the plus (+) sign.
-                        </para>
-
-                        <refsect3>
-                            <title>Values:</title>
-                            <variablelist>
-                                <varlistentry>
-                                    <term><parameter>tcp</parameter></term>
-                                    <listitem>
-                                        <para>
-                                            Audit TCP connections.
-                                        </para>
-                                    </listitem>
-                                </varlistentry>
-                                <varlistentry>
-                                    <term><parameter>rdma</parameter></term>
-                                    <listitem>
-                                        <para>
-                                            Audit RDMA connections.
-                                        </para>
-                                    </listitem>
-                                </varlistentry>
-                                <varlistentry>
-                                    <term><parameter>fc</parameter></term>
-                                    <listitem>
-                                        <para>
-                                            Audit Fibre Channel connections.
-                                        </para>
-                                    </listitem>
-                                </varlistentry>
-                            </variablelist>
-                        </refsect3>
-
-                        <para>
-                            Defaults to <parameter>tcp</parameter>.
+                            Defaults to <parameter>yes</parameter>.
                         </para>
                     </listitem>
                 </varlistentry>

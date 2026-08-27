@@ -64,10 +64,6 @@ class Udev:
             logging.error("Udev.get_nvme_device() - Error: %s", ex)
             return None
 
-    def is_action_cback_registered(self, action: str, user_cback):
-        '''Return True if user_cback is registered for action ('add', 'remove', or 'change').'''
-        return user_cback in self._action_event_registry.get(action, set())
-
     def register_for_action_events(self, action: str, user_cback):
         '''Register a callback to be called when a udev event matching action is received.
         action is one of 'add', 'remove', 'change'.'''
@@ -351,23 +347,6 @@ class Udev:
                 return device
 
         return None
-
-    def get_nvme_ioc_tids(self, transports):
-        '''Return a list of TIDs for all I/O controller NVMe devices currently in the system.'''
-        tids = []
-        devices = self._context.list_devices(subsystem='nvme')
-        if devices:
-            ifaces = iputil.net_if_addrs()
-            for device in devices:
-                if device.properties.get('NVME_TRTYPE', '') not in transports:
-                    continue
-
-                if not self.is_ioc_device(device):
-                    continue
-
-                tids.append(self.get_tid(device, ifaces))
-
-        return tids
 
     def _process_udev_event(self, event_source, condition):
         if condition == GLib.IO_IN:
