@@ -14,7 +14,7 @@ import logging
 from typing import Optional
 from gi.repository import GLib
 from libnvme3 import nvme
-from staslib import conf, gutil, trid, udev, stas
+from staslib import conf, defs, gutil, trid, udev, stas
 
 
 DLP_CHANGED = (
@@ -50,7 +50,7 @@ class Controller(stas.ControllerABC):
     def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
-        self._ctx = nvme.GlobalCtx(owner="stas")
+        self._ctx = nvme.GlobalCtx(owner=defs.REGISTRY_OWNER)
         self._ctx.hostnqn = sysconf.hostnqn
         self._ctx.hostid = sysconf.hostid
         self._host = nvme.Host(

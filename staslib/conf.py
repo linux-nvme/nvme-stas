@@ -798,15 +798,6 @@ class NbftConf(metaclass=singleton.Singleton):
     dcs = property(lambda self: self._disc_ctrls)
     iocs = property(lambda self: self._subs_ctrls)
 
-    def get_controllers(self):
-        '''Retrieve the list of controllers. Stafd only cares about
-        discovery controllers. Stacd only cares about I/O controllers.'''
-
-        # For now, only return DCs. There are still unanswered questions
-        # regarding I/O controllers, e.g. what if multipathing has been
-        # configured.
-        return self.dcs if defs.PROG_NAME == 'stafd' else []
-
     @staticmethod
     def __nbft_disc_to_cids(hostnqn, discovery, hfis):
         cids = []

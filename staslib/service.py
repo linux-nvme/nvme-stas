@@ -62,6 +62,19 @@ class CtrlTerminator:
 
     def dispose(self, controller: ctrl.Controller, on_controller_removed_cb, keep_connection: bool):
         '''Invoked by a service (stafd or stacd) to dispose of a controller'''
+        if not keep_connection and stas.protected(controller.tid, controller.device):
+            # Backstop. stas.remove_protected() keeps us from adopting a
+            # controller that isn't ours in the first place, but ownership can
+            # still change under one we already hold: our cached device name
+            # can end up naming somebody else's connection after a remove/add
+            # cycle, and _load_last_known_config() re-adopts from the pickle
+            # without going through the filter. Whatever the reason, we are
+            # done with the object, but the connection is not ours to tear
+            # down: let go of it and leave it up. This holds whatever
+            # "disconnect-scope" says.
+            logging.info('%s | %s - Connection is not ours to remove. Keeping it.', controller.tid, controller.device)
+            keep_connection = True
+
         if controller.all_ops_completed():
             logging.debug(
                 'CtrlTerminator.dispose()           - %s | %s: Invoke disconnect()', controller.tid, controller.device
@@ -295,8 +308,16 @@ class Stac(Service):
         logging.debug('Stac._audit_all_connections()      - tids = %s', tids)
         num_controllers = len(self._controllers)
         for tid in tids:
-            if tid not in self._controllers and not self._terminator.pending_disposal(tid):
-                self._controllers[tid] = ctrl.Ioc(self, tid)
+            if tid in self._controllers or self._terminator.pending_disposal(tid):
+                continue
+
+            # Don't take over a connection that belongs to another
+            # orchestrator, or one made from the NBFT at boot.
+            device = self._udev.find_nvme_ioc_device(tid)
+            if stas.protected(tid, device.sys_name if device is not None else None):
+                continue
+
+            self._controllers[tid] = ctrl.Ioc(self, tid)
 
         if num_controllers != len(self._controllers):
             self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
@@ -397,6 +418,7 @@ class Stac(Service):
 
         controllers = stas.remove_excluded(configured_ctrl_list + discovered_ctrl_list)
         controllers = stas.remove_invalid_addresses(controllers)
+        controllers = stas.remove_protected(controllers, self._udev.find_nvme_ioc_device)
 
         new_controller_tids = set(controllers)
         cur_controller_tids = set(self._controllers.keys())
@@ -728,6 +750,7 @@ class Staf(Service):
         all_ctrls = configured_ctrl_list + discovered_ctrl_list + referral_ctrl_list
         controllers = stas.remove_excluded(all_ctrls)
         controllers = stas.remove_invalid_addresses(controllers)
+        controllers = stas.remove_protected(controllers, self._udev.find_nvme_dc_device)
 
         new_controller_tids = set(controllers)
         cur_controller_tids = set(self._controllers.keys())

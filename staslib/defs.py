@@ -41,6 +41,11 @@ KERNEL_ALL_MIN_VERSION = max(
 
 WELL_KNOWN_DISC_NQN = 'nqn.2014-08.org.nvmexpress.discovery'
 
+# The name stafd/stacd claim in libnvme's ownership registry. Every controller
+# we connect is registered under it, and we never disconnect one owned by
+# somebody else.
+REGISTRY_OWNER = 'stas'
+
 PROG_NAME = os.path.basename(sys.argv[0])
 
 NVME_HOSTID = '@ETC@/nvme/hostid'

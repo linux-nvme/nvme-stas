@@ -18,6 +18,7 @@ import logging
 import dasbus.connection
 from gi.repository import Gio, GLib
 from systemd.daemon import notify as sd_notify
+from libnvme3 import nvme
 from staslib import conf, defs, gutil, iputil, log, trid
 
 try:
@@ -170,6 +171,89 @@ def _excluded(excluded_ctrl_list, controller: dict):
         if all(test_results):
             return True
     return False
+
+
+# ******************************************************************************
+def _nbft_tids():
+    '''Return the TIDs of all the controllers described by the NBFT.
+
+    This is meant to be temporary. Reading the NBFT ourselves is only needed
+    because a boot connection carries "owner=nbft" in the registry solely when
+    the initramfs that made it was new enough to write it, and the initramfs
+    nvme-cli is a snapshot taken when the initramfs was built, which can lag
+    the root file system by a long time. Until initramfs images in the field
+    can be counted on to register their connections, an unmarked boot
+    controller would look unowned to us, and unowned is eligible.
+
+    Once that marking is dependable - years, not releases - this function and
+    the NBFT half of protected() can go, and the registry owner check alone
+    will filter NBFT controllers out.
+    '''
+    nbft_conf = conf.NbftConf()
+    return {trid.TID(cid) for cid in nbft_conf.dcs + nbft_conf.iocs}
+
+
+# ******************************************************************************
+def _owner(device):
+    '''Return the orchestrator that owns device according to libnvme's
+    registry, or None if the device has no registry entry.'''
+    if not device or device == 'nvme?':
+        return None
+
+    try:
+        return nvme.registry_retrieve(conf.libnvme_ctx(), device, 'owner')
+    except (OSError, ValueError) as ex:
+        # A registry we can't read must not get in the way of a teardown.
+        logging.warning('Unable to read the registry entry of %s: %s', device, ex)
+        return None
+
+
+# ******************************************************************************
+def protected(tid, device=None):
+    '''Return True if this controller must never be disconnected by us.
+
+    Two independent sources, either of which is sufficient:
+
+    - libnvme's registry says the connection belongs to another orchestrator
+      (nvme-discoverd, the initramfs, ...). A controller with no registry entry
+      remains eligible: that is what every connection predating the registry
+      looks like.
+    - The controller is described by the NBFT, i.e. it is a boot connection. We
+      read the NBFT ourselves instead of trusting "owner=nbft" to be in the
+      registry, because that marking is only made by an initramfs new enough to
+      make it, and the initramfs nvme-cli is a snapshot taken at initramfs
+      build time that can lag the root file system.
+    '''
+    owner = _owner(device)
+    if owner is not None and owner != defs.REGISTRY_OWNER:
+        logging.debug('protected()                        - %s | %s: owned by "%s"', tid, device, owner)
+        return True
+
+    return tid in _nbft_tids()
+
+
+# ******************************************************************************
+def remove_protected(controllers: list, find_device):
+    '''Return a filtered copy of controllers with the connections that are not
+    ours to manage removed. @find_device maps a TID to the udev device of an
+    existing connection, or None.
+
+    This is where "we never disconnect somebody else's controller" is really
+    decided. Controller._do_connect() borrows an existing connection rather than
+    making a new one, so a controller we keep here is one we would adopt and,
+    later, disconnect. Dropping it now means we never take it over in the first
+    place; CtrlTerminator.dispose() then only has to catch the cases where a
+    controller we already hold turns out to belong to somebody else.
+    '''
+    keep = []
+    for controller in controllers:
+        device = find_device(controller)
+        if protected(controller, device.sys_name if device is not None else None):
+            logging.debug('remove_protected()                 - %s: not ours to manage', controller)
+            continue
+        keep.append(controller)
+
+    return keep
 
 
 # ******************************************************************************
@@ -569,9 +653,10 @@ class ServiceABC(abc.ABC):
         # elements after name resolution is complete (i.e. in the callback
         # function _config_ctrls_finish)
         logging.debug('ServiceABC._config_ctrls()')
-        configured_controllers = [
-            trid.TID(cid) for cid in conf.SvcConf().get_controllers() + conf.NbftConf().get_controllers()
-        ]
+        # Note that the NBFT is deliberately not consulted here. Controllers
+        # described by it were connected by the initramfs and are not ours to
+        # manage; protected() keeps us from disconnecting them.
+        configured_controllers = [trid.TID(cid) for cid in conf.SvcConf().get_controllers()]
         configured_controllers = remove_excluded(configured_controllers)
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
