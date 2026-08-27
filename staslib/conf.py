@@ -165,6 +165,10 @@ class SvcConf(metaclass=singleton.Singleton):
             'reconnect-delay': {
                 'convert': _to_int,
             },
+            'nvme-config-file': {
+                'convert': _parse_single_val,
+                'default': '/etc/nvme/nvme-fabrics.conf',
+            },
         },
         'Service Discovery': {
             'zeroconf': {
@@ -278,6 +282,7 @@ class SvcConf(metaclass=singleton.Singleton):
     nr_poll_queues = property(functools.partial(get_option, section='Global', option='nr-poll-queues'))
     nr_write_queues = property(functools.partial(get_option, section='Global', option='nr-write-queues'))
     reconnect_delay = property(functools.partial(get_option, section='Global', option='reconnect-delay'))
+    nvme_config_file = property(functools.partial(get_option, section='Global', option='nvme-config-file'))
 
     zeroconf_persistence_sec = property(
         functools.partial(

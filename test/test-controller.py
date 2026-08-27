@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import logging
 import unittest
+from unittest.mock import patch
 from libnvme3 import nvme
 from staslib import conf, ctrl, timeparse, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
@@ -432,6 +433,142 @@ class Test(TestCase):
 
         # _should_try_to_reconnect: ncc=False → max_connect_attempts=0 → always True
         self.assertTrue(ioc._should_try_to_reconnect())
+
+
+class TestSecurityCfg(TestCase):
+    '''Unit tests for the security parameters that stafd/stacd take from
+    nvme-cli's connection configuration file, nvme-fabrics.conf(5)'''
+
+    HOSTNQN = 'nqn.1988-11.com.dell:poweredge:1234'
+    SUBSYSNQN = 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8'
+    PSK = 'NVMeTLSkey-1:01:JbYnhWFLmpF1qLGkGSTWvXWfCEQz2vSJn3vJZ9GjPFI=:'
+    IDENTITY = 'NVMe1R01 ' + HOSTNQN + ' ' + SUBSYSNQN + ' JbYnhWFLmpF1qLGkGSTWvXWfCEQz2vSJn3vJZ9GjPFI='
+
+    # Lines as the kernel formats them in /proc/keys:
+    # <serial> <flags> <usage> <timeout> <perm> <uid> <gid> <type> <description>
+    KEY_LIVE = '37ccdd59 I--Q---     2 perm 3b010000     0     0 psk       ' + IDENTITY + ': 32\n'
+    KEY_REVOKED = '1c2700b9 IR-Q---     1 expd 3b010000     0     0 psk       ' + IDENTITY + ': 0\n'
+    KEYRING = '1959e543 ---lswrv     6 perm 3f030000     0     0 keyring   .nvme: 1\n'
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file('/etc/nvme/hostnqn', contents=self.HOSTNQN + '\n')
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+
+        self.tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '10.10.10.10',
+                'trsvcid': '4420',
+                'subsysnqn': self.SUBSYSNQN,
+                'host-nqn': self.HOSTNQN,
+            }
+        )
+
+    def tearDown(self):
+        pass
+
+    def _entry(self, **kwargs):
+        entry = {
+            'transport': 'tcp',
+            'traddr': '10.10.10.10',
+            'trsvcid': '4420',
+            'subsysnqn': self.SUBSYSNQN,
+            'params': {'tls': 'true', 'tls-key': self.PSK},
+        }
+        entry.update(kwargs)
+        return entry
+
+    def _config(self, *entries):
+        '''Make nvme.config_read() return @entries'''
+        return patch.object(ctrl.nvme, 'config_read', lambda ctx, file=None: list(entries))
+
+    def test_matching_entry(self):
+        entry = self._entry(
+            params={
+                'tls': 'yes',
+                'concat': 'off',
+                'keyring': '.nvme',
+                'tls-key': self.PSK,
+                'tls-key-identity': self.IDENTITY,
+                'ctrl-loss-tmo': '600',  # not a security parameter: ignored
+            }
+        )
+        with self._config(self._entry(traddr='1.1.1.1'), entry):
+            self.assertEqual(
+                ctrl.get_security_cfg(None, self.tid),
+                {
+                    'tls': True,
+                    'concat': False,
+                    'keyring': '.nvme',
+                    'tls_key': self.PSK,
+                    'tls_key_identity': self.IDENTITY,
+                },
+            )
+
+    def test_unspecified_parameters_match_anything(self):
+        # An entry that omits trsvcid and host-iface applies to any of them.
+        entry = self._entry()
+        del entry['trsvcid']
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '10.10.10.10',
+                'trsvcid': '4420',
+                'subsysnqn': self.SUBSYSNQN,
+                'host-iface': 'wlp0s20f3',
+                'host-nqn': self.HOSTNQN,
+            }
+        )
+        with self._config(entry):
+            self.assertEqual(ctrl.get_security_cfg(None, tid), {'tls': True, 'tls_key': self.PSK})
+
+    def test_empty_value_resets_to_kernel_default(self):
+        with self._config(self._entry(params={'tls': 'true', 'keyring': ''})):
+            self.assertEqual(ctrl.get_security_cfg(None, self.tid), {'tls': True})
+
+    def test_no_matching_entry(self):
+        with self._config(self._entry(subsysnqn='nqn.1988-11.com.dell:SFSS:2:somethingelse')):
+            self.assertEqual(ctrl.get_security_cfg(None, self.tid), {})
+
+        with self._config(self._entry(transport='rdma')):
+            self.assertEqual(ctrl.get_security_cfg(None, self.tid), {})
+
+        with self._config(self._entry(host_iface='eth1')):
+            self.assertEqual(ctrl.get_security_cfg(None, self.tid), {})
+
+        with self._config():
+            self.assertEqual(ctrl.get_security_cfg(None, self.tid), {})
+
+    def test_unreadable_config_file(self):
+        def raise_oserror(ctx, file=None):
+            raise OSError('config_read failed: Invalid argument')
+
+        with patch.object(ctrl.nvme, 'config_read', raise_oserror):
+            with self.assertLogs(level='WARNING'):
+                self.assertEqual(ctrl.get_security_cfg(None, self.tid), {})
+
+    def test_no_config_file_configured(self):
+        with patch.object(conf.SvcConf, 'nvme_config_file', property(lambda self: '')):
+            with self._config(self._entry()):
+                self.assertEqual(ctrl.get_security_cfg(None, self.tid), {})
+
+    def test_psk_in_keyring(self):
+        self.fs.create_file('/proc/keys', contents=self.KEYRING + self.KEY_REVOKED + self.KEY_LIVE)
+        self.assertTrue(ctrl._psk_in_keyring(self.HOSTNQN, self.SUBSYSNQN))
+        self.assertFalse(ctrl._psk_in_keyring(self.HOSTNQN, 'nqn.1988-11.com.dell:SFSS:2:somethingelse'))
+
+    def test_revoked_psk_does_not_count(self):
+        self.fs.create_file('/proc/keys', contents=self.KEYRING + self.KEY_REVOKED)
+        self.assertFalse(ctrl._psk_in_keyring(self.HOSTNQN, self.SUBSYSNQN))
+
+    def test_empty_keyring(self):
+        self.fs.create_file('/proc/keys', contents=self.KEYRING)
+        self.assertFalse(ctrl._psk_in_keyring(self.HOSTNQN, self.SUBSYSNQN))
+
+    def test_keys_not_readable(self):
+        with self.assertLogs(level='WARNING'):
+            self.assertFalse(ctrl._psk_in_keyring(self.HOSTNQN, self.SUBSYSNQN))
 
 
 if __name__ == '__main__':

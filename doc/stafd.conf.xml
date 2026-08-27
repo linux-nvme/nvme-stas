@@ -89,6 +89,7 @@
                 <xi:include href="standard-conf.xml" xpointer="reconnect-delay"/>
                 <xi:include href="standard-conf.xml" xpointer="ctrl-loss-tmo"/>
                 <xi:include href="standard-conf.xml" xpointer="disable-sqflow"/>
+                <xi:include href="standard-conf.xml" xpointer="nvme-config-file"/>
 
                 <varlistentry>
                     <term><varname>ignore-iface=</varname></term>

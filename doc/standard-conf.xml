@@ -173,6 +173,47 @@
                 </para>
             </listitem>
         </varlistentry>
+
+        <varlistentry id='nvme-config-file'>
+            <term><varname>nvme-config-file=</varname></term>
+
+            <listitem id='nvme-config-file-text'>
+                <para>
+                    Takes a file name. This is nvme-cli's connection
+                    configuration file, <citerefentry
+                    project='nvme-cli'><refentrytitle>nvme-fabrics.conf</refentrytitle>
+                    <manvolnum>5</manvolnum></citerefentry>, from which
+                    <parameter>tls</parameter>,
+                    <parameter>concat</parameter>,
+                    <parameter>keyring</parameter>,
+                    <parameter>tls-key</parameter> and
+                    <parameter>tls-key-identity</parameter> are taken for
+                    controllers that the file has an entry for. These security
+                    parameters have no equivalent in this file, and a
+                    TLS-secured connection cannot be established without them.
+                    All other parameters in that file are ignored: connection
+                    parameters come from this file, as usual.
+                </para>
+
+                <para>
+                    The TLS PSK named by <parameter>tls-key</parameter> is
+                    handed to libnvme only while the kernel keyring holds no
+                    key for that host and subsystem; from then on libnvme and
+                    the kernel find the retained PSK by its identity. Importing
+                    it on every connect would revoke the key the already
+                    connected controllers were given, and their next reconnect
+                    would fail the TLS handshake.
+                </para>
+
+                <para>
+                    Set it to an empty value to not read any such file.
+                </para>
+
+                <para>
+                    Defaults to <parameter>/etc/nvme/nvme-fabrics.conf</parameter>.
+                </para>
+            </listitem>
+        </varlistentry>
     </variablelist>
 
     <refsect2 id='controller'>

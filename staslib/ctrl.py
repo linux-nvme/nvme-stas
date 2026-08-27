@@ -11,6 +11,7 @@ Dc (Discovery Controller) and Ioc (I/O Controller) objects are derived.'''
 
 import time
 import logging
+import threading
 from typing import Optional
 from gi.repository import GLib
 from libnvme3 import nvme
@@ -41,6 +42,129 @@ def dlp_supp_opts_as_string(dlp_supp_opts: int):
         nvme.NVMF_LOG_DISC_LID_ALLSUBES: "ALLSUBES",
     }
     return [txt for msk, txt in data.items() if dlp_supp_opts & msk]
+
+
+# Security parameters that can only be configured in nvme-cli's connection
+# configuration file, nvme-fabrics.conf(5). stafd.conf and stacd.conf have no
+# equivalent, and a TLS-secured connection cannot be established without them.
+# Both tables map the configuration file's key to the libnvme name.
+#
+# These two are part of the fabrics config and go in the nvme.Ctrl() dict.
+SECURITY_CFG_PARAMS = {
+    'tls': 'tls',
+    'concat': 'concat',
+}
+
+# These must be set on the nvme.Ctrl object instead: libnvmf_create_ctrl()
+# only copies the fabrics config, so a key passed in the dict is silently
+# dropped and the connect then fails with ENOKEY.
+SECURITY_ATTR_PARAMS = {
+    'keyring': 'keyring',
+    'tls-key': 'tls_key',
+    'tls-key-identity': 'tls_key_identity',
+}
+
+BOOL_PARAMS = ('tls', 'concat')
+
+# libnvme imports the TLS PSK into the keyring on every connect
+# (__libnvmf_import_keys_from_config()), and libnvmf_update_key() revokes
+# whatever key currently holds that identity before adding the replacement.
+# Connections are made from a thread pool (gutil.AsyncTask), so concurrent
+# connects would revoke each other's key serial and fail with EKEYREVOKED
+# ("Key has been revoked") or ENOKEY ("pre-shared TLS key is missing").
+# Serializing keeps each import/connect pair atomic. Connections that do not
+# use TLS don't touch the keyring and are still made in parallel.
+TLS_CONNECT_LOCK = threading.Lock()
+
+
+def _to_bool(text: str) -> bool:
+    '''Convert a boolean value as spelled in nvme-fabrics.conf(5).'''
+    return text.strip().lower() in ('1', 'y', 'yes', 't', 'true', 'on')
+
+
+def _same_controller(entry: dict, tid: trid.TID) -> bool:
+    '''Return True if @entry, a connection read from nvme-cli's connection
+    configuration file, designates the same controller as @tid. Parameters
+    that the entry leaves out (e.g. host-iface) match anything.'''
+    return all(
+        entry.get(key, '') in ('', value)
+        for key, value in (
+            ('transport', tid.transport),
+            ('traddr', tid.traddr),
+            ('trsvcid', tid.trsvcid),
+            ('subsysnqn', tid.subsysnqn),
+            ('host_traddr', tid.host_traddr),
+            ('host_iface', tid.host_iface),
+            ('hostnqn', tid.host_nqn),
+        )
+    )
+
+
+def _psk_in_keyring(hostnqn: str, subsysnqn: str) -> bool:
+    '''Return True if the kernel keyring already holds a usable TLS PSK for
+    this (host, subsystem) pair. Both libnvme and the kernel find the key by
+    its identity, e.g. "NVMe1R01 <hostnqn> <subsysnqn> <hash-of-the-key>".'''
+    marker = f' {hostnqn} {subsysnqn} '
+    try:
+        with open('/proc/keys') as f:  # pylint: disable=unspecified-encoding
+            for line in f:
+                # <serial> <flags> <usage> <timeout> <perm> <uid> <gid> <type> <description>
+                fields = line.split(None, 8)
+                if len(fields) > 8 and fields[7] == 'psk' and 'R' not in fields[1] and marker in fields[8]:
+                    return True
+    except OSError as ex:
+        logging.warning('Cannot read /proc/keys: %s', ex)
+
+    return False
+
+
+def get_security_cfg(ctx, tid: trid.TID) -> dict:
+    '''Return the security parameters that nvme-cli's connection configuration
+    file defines for the controller identified by @tid. Returns an empty dict
+    when that file has no entry for @tid.'''
+    cfg_file = conf.SvcConf().nvme_config_file
+    if not cfg_file:
+        return {}
+
+    try:
+        entries = nvme.config_read(ctx, cfg_file)
+    except OSError as ex:
+        logging.warning('Failed to read %s: %s', cfg_file, ex)
+        return {}
+
+    for entry in entries:
+        if not _same_controller(entry, tid):
+            continue
+
+        params = entry.get('params', {})
+        return {
+            # An empty value means "reset to the kernel default"
+            keyword: _to_bool(params[key]) if key in BOOL_PARAMS else params[key]
+            for key, keyword in list(SECURITY_CFG_PARAMS.items()) + list(SECURITY_ATTR_PARAMS.items())
+            if params.get(key)
+        }
+
+    return {}
+
+
+def _connect(ctrl, host, serialize: bool):
+    '''Establish the connection to @ctrl. TLS connections are serialized,
+    see TLS_CONNECT_LOCK.'''
+    if not serialize:
+        return ctrl.connect(host)
+
+    with TLS_CONNECT_LOCK:
+        # libnvme imports the PSK on every connect that carries one, and each
+        # import revokes the key handed to the controllers that are already
+        # connected - their next kernel-side reconnect then fails the TLS
+        # handshake. So hand over the key only while the keyring has none for
+        # this (host, subsystem) pair; from then on both libnvme and the
+        # kernel find it by identity. This must happen under the lock: the
+        # decision is only valid as long as no other connect can import.
+        if ctrl.tls_key and _psk_in_keyring(host.hostnqn, ctrl.subsysnqn):
+            ctrl.tls_key = None
+
+        return ctrl.connect(host)
 
 
 # ******************************************************************************
@@ -220,7 +344,17 @@ class Controller(stas.ControllerABC):
 
     def _do_connect(self):
         cfg = self._get_cfg()
+
+        # Security parameters (TLS) come from nvme-cli's configuration file
+        security = get_security_cfg(self._ctx, self.tid)
+        cfg.update({keyword: security[keyword] for keyword in SECURITY_CFG_PARAMS.values() if keyword in security})
+
         self._ctrl = nvme.Ctrl(self._ctx, cfg)
+
+        # The keys are not part of the fabrics config and must be set here
+        for keyword in SECURITY_ATTR_PARAMS.values():
+            if keyword in security:
+                setattr(self._ctrl, keyword, security[keyword])
 
         self._ctrl.discovery_ctrl = self._discovery_ctrl
 
@@ -261,7 +395,7 @@ class Controller(stas.ControllerABC):
                 'Controller._do_connect()           - %s Connecting to nvme control with cfg=%s', self.id, cfg
             )
             self._connect_op = gutil.AsyncTask(
-                self._on_connect_success, self._on_connect_fail, self._ctrl.connect, self._host
+                self._on_connect_success, self._on_connect_fail, _connect, self._ctrl, self._host, cfg.get('tls', False)
             )
 
         self._connect_op.run_async()
