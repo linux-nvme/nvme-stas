@@ -230,7 +230,7 @@ class Udev:
         be re-used for the candidate controller (specified by tid).
 
         We do not have a match if the candidate's tid.transport, tid.traddr,
-        tid.trsvcid, tid.subsysnqn, and tid.host_nqn are not identical to those
+        tid.trsvcid, tid.subsysnqn, and tid.hostnqn are not identical to those
         of the cid. These 5 parameters are mandatory for a match.
 
         The tid.host_traddr and tid.host_iface depend on the transport type.
@@ -247,8 +247,8 @@ class Udev:
             cid.src_addr can only be read from the sysfs starting with kernel
             6.1.
         '''
-        # 'transport', 'traddr', 'trsvcid', 'subsysnqn', and 'host-nqn' must exactly match.
-        if tid.transport != cid['transport'] or tid.trsvcid != cid['trsvcid'] or tid.host_nqn != cid['host-nqn']:
+        # 'transport', 'traddr', 'trsvcid', 'subsysnqn', and 'hostnqn' must exactly match.
+        if tid.transport != cid['transport'] or tid.trsvcid != cid['trsvcid'] or tid.hostnqn != cid['hostnqn']:
             return False
 
         # With TP8013, Discovery Controllers may respond with a unique NQN even
@@ -476,7 +476,7 @@ class Udev:
             'host-iface': Udev._get_property(device, 'NVME_HOST_IFACE'),
             'subsysnqn': Udev._get_attribute(device, 'subsysnqn'),
             'src-addr': Udev.get_key_from_attr(device, 'address', 'src_addr='),
-            'host-nqn': Udev._get_attribute(device, 'hostnqn'),
+            'hostnqn': Udev._get_attribute(device, 'hostnqn'),
         }
         return cid
 

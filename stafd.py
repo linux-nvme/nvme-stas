@@ -73,7 +73,7 @@ if __name__ == '__main__':
             subsysnqn: str,
             host_traddr: str,
             host_iface: str,
-            host_nqn: str,
+            hostnqn: str,
             device: str,
         ):
             '''Signal sent when log pages have changed.'''
@@ -106,14 +106,14 @@ if __name__ == '__main__':
             info.update(STAF.info())
             return json.dumps(info)
 
-        def controller_info(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn) -> str:
+        def controller_info(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn) -> str:
             '''Return a JSON string with information about the specified controller.'''
-            controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
+            controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn)
             return json.dumps(controller.info()) if controller else '{}'
 
-        def get_log_pages(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn) -> list:
+        def get_log_pages(self, transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn) -> list:
             '''Return the discovery log pages from the specified controller.'''
-            controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, host_nqn)
+            controller = STAF.get_controller(transport, traddr, trsvcid, subsysnqn, host_traddr, host_iface, hostnqn)
             return controller.log_pages() if controller else list()
 
         def get_all_log_pages(self, detailed) -> str:

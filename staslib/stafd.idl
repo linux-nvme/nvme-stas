@@ -12,7 +12,7 @@
             <arg direction="in" type="s" name="subsysnqn"/>
             <arg direction="in" type="s" name="host_traddr"/>
             <arg direction="in" type="s" name="host_iface"/>
-            <arg direction="in" type="s" name="host_nqn"/>
+            <arg direction="in" type="s" name="hostnqn"/>
             <arg direction="out" type="s" name="info_json"/>
         </method>
     </interface>
@@ -29,7 +29,7 @@
             <arg direction="in" type="s" name="subsysnqn"/>
             <arg direction="in" type="s" name="host_traddr"/>
             <arg direction="in" type="s" name="host_iface"/>
-            <arg direction="in" type="s" name="host_nqn"/>
+            <arg direction="in" type="s" name="hostnqn"/>
             <arg direction="out" type="aa{ss}" name="log_pages"/>
         </method>
         <method name="get_all_log_pages">
@@ -43,7 +43,7 @@
           <arg direction="out" type="s" name="subsysnqn"/>
           <arg direction="out" type="s" name="host_traddr"/>
           <arg direction="out" type="s" name="host_iface"/>
-          <arg direction="out" type="s" name="host_nqn"/>
+          <arg direction="out" type="s" name="hostnqn"/>
           <arg direction="out" type="s" name="device"/>
         </signal>
         <signal name="dc_removed"></signal>

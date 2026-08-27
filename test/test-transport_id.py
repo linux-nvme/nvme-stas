@@ -24,7 +24,7 @@ class Test(unittest.TestCase):
             'trsvcid': Test.TRSVCID,
             'host-traddr': Test.HOST_TRADDR,
             'host-iface': Test.HOST_IFACE,
-            'host-nqn': Test.HOST_NQN,
+            'hostnqn': Test.HOST_NQN,
         }
         self.other_cid = {
             'transport': Test.TRANSPORT,
@@ -33,7 +33,7 @@ class Test(unittest.TestCase):
             'trsvcid': Test.TRSVCID,
             'host-traddr': Test.HOST_TRADDR,
             'host-iface': Test.HOST_IFACE,
-            'host-nqn': Test.HOST_NQN,
+            'hostnqn': Test.HOST_NQN,
         }
 
         self.tid = trid.TID(self.cid)

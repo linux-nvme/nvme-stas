@@ -68,37 +68,37 @@ class TestTidFromDlpe(unittest.TestCase):
     }
 
     def test_returns_tid_instance(self):
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='1.2.3.4', host_iface='eth0', host_nqn=HOSTNQN)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='1.2.3.4', host_iface='eth0', hostnqn=HOSTNQN)
         self.assertIsInstance(result, trid.TID)
 
     def test_transport_field(self):
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', host_nqn=HOSTNQN)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', hostnqn=HOSTNQN)
         self.assertEqual(result.transport, 'tcp')
 
     def test_traddr_field(self):
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', host_nqn=HOSTNQN)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', hostnqn=HOSTNQN)
         self.assertEqual(result.traddr, '10.10.10.10')
 
     def test_trsvcid_field(self):
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', host_nqn=HOSTNQN)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', hostnqn=HOSTNQN)
         self.assertEqual(result.trsvcid, '8009')
 
     def test_subsysnqn_field(self):
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', host_nqn=HOSTNQN)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', hostnqn=HOSTNQN)
         self.assertEqual(result.subsysnqn, SUBSYSNQN)
 
     def test_host_traddr_field(self):
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='1.2.3.4', host_iface='', host_nqn=HOSTNQN)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='1.2.3.4', host_iface='', hostnqn=HOSTNQN)
         self.assertEqual(result.host_traddr, '1.2.3.4')
 
-    def test_none_host_nqn_falls_back_to_sysconf(self):
-        # When host_nqn is None, TID falls back to SysConf.hostnqn (which may
+    def test_none_hostnqn_falls_back_to_sysconf(self):
+        # When hostnqn is None, TID falls back to SysConf.hostnqn (which may
         # itself be None if /etc/nvme/hostnqn is absent — that is acceptable here)
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', host_nqn=None)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', hostnqn=None)
         self.assertIsInstance(result, trid.TID)
 
     def test_usable_as_dict_key(self):
-        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', host_nqn=HOSTNQN)
+        result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', hostnqn=HOSTNQN)
         d = {result: 'value'}
         self.assertEqual(d[result], 'value')
 
@@ -142,7 +142,7 @@ class TestRemoveExcluded(unittest.TestCase):
             os.remove(cls.FNAME)
 
     def _make_tid(self, transport, traddr):
-        return trid.TID({'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'host-nqn': HOSTNQN})
+        return trid.TID({'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'hostnqn': HOSTNQN})
 
     def test_empty_list_unchanged(self):
         self.assertEqual(stas.remove_excluded([]), [])
@@ -200,7 +200,7 @@ class TestExcludedController(unittest.TestCase):
             os.remove(cls.FNAME)
 
     def _make_tid(self, transport, traddr, host_iface=None):
-        cid = {'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'host-nqn': HOSTNQN}
+        cid = {'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'hostnqn': HOSTNQN}
         if host_iface:
             cid['host-iface'] = host_iface
         return trid.TID(cid)
@@ -257,7 +257,7 @@ class TestRemoveInvalidAddresses(unittest.TestCase):
                 os.remove(fname)
 
     def _make_tid(self, transport, traddr):
-        return trid.TID({'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'host-nqn': HOSTNQN})
+        return trid.TID({'transport': transport, 'traddr': traddr, 'subsysnqn': SUBSYSNQN, 'hostnqn': HOSTNQN})
 
     def test_empty_list_unchanged(self):
         conf.SvcConf().set_conf_file(self.FNAME_BOTH)

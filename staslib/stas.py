@@ -108,7 +108,7 @@ def remove_invalid_addresses(controllers: list):
 
 
 # ******************************************************************************
-def tid_from_dlpe(dlpe, host_traddr, host_iface, host_nqn):
+def tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn):
     '''Convert a Discovery Log Page Entry (DLPE) to a controller ID dict.'''
     cid = {
         'transport': dlpe['trtype'],
@@ -118,8 +118,8 @@ def tid_from_dlpe(dlpe, host_traddr, host_iface, host_nqn):
         'host-iface': host_iface,
         'subsysnqn': dlpe['subnqn'],
     }
-    if host_nqn:
-        cid['host-nqn'] = host_nqn
+    if hostnqn:
+        cid['hostnqn'] = hostnqn
     return trid.TID(cid)
 
 
@@ -418,7 +418,7 @@ class ServiceABC(abc.ABC):
         subsysnqn: str,
         host_traddr: str,
         host_iface: str,
-        host_nqn: str,
+        hostnqn: str,
     ):
         '''Return the specified controller object, or None if not found.'''
         cid = {
@@ -428,7 +428,7 @@ class ServiceABC(abc.ABC):
             'subsysnqn': subsysnqn,
             'host-traddr': host_traddr,
             'host-iface': host_iface,
-            'host-nqn': host_nqn,
+            'hostnqn': hostnqn,
         }
         return self._controllers.get(trid.TID(cid))
 

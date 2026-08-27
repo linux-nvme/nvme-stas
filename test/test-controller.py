@@ -157,7 +157,7 @@ class Test(TestCase):
                 'trsvcid': '8009',
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
-                'host-nqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
             }
         )
 
@@ -228,7 +228,7 @@ class Test(TestCase):
                 'host-iface': 'wlp0s20f3',
                 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'device': 'nvme?',
-                'host-nqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
             },
         )
 
@@ -241,7 +241,7 @@ class Test(TestCase):
                 'trsvcid': '8009',
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
-                'host-nqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
@@ -259,13 +259,12 @@ class Test(TestCase):
                 'trsvcid': '8009',
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
-                'host-nqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
                 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
                 'hostid': '',
-                'hostnqn': '',
                 'model': '',
                 'serial': '',
                 'connect operation': "{'fail count': 0, 'completed': False, 'alive': True}",

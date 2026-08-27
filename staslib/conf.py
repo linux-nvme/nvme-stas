@@ -331,7 +331,7 @@ class SvcConf(metaclass=singleton.Singleton):
             'subsysnqn':          [NQN],
             'host-traddr':        [TRADDR],
             'host-iface':         [IFACE],
-            'host-nqn':           [NQN],
+            'hostnqn':            [NQN],
             'kxchap-secret':      [KEY],
             'kxchap-ctrl-secret': [KEY],
             'hdr-digest':         [BOOL]
@@ -727,7 +727,7 @@ class NbftConf(metaclass=singleton.Singleton):
             cid = NbftConf.__uri2cid(ctrl['uri'])
             cid['subsysnqn'] = ctrl['nqn']
             if hostnqn:
-                cid['host-nqn'] = hostnqn
+                cid['hostnqn'] = hostnqn
 
             host_iface = NbftConf.__get_host_iface(ctrl.get('hfi_index'), hfis)
             if host_iface:
@@ -752,7 +752,7 @@ class NbftConf(metaclass=singleton.Singleton):
                 'data-digest': bool(trflags & _NBFT_SSNS_DATA_DIGEST),
             }
             if hostnqn:
-                cid['host-nqn'] = hostnqn
+                cid['hostnqn'] = hostnqn
 
             indexes = ctrl.get('hfi_indexes')
             if isinstance(indexes, list) and len(indexes) > 0:
