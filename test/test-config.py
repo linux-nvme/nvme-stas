@@ -46,8 +46,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'ip-family=ipv6\n',
             '\n',
             '[I/O controller connection management]\n',
-            'disconnect-scope = joe\n',
-            'disconnect-trtypes = bob\n',
+            'honor-fabric-zoning = joe\n',
             'connect-attempts-on-ncc = 1\n',
             '\n',
             '[Controllers]\n',
@@ -86,8 +85,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Service Discovery', 'zeroconf'): True,
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
-            ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
+            ('I/O controller connection management', 'honor-fabric-zoning'): True,
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
 
@@ -100,8 +98,7 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)
         self.assertTrue(service_conf.pleo_enabled)
-        self.assertEqual(service_conf.disconnect_scope, 'only-stas-connections')
-        self.assertEqual(service_conf.disconnect_trtypes, ['tcp'])
+        self.assertEqual(service_conf.honor_fabric_zoning, True)
         self.assertFalse(service_conf.ignore_iface)
         self.assertIn(6, service_conf.ip_family)
         self.assertNotIn(4, service_conf.ip_family)
@@ -142,14 +139,14 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertEqual(service_conf.connect_attempts_on_ncc, 2)
         data = [
             '[I/O controller connection management]\n',
-            'disconnect-trtypes = tcp+rdma+fc\n',
+            'honor-fabric-zoning = no\n',
             'connect-attempts-on-ncc = hello\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:
             f.writelines(data)
         service_conf.reload()
         self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
-        self.assertEqual(set(service_conf.disconnect_trtypes), set(['fc', 'tcp', 'rdma']))
+        self.assertEqual(service_conf.honor_fabric_zoning, False)
 
         data = [
             '[Global]\n',

@@ -259,21 +259,10 @@ class SvcConf(metaclass=singleton.Singleton):
             },
         },
         'I/O controller connection management': {
-            'disconnect-scope': {
-                'convert': _parse_single_val,
-                'default': 'only-stas-connections',
-                'txt-chk': lambda text: (
-                    _parse_single_val(text)
-                    in ('only-stas-connections', 'all-connections-matching-disconnect-trtypes', 'no-disconnect')
-                ),
-            },
-            'disconnect-trtypes': {
-                # Use set() to eliminate potential duplicates
-                'convert': lambda text: set(_parse_single_val(text).split('+')),
-                'default': [
-                    'tcp',
-                ],
-                'lst-chk': ('tcp', 'rdma', 'fc'),
+            'honor-fabric-zoning': {
+                'convert': functools.partial(_to_bool, positive='yes'),
+                'default': True,
+                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('yes', 'no'),
             },
             'connect-attempts-on-ncc': {
                 'convert': _to_ncc,
@@ -359,11 +348,8 @@ class SvcConf(metaclass=singleton.Singleton):
         )
     )
 
-    disconnect_scope = property(
-        functools.partial(get_option, section='I/O controller connection management', option='disconnect-scope')
-    )
-    disconnect_trtypes = property(
-        functools.partial(get_option, section='I/O controller connection management', option='disconnect-trtypes')
+    honor_fabric_zoning = property(
+        functools.partial(get_option, section='I/O controller connection management', option='honor-fabric-zoning')
     )
     connect_attempts_on_ncc = property(
         functools.partial(get_option, section='I/O controller connection management', option='connect-attempts-on-ncc')

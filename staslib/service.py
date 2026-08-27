@@ -71,7 +71,7 @@ class CtrlTerminator:
             # without going through the filter. Whatever the reason, we are
             # done with the object, but the connection is not ours to tear
             # down: let go of it and leave it up. This holds whatever
-            # "disconnect-scope" says.
+            # "honor-fabric-zoning" says.
             logging.info('%s | %s - Connection is not ours to remove. Keeping it.', controller.tid, controller.device)
             keep_connection = True
 
@@ -217,7 +217,6 @@ class Stac(Service):
     '''STorage Appliance Connector (STAC)'''
 
     CONF_STABILITY_LONG_SOAK_TIME_SEC = 10
-    ADD_EVENT_SOAK_TIME_SEC = 1
 
     def __init__(self, args, dbus):
         default_conf = {
@@ -236,16 +235,11 @@ class Stac(Service):
             ('Global', 'ip-family'): (4, 6),
             ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
-            ('I/O controller connection management', 'disconnect-scope'): 'only-stas-connections',
-            ('I/O controller connection management', 'disconnect-trtypes'): ['tcp'],
+            ('I/O controller connection management', 'honor-fabric-zoning'): True,
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
 
         super().__init__(args, default_conf, self._reload_hdlr)
-
-        self._add_event_soak_tmr = gutil.GTimer(self.ADD_EVENT_SOAK_TIME_SEC, self._on_add_event_soaked)
-
-        self._config_connections_audit()
 
         # Create the D-Bus instance.
         self._config_dbus(dbus, defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
@@ -260,12 +254,6 @@ class Stac(Service):
     def _release_resources(self):
         logging.debug('Stac._release_resources()')
 
-        if self._add_event_soak_tmr:
-            self._add_event_soak_tmr.kill()
-
-        if self._udev:
-            self._udev.unregister_for_action_events('add', self._on_add_event)
-
         self._destroy_staf_comlink(self._staf_watcher)
         if self._staf_watcher is not None:
             self._staf_watcher.disconnect()
@@ -274,7 +262,6 @@ class Stac(Service):
 
         self._staf = None
         self._staf_watcher = None
-        self._add_event_soak_tmr = None
 
     def _dump_last_known_config(self, controllers):
         config = list(controllers.keys())
@@ -296,66 +283,6 @@ class Stac(Service):
 
         return controllers
 
-    def _audit_all_connections(self, tids):
-        '''A host should only connect to I/O controllers that have been zoned
-        for that host or a manual "controller" entry exists in stacd.conf.
-        A host should disconnect from an I/O controller when that I/O controller
-        is removed from the zone or a "controller" entry is manually removed
-        from stacd.conf. stacd will audit connections if "disconnect-scope=
-        all-connections-matching-disconnect-trtypes". stacd will delete any
-        connection that is not supposed to exist.
-        '''
-        logging.debug('Stac._audit_all_connections()      - tids = %s', tids)
-        num_controllers = len(self._controllers)
-        for tid in tids:
-            if tid in self._controllers or self._terminator.pending_disposal(tid):
-                continue
-
-            # Don't take over a connection that belongs to another
-            # orchestrator, or one made from the NBFT at boot.
-            device = self._udev.find_nvme_ioc_device(tid)
-            if stas.protected(tid, device.sys_name if device is not None else None):
-                continue
-
-            self._controllers[tid] = ctrl.Ioc(self, tid)
-
-        if num_controllers != len(self._controllers):
-            self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
-
-    def _on_add_event(self, udev_obj):
-        '''Called when an "add" event is received from the kernel for an NVMe device,
-        to audit and verify that the I/O controller connection is allowed.
-
-        WARNING: There is a race condition with the "add" event from the kernel.
-        The kernel sends the "add" event a bit early and the sysfs attributes
-        associated with the nvme object are not always fully initialized.
-        To work around this, a soaking timer gives time for the sysfs attributes
-        to stabilize.
-        '''
-        logging.debug('Stac._on_add_event(()              - Received "add" event: %s', udev_obj.sys_name)
-        self._add_event_soak_tmr.start()
-
-    def _on_add_event_soaked(self):
-        '''Audit connections after the "add" event soak period has elapsed.'''
-        if self._alive():
-            svc_conf = conf.SvcConf()
-            if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':
-                self._audit_all_connections(self._udev.get_nvme_ioc_tids(svc_conf.disconnect_trtypes))
-        return GLib.SOURCE_REMOVE
-
-    def _config_connections_audit(self):
-        '''This function checks the "disconnect_scope" parameter to determine
-        whether audits should be performed. Audits are enabled when
-        "disconnect_scope == all-connections-matching-disconnect-trtypes".
-        '''
-        svc_conf = conf.SvcConf()
-        if svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes':
-            if not self._udev.is_action_cback_registered('add', self._on_add_event):
-                self._udev.register_for_action_events('add', self._on_add_event)
-                self._audit_all_connections(self._udev.get_nvme_ioc_tids(svc_conf.disconnect_trtypes))
-        else:
-            self._udev.unregister_for_action_events('add', self._on_add_event)
-
     def _keep_connections_on_exit(self):
         '''Return True if connections should persist when stacd exits.'''
         return True
@@ -369,7 +296,6 @@ class Stac(Service):
         service_cnf = conf.SvcConf()
         service_cnf.reload()
         self.tron = service_cnf.tron
-        self._config_connections_audit()
         self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
 
         for controller in self._controllers.values():
@@ -428,19 +354,15 @@ class Stac(Service):
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
 
-        svc_conf = conf.SvcConf()
-        no_disconnect = svc_conf.disconnect_scope == 'no-disconnect'
-        match_trtypes = svc_conf.disconnect_scope == 'all-connections-matching-disconnect-trtypes'
-        logging.debug(
-            'Stac._config_ctrls_finish()        - no_disconnect=%s, match_trtypes=%s, svc_conf.disconnect_trtypes=%s',
-            no_disconnect,
-            match_trtypes,
-            svc_conf.disconnect_trtypes,
-        )
+        # A controller we no longer want is disconnected when we honor fabric
+        # zoning, which is what "no longer zoned for this host" is telling us.
+        # Otherwise we let go of the controller object but leave the connection
+        # up.
+        keep_connection = not conf.SvcConf().honor_fabric_zoning
+        logging.debug('Stac._config_ctrls_finish()        - keep_connection      = %s', keep_connection)
         for tid in controllers_to_del:
             controller = self._controllers.pop(tid, None)
             if controller is not None:
-                keep_connection = no_disconnect or (match_trtypes and tid.transport not in svc_conf.disconnect_trtypes)
                 self._terminator.dispose(controller, self.remove_controller, keep_connection)
 
         for tid in controllers_to_add:
