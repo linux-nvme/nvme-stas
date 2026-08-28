@@ -142,15 +142,26 @@ These rules attempt to auto-connect I/O controllers on kernel events.
 ### The Race Condition
 
 - `nvme-cli` (via udev rules) and `nvme-stas` both react to the same NVMe events.
-- The udev rules in **nvme-cli ≤ 2.1.2** do **not** propagate the `host-iface` argument.
 - Because udev rules run in C and nvme-stas runs in Python, the udev rules typically win the race.
-- Result: connections may be established using the wrong TCP interface.
+- Historically, that meant `nvme connect-all` could connect controllers behind nvme-stas' back.
 
 ### Resolution
 
-nvme-stas **disables nvme-cli's udev rules** and assumes those responsibilities. It does that by installing a new udev rulefile, `/run/udev/rules.d/70-nvmf-autoconnect.rules`, which takes precedence over the file installed by the nvme-cli package.
-This ensures:
+libnvme's **ownership registry** settles the race at the source. Every controller
+nvme-stas connects is recorded as `owner=stas` in `/run/nvme/registry`, and
+`nvme connect-all` reads the Discovery Controller's owner before it does anything:
+when the controller belongs to somebody else, it skips the whole operation.
 
-- A single orchestrator handles connection events
-- Race conditions are eliminated
-- All NVMe/TCP connections consistently use the correct `host-iface`
+This means:
+
+- Each orchestrator owns the connections it makes, and no orchestrator disconnects
+  or takes over another's
+- nvme-stas and nvme-cli's udev rules coexist without racing
+- Hybrid configurations work as expected: controllers configured through nvme-cli
+  keep being handled by nvme-cli's udev rules, and those configured through
+  nvme-stas by nvme-stas
+
+Up to nvme-stas 2.x, the same problem was addressed by **disabling nvme-cli's udev
+rules** — nvme-stas installed `/run/udev/rules.d/70-nvmf-autoconnect.rules`, which
+took precedence over the file shipped by the nvme-cli package. That override is
+gone as of 3.0; nvme-cli's rules are left in place.

@@ -209,6 +209,38 @@ def _owner(device):
 
 
 # ******************************************************************************
+def claim(tid, device):
+    '''Record in libnvme's registry that this connection is ours.
+
+    libnvme registers owner=stas on the controllers it connects for us, but
+    Controller._do_connect() borrows an existing connection when it finds one
+    instead of making a new one, and a borrow never reaches libnvme's connect
+    path. Claiming it here is what tells everybody else we took it over:
+    "nvme connect-all" does nothing at all with a Discovery Controller that
+    somebody else owns, and that is what keeps udevd from racing us for it.
+
+    A connection that already belongs to somebody else is left alone.
+    remove_protected() should have kept it out of our hands long before we got
+    here, but ownership can change under a connection we already hold, and
+    taking it away from its owner is never ours to do.
+    '''
+    if not device or device == 'nvme?':
+        return
+
+    owner = _owner(device)
+    if owner is not None:
+        if owner != defs.REGISTRY_OWNER:
+            logging.debug('claim()                            - %s | %s: owned by "%s"', tid, device, owner)
+        return
+
+    try:
+        nvme.registry_update(conf.libnvme_ctx(), device, 'owner', defs.REGISTRY_OWNER)
+    except (OSError, ValueError) as ex:
+        # Not being able to claim it is not a reason to give up the connection.
+        logging.warning('Unable to claim the registry entry of %s: %s', device, ex)
+
+
+# ******************************************************************************
 def protected(tid, device=None):
     '''Return True if this controller must never be disconnected by us.
 
