@@ -43,6 +43,22 @@ _CONN_PARAMS = (
     ('fast-io-fail-tmo', 'fast_io_fail_tmo'),
 )
 
+
+def host_identity(tid, sysconf):
+    '''Return the (hostnqn, hostid, hostsymname) a connection is made under.
+
+    A connection may name its own identity - that is what a [Host] section in
+    the connectivity configuration is for. Take that identity whole or not at
+    all: pairing a configured host NQN with the system's host ID invents an
+    identity nobody configured, and the two are meant to travel together
+    (TP4126). Pure function, so it is directly unit-testable.
+    '''
+    if tid.hostnqn and tid.hostnqn != sysconf.hostnqn:
+        return tid.hostnqn, tid.cfg.get('hostid'), tid.cfg.get('hostsymname')
+
+    return sysconf.hostnqn, sysconf.hostid, tid.cfg.get('hostsymname', sysconf.hostsymname)
+
+
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVERY << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
@@ -77,19 +93,7 @@ class Controller(stas.ControllerABC):
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
 
-        # A connection may name the identity it is made under - that is what a
-        # [Host] section in the connectivity configuration is for. Take that
-        # identity whole or not at all: pairing a configured host NQN with the
-        # system's host ID invents an identity nobody configured, and the two
-        # are meant to travel together (TP4126).
-        if tid.hostnqn and tid.hostnqn != sysconf.hostnqn:
-            hostnqn = tid.hostnqn
-            hostid = tid.cfg.get('hostid')
-            hostsymname = tid.cfg.get('hostsymname')
-        else:
-            hostnqn = sysconf.hostnqn
-            hostid = sysconf.hostid
-            hostsymname = tid.cfg.get('hostsymname', sysconf.hostsymname)
+        hostnqn, hostid, hostsymname = host_identity(tid, sysconf)
 
         self._ctx = nvme.GlobalCtx(owner=defs.REGISTRY_OWNER)
         self._ctx.hostnqn = hostnqn

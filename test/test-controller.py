@@ -179,7 +179,6 @@ class Test(TestCase):
             ('Global', 'ip-family'): (4, 6),
             ('Global', 'pleo'): True,
             ('Service Discovery', 'zeroconf'): True,
-            ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
         }
 
@@ -196,6 +195,61 @@ class Test(TestCase):
         self.addCleanup(conf.SvcConf.destroy)
         self.svcconf = conf.SvcConf(default_conf=default_conf)
         self.svcconf.set_conf_file(self.stafd_conf_file1)
+
+    def test_identity_defaults_to_the_system_one(self):
+        sysconf = conf.SysConf()
+        tid = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.unrelated'})
+        self.assertEqual(
+            ctrl.host_identity(tid, sysconf), (sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+        )
+
+    def test_a_named_identity_is_taken_whole(self):
+        '''A connection that names its own host NQN is a persona. It must not
+        borrow the system host ID: that would make the subsystem treat the two
+        as the same host.'''
+        sysconf = conf.SysConf()
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'subsysnqn': 'nqn.unrelated',
+                'hostnqn': 'nqn.1988-11.com.dell:persona:1',
+                'hostid': 'aaaaaaaa-0000-0000-0000-000000000001',
+                'hostsymname': 'persona-1',
+            }
+        )
+        self.assertEqual(
+            ctrl.host_identity(tid, sysconf),
+            ('nqn.1988-11.com.dell:persona:1', 'aaaaaaaa-0000-0000-0000-000000000001', 'persona-1'),
+        )
+
+    def test_a_named_identity_never_borrows_the_system_host_id(self):
+        sysconf = conf.SysConf()
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'subsysnqn': 'nqn.unrelated',
+                'hostnqn': 'nqn.1988-11.com.dell:persona:2',
+            }
+        )
+        _, hostid, _ = ctrl.host_identity(tid, sysconf)
+        self.assertIsNone(hostid)
+        self.assertNotEqual(hostid, sysconf.hostid)
+
+    def test_the_symbolic_name_alone_does_not_make_a_persona(self):
+        '''hostsymname does not discriminate identity, so naming one keeps the
+        system host NQN and host ID.'''
+        sysconf = conf.SysConf()
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'subsysnqn': 'nqn.unrelated',
+                'hostsymname': 'just-a-name',
+            }
+        )
+        self.assertEqual(ctrl.host_identity(tid, sysconf), (sysconf.hostnqn, sysconf.hostid, 'just-a-name'))
 
     def tearDown(self):
         pass
