@@ -208,6 +208,8 @@ class Service(stas.ServiceABC):
 class Stac(Service):
     '''STorage Appliance Connector (STAC)'''
 
+    CONFIGURES_DCS = False
+
     CONF_STABILITY_LONG_SOAK_TIME_SEC = 10
 
     def __init__(self, args, dbus):
@@ -287,6 +289,7 @@ class Stac(Service):
         sd_notify('RELOADING=1')
         service_cnf = conf.SvcConf()
         service_cnf.reload()
+        conf.ConnConf().reload()
         self.tron = service_cnf.tron
         self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
 
@@ -461,6 +464,8 @@ def _remove_stale_udev_rule_override():
 class Staf(Service):
     '''STorage Appliance Finder (STAF)'''
 
+    CONFIGURES_DCS = True
+
     def __init__(self, args, dbus):
         default_conf = {
             ('Global', 'tron'): False,
@@ -544,6 +549,7 @@ class Staf(Service):
         sd_notify('RELOADING=1')
         service_cnf = conf.SvcConf()
         service_cnf.reload()
+        conf.ConnConf().reload()
         self.tron = service_cnf.tron
         self._avahi.kick_start()  # Make sure Avahi is running
         self._avahi.config_stypes(service_cnf.stypes)

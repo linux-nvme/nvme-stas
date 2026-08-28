@@ -17,6 +17,32 @@ from libnvme3 import nvme
 from staslib import conf, defs, gutil, trid, udev, stas
 
 
+# Connection parameters that also exist in the [Global] section of
+# stafd.conf/stacd.conf, as (connectivity-config name, kernel name).
+_GLOBAL_PARAMS = (
+    ('kato', 'keep_alive_tmo'),
+    ('queue-size', 'queue_size'),
+    ('hdr-digest', 'hdr_digest'),
+    ('data-digest', 'data_digest'),
+    ('nr-io-queues', 'nr_io_queues'),
+    ('ctrl-loss-tmo', 'ctrl_loss_tmo'),
+    ('disable-sqflow', 'disable_sqflow'),
+    ('nr-poll-queues', 'nr_poll_queues'),
+    ('nr-write-queues', 'nr_write_queues'),
+    ('reconnect-delay', 'reconnect_delay'),
+)
+
+# Parameters the connectivity configuration can express and [Global] cannot.
+_CONN_PARAMS = (
+    ('tos', 'tos'),
+    ('tls', 'tls'),
+    ('concat', 'concat'),
+    ('keyring', 'keyring'),
+    ('tls-key', 'tls_key'),
+    ('tls-key-identity', 'tls_key_identity'),
+    ('fast-io-fail-tmo', 'fast_io_fail_tmo'),
+)
+
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVERY << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
@@ -50,12 +76,25 @@ class Controller(stas.ControllerABC):
     def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
+
+        # A connection may name the identity it is made under - that is what a
+        # [Host] section in the connectivity configuration is for. Take that
+        # identity whole or not at all: pairing a configured host NQN with the
+        # system's host ID invents an identity nobody configured, and the two
+        # are meant to travel together (TP4126).
+        if tid.hostnqn and tid.hostnqn != sysconf.hostnqn:
+            hostnqn = tid.hostnqn
+            hostid = tid.cfg.get('hostid')
+            hostsymname = tid.cfg.get('hostsymname')
+        else:
+            hostnqn = sysconf.hostnqn
+            hostid = sysconf.hostid
+            hostsymname = tid.cfg.get('hostsymname', sysconf.hostsymname)
+
         self._ctx = nvme.GlobalCtx(owner=defs.REGISTRY_OWNER)
-        self._ctx.hostnqn = sysconf.hostnqn
-        self._ctx.hostid = sysconf.hostid
-        self._host = nvme.Host(
-            self._ctx, hostnqn=sysconf.hostnqn, hostid=sysconf.hostid, hostsymname=sysconf.hostsymname
-        )
+        self._ctx.hostnqn = hostnqn
+        self._ctx.hostid = hostid
+        self._host = nvme.Host(self._ctx, hostnqn=hostnqn, hostid=hostid, hostsymname=hostsymname)
         self._host.kxchap_host_key = sysconf.hostkey if self._nvme_options.kxchap_hostkey_supp else None
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
@@ -196,33 +235,39 @@ class Controller(stas.ControllerABC):
         if self.tid.host_iface and not service_conf.ignore_iface and self._nvme_options.host_iface_supp:
             cfg['host_iface'] = self.tid.host_iface
 
-        for option, keyword in (
-            ('kato', 'keep_alive_tmo'),
-            ('queue-size', 'queue_size'),
-            ('hdr-digest', 'hdr_digest'),
-            ('data-digest', 'data_digest'),
-            ('nr-io-queues', 'nr_io_queues'),
-            ('ctrl-loss-tmo', 'ctrl_loss_tmo'),
-            ('disable-sqflow', 'disable_sqflow'),
-            ('nr-poll-queues', 'nr_poll_queues'),
-            ('nr-write-queues', 'nr_write_queues'),
-            ('reconnect-delay', 'reconnect_delay'),
-        ):
-            # Check if the value is defined as a "controller" entry (i.e. override)
+        for option, keyword in _GLOBAL_PARAMS:
+            # A value from the connectivity configuration wins; [Global] is the
+            # default for the controllers we discover, which are in no file.
             ovrd_val = self.tid.cfg.get(option, None)
             if ovrd_val is not None:
                 cfg[keyword] = ovrd_val
             else:
-                # Check if the value is found in the [Global] section.
                 glob_val = service_conf.get_option('Global', option)
                 if glob_val is not None:
                     cfg[keyword] = glob_val
+
+        for option, keyword in _CONN_PARAMS:
+            # Parameters only the connectivity configuration can express: they
+            # have no [Global] equivalent to fall back to.
+            val = self.tid.cfg.get(option, None)
+            if val is not None:
+                cfg[keyword] = val
 
         return cfg
 
     def _do_connect(self):
         cfg = self._get_cfg()
-        self._ctrl = nvme.Ctrl(self._ctx, cfg)
+        try:
+            self._ctrl = nvme.Ctrl(self._ctx, cfg)
+        except ValueError as ex:
+            # A configuration we cannot turn into a connection at all - an
+            # incomplete host identity, most likely. Retrying changes nothing
+            # until the configuration does, but the retry timer is how we find
+            # out that it has.
+            logging.error('%s - Cannot create controller: %s', self.id, ex)
+            self._retry_connect_tmr.set_timeout(self.CONNECT_RETRY_PERIOD_SEC)
+            self._retry_connect_tmr.start()
+            return
 
         self._ctrl.discovery_ctrl = self._discovery_ctrl
 

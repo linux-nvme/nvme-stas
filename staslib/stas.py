@@ -469,6 +469,11 @@ class ServiceABC(abc.ABC):
 
     CONF_STABILITY_SOAK_TIME_SEC = 1.5
 
+    # Which half of the connectivity configuration is ours: the
+    # [Discovery Controller] sections for stafd, the [Subsystem] sections for
+    # stacd. One file serves both daemons.
+    CONFIGURES_DCS = None
+
     def __init__(self, args, default_conf, reload_hdlr):
         service_conf = conf.SvcConf(default_conf=default_conf)
         service_conf.set_conf_file(args.conf_file)  # reload configuration
@@ -688,7 +693,7 @@ class ServiceABC(abc.ABC):
         # Note that the NBFT is deliberately not consulted here. Controllers
         # described by it were connected by the initramfs and are not ours to
         # manage; protected() keeps us from disconnecting them.
-        configured_controllers = [trid.TID(cid) for cid in conf.SvcConf().get_controllers()]
+        configured_controllers = [trid.TID(cid) for cid in conf.ConnConf().get_controllers(self.CONFIGURES_DCS)]
         configured_controllers = remove_excluded(configured_controllers)
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 

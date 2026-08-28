@@ -27,6 +27,11 @@ _LIBNVME_CTX = None
 _EXCLUSION_KEYS = frozenset(('transport', 'traddr', 'trsvcid', 'nqn', 'host-traddr', 'host-iface', 'hostnqn', 'hostid'))
 
 
+# Options that used to live in stafd.conf/stacd.conf and now live in the
+# connectivity configuration. Reported by name rather than as "unknown".
+_MOVED_OPTIONS = {'controller': defs.NVME_STAS_CONF_FILE}
+
+
 class InvalidOption(Exception):
     '''Exception raised when an invalid option value is detected'''
 
@@ -270,10 +275,6 @@ class SvcConf(metaclass=singleton.Singleton):
             },
         },
         'Controllers': {
-            'controller': {
-                'convert': _parse_list,
-                'default': [],
-            },
             'exclude': {
                 'convert': _parse_list,
                 'default': [],
@@ -380,49 +381,6 @@ class SvcConf(metaclass=singleton.Singleton):
             return value
 
         return self._defaults.get((section, option), True)
-
-    def get_controllers(self):
-        '''Return the list of controllers from the config file.
-        Each controller is a dict with the following keys (some optional):
-        {
-            'transport':          [TRANSPORT],
-            'traddr':             [TRADDR],
-            'trsvcid':            [TRSVCID],
-            'subsysnqn':          [NQN],
-            'host-traddr':        [TRADDR],
-            'host-iface':         [IFACE],
-            'hostnqn':            [NQN],
-            'kxchap-secret':      [KEY],
-            'kxchap-ctrl-secret': [KEY],
-            'hdr-digest':         [BOOL]
-            'data-digest':        [BOOL]
-            'nr-io-queues':       [NUMBER]
-            'nr-write-queues':    [NUMBER]
-            'nr-poll-queues':     [NUMBER]
-            'queue-size':         [SIZE]
-            'kato':               [KATO]
-            'reconnect-delay':    [SECONDS]
-            'ctrl-loss-tmo':      [SECONDS]
-            'disable-sqflow':     [BOOL]
-        }
-        '''
-        controller_list = self.get_option('Controllers', 'controller')
-        cids = [_parse_controller(controller) for controller in controller_list]
-        for cid in cids:
-            try:
-                # replace 'nqn' key by 'subsysnqn', if present.
-                cid['subsysnqn'] = cid.pop('nqn')
-            except KeyError:
-                pass
-
-            # Verify values of the options used to overload the matching [Global] options
-            for option in cid:
-                if option in self.OPTION_CHECKER['Global']:
-                    value = self._check(cid[option], 'Global', option, None)
-                    if value is not None:
-                        cid[option] = value
-
-        return cids
 
     def get_excluded(self):
         '''Return the list of excluded controllers. This is the union of the
@@ -548,6 +506,18 @@ class SvcConf(metaclass=singleton.Singleton):
                         if option not in self._valid_conf.get(section, []):
                             invalid_options.add(option)
 
+                    # An option that moved to the connectivity configuration
+                    # deserves better than "unknown option".
+                    for option in sorted(invalid_options & _MOVED_OPTIONS.keys()):
+                        logging.error(
+                            'File:%s [%s]: "%s" has moved to %s',
+                            self.conf_file,
+                            section,
+                            option,
+                            _MOVED_OPTIONS[option],
+                        )
+                    invalid_options -= _MOVED_OPTIONS.keys()
+
                     if len(invalid_options) != 0:
                         logging.error(
                             'File:%s [%s] contains invalid options: %s',
@@ -564,6 +534,152 @@ class SvcConf(metaclass=singleton.Singleton):
                 )
 
         return config
+
+
+# ******************************************************************************
+class ConnConf(metaclass=singleton.Singleton):
+    '''Connectivity configuration: which controllers to connect to, and with
+    what parameters.
+
+    This is libnvme's INI format, read through libnvme's own parser, so that
+    nvme-stas, the nvme-cli tools and nvme-discoverd all understand one format
+    and there is only ever one implementation of it. nvme-stas keeps its own
+    file, /etc/nvme/nvme-stas.conf: a host must be able to run nvme-stas and
+    nvme-discoverd side by side, each connecting its own controllers, so they
+    never share a connectivity file even though they share its format.
+
+    libnvme resolves the whole cascade - type defaults, the file's [Host]
+    section, the endpoint section, and the "controller =" line - before we see
+    anything, and hands back one entry per controller with its parameters
+    already merged. A [Subsystem] with several "controller =" lines arrives as
+    several entries, one per path.
+    '''
+
+    # libnvme names the connection parameters the way "nvme connect" does. Ours
+    # agree except for the keep-alive timeout, where we kept the kernel's name.
+    _ALIASES = {'keep-alive-tmo': 'kato'}
+
+    # Parameters we hand to the kernel as-is. Everything else libnvme resolves
+    # is carried through untouched for whoever knows what to do with it (the
+    # credentials, for instance, which ctrl.py reads straight from the TID).
+    _NUMERIC = frozenset(
+        (
+            'kato',
+            'tos',
+            'queue-size',
+            'nr-io-queues',
+            'ctrl-loss-tmo',
+            'nr-poll-queues',
+            'nr-write-queues',
+            'reconnect-delay',
+            'fast-io-fail-tmo',
+        )
+    )
+    _BOOLEAN = frozenset(('tls', 'concat', 'hdr-digest', 'data-digest', 'disable-sqflow'))
+
+    def __init__(self, conf_file=defs.NVME_STAS_CONF_FILE):
+        self._conf_file = conf_file
+        self._connections = list()
+        self.reload()
+
+    @property
+    def conf_file(self):
+        '''Return the configuration file name'''
+        return self._conf_file
+
+    def set_conf_file(self, fname):
+        '''Set the configuration file name and reload the configuration'''
+        self._conf_file = fname
+        self.reload()
+
+    def reload(self):
+        '''Re-read the configuration file.
+
+        A file that does not validate is rejected and the last known good
+        configuration is left running: a fat-fingered edit must never tear down
+        working connections. An absent file is not an error - it simply
+        configures no controllers.
+
+        Return True if the configuration was (re)loaded, False if the file was
+        rejected and the previous one kept.
+        '''
+        ctx = libnvme_ctx()
+        try:
+            nvme.config_validate(ctx, self._conf_file)
+            connections = nvme.config_read(ctx, self._conf_file)
+        except (OSError, ValueError) as ex:
+            logging.error(
+                'File:%s - Invalid connectivity configuration, keeping the previous one: %s', self._conf_file, ex
+            )
+            return False
+
+        self._connections = connections
+        logging.debug('ConnConf.reload()                  - %s connection(s)', len(connections))
+        return True
+
+    def get_controllers(self, discovery: bool):
+        '''Return the configured controllers as controller-identifier dicts.
+
+        @discovery selects which half of the file to return: the
+        [Discovery Controller] sections when True, the [Subsystem] sections
+        when False. One file serves both daemons.
+        '''
+        return [self._to_cid(conn) for conn in self._connections if conn.get('is_dc', False) == discovery]
+
+    def _to_cid(self, conn: dict):
+        '''Translate one libnvme connection into a controller-identifier dict.'''
+        cid = {
+            'transport': conn.get('transport', ''),
+            'traddr': conn.get('traddr', ''),
+            'trsvcid': conn.get('trsvcid', ''),
+            'subsysnqn': conn.get('subsysnqn', ''),
+            # libnvme spells the host binding with underscores, we use hyphens.
+            'host-traddr': conn.get('host_traddr', ''),
+            'host-iface': conn.get('host_iface', ''),
+            'hostnqn': conn.get('hostnqn', ''),
+        }
+
+        # Carried for the connection, not for the transport ID: a file's
+        # [Host] section applies to every connection in it.
+        for key in ('hostid', 'hostsymname'):
+            if conn.get(key):
+                cid[key] = conn[key]
+
+        for key, text in conn.get('params', {}).items():
+            option = self._ALIASES.get(key, key)
+            value = self._value(option, text)
+            if value is not None:
+                cid[option] = value
+
+        return cid
+
+    def _value(self, option, text):
+        '''Convert a parameter to the type the kernel expects, or return None
+        to leave it unset so that the kernel default applies.
+
+        libnvme has already validated the file, so anything rejected here is a
+        value we cannot represent rather than a malformed one.
+        '''
+        if not text:
+            # "key =" resets a parameter to the kernel default: leave it out.
+            return None
+
+        if option in self._NUMERIC:
+            try:
+                return timeparse.timeparse(text) if option == 'kato' else int(text)
+            except (ValueError, TypeError):
+                logging.warning(
+                    'File:%s: %s - invalid value "%s", the kernel default will be used',
+                    self._conf_file,
+                    option,
+                    text,
+                )
+                return None
+
+        if option in self._BOOLEAN:
+            return text.strip().lower() in ('1', 'y', 'yes', 't', 'true', 'on')
+
+        return text
 
 
 # ******************************************************************************

@@ -52,6 +52,7 @@ NVME_HOSTNQN = '@ETC@/nvme/hostnqn'
 NVME_HOSTKEY = '@ETC@/nvme/hostkey'
 
 SYS_CONF_FILE = '@ETC@/stas/sys.conf'
+NVME_STAS_CONF_FILE = '@ETC@/nvme/nvme-stas.conf'
 STAFD_CONF_FILE = '@ETC@/stas/stafd.conf'
 STACD_CONF_FILE = '@ETC@/stas/stacd.conf'
 

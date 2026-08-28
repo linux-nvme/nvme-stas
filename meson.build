@@ -182,6 +182,14 @@ install_subdir(
     install_dir: etcdir,
 )
 
+# The connectivity configuration is documentation only: nvme-stas configures no
+# controllers when /etc/nvme/nvme-stas.conf is absent, and installing a live
+# file would overwrite the administrator's on every upgrade.
+install_subdir(
+    'etc/nvme',
+    install_dir: etcdir,
+)
+
 #===========================================================================
 foreach component : [ 'nvme-stas.spec', '.coveragerc', 'coverage.sh', ]
     configure_file(

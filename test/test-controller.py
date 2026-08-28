@@ -158,6 +158,7 @@ class Test(TestCase):
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
             }
         )
 
@@ -231,6 +232,7 @@ class Test(TestCase):
                 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'device': 'nvme?',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
             },
         )
 
@@ -244,6 +246,7 @@ class Test(TestCase):
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
@@ -262,6 +265,7 @@ class Test(TestCase):
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
                 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'device': 'nvme?',
                 'connect attempts': '1',

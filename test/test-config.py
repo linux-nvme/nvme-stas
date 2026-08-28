@@ -50,8 +50,10 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'connect-attempts-on-ncc = 1\n',
             '\n',
             '[Controllers]\n',
+            # "controller" moved to the connectivity configuration. Left here
+            # on purpose: a leftover entry must be reported by name, not as an
+            # unknown option.
             'controller=transport=tcp;traddr=100.100.100.100;host-iface=enp0s8\n',
-            'controller=transport=tcp;traddr=100.100.100.200;host-iface=enp0s7;kxchap-ctrl-secret=super-secret;hdr-digest=true;data-digest=true;nr-io-queues=8;nr-write-queues=6;nr-poll-queues=4;queue-size=400;kato=71;reconnect-delay=13;ctrl-loss-tmo=666;disable-sqflow=true\n',
             'exclude=transport=tcp;traddr=10.10.10.10\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:
@@ -105,34 +107,18 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertIn(6, service_conf.ip_family)
         self.assertNotIn(4, service_conf.ip_family)
         self.assertEqual(service_conf.kato, 200)
-        self.assertEqual(
-            service_conf.get_controllers(),
-            [
-                {
-                    'transport': 'tcp',
-                    'traddr': '100.100.100.100',
-                    'host-iface': 'enp0s8',
-                },
-                {
-                    'transport': 'tcp',
-                    'traddr': '100.100.100.200',
-                    'host-iface': 'enp0s7',
-                    'kxchap-ctrl-secret': 'super-secret',
-                    'hdr-digest': True,
-                    'data-digest': True,
-                    'nr-io-queues': 8,
-                    'nr-write-queues': 6,
-                    'nr-poll-queues': 4,
-                    'queue-size': 400,
-                    'kato': 71,
-                    'reconnect-delay': 13,
-                    'ctrl-loss-tmo': 666,
-                    'disable-sqflow': True,
-                },
-            ],
-        )
-
         self.assertEqual(service_conf.get_excluded(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
+
+    def test_moved_option_is_reported_by_name(self):
+        '''A "controller" entry left in stafd.conf/stacd.conf must name the
+        file it moved to, not be dismissed as an unknown option.'''
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        self.addCleanup(conf.SvcConf.destroy)
+        service_conf = conf.SvcConf(default_conf={('Controllers', 'exclude'): list()})
+        with self.assertLogs(level='ERROR') as captured:
+            service_conf.set_conf_file(StasProcessConfUnitTest.FNAME)
+        self.assertTrue(any('has moved to' in rec.getMessage() for rec in captured.records))
+        self.assertTrue(any('nvme-stas.conf' in rec.getMessage() for rec in captured.records))
 
         stypes = service_conf.stypes
         self.assertIn('_nvme-disc._tcp', stypes)
