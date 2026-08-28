@@ -93,13 +93,6 @@ class CtrlTerminator:
             if self._audit_tmr.time_remaining() == 0:
                 self._audit_tmr.start()
 
-    def pending_disposal(self, tid):
-        '''Return True if tid is pending disposal.'''
-        for _, _, _, controller_tid in self._controllers:
-            if controller_tid == tid:
-                return True
-        return False
-
     def info(self):
         '''Return info about this object (used for debug).'''
         info = {
