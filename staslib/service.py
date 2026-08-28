@@ -12,7 +12,6 @@ which the Staf and the Stac objects are derived.'''
 import json
 import logging
 import pathlib
-import subprocess
 from itertools import filterfalse
 import dasbus.error
 import dasbus.client.observer
@@ -441,61 +440,28 @@ class Stac(Service):
 
 
 # ******************************************************************************
-# Only keep legacy FC rule (not even sure this is still in use today, but just to be safe).
-UDEV_RULE_OVERRIDE = r'''
-ACTION=="change", SUBSYSTEM=="fc", ENV{FC_EVENT}=="nvmediscovery", \
-  ENV{NVMEFC_HOST_TRADDR}=="*",  ENV{NVMEFC_TRADDR}=="*", \
-  RUN+="%s --no-block restart nvmf-connect@--device\x3dnone\x09--transport\x3dfc\x09--traddr\x3d$env{NVMEFC_TRADDR}\x09--trsvcid\x3dnone\x09--host-traddr\x3d$env{NVMEFC_HOST_TRADDR}.service"
-'''
+def _remove_stale_udev_rule_override():
+    '''Remove the udev rule override that nvme-stas used to install.
 
+    Until 3.0, stafd shadowed nvme-cli's 70-nvmf-autoconnect.rules with a copy
+    in /run/udev/rules.d that kept only the legacy FC rule. udevd is written in
+    C and stafd in Python, so udevd always won the race to react to a Discovery
+    Log Page AEN, and "nvme connect-all" would connect controllers behind our
+    back. The ownership registry settles that race at the source: connect-all
+    reads the Discovery Controller's owner and does nothing at all when the
+    controller belongs to somebody else.
 
-def _udev_rule_ctrl(suppress):
-    '''Override the udev rule installed by nvme-cli
-    ('/usr/lib/udev/rules.d/70-nvmf-autoconnect.rules') by placing a copy in
-    /run/udev/rules.d, suppressing TCP I/O controller auto-connections by udevd
-    to avoid race conditions with stacd. When suppress is False, the override is
-    removed and nvme-cli's rule is restored. Configurable via "udev-rule" in
-    stacd.conf.
+    /run is a tmpfs, so a reboot disposes of the file on its own, but an
+    upgrade without a reboot does not, and the code that used to remove it is
+    gone. Drop it here instead. This can go once upgrades from 3.0 are a
+    distant memory.
     '''
-    udev_rule_file = pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules')
-    if suppress:
-        if not udev_rule_file.exists():
-            pathlib.Path('/run/udev/rules.d').mkdir(parents=True, exist_ok=True)
-            text = UDEV_RULE_OVERRIDE % (defs.SYSTEMCTL)
-            udev_rule_file.write_text(text)
-    else:
-        try:
-            udev_rule_file.unlink()
-        except FileNotFoundError:
-            pass
-
-
-def _is_dlp_changed_aen(udev_obj):
-    '''Check whether we received a Change of Discovery Log Page AEN'''
-    nvme_aen = udev_obj.get('NVME_AEN')
-    if not isinstance(nvme_aen, str):
-        return False
-
-    aen = int(nvme_aen, 16)
-    if aen != ctrl.DLP_CHANGED:
-        return False
-
-    logging.info(
-        '%s - Received AEN: Change of Discovery Log Page (%s)',
-        udev_obj.sys_name,
-        nvme_aen,
-    )
-    return True
-
-
-def _event_matches(udev_obj, nvme_events):
-    '''Return True if the udev object carries an NVMe Event matching one of the events in nvme_events.'''
-    nvme_event = udev_obj.get('NVME_EVENT')
-    if nvme_event not in nvme_events:
-        return False
-
-    logging.info('%s - Received "%s" event', udev_obj.sys_name, nvme_event)
-    return True
+    try:
+        pathlib.Path('/run/udev/rules.d', '70-nvmf-autoconnect.rules').unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as ex:
+        logging.warning('Unable to remove the stale udev rule override: %s', ex)
 
 
 # ******************************************************************************
@@ -532,8 +498,7 @@ class Staf(Service):
         # Create the D-Bus instance.
         self._config_dbus(dbus, defs.STAFD_DBUS_NAME, defs.STAFD_DBUS_PATH)
 
-        self._udev.register_for_action_events('change', self._nvme_cli_interop)
-        _udev_rule_ctrl(True)
+        _remove_stale_udev_rule_override()
 
     def info(self) -> dict:
         '''Return the status info for this object (used for debug).'''
@@ -543,12 +508,8 @@ class Staf(Service):
 
     def _release_resources(self):
         logging.debug('Staf._release_resources()')
-        if self._udev:
-            self._udev.unregister_for_action_events('change', self._nvme_cli_interop)
-
         super()._release_resources()
 
-        _udev_rule_ctrl(False)
         if self._avahi:
             self._avahi.kill()
             self._avahi = None
@@ -747,49 +708,3 @@ class Staf(Service):
         if self._alive() and self._cfg_soak_tmr is not None:
             logging.debug('Staf.referrals_changed()')
             self._cfg_soak_tmr.start()
-
-    def _nvme_cli_interop(self, udev_obj):
-        '''Interoperability with nvme-cli:
-        stafd will invoke nvme-cli's connect-all the same way nvme-cli's udev
-        rules would do normally. This is for the case where a user has an hybrid
-        configuration where some controllers are configured through nvme-stas
-        and others through nvme-cli. This is not an optimal configuration. It
-        would be better if everything was configured through nvme-stas, however
-        support for hybrid configuration was requested by users.'''
-
-        # Looking for 'change' events only
-        if udev_obj.action != 'change':
-            return
-
-        # Looking for events from Discovery Controllers only
-        if not udev.Udev.is_dc_device(udev_obj):
-            return
-
-        # Is the controller already being monitored by stafd?
-        for controller in self.get_controllers():
-            if controller.device == udev_obj.sys_name:
-                return
-
-        # Did we receive a Change of DLP AEN or an NVME Event indicating 'connect' or 'rediscover'?
-        if not _is_dlp_changed_aen(udev_obj) and not _event_matches(udev_obj, ('rediscover',)):
-            return
-
-        # We need to invoke "nvme connect-all" using nvme-cli's nvmf-connect@.service
-        # NOTE 1: Eventually, we'll be able to drop --host-traddr and --host-iface from
-        # the parameters passed to nvmf-connect@.service. A fix was added to connect-all
-        # to infer these two values from the device used to connect to the DC.
-        # Ref: https://github.com/linux-nvme/nvme-cli/pull/1812
-        #
-        # NOTE 2:--transport, --traddr, and --trsvcid, not needed when using --device
-        cnf = [
-            ('--device', udev_obj.sys_name),
-            ('--host-traddr', udev_obj.properties.get('NVME_HOST_TRADDR', None)),
-            ('--host-iface', udev_obj.properties.get('NVME_HOST_IFACE', None)),
-        ]
-        # Use systemd's escaped syntax (i.e. '=' is replaced by '\x3d', '\t' by '\x09', etc.
-        options = r'\x09'.join(
-            [rf'{option}\x3d{value}' for option, value in cnf if value not in (None, 'none', 'None', '')]
-        )
-        logging.debug('Invoking: systemctl restart nvmf-connect@%s.service', options)
-        cmd = [defs.SYSTEMCTL, '--quiet', '--no-block', 'restart', rf'nvmf-connect@{options}.service']
-        subprocess.run(cmd, check=False)

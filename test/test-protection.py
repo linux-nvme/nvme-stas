@@ -124,6 +124,55 @@ class TestProtected(unittest.TestCase):
 
 
 # ==============================================================================
+class TestClaim(unittest.TestCase):
+    '''Unit tests for stas.claim(), which records that a connection is ours.
+    Controller._do_connect() borrows an existing connection instead of making a
+    new one, and a borrow never goes through libnvme's connect path, so nothing
+    would register us as the owner without this.'''
+
+    @classmethod
+    def setUpClass(cls):
+        cls.SANDBOX = libnvme_sandbox()
+
+    def _owner_of(self, device):
+        self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
+        return nvme.registry_retrieve(conf.libnvme_ctx(), device, 'owner')
+
+    def _register(self, device, owner):
+        nvme.registry_update(conf.libnvme_ctx(), device, 'owner', owner)
+        self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
+
+    def _make_tid(self):
+        return trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.unrelated', 'hostnqn': HOSTNQN})
+
+    def test_unowned_connection_becomes_ours(self):
+        stas.claim(self._make_tid(), 'nvme20')
+        self.assertEqual(self._owner_of('nvme20'), defs.REGISTRY_OWNER)
+
+    def test_already_ours_stays_ours(self):
+        self._register('nvme21', defs.REGISTRY_OWNER)
+        stas.claim(self._make_tid(), 'nvme21')
+        self.assertEqual(nvme.registry_retrieve(conf.libnvme_ctx(), 'nvme21', 'owner'), defs.REGISTRY_OWNER)
+
+    def test_somebody_elses_connection_is_left_alone(self):
+        # remove_protected() should have kept this out of our hands, but
+        # ownership can change under a connection we already hold. Taking it
+        # away from its owner is never ours to do.
+        self._register('nvme22', 'discoverd')
+        stas.claim(self._make_tid(), 'nvme22')
+        self.assertEqual(nvme.registry_retrieve(conf.libnvme_ctx(), 'nvme22', 'owner'), 'discoverd')
+
+    def test_unconnected_controller(self):
+        # Controller.device is "nvme?" while there is no connection. libnvme
+        # rejects that as a device name, so we must not hand it over.
+        stas.claim(self._make_tid(), 'nvme?')
+        self.assertIsNone(stas._owner('nvme?'))
+
+    def test_no_device(self):
+        stas.claim(self._make_tid(), None)
+
+
+# ==============================================================================
 class TestRemoveProtected(unittest.TestCase):
     '''Unit tests for stas.remove_protected(), which keeps controllers that
     aren't ours out of the set stafd/stacd manage.'''

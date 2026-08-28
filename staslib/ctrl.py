@@ -284,6 +284,7 @@ class Controller(stas.ControllerABC):
             return
 
         self._device = self._ctrl.name
+        stas.claim(self.tid, self._device)
         logging.info('%s | %s - Connection established!', self.id, self.device)
         self._connect_attempts = 0
         self._udev.register_for_device_events(self._device, self._on_udev_notification)

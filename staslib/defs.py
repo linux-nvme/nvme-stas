@@ -10,7 +10,6 @@
 
 import os
 import sys
-import shutil
 import platform
 import libnvme3
 from staslib.version import KernelVersion
@@ -58,5 +57,3 @@ STACD_CONF_FILE = '@ETC@/stas/stacd.conf'
 
 NBFT_SYSFS_PATH = "/sys/firmware/acpi/tables"
 NBFT_SYSFS_FILENAME = "NBFT*"
-
-SYSTEMCTL = shutil.which('systemctl')
