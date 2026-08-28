@@ -191,6 +191,8 @@ class Test(TestCase):
         self.stafd_conf_file3 = '/etc/stas/stafd3.conf'
         self.fs.create_file(self.stafd_conf_file3, contents=stafd_conf_3)
 
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        self.addCleanup(conf.SvcConf.destroy)
         self.svcconf = conf.SvcConf(default_conf=default_conf)
         self.svcconf.set_conf_file(self.stafd_conf_file1)
 

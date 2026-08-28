@@ -89,6 +89,8 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }
 
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        self.addCleanup(conf.SvcConf.destroy)
         service_conf = conf.SvcConf(default_conf=default_conf)
         service_conf.set_conf_file(StasProcessConfUnitTest.FNAME)
         self.assertEqual(service_conf.conf_file, StasProcessConfUnitTest.FNAME)
@@ -311,10 +313,20 @@ class TestParseController(unittest.TestCase):
 
 class TestSvcConfEdgeCases(unittest.TestCase):
     '''Edge-case tests for SvcConf validation: out-of-range values, invalid
-    sections/options.  These tests rely on the SvcConf singleton having been
-    initialised with a default_conf (which happens in StasProcessConfUnitTest),
-    so they are defined after that class.
+    sections/options.
+
+    SvcConf only validates sections and options when it was built with a
+    default_conf, so these tests build the singleton themselves. Inheriting
+    whichever instance happened to be created first is not good enough: any
+    module that calls SvcConf() with no arguments gets a singleton that
+    validates nothing, and every test here would then silently pass on a
+    config file that was never checked.
     '''
+
+    DEFAULT_CONF = {
+        ('Global', 'queue-size'): None,
+        ('Global', 'ip-family'): (4, 6),
+    }
 
     FNAME_OOR = '/tmp/stas-test-svc-oor.conf'
     FNAME_BADSEC = '/tmp/stas-test-svc-badsec.conf'
@@ -323,6 +335,9 @@ class TestSvcConfEdgeCases(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        conf.SvcConf(default_conf=cls.DEFAULT_CONF)
+
         with open(cls.FNAME_OOR, 'w') as f:
             f.write('[Global]\nqueue-size=5\n')  # 5 is below the valid range [16, 1024]
         with open(cls.FNAME_BADSEC, 'w') as f:
@@ -334,6 +349,8 @@ class TestSvcConfEdgeCases(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        conf.SvcConf.destroy()  # Leave the next test file a clean slate
+
         for fname in (cls.FNAME_OOR, cls.FNAME_BADSEC, cls.FNAME_BADOPT, cls.FNAME_VALID):
             if os.path.exists(fname):
                 os.remove(fname)
