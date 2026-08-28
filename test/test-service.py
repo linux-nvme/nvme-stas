@@ -100,25 +100,22 @@ class TestCtrlTerminator(unittest.TestCase):
         removed = []
         cb = lambda ctrl, ok: removed.append(ok)
 
-        # With empty list, pending_disposal always returns False
-        self.assertFalse(term.pending_disposal('fake-tid'))
+        # Nothing queued yet
+        self.assertNotIn('terminator.controller.fake-tid', term.info())
 
         term.dispose(fc, cb, keep_connection=False)
 
-        # pending_disposal — covers lines 87-88
-        self.assertTrue(term.pending_disposal('fake-tid'))
-        self.assertFalse(term.pending_disposal('other-tid'))
-
-        # info() — covers line 97
+        # fc has pending operations, so it lands in the garbage disposal
         info = term.info()
         self.assertIn('terminator.audit timer', info)
+        self.assertIn('terminator.controller.fake-tid', info)
 
         # _on_disposal_check() — covers lines 120-121
         # fc.all_ops_completed() returns False → controller stays pending
         result = term._on_disposal_check()
         from gi.repository import GLib
         self.assertEqual(result, GLib.SOURCE_CONTINUE)
-        self.assertTrue(term.pending_disposal('fake-tid'))
+        self.assertIn('terminator.controller.fake-tid', term.info())
 
         # kill() with non-empty _controllers — covers line 111
         term.kill()

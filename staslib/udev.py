@@ -14,7 +14,7 @@ import logging
 from functools import partial
 import pyudev
 from gi.repository import GLib
-from staslib import defs, iputil, trid
+from staslib import defs, iputil
 
 
 # ******************************************************************************
@@ -429,20 +429,6 @@ class Udev:
             return attr_str[start:]
 
         return attr_str[start:end]
-
-    @staticmethod
-    def get_tid(device, ifaces):
-        '''Return the Transport ID (TID) associated with a udev device.'''
-        cid = Udev.get_cid(device)
-        if cid['transport'] == 'tcp':
-            src_addr = cid['src-addr']
-            if not cid['host-iface'] and src_addr:
-                # We'll try to find the interface from the source address on
-                # the connection. Only available if kernel exposes the source
-                # address (src_addr) in the "address" attribute.
-                cid['host-iface'] = iputil.get_interface(ifaces, iputil.get_ipaddress_obj(src_addr))
-
-        return trid.TID(cid)
 
     @staticmethod
     def get_cid(device):
