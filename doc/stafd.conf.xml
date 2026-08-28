@@ -274,6 +274,10 @@
             <citerefentry>
                 <refentrytitle>stafd</refentrytitle>
                 <manvolnum>8</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
             </citerefentry>
         </para>
     </refsect1>

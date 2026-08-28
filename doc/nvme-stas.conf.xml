@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<!--
+    SPDX-License-Identifier: Apache-2.0
+    Copyright (c) 2026, Dell Inc. or its subsidiaries.  All rights reserved.
+-->
+<refentry id="nvme-stas.conf" xmlns:xi="http://www.w3.org/2001/XInclude">
+    <refentryinfo>
+        <title>nvme-stas.conf</title>
+        <productname>nvme-stas</productname>
+
+        <author>
+            <personname>
+                <honorific>Mr</honorific>
+                <firstname>Martin</firstname>
+                <surname>Belanger</surname>
+            </personname>
+
+            <affiliation>
+                <orgname>Dell, Inc.</orgname>
+            </affiliation>
+        </author>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>nvme-stas.conf</refentrytitle>
+        <manvolnum>5</manvolnum>
+    </refmeta>
+
+    <refnamediv>
+        <refname>nvme-stas.conf</refname>
+
+        <refpurpose>
+            nvme-stas connectivity configuration file
+        </refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+        <para>
+            <filename>/etc/nvme/nvme-stas.conf</filename>
+        </para>
+        <para>
+            <filename>/etc/nvme/nvme-stas.conf.d/*.conf</filename>
+        </para>
+    </refsynopsisdiv>
+
+    <refsect1>
+        <title>Description</title>
+
+        <para>
+            This file states which NVMe-oF controllers
+            <citerefentry project="man-pages"><refentrytitle>stafd</refentrytitle>
+            <manvolnum>8</manvolnum></citerefentry> and
+            <citerefentry project="man-pages"><refentrytitle>stacd</refentrytitle>
+            <manvolnum>8</manvolnum></citerefentry> should connect to, and with
+            what parameters. Daemon behaviour &#8212; tracing, mDNS, fabric
+            zoning, exclusions &#8212; is configured separately, in
+            <citerefentry><refentrytitle>stafd.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+            and
+            <citerefentry><refentrytitle>stacd.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+        </para>
+
+        <para>
+            The format is libnvme's, and is parsed by libnvme itself, so
+            nvme-stas, the nvme-cli tools and nvme-discoverd all read one
+            format through one parser.
+        </para>
+
+        <para>
+            nvme-stas reads its <emphasis>own</emphasis> file.
+            <filename>/etc/nvme/nvme-fabrics.conf</filename> belongs to the
+            nvme-cli tools and nvme-discoverd: a host must be able to run
+            nvme-stas and nvme-discoverd side by side, each connecting its own
+            controllers, with neither acting on the other's configuration.
+        </para>
+
+        <para>
+            The file is optional. If it does not exist, nvme-stas configures no
+            controllers &#8212; that is not an error. Controllers discovered
+            over mDNS, or learned from a Discovery Log Page, need no entry here.
+        </para>
+
+        <para>
+            Drop-ins are read from
+            <filename>/etc/nvme/nvme-stas.conf.d/*.conf</filename>, one host
+            persona per file. A documented example is installed as
+            <filename>/etc/nvme/nvme-stas.conf.doc</filename>.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Configuration File Format</title>
+        <para>
+            A plain text file divided into sections, with entries in the style
+            <replaceable>key</replaceable>=<replaceable>value</replaceable>.
+            Empty lines and lines starting with <literal>#</literal> are
+            ignored. Keys are named exactly as the equivalent
+            <command>nvme connect</command> options are named.
+        </para>
+        <para>
+            An empty assignment (<literal>key =</literal>) is meaningful: it
+            resets a parameter so that the kernel's own default applies, rather
+            than inheriting a value set at an outer level.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Sections</title>
+
+        <variablelist>
+            <varlistentry>
+                <term><literal>[Discovery Controller Defaults]</literal></term>
+                <term><literal>[I/O Controller Defaults]</literal></term>
+                <listitem>
+                    <para>
+                        Default connection parameters for a whole class of
+                        controllers. There is deliberately no type-agnostic
+                        section: some parameters want a different default per
+                        class &#8212; most clearly the keep-alive timeout
+                        &#8212; so a value that applies to both is simply
+                        written in both sections.
+                    </para>
+                </listitem>
+            </varlistentry>
+
+            <varlistentry>
+                <term><literal>[Host]</literal></term>
+                <listitem>
+                    <para>
+                        The host identity the connections in this file are made
+                        under: <varname>hostnqn</varname>,
+                        <varname>hostid</varname>,
+                        <varname>hostsymname</varname>, and the KX-HMAC-CHAP
+                        secrets. At most one per file.
+                    </para>
+                    <para>
+                        Omit the section, or a key, to use the system identity
+                        (<filename>/etc/nvme/hostnqn</filename> and
+                        <filename>/etc/nvme/hostid</filename>). A different
+                        identity is a different persona and belongs in its own
+                        drop-in file. Give a persona both a
+                        <varname>hostnqn</varname> and a
+                        <varname>hostid</varname>: without an explicit host ID
+                        the kernel generates one that changes on every reboot,
+                        which breaks persistent reservations.
+                    </para>
+                    <para>
+                        nvme-stas takes a connection's identity whole or not at
+                        all. It never pairs a configured host NQN with the
+                        system's host ID, which would invent an identity nobody
+                        configured.
+                    </para>
+                </listitem>
+            </varlistentry>
+
+            <varlistentry>
+                <term><literal>[Discovery Controller]</literal></term>
+                <listitem>
+                    <para>
+                        A Discovery Controller for <command>stafd</command> to
+                        connect. Repeat the section for each one. Its
+                        <varname>nqn</varname> is optional; omitted, it means
+                        the well-known discovery NQN
+                        (<literal>nqn.2014-08.org.nvmexpress.discovery</literal>).
+                    </para>
+                </listitem>
+            </varlistentry>
+
+            <varlistentry>
+                <term><literal>[Subsystem]</literal></term>
+                <listitem>
+                    <para>
+                        An I/O subsystem for <command>stacd</command> to
+                        connect, named by its <varname>nqn</varname>. Repeat the
+                        section for each one.
+                    </para>
+                    <para>
+                        Each <varname>controller=</varname> line is one path to
+                        the subsystem; repeating the key expresses multipath.
+                        There is no upper bound and no power-of-two rule.
+                    </para>
+                </listitem>
+            </varlistentry>
+        </variablelist>
+    </refsect1>
+
+    <refsect1>
+        <title>Addresses</title>
+        <para>
+            Each path is a <varname>controller=</varname> line whose value is a
+            semicolon-separated list of <literal>key=value</literal> pairs,
+            using the <command>nvme connect</command> option names:
+            <programlisting>controller = transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr];host-iface=[iface]</programlisting>
+            The subsystem NQN is not part of the address: it comes from the
+            section. Beyond addressing, any <command>nvme connect</command>
+            option may appear on the line as a per-path override, with the
+            exception of the security parameters.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Precedence</title>
+        <para>
+            A parameter is resolved most-specific-first:
+            <varname>controller=</varname> line, then the endpoint section, then
+            <literal>[Host]</literal>, then the type defaults, then the kernel
+            default.
+        </para>
+        <para>
+            <literal>[Host]</literal> sits above the type defaults on purpose:
+            the ladder orders by ownership, not category. A key in
+            <literal>[Host]</literal> was written for that persona
+            specifically, so it follows that persona's connections.
+        </para>
+        <para>
+            A drop-in may carry its own copy of either defaults section, scoped
+            to that drop-in's own connections. Nothing leaks to sibling
+            drop-ins or back to the top level, so the result never depends on
+            the order drop-ins are read in.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Security parameters</title>
+        <para>
+            <varname>kxchap-secret</varname>,
+            <varname>kxchap-ctrl-secret</varname>, <varname>tls</varname>,
+            <varname>tls-key</varname>, <varname>tls-key-identity</varname>,
+            <varname>keyring</varname> and <varname>concat</varname> are bound
+            to the host-and-subsystem relationship rather than to a path, so
+            they belong on <literal>[Host]</literal> or on an endpoint section
+            and are not accepted on a <varname>controller=</varname> line.
+        </para>
+        <para>
+            KX-HMAC-CHAP secrets have no keyring-reference form, so they sit in
+            the clear in this file.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Validation</title>
+        <para>
+            The configuration is validated when it is read. A file that does
+            not validate is rejected and the last known good configuration
+            keeps running, so a fat-fingered edit never tears down working
+            connections. Unknown keys are ignored rather than rejected, so a
+            newer key does not break an older parser.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Example</title>
+        <programlisting>[Discovery Controller Defaults]
+keep-alive-tmo = 30
+ctrl-loss-tmo  = 600
+
+[I/O Controller Defaults]
+ctrl-loss-tmo  = 600
+
+[Host]
+hostsymname = lab-host-01
+
+[Discovery Controller]
+controller = transport=tcp;traddr=192.168.1.10;trsvcid=8009
+
+[Subsystem]
+nqn           = nqn.2024-01.com.example:vol1
+ctrl-loss-tmo = 1800
+controller    = transport=tcp;traddr=192.168.1.20;trsvcid=4420;host-iface=eth0
+controller    = transport=tcp;traddr=192.168.1.21;trsvcid=4420;host-iface=eth1
+        </programlisting>
+    </refsect1>
+
+    <refsect1>
+        <title>See Also</title>
+        <para>
+            <citerefentry>
+                <refentrytitle>stafd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>stacd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry project="man-pages">
+                <refentrytitle>stafd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>,
+            <citerefentry project="man-pages">
+                <refentrytitle>stacd</refentrytitle>
+                <manvolnum>8</manvolnum>
+            </citerefentry>
+        </para>
+    </refsect1>
+</refentry>
