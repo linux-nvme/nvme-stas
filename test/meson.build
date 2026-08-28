@@ -68,6 +68,7 @@ else
         ['Test NvmeOptions',   ['pyfakefs'], [srce_dir / 'test-nvme_options.py', ]],
         ['Test Protection',    [],           [srce_dir / 'test-protection.py',   ]],
         ['Test Service',       ['pyfakefs'], [srce_dir / 'test-service.py',      ]],
+        ['Test Singleton',     [],           [srce_dir / 'test-singleton.py',    ]],
         ['Test TID',           [],           [srce_dir / 'test-transport_id.py', ]],
         ['Test defs.py',       [],           [srce_dir / 'test-defs.py',         ]],
         ['Test Exclusions',    [],           [srce_dir / 'test-exclusions.py',   ]],

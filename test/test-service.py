@@ -2,7 +2,7 @@
 import os
 import logging
 import unittest
-from staslib import log, service
+from staslib import conf, log, service
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -32,6 +32,11 @@ class Test(TestCase):
 
     def setUp(self):
         self.setUpPyfakefs()
+
+        # Service() builds the SvcConf singleton from its default_conf, which
+        # only works when we are the ones creating it.
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        self.addCleanup(conf.SvcConf.destroy)
 
         os.environ['RUNTIME_DIRECTORY'] = "/run"
         self.fs.create_file(
