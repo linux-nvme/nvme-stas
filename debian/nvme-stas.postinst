@@ -36,10 +36,10 @@ systemd_add() {
 if [ "${action}" = configure ]; then
 
     if [ ! -s /etc/nvme/hostnqn ]; then
-        stasadm hostnqn -f /etc/nvme/hostnqn
+        nvme gen-hostnqn > /etc/nvme/hostnqn
     fi
     if [ ! -s /etc/nvme/hostid ]; then
-        stasadm hostid -f /etc/nvme/hostid
+        uuidgen > /etc/nvme/hostid
     fi
 
 	dbus_reload
