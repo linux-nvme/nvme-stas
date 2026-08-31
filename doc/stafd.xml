@@ -86,6 +86,21 @@
         </varlistentry>
 
         <varlistentry>
+            <term><option>-cFILE</option></term>
+            <term><option>--conn-conf-file=FILE</option></term>
+            <listitem>
+                <para>
+                    Specify a different connectivity configuration file than
+                    <citerefentry>
+                        <refentrytitle>nvme-stas.conf</refentrytitle>
+                        <manvolnum>5</manvolnum>
+                    </citerefentry>
+                    (default: <filename>/etc/nvme/nvme-stas.conf</filename>).
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
             <term><option>-s</option></term>
             <term><option>--syslog</option></term>
             <listitem>

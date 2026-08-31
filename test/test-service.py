@@ -11,6 +11,7 @@ class Args:
         self.tron = True
         self.syslog = True
         self.conf_file = '/dev/null'
+        self.conn_conf_file = '/dev/null'
 
 
 class TestService(service.Service):

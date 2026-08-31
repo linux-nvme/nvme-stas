@@ -28,6 +28,15 @@ def parse_args(conf_file: str):
         metavar='FILE',
     )
     parser.add_argument(
+        '-c',
+        '--conn-conf-file',
+        action='store',
+        help='Connectivity configuration file (default: %(default)s)',
+        default=defs.NVME_STAS_CONF_FILE,
+        type=str,
+        metavar='FILE',
+    )
+    parser.add_argument(
         '-s',
         '--syslog',
         action='store_true',

@@ -481,6 +481,7 @@ class ServiceABC(abc.ABC):
         # malformed file is reported here instead of at the first connection
         # attempt, where it would be lost among the connection logging.
         self._conn_conf = conf.ConnConf()
+        self._conn_conf.set_conf_file(args.conn_conf_file)
         self._tron = args.tron or service_conf.tron
         log.set_level_from_tron(self._tron)
 
