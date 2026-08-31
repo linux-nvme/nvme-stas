@@ -18,7 +18,7 @@ There are two ways to run the tests.
 
 A script is provided (`utils/nvmet/nvmet.py`) to simplify the configuration of the `nvmet` driver. The script comes with a companion configuration file (`utils/nvmet/nvmet.conf`). The configuration file is where you configure the port(s) and subsystem(s) to create. The default configuration will create 3 subsystems under port 1. This is mapped to the local IPv6 loopback address (`::1`).
 
-Since nvmet doesn't provide a mDNS responder, you will need to manually configure `stafd` (`/etc/stas/stafd.conf`) so that it connects to the DDC that the nvmet driver creates by adding the DDC's address under the `[Controllers]` section. For example:
+Since nvmet doesn't provide a mDNS responder, you will need to manually configure `stafd` (`/etc/nvme/stafd.conf`) so that it connects to the DDC that the nvmet driver creates by adding the DDC's address under the `[Controllers]` section. For example:
 
 ```bash
 [Controllers]
@@ -84,13 +84,13 @@ if [ ! -s /etc/nvme/hostid ]; then
 fi
 
 #####################################################################
-# Edit /etc/stas/stafd.conf to enable tracing and add the local 
+# Edit /etc/nvme/stafd.conf to enable tracing and add the local 
 # nvmet driver as the Discovery Controller to connect to.
 FILES="stafd.conf stacd.conf"
 for file in ${FILES}; do
-	sudo sed -i '/^#tron=false/a tron=true' /etc/stas/${file}
+	sudo sed -i '/^#tron=false/a tron=true' /etc/nvme/${file}
 done 
-sudo sed -i '/^#controller=$/a controller=transport=tcp;traddr=localhost' /etc/stas/stafd.conf
+sudo sed -i '/^#controller=$/a controller=transport=tcp;traddr=localhost' /etc/nvme/stafd.conf
 
 ```
 

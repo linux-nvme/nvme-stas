@@ -115,8 +115,8 @@ nothing on a host whose packaging already created them.
 nvme-stas uses three configuration files:
 
 - `/etc/nvme/nvme-stas.conf`
-- `/etc/stas/stafd.conf`
-- `/etc/stas/stacd.conf`
+- `/etc/nvme/stafd.conf`
+- `/etc/nvme/stacd.conf`
 
 **Guidelines for packagers:**
 

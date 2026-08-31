@@ -51,8 +51,8 @@ NVME_HOSTID = '@ETC@/nvme/hostid'
 NVME_HOSTNQN = '@ETC@/nvme/hostnqn'
 
 NVME_STAS_CONF_FILE = '@ETC@/nvme/nvme-stas.conf'
-STAFD_CONF_FILE = '@ETC@/stas/stafd.conf'
-STACD_CONF_FILE = '@ETC@/stas/stacd.conf'
+STAFD_CONF_FILE = '@ETC@/nvme/stafd.conf'
+STACD_CONF_FILE = '@ETC@/nvme/stacd.conf'
 
 NBFT_SYSFS_PATH = "/sys/firmware/acpi/tables"
 NBFT_SYSFS_FILENAME = "NBFT*"

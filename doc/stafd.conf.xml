@@ -43,7 +43,7 @@
 
     <refsynopsisdiv>
         <para>
-            <filename>/etc/stas/stafd.conf</filename>
+            <filename>/etc/nvme/stafd.conf</filename>
         </para>
     </refsynopsisdiv>
 

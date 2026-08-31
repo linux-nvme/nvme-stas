@@ -168,13 +168,13 @@ class Test(TestCase):
             ('Controllers', 'exclude'): list(),
         }
 
-        self.stafd_conf_file1 = '/etc/stas/stafd1.conf'
+        self.stafd_conf_file1 = '/etc/nvme/stafd1.conf'
         self.fs.create_file(self.stafd_conf_file1, contents=stafd_conf_1)
 
-        self.stafd_conf_file2 = '/etc/stas/stafd2.conf'
+        self.stafd_conf_file2 = '/etc/nvme/stafd2.conf'
         self.fs.create_file(self.stafd_conf_file2, contents=stafd_conf_2)
 
-        self.stafd_conf_file3 = '/etc/stas/stafd3.conf'
+        self.stafd_conf_file3 = '/etc/nvme/stafd3.conf'
         self.fs.create_file(self.stafd_conf_file3, contents=stafd_conf_3)
 
         conf.SvcConf.destroy()  # Make sure singleton does not exist

@@ -42,7 +42,7 @@
 
     <refsynopsisdiv>
         <para>
-            <filename>/etc/stas/stacd.conf</filename>
+            <filename>/etc/nvme/stacd.conf</filename>
         </para>
     </refsynopsisdiv>
 

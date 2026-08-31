@@ -83,7 +83,7 @@
                         <refentrytitle>&daemon;.conf</refentrytitle>
                         <manvolnum>5</manvolnum>
                     </citerefentry>
-                    (default: <filename>/etc/stas/&daemon;.conf</filename>).
+                    (default: <filename>/etc/nvme/&daemon;.conf</filename>).
                 </para>
             </listitem>
         </varlistentry>
@@ -184,7 +184,7 @@
             <command>&daemon;</command> can also operate in a non-automatic
             mode based on manually entered configuration. In other words,
             storage subsystems can be entered in a configuration file named
-            <filename>/etc/stas/&daemon;.conf</filename>.
+            <filename>/etc/nvme/&daemon;.conf</filename>.
             This configuration file also provides additional parameters,
             as log-level attributes used for debugging purposes.
         </para>

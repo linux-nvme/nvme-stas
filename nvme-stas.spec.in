@@ -69,10 +69,9 @@ stafd (STorage Appliance Finder) and stacd (STorage Appliance Connector).
 %files
 %license LICENSE
 %doc README.md
-%dir %{_sysconfdir}/stas
 %config(noreplace) %{_sysconfdir}/nvme/nvme-stas.conf
-%config(noreplace) %{_sysconfdir}/stas/stacd.conf
-%config(noreplace) %{_sysconfdir}/stas/stafd.conf
+%config(noreplace) %{_sysconfdir}/nvme/stacd.conf
+%config(noreplace) %{_sysconfdir}/nvme/stafd.conf
 %{_datadir}/dbus-1/system.d/org.nvmexpress.*.conf
 %{_bindir}/stacctl
 %{_bindir}/stafctl

@@ -170,13 +170,8 @@ stacctl = configure_file(
 )
 
 #===========================================================================
-install_subdir(
-    'etc/stas',
-    install_dir: etcdir,
-)
-
-# The connectivity configuration. Packaged %config(noreplace), like
-# stafd.conf and stacd.conf, so an upgrade never overwrites an edited one.
+# All of nvme-stas' configuration. Packaged %config(noreplace) so an
+# upgrade never overwrites an edited file.
 install_subdir(
     'etc/nvme',
     install_dir: etcdir,

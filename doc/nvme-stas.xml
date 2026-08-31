@@ -60,7 +60,7 @@
                     Controllers (CDC, DDC) with zero-configuration networking
                     (zeroconf). <code>stafd</code> also allows users to manually enter CDCs
                     and DDCs in a configuration file
-                    (<filename>/etc/stas/stafd.conf</filename>) when users
+                    (<filename>/etc/nvme/stafd.conf</filename>) when users
                     prefer not to enable mDNS-based zeroconf.
                 </para>
             </listitem>
@@ -107,7 +107,7 @@
                 <para>
                     Similar to <code>stafd</code>, <code>stacd</code> can also read a list of storage
                     subsystems to connect to from a configuration
-                    file: (<filename>/etc/stas/stacd.conf</filename>).
+                    file: (<filename>/etc/nvme/stacd.conf</filename>).
                 </para>
             </listitem>
             <listitem>

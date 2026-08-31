@@ -86,8 +86,8 @@ own behaviour:
 | File                          | Applies To    | Purpose                                                      |
 | ----------------------------- | ------------- | ------------------------------------------------------------ |
 | `/etc/nvme/nvme-stas.conf`    | stafd + stacd | Controllers to connect to, their connection parameters, and the host identity |
-| `/etc/stas/stafd.conf`        | stafd         | Daemon behaviour                                             |
-| `/etc/stas/stacd.conf`        | stacd         | Daemon behaviour                                             |
+| `/etc/nvme/stafd.conf`        | stafd         | Daemon behaviour                                             |
+| `/etc/nvme/stacd.conf`        | stacd         | Daemon behaviour                                             |
 
 The connectivity configuration is libnvme's INI format, read by libnvme's own
 parser, so *nvme-stas*, the *nvme-cli* tools and *nvme-discoverd* all
