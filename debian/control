@@ -23,6 +23,8 @@ Package: nvme-stas
 Section: net
 Architecture: all
 Depends:
+ nvme-cli (>=3.0),
+ util-linux,
  python3-dasbus,
  python3-gi,
  python3-libnvme3 (>=3.0),

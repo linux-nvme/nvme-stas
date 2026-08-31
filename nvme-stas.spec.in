@@ -24,6 +24,8 @@ BuildRequires: python3
 BuildRequires: python3-lxml
 
 Requires:      avahi
+Requires:      nvme-cli >= 3.0
+Requires:      util-linux
 Requires:      python3-libnvme3 >= 3.0
 Requires:      python3-dasbus
 Requires:      python3-pyudev
@@ -67,14 +69,12 @@ stafd (STorage Appliance Finder) and stacd (STorage Appliance Connector).
 %files
 %license LICENSE
 %doc README.md
-%dir %{_sysconfdir}/stas
-%config(noreplace) %{_sysconfdir}/stas/stacd.conf
-%config(noreplace) %{_sysconfdir}/stas/stafd.conf
-%{_sysconfdir}/stas/sys.conf.doc
+%config(noreplace) %{_sysconfdir}/nvme/nvme-stas.conf
+%config(noreplace) %{_sysconfdir}/nvme/stacd.conf
+%config(noreplace) %{_sysconfdir}/nvme/stafd.conf
 %{_datadir}/dbus-1/system.d/org.nvmexpress.*.conf
 %{_bindir}/stacctl
 %{_bindir}/stafctl
-%{_bindir}/stasadm
 %{_sbindir}/stacd
 %{_sbindir}/stafd
 %{_unitdir}/stacd.service

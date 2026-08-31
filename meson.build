@@ -169,16 +169,11 @@ stacctl = configure_file(
     copy: true,
 )
 
-stasadm = configure_file(
-    input: 'stasadm.py',
-    output: 'stasadm',
-    install_dir: bindir,
-    copy: true,
-)
-
 #===========================================================================
+# All of nvme-stas' configuration. Packaged %config(noreplace) so an
+# upgrade never overwrites an edited file.
 install_subdir(
-    'etc/stas',
+    'etc/nvme',
     install_dir: etcdir,
 )
 
@@ -193,7 +188,7 @@ endforeach
 
 #===========================================================================
 # Make a list of modules to lint
-modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+modules_to_lint = [stafd, stafctl, stacd, stacctl]
 packages_to_lint = []
 
 #===========================================================================

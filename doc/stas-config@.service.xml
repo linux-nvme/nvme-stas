@@ -43,7 +43,10 @@
         <para>
             This service is used for the automatic run-time generation of
             NVMe configuration located in <filename>/etc/nvme</filename>
-            (e.g. <filename>/etc/nvme/hostnqn</filename>). This is needed by
+            (e.g. <filename>/etc/nvme/hostnqn</filename>). The Host NQN is
+            generated with <code>nvme gen-hostnqn</code> and the Host ID with
+            <code>uuidgen</code>; a file that already exists and is not empty
+            is left alone. This is needed by
             <citerefentry><refentrytitle>stacd.service</refentrytitle><manvolnum>8</manvolnum></citerefentry> and
             <citerefentry><refentrytitle>stafd.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
         </para>

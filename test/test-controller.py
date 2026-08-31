@@ -104,13 +104,6 @@ class TestIoc(ctrl.Ioc):
 stafd_conf_1 = '''
 [Global]
 tron=false
-hdr-digest=false
-data-digest=false
-kato=30
-queue-size=128
-reconnect-delay=10
-ctrl-loss-tmo=600
-disable-sqflow=false
 ignore-iface=false
 ip-family=ipv4+ipv6
 pleo=enabled
@@ -158,18 +151,12 @@ class Test(TestCase):
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
             }
         )
 
         default_conf = {
             ('Global', 'tron'): False,
-            ('Global', 'hdr-digest'): False,
-            ('Global', 'data-digest'): False,
-            ('Global', 'kato'): None,  # None to let the driver decide the default
-            ('Global', 'queue-size'): None,  # None to let the driver decide the default
-            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
-            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Discovery controller connection management', 'persistent-connections'): True,
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
                 '72hours'
@@ -178,23 +165,82 @@ class Test(TestCase):
             ('Global', 'ip-family'): (4, 6),
             ('Global', 'pleo'): True,
             ('Service Discovery', 'zeroconf'): True,
-            ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
         }
 
-        self.stafd_conf_file1 = '/etc/stas/stafd1.conf'
+        self.stafd_conf_file1 = '/etc/nvme/stafd1.conf'
         self.fs.create_file(self.stafd_conf_file1, contents=stafd_conf_1)
 
-        self.stafd_conf_file2 = '/etc/stas/stafd2.conf'
+        self.stafd_conf_file2 = '/etc/nvme/stafd2.conf'
         self.fs.create_file(self.stafd_conf_file2, contents=stafd_conf_2)
 
-        self.stafd_conf_file3 = '/etc/stas/stafd3.conf'
+        self.stafd_conf_file3 = '/etc/nvme/stafd3.conf'
         self.fs.create_file(self.stafd_conf_file3, contents=stafd_conf_3)
 
         conf.SvcConf.destroy()  # Make sure singleton does not exist
         self.addCleanup(conf.SvcConf.destroy)
         self.svcconf = conf.SvcConf(default_conf=default_conf)
         self.svcconf.set_conf_file(self.stafd_conf_file1)
+
+    def test_identity_defaults_to_the_system_one(self):
+        sysconf = conf.SysConf()
+        conn_conf = conf.ConnConf()
+        tid = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.unrelated'})
+        self.assertEqual(
+            ctrl.host_identity(tid, sysconf, conn_conf),
+            (sysconf.hostnqn, sysconf.hostid, conn_conf.hostsymname),
+        )
+
+    def test_a_named_identity_is_taken_whole(self):
+        '''A connection that names its own host NQN is a persona. It must not
+        borrow the system host ID: that would make the subsystem treat the two
+        as the same host.'''
+        sysconf = conf.SysConf()
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'subsysnqn': 'nqn.unrelated',
+                'hostnqn': 'nqn.1988-11.com.dell:persona:1',
+                'hostid': 'aaaaaaaa-0000-0000-0000-000000000001',
+                'hostsymname': 'persona-1',
+            }
+        )
+        self.assertEqual(
+            ctrl.host_identity(tid, sysconf, conf.ConnConf()),
+            ('nqn.1988-11.com.dell:persona:1', 'aaaaaaaa-0000-0000-0000-000000000001', 'persona-1'),
+        )
+
+    def test_a_named_identity_never_borrows_the_system_host_id(self):
+        sysconf = conf.SysConf()
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'subsysnqn': 'nqn.unrelated',
+                'hostnqn': 'nqn.1988-11.com.dell:persona:2',
+            }
+        )
+        _, hostid, _ = ctrl.host_identity(tid, sysconf, conf.ConnConf())
+        self.assertIsNone(hostid)
+        self.assertNotEqual(hostid, sysconf.hostid)
+
+    def test_the_symbolic_name_alone_does_not_make_a_persona(self):
+        '''hostsymname does not discriminate identity, so naming one keeps the
+        system host NQN and host ID.'''
+        sysconf = conf.SysConf()
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'subsysnqn': 'nqn.unrelated',
+                'hostsymname': 'just-a-name',
+            }
+        )
+        self.assertEqual(
+            ctrl.host_identity(tid, sysconf, conf.ConnConf()),
+            (sysconf.hostnqn, sysconf.hostid, 'just-a-name'),
+        )
 
     def tearDown(self):
         pass
@@ -231,6 +277,7 @@ class Test(TestCase):
                 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'device': 'nvme?',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
             },
         )
 
@@ -244,6 +291,7 @@ class Test(TestCase):
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
@@ -262,6 +310,7 @@ class Test(TestCase):
                 'host-traddr': '1.2.3.4',
                 'host-iface': 'wlp0s20f3',
                 'hostnqn': 'nqn.1988-11.com.dell:poweredge:1234',
+                'hostid': '12345678-9abc-def0-1234-56789abcdef0',
                 'subsysnqn': 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8',
                 'device': 'nvme?',
                 'connect attempts': '1',
@@ -286,10 +335,11 @@ class Test(TestCase):
             controller._try_to_connect()
         self.assertTrue(len(captured.records) > 0)
         self.assertTrue(
-            captured.records[0]
-            .getMessage()
-            .startswith(
-                "Controller._do_connect()           - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={"
+            any(
+                record.getMessage().startswith(
+                    "Controller._do_connect()           - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={"
+                )
+                for record in captured.records
             )
         )
         self.assertEqual(controller._connect_attempts, 1)

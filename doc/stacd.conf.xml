@@ -42,7 +42,7 @@
 
     <refsynopsisdiv>
         <para>
-            <filename>/etc/stas/stacd.conf</filename>
+            <filename>/etc/nvme/stacd.conf</filename>
         </para>
     </refsynopsisdiv>
 
@@ -80,9 +80,6 @@
 
             <variablelist>
                 <xi:include href="standard-conf.xml" xpointer="tron"/>
-                <xi:include href="standard-conf.xml" xpointer="hdr-digest"/>
-                <xi:include href="standard-conf.xml" xpointer="data-digest"/>
-                <xi:include href="standard-conf.xml" xpointer="kato"/>
                 <xi:include href="standard-conf.xml" xpointer="ip-family"/>
 
                 <varlistentry>
@@ -139,10 +136,6 @@
                     </listitem>
                 </varlistentry>
 
-                <xi:include href="standard-conf.xml" xpointer="queue-size"/>
-                <xi:include href="standard-conf.xml" xpointer="reconnect-delay"/>
-                <xi:include href="standard-conf.xml" xpointer="ctrl-loss-tmo"/>
-                <xi:include href="standard-conf.xml" xpointer="disable-sqflow"/>
 
                 <varlistentry>
                     <term><varname>ignore-iface=</varname></term>
@@ -491,6 +484,10 @@
             <citerefentry>
                 <refentrytitle>stacd</refentrytitle>
                 <manvolnum>8</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
             </citerefentry>
         </para>
     </refsect1>

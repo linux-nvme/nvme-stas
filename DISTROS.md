@@ -84,7 +84,9 @@ Both `libnvme3` and `nvme-cli` rely on:
 - `/etc/nvme/hostnqn`
 - `/etc/nvme/hostid`
 
-Distributions should create these files on install using `stasadm`.
+Distributions should create these files on install. nvme-stas depends on
+nvme-cli, whose own packaging generally does this already; where it does not,
+a maintainer script can do it.
 Example (Debian maintainer script):
 
 ```
@@ -93,27 +95,28 @@ if [ "$1" = "configure" ]; then
         mkdir /etc/nvme
     fi
     if [ ! -s "/etc/nvme/hostnqn" ]; then
-        stasadm hostnqn -f /etc/nvme/hostnqn
+        nvme gen-hostnqn > /etc/nvme/hostnqn
     fi
     if [ ! -s "/etc/nvme/hostid" ]; then
-        stasadm hostid -f /etc/nvme/hostid
+        uuidgen > /etc/nvme/hostid
     fi
 fi
 ```
 
-`stasadm` is installed with nvme-stas and also manages:
+Note there is no `nvme gen-hostid`; the Host ID is a plain UUID.
 
-```
-/etc/stas/sys.conf
-```
+nvme-stas also ships `stas-config@hostnqn.service` and
+`stas-config@hostid.service`, which generate the same two files at boot if
+they are missing. They are guarded by `ConditionFileNotEmpty`, so they do
+nothing on a host whose packaging already created them.
 
 ### nvme-stas Configuration Files
 
 nvme-stas uses three configuration files:
 
-- `/etc/stas/sys.conf`
-- `/etc/stas/stafd.conf`
-- `/etc/stas/stacd.conf`
+- `/etc/nvme/nvme-stas.conf`
+- `/etc/nvme/stafd.conf`
+- `/etc/nvme/stacd.conf`
 
 **Guidelines for packagers:**
 

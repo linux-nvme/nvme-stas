@@ -188,9 +188,6 @@ class SvcConf(metaclass=singleton.Singleton):
                 'default': False,
                 'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
             },
-            'kato': {
-                'convert': _to_int,
-            },
             'pleo': {
                 'convert': functools.partial(_to_bool, positive='enabled'),
                 'default': True,
@@ -201,43 +198,10 @@ class SvcConf(metaclass=singleton.Singleton):
                 'default': (4, 6),
                 'txt-chk': lambda text: _parse_single_val(text) in ('ipv4', 'ipv6', 'ipv4+ipv6', 'ipv6+ipv4'),
             },
-            'queue-size': {
-                'convert': _to_int,
-                'rng-chk': lambda value: None if value in range(16, 1025) else range(16, 1025),
-            },
-            'hdr-digest': {
-                'convert': _to_bool,
-                'default': False,
-                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
-            'data-digest': {
-                'convert': _to_bool,
-                'default': False,
-                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
             'ignore-iface': {
                 'convert': _to_bool,
                 'default': False,
                 'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
-            'nr-io-queues': {
-                'convert': _to_int,
-            },
-            'ctrl-loss-tmo': {
-                'convert': _to_int,
-            },
-            'disable-sqflow': {
-                'convert': _to_bool,
-                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
-            'nr-poll-queues': {
-                'convert': _to_int,
-            },
-            'nr-write-queues': {
-                'convert': _to_int,
-            },
-            'reconnect-delay': {
-                'convert': _to_int,
             },
         },
         'Service Discovery': {
@@ -270,10 +234,6 @@ class SvcConf(metaclass=singleton.Singleton):
             },
         },
         'Controllers': {
-            'controller': {
-                'convert': _parse_list,
-                'default': [],
-            },
             'exclude': {
                 'convert': _parse_list,
                 'default': [],
@@ -328,19 +288,9 @@ class SvcConf(metaclass=singleton.Singleton):
         return self._check(text, section, option, default)
 
     tron = property(functools.partial(get_option, section='Global', option='tron'))
-    kato = property(functools.partial(get_option, section='Global', option='kato'))
     ip_family = property(functools.partial(get_option, section='Global', option='ip-family'))
-    queue_size = property(functools.partial(get_option, section='Global', option='queue-size'))
-    hdr_digest = property(functools.partial(get_option, section='Global', option='hdr-digest'))
-    data_digest = property(functools.partial(get_option, section='Global', option='data-digest'))
     ignore_iface = property(functools.partial(get_option, section='Global', option='ignore-iface'))
     pleo_enabled = property(functools.partial(get_option, section='Global', option='pleo'))
-    nr_io_queues = property(functools.partial(get_option, section='Global', option='nr-io-queues'))
-    ctrl_loss_tmo = property(functools.partial(get_option, section='Global', option='ctrl-loss-tmo'))
-    disable_sqflow = property(functools.partial(get_option, section='Global', option='disable-sqflow'))
-    nr_poll_queues = property(functools.partial(get_option, section='Global', option='nr-poll-queues'))
-    nr_write_queues = property(functools.partial(get_option, section='Global', option='nr-write-queues'))
-    reconnect_delay = property(functools.partial(get_option, section='Global', option='reconnect-delay'))
 
     zeroconf_persistence_sec = property(
         functools.partial(
@@ -380,49 +330,6 @@ class SvcConf(metaclass=singleton.Singleton):
             return value
 
         return self._defaults.get((section, option), True)
-
-    def get_controllers(self):
-        '''Return the list of controllers from the config file.
-        Each controller is a dict with the following keys (some optional):
-        {
-            'transport':          [TRANSPORT],
-            'traddr':             [TRADDR],
-            'trsvcid':            [TRSVCID],
-            'subsysnqn':          [NQN],
-            'host-traddr':        [TRADDR],
-            'host-iface':         [IFACE],
-            'hostnqn':            [NQN],
-            'kxchap-secret':      [KEY],
-            'kxchap-ctrl-secret': [KEY],
-            'hdr-digest':         [BOOL]
-            'data-digest':        [BOOL]
-            'nr-io-queues':       [NUMBER]
-            'nr-write-queues':    [NUMBER]
-            'nr-poll-queues':     [NUMBER]
-            'queue-size':         [SIZE]
-            'kato':               [KATO]
-            'reconnect-delay':    [SECONDS]
-            'ctrl-loss-tmo':      [SECONDS]
-            'disable-sqflow':     [BOOL]
-        }
-        '''
-        controller_list = self.get_option('Controllers', 'controller')
-        cids = [_parse_controller(controller) for controller in controller_list]
-        for cid in cids:
-            try:
-                # replace 'nqn' key by 'subsysnqn', if present.
-                cid['subsysnqn'] = cid.pop('nqn')
-            except KeyError:
-                pass
-
-            # Verify values of the options used to overload the matching [Global] options
-            for option in cid:
-                if option in self.OPTION_CHECKER['Global']:
-                    value = self._check(cid[option], 'Global', option, None)
-                    if value is not None:
-                        cid[option] = value
-
-        return cids
 
     def get_excluded(self):
         '''Return the list of excluded controllers. This is the union of the
@@ -486,41 +393,6 @@ class SvcConf(metaclass=singleton.Singleton):
             )
             return self._defaults.get((section, option), default)
 
-        value_in_range = checker.get('rng-chk', None)
-        if value_in_range is not None:
-            expected_range = value_in_range(value)
-            if expected_range is not None:
-                logging.warning(
-                    'File:%s [%s]: %s - "%s" is not within range %s..%s. Default will be used',
-                    self.conf_file,
-                    section,
-                    option,
-                    value,
-                    min(expected_range),
-                    max(expected_range),
-                )
-                return self._defaults.get((section, option), default)
-
-        list_checker = checker.get('lst-chk', None)
-        if list_checker:
-            values = set()
-            for item in value:
-                if item not in list_checker:
-                    logging.warning(
-                        'File:%s [%s]: %s - List checker found invalid item "%s" will be ignored.',
-                        self.conf_file,
-                        section,
-                        option,
-                        item,
-                    )
-                else:
-                    values.add(item)
-
-            if len(values) == 0:
-                return self._defaults.get((section, option), default)
-
-            value = list(values)
-
         return value
 
     def _read_conf_file(self):
@@ -567,17 +439,49 @@ class SvcConf(metaclass=singleton.Singleton):
 
 
 # ******************************************************************************
-class SysConf(metaclass=singleton.Singleton):
-    '''Read and cache the host configuration file.'''
+class ConnConf(metaclass=singleton.Singleton):
+    '''Connectivity configuration: which controllers to connect to, and with
+    what parameters.
 
-    def __init__(self, conf_file=defs.SYS_CONF_FILE):
-        self._config = None
+    This is libnvme's INI format, read through libnvme's own parser, so that
+    nvme-stas, the nvme-cli tools and nvme-discoverd all understand one format
+    and there is only ever one implementation of it. nvme-stas keeps its own
+    file, /etc/nvme/nvme-stas.conf: a host must be able to run nvme-stas and
+    nvme-discoverd side by side, each connecting its own controllers, so they
+    never share a connectivity file even though they share its format.
+
+    libnvme resolves the whole cascade - type defaults, the file's [Host]
+    section, the endpoint section, and the "controller =" line - before we see
+    anything, and hands back one entry per controller with its parameters
+    already merged. A [Subsystem] with several "controller =" lines arrives as
+    several entries, one per path.
+    '''
+
+    # Parameters we hand to the kernel as-is. Everything else libnvme resolves
+    # is carried through untouched for whoever knows what to do with it (the
+    # credentials, for instance, which ctrl.py reads straight from the TID).
+    _NUMERIC = frozenset(
+        (
+            'keep-alive-tmo',
+            'tos',
+            'queue-size',
+            'nr-io-queues',
+            'ctrl-loss-tmo',
+            'nr-poll-queues',
+            'nr-write-queues',
+            'reconnect-delay',
+            'fast-io-fail-tmo',
+        )
+    )
+    _BOOLEAN = frozenset(('tls', 'concat', 'hdr-digest', 'data-digest', 'disable-sqflow'))
+
+    def __init__(self, conf_file=defs.NVME_STAS_CONF_FILE):
         self._conf_file = conf_file
+        self._connections = list()
+        self._dc_defaults = dict()
+        self._ioc_defaults = dict()
+        self._host = dict()
         self.reload()
-
-    def reload(self):
-        '''Reload the configuration file.'''
-        self._config = self._read_conf_file()
 
     @property
     def conf_file(self):
@@ -585,98 +489,181 @@ class SysConf(metaclass=singleton.Singleton):
         return self._conf_file
 
     def set_conf_file(self, fname):
-        '''Set the configuration file name and reload config'''
+        '''Set the configuration file name and reload the configuration'''
         self._conf_file = fname
         self.reload()
 
+    def reload(self):
+        '''Re-read the configuration file.
+
+        A file that does not validate is rejected and the last known good
+        configuration is left running: a fat-fingered edit must never tear down
+        working connections. An absent file is not an error - it simply
+        configures no controllers.
+
+        Return True if the configuration was (re)loaded, False if the file was
+        rejected and the previous one kept.
+        '''
+        ctx = libnvme_ctx()
+        try:
+            nvme.config_validate(ctx, self._conf_file)
+            connections = nvme.config_read(ctx, self._conf_file)
+            defaults = nvme.config_defaults(ctx, self._conf_file)
+            host = nvme.config_host(ctx, self._conf_file)
+        except (OSError, ValueError) as ex:
+            logging.error(
+                'File:%s - Invalid connectivity configuration, keeping the previous one: %s', self._conf_file, ex
+            )
+            return False
+
+        self._connections = connections
+        self._dc_defaults = self._params(defaults.get('dc', {}))
+        self._ioc_defaults = self._params(defaults.get('ioc', {}))
+        self._host = host
+        logging.debug('ConnConf.reload()                  - %s connection(s)', len(connections))
+        return True
+
+    def get_controllers(self, discovery: bool):
+        '''Return the configured controllers as controller-identifier dicts.
+
+        @discovery selects which half of the file to return: the
+        [Discovery Controller] sections when True, the [Subsystem] sections
+        when False. One file serves both daemons.
+        '''
+        return [self._to_cid(conn) for conn in self._connections if conn.get('is_dc', False) == discovery]
+
+    def defaults(self, discovery: bool):
+        '''Return the default connection parameters for a controller we
+        discovered, which is in no file and so has no parameters of its own.
+
+        These are the top-level file's defaults for the controller's class. A
+        drop-in's are deliberately out of reach: a controller found over mDNS,
+        or in a discovery log page, cannot be attributed to one.
+        '''
+        return self._dc_defaults if discovery else self._ioc_defaults
+
+    hostnqn = property(lambda self: self._host.get('hostnqn'))
+    hostid = property(lambda self: self._host.get('hostid'))
+    hostsymname = property(lambda self: self._host.get('hostsymname'))
+
+    def _params(self, params: dict):
+        '''Convert libnvme's parameters to the types the kernel expects,
+        dropping anything we cannot represent.'''
+        out = dict()
+        for option, text in params.items():
+            value = self._value(option, text)
+            if value is not None:
+                out[option] = value
+
+        return out
+
+    def _to_cid(self, conn: dict):
+        '''Translate one libnvme connection into a controller-identifier dict.'''
+        cid = {
+            'transport': conn.get('transport', ''),
+            'traddr': conn.get('traddr', ''),
+            'trsvcid': conn.get('trsvcid', ''),
+            'subsysnqn': conn.get('subsysnqn', ''),
+            # libnvme spells the host binding with underscores, we use hyphens.
+            'host-traddr': conn.get('host_traddr', ''),
+            'host-iface': conn.get('host_iface', ''),
+            'hostnqn': conn.get('hostnqn', ''),
+        }
+
+        # Carried for the connection, not for the transport ID: a file's
+        # [Host] section applies to every connection in it.
+        for key in ('hostid', 'hostsymname'):
+            if conn.get(key):
+                cid[key] = conn[key]
+
+        cid.update(self._params(conn.get('params', {})))
+
+        return cid
+
+    def _value(self, option, text):
+        '''Convert a parameter to the type the kernel expects, or return None
+        to leave it unset so that the kernel default applies.
+
+        libnvme has already validated the file, so anything rejected here is a
+        value we cannot represent rather than a malformed one.
+        '''
+        if not text:
+            # "key =" resets a parameter to the kernel default: leave it out.
+            return None
+
+        if option in self._NUMERIC:
+            try:
+                return int(text)
+            except (ValueError, TypeError):
+                logging.warning(
+                    'File:%s: %s - invalid value "%s", the kernel default will be used',
+                    self._conf_file,
+                    option,
+                    text,
+                )
+                return None
+
+        if option in self._BOOLEAN:
+            return text.strip().lower() in ('1', 'y', 'yes', 't', 'true', 'on')
+
+        return text
+
+
+# ******************************************************************************
+class SysConf(metaclass=singleton.Singleton):
+    '''The host's system-wide identity, as the nvme-cli family records it in
+    /etc/nvme/hostnqn and /etc/nvme/hostid.
+
+    The host symbolic name is not here. It has no system-wide file, and is
+    named in the connectivity configuration's [Host] section, which ConnConf
+    reads. Nor is the KXCHAP secret: it is a connection parameter, and comes
+    from the connectivity configuration with the rest of them.
+    '''
+
+    def __init__(self, hostnqn_file=defs.NVME_HOSTNQN, hostid_file=defs.NVME_HOSTID):
+        self._hostnqn_file = hostnqn_file
+        self._hostid_file = hostid_file
+
     def as_dict(self):
-        '''Return configuration as a dictionary'''
+        '''Return the host identity as a dictionary'''
         return {
             'hostnqn': self.hostnqn,
             'hostid': self.hostid,
-            'hostkey': self.hostkey,
-            'symname': self.hostsymname,
         }
 
     @property
     def hostnqn(self):
-        '''Return the host NQN. Exits the program if the NQN cannot be determined,
+        '''Return the host NQN. Exits the program if it cannot be determined,
         as it is mandatory.'''
-        try:
-            value = self.__get_value('Host', 'nqn', defs.NVME_HOSTNQN)
-        except FileNotFoundError as ex:
-            sys.exit(f'Error reading mandatory Host NQN (see stasadm --help): {ex}')
+        value = self._read(self._hostnqn_file)
+        if value is None:
+            sys.exit(f'Error reading mandatory Host NQN from {self._hostnqn_file}')
 
-        if value is not None:
-            if not value.startswith('nqn.'):
-                sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
-            if len(value) > 223:
-                sys.exit(f'Error Host NQN is too long ({len(value)} chars, max 223 per NVMe spec)')
+        if not value.startswith('nqn.'):
+            sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
+        if len(value) > 223:
+            sys.exit(f'Error Host NQN is too long ({len(value)} chars, max 223 per NVMe spec)')
 
         return value
 
     @property
     def hostid(self):
-        '''Return the host ID. Exits the program if the ID cannot be determined,
+        '''Return the host ID. Exits the program if it cannot be determined,
         as it is mandatory.'''
-        try:
-            value = self.__get_value('Host', 'id', defs.NVME_HOSTID)
-        except FileNotFoundError as ex:
-            sys.exit(f'Error reading mandatory Host ID (see stasadm --help): {ex}')
+        value = self._read(self._hostid_file)
+        if value is None:
+            sys.exit(f'Error reading mandatory Host ID from {self._hostid_file}')
 
         return value
 
-    @property
-    def hostkey(self):
-        '''Return the host KXCHAP key, or None if not configured.
-        The key is optional unless in-band authentication is required.'''
+    @staticmethod
+    def _read(fname):
+        '''Return the first word of the first line of @fname, or None if the
+        file is missing or holds nothing usable.'''
         try:
-            value = self.__get_value('Host', 'key', defs.NVME_HOSTKEY)
-        except FileNotFoundError as ex:
-            logging.debug('Host key undefined: %s', ex)
-            value = None
-
-        return value
-
-    @property
-    def hostsymname(self):
-        '''Return the host symbolic name, or None if not configured.'''
-        try:
-            value = self.__get_value('Host', 'symname')
-        except FileNotFoundError as ex:
-            logging.warning('Error reading host symbolic name (will remain undefined): %s', ex)
-            value = None
-
-        return value
-
-    def _read_conf_file(self):
-        '''Read and return a ConfigParser for the configuration file (if it exists).'''
-        config = configparser.ConfigParser(
-            default_section=None, allow_no_value=True, delimiters=('='), interpolation=None, strict=False
-        )
-        if os.path.isfile(self._conf_file):
-            config.read(self._conf_file)
-        return config
-
-    def __get_value(self, section, option, default_file=None):
-        '''Return the value of option in section. If the value starts with
-        "file://", the actual value is read from that file. If the option is
-        not found, returns None (if default_file is None) or reads from
-        default_file. Raises FileNotFoundError if a referenced file does not exist.'''
-        try:
-            value = self._config.get(section=section, option=option)
-            if not value.startswith('file://'):
-                return value
-            file = value[7:]
-        except (configparser.NoSectionError, configparser.NoOptionError, KeyError):
-            if default_file is None:
-                return None
-            file = default_file
-
-        try:
-            with open(file) as f:
+            with open(fname) as f:
                 return f.readline().split()[0]
-        except IndexError:
+        except (OSError, IndexError):
             return None
 
 

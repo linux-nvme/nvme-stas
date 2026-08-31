@@ -83,7 +83,22 @@
                         <refentrytitle>&daemon;.conf</refentrytitle>
                         <manvolnum>5</manvolnum>
                     </citerefentry>
-                    (default: <filename>/etc/stas/&daemon;.conf</filename>).
+                    (default: <filename>/etc/nvme/&daemon;.conf</filename>).
+                </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term><option>-cFILE</option></term>
+            <term><option>--conn-conf-file=FILE</option></term>
+            <listitem>
+                <para>
+                    Specify a different connectivity configuration file than
+                    <citerefentry>
+                        <refentrytitle>nvme-stas.conf</refentrytitle>
+                        <manvolnum>5</manvolnum>
+                    </citerefentry>
+                    (default: <filename>/etc/nvme/nvme-stas.conf</filename>).
                 </para>
             </listitem>
         </varlistentry>
@@ -155,7 +170,7 @@
 
                     <row>
                         <entry><programlisting>$ systemctl reload &daemon; </programlisting></entry>
-                        <entry>Reload configuration. This is done in real time without restarting the daemon. The <code>SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code>kato</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</entry>
+                        <entry>Reload configuration. This is done in real time without restarting the daemon. The <code>SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code>keep-alive-tmo</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</entry>
                     </row>
                 </tbody>
             </tgroup>
@@ -184,7 +199,7 @@
             <command>&daemon;</command> can also operate in a non-automatic
             mode based on manually entered configuration. In other words,
             storage subsystems can be entered in a configuration file named
-            <filename>/etc/stas/&daemon;.conf</filename>.
+            <filename>/etc/nvme/&daemon;.conf</filename>.
             This configuration file also provides additional parameters,
             as log-level attributes used for debugging purposes.
         </para>

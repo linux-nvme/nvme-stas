@@ -11,7 +11,7 @@ ConditionFileNotEmpty=|!@ETC@/nvme/%i
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/stasadm %i -f @ETC@/nvme/%i
+ExecStart=/bin/sh -c 'case %i in hostnqn) nvme gen-hostnqn ;; hostid) uuidgen ;; *) echo "unknown host identity: %i" >&2; exit 1 ;; esac > @ETC@/nvme/%i'
 
 [Install]
 WantedBy=stas-config.target

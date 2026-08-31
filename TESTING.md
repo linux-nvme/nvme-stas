@@ -18,7 +18,7 @@ There are two ways to run the tests.
 
 A script is provided (`utils/nvmet/nvmet.py`) to simplify the configuration of the `nvmet` driver. The script comes with a companion configuration file (`utils/nvmet/nvmet.conf`). The configuration file is where you configure the port(s) and subsystem(s) to create. The default configuration will create 3 subsystems under port 1. This is mapped to the local IPv6 loopback address (`::1`).
 
-Since nvmet doesn't provide a mDNS responder, you will need to manually configure `stafd` (`/etc/stas/stafd.conf`) so that it connects to the DDC that the nvmet driver creates by adding the DDC's address under the `[Controllers]` section. For example:
+Since nvmet doesn't provide a mDNS responder, you will need to manually configure `stafd` (`/etc/nvme/stafd.conf`) so that it connects to the DDC that the nvmet driver creates by adding the DDC's address under the `[Controllers]` section. For example:
 
 ```bash
 [Controllers]
@@ -76,21 +76,21 @@ if [ ! -d "/etc/nvme" ]; then
 fi
 
 if [ ! -s /etc/nvme/hostnqn ]; then
-    sudo stasadm hostnqn -f /etc/nvme/hostnqn
+    sudo sh -c 'nvme gen-hostnqn > /etc/nvme/hostnqn'
 fi
 
 if [ ! -s /etc/nvme/hostid ]; then
-    sudo stasadm hostid -f /etc/nvme/hostid
+    sudo sh -c 'uuidgen > /etc/nvme/hostid'
 fi
 
 #####################################################################
-# Edit /etc/stas/stafd.conf to enable tracing and add the local 
+# Edit /etc/nvme/stafd.conf to enable tracing and add the local 
 # nvmet driver as the Discovery Controller to connect to.
 FILES="stafd.conf stacd.conf"
 for file in ${FILES}; do
-	sudo sed -i '/^#tron=false/a tron=true' /etc/stas/${file}
+	sudo sed -i '/^#tron=false/a tron=true' /etc/nvme/${file}
 done 
-sudo sed -i '/^#controller=$/a controller=transport=tcp;traddr=localhost' /etc/stas/stafd.conf
+sudo sed -i '/^#controller=$/a controller=transport=tcp;traddr=localhost' /etc/nvme/stafd.conf
 
 ```
 
@@ -135,7 +135,7 @@ $ stacctl ls
 [{'device': 'nvme1',
   'host-iface': '',
   'host-traddr': '',
-  'subsysnqn': 'klingons',
+  'subsysnqn': 'nqn.1988-11.com.dell:klingons',
   'traddr': '::1',
   'transport': 'tcp',
   'trsvcid': '8009'},
@@ -149,7 +149,7 @@ $ stacctl ls
  {'device': 'nvme3',
   'host-iface': '',
   'host-traddr': '',
-  'subsysnqn': 'starfleet',
+  'subsysnqn': 'nqn.1988-11.com.dell:starfleet',
   'traddr': '::1',
   'transport': 'tcp',
   'trsvcid': '8009'}]
@@ -163,7 +163,7 @@ You can use the `nvmet.py` script to simulate the removal of a subsystem, which 
 
 ```bash
 $ cd $STAS_DIR/utils/nvmet
-$ sudo ./nvmet.py unlink -p 1 -s klingons
+$ sudo ./nvmet.py unlink -p 1 -s nqn.1988-11.com.dell:klingons
 ```
 
 Observe what happens in the journal. `stafd` will receive the AEN and update the DLPEs by performing a Get Discovery Log Page command. And `stacd` will disconnect from the "`klingons`" subsystem (use `stacctl ls` to confirm).
@@ -171,10 +171,10 @@ Observe what happens in the journal. `stafd` will receive the AEN and update the
 Then, add the subsystem back as follows:
 
 ```bash
-$ sudo ./nvmet.py link -p 1 -s klingons
+$ sudo ./nvmet.py link -p 1 -s nqn.1988-11.com.dell:klingons
 ```
 
-**NOTE**: I know, "`klingons`" is not a valid NQN, but it sure is easier to remember and to type than a valid NQN. Fortunately, the `nvmet` driver doesn't care what the actual subsystem's NQN looks like. :smile:
+**NOTE**: The `nvmet` driver does not care what a subsystem's NQN looks like, and these used to be plain words - "`klingons`", "`starfleet`" - which were far easier to type. They are real NQNs now because the connectivity configuration is validated by libnvme, which rejects anything that is not one, and a subsystem that cannot be named there cannot be configured.
 
 ## Stopping nvmet
 
