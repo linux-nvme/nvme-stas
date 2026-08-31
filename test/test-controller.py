@@ -184,9 +184,11 @@ class Test(TestCase):
 
     def test_identity_defaults_to_the_system_one(self):
         sysconf = conf.SysConf()
+        conn_conf = conf.ConnConf()
         tid = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.unrelated'})
         self.assertEqual(
-            ctrl.host_identity(tid, sysconf), (sysconf.hostnqn, sysconf.hostid, sysconf.hostsymname)
+            ctrl.host_identity(tid, sysconf, conn_conf),
+            (sysconf.hostnqn, sysconf.hostid, conn_conf.hostsymname),
         )
 
     def test_a_named_identity_is_taken_whole(self):
@@ -205,7 +207,7 @@ class Test(TestCase):
             }
         )
         self.assertEqual(
-            ctrl.host_identity(tid, sysconf),
+            ctrl.host_identity(tid, sysconf, conf.ConnConf()),
             ('nqn.1988-11.com.dell:persona:1', 'aaaaaaaa-0000-0000-0000-000000000001', 'persona-1'),
         )
 
@@ -219,7 +221,7 @@ class Test(TestCase):
                 'hostnqn': 'nqn.1988-11.com.dell:persona:2',
             }
         )
-        _, hostid, _ = ctrl.host_identity(tid, sysconf)
+        _, hostid, _ = ctrl.host_identity(tid, sysconf, conf.ConnConf())
         self.assertIsNone(hostid)
         self.assertNotEqual(hostid, sysconf.hostid)
 
@@ -235,7 +237,10 @@ class Test(TestCase):
                 'hostsymname': 'just-a-name',
             }
         )
-        self.assertEqual(ctrl.host_identity(tid, sysconf), (sysconf.hostnqn, sysconf.hostid, 'just-a-name'))
+        self.assertEqual(
+            ctrl.host_identity(tid, sysconf, conf.ConnConf()),
+            (sysconf.hostnqn, sysconf.hostid, 'just-a-name'),
+        )
 
     def tearDown(self):
         pass

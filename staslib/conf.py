@@ -646,115 +646,59 @@ class ConnConf(metaclass=singleton.Singleton):
 
 # ******************************************************************************
 class SysConf(metaclass=singleton.Singleton):
-    '''Read and cache the host configuration file.'''
+    '''The host's system-wide identity, as the nvme-cli family records it in
+    /etc/nvme/hostnqn and /etc/nvme/hostid.
 
-    def __init__(self, conf_file=defs.SYS_CONF_FILE):
-        self._config = None
-        self._conf_file = conf_file
-        self.reload()
+    The host symbolic name is not here. It has no system-wide file, and is
+    named in the connectivity configuration's [Host] section, which ConnConf
+    reads. Nor is the KXCHAP secret: it is a connection parameter, and comes
+    from the connectivity configuration with the rest of them.
+    '''
 
-    def reload(self):
-        '''Reload the configuration file.'''
-        self._config = self._read_conf_file()
-
-    @property
-    def conf_file(self):
-        '''Return the configuration file name'''
-        return self._conf_file
-
-    def set_conf_file(self, fname):
-        '''Set the configuration file name and reload config'''
-        self._conf_file = fname
-        self.reload()
+    def __init__(self, hostnqn_file=defs.NVME_HOSTNQN, hostid_file=defs.NVME_HOSTID):
+        self._hostnqn_file = hostnqn_file
+        self._hostid_file = hostid_file
 
     def as_dict(self):
-        '''Return configuration as a dictionary'''
+        '''Return the host identity as a dictionary'''
         return {
             'hostnqn': self.hostnqn,
             'hostid': self.hostid,
-            'hostkey': self.hostkey,
-            'symname': self.hostsymname,
         }
 
     @property
     def hostnqn(self):
-        '''Return the host NQN. Exits the program if the NQN cannot be determined,
+        '''Return the host NQN. Exits the program if it cannot be determined,
         as it is mandatory.'''
-        try:
-            value = self.__get_value('Host', 'nqn', defs.NVME_HOSTNQN)
-        except FileNotFoundError as ex:
-            sys.exit(f'Error reading mandatory Host NQN (see stasadm --help): {ex}')
+        value = self._read(self._hostnqn_file)
+        if value is None:
+            sys.exit(f'Error reading mandatory Host NQN from {self._hostnqn_file}')
 
-        if value is not None:
-            if not value.startswith('nqn.'):
-                sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
-            if len(value) > 223:
-                sys.exit(f'Error Host NQN is too long ({len(value)} chars, max 223 per NVMe spec)')
+        if not value.startswith('nqn.'):
+            sys.exit(f'Error Host NQN "{value}" should start with "nqn."')
+        if len(value) > 223:
+            sys.exit(f'Error Host NQN is too long ({len(value)} chars, max 223 per NVMe spec)')
 
         return value
 
     @property
     def hostid(self):
-        '''Return the host ID. Exits the program if the ID cannot be determined,
+        '''Return the host ID. Exits the program if it cannot be determined,
         as it is mandatory.'''
-        try:
-            value = self.__get_value('Host', 'id', defs.NVME_HOSTID)
-        except FileNotFoundError as ex:
-            sys.exit(f'Error reading mandatory Host ID (see stasadm --help): {ex}')
+        value = self._read(self._hostid_file)
+        if value is None:
+            sys.exit(f'Error reading mandatory Host ID from {self._hostid_file}')
 
         return value
 
-    @property
-    def hostkey(self):
-        '''Return the host KXCHAP key, or None if not configured.
-        The key is optional unless in-band authentication is required.'''
+    @staticmethod
+    def _read(fname):
+        '''Return the first word of the first line of @fname, or None if the
+        file is missing or holds nothing usable.'''
         try:
-            value = self.__get_value('Host', 'key', defs.NVME_HOSTKEY)
-        except FileNotFoundError as ex:
-            logging.debug('Host key undefined: %s', ex)
-            value = None
-
-        return value
-
-    @property
-    def hostsymname(self):
-        '''Return the host symbolic name, or None if not configured.'''
-        try:
-            value = self.__get_value('Host', 'symname')
-        except FileNotFoundError as ex:
-            logging.warning('Error reading host symbolic name (will remain undefined): %s', ex)
-            value = None
-
-        return value
-
-    def _read_conf_file(self):
-        '''Read and return a ConfigParser for the configuration file (if it exists).'''
-        config = configparser.ConfigParser(
-            default_section=None, allow_no_value=True, delimiters=('='), interpolation=None, strict=False
-        )
-        if os.path.isfile(self._conf_file):
-            config.read(self._conf_file)
-        return config
-
-    def __get_value(self, section, option, default_file=None):
-        '''Return the value of option in section. If the value starts with
-        "file://", the actual value is read from that file. If the option is
-        not found, returns None (if default_file is None) or reads from
-        default_file. Raises FileNotFoundError if a referenced file does not exist.'''
-        try:
-            value = self._config.get(section=section, option=option)
-            if not value.startswith('file://'):
-                return value
-            file = value[7:]
-        except (configparser.NoSectionError, configparser.NoOptionError, KeyError):
-            if default_file is None:
-                return None
-            file = default_file
-
-        try:
-            with open(file) as f:
+            with open(fname) as f:
                 return f.readline().split()[0]
-        except IndexError:
+        except (OSError, IndexError):
             return None
 
 

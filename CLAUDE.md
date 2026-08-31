@@ -16,7 +16,7 @@ meson test -C .build
 PYTHONPATH=".build/subprojects/nvme-cli/libnvme:.build" python3 test/test-foo.py -v
 
 # Lint and format checks
-ruff check .build/staslib .build/stafctl .build/stacd .build/stafctl .build/stafd .build/stasadm
+ruff check .build/staslib .build/stafctl .build/stacd .build/stafctl .build/stafd
 ruff format --check .build/staslib
 
 # Coverage integration test (requires nvmet kernel module, stops stafd/stacd first)
@@ -121,8 +121,6 @@ Defines everything that requires persistent host state:
 Test files are in `test/` and are named `test-*.py`. They use `unittest` (not pytest, despite pytest being listed as a dev dependency — Meson runs them directly with `python3`).
 
 Tests that need filesystem mocking use `pyfakefs` (`from pyfakefs.fake_filesystem_unittest import TestCase`).
-
-`test-stasadm.py` loads `stasadm.py` at module level using `importlib.util.spec_from_file_location` with `sys.argv`, `sys.exit`, `sys.stdout`, and `sys.stderr` all mocked — because `stasadm.py` runs entry-point code at import time.
 
 The Avahi test requires `avahi-daemon` and `dbus` to be active; Meson skips it automatically if they are not running.
 

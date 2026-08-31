@@ -33,8 +33,6 @@ components = [
     'stafd.service.rst',
     'stas-config.target.rst',
     'stas-config@.service.rst',
-    'stasadm.rst',
-    'sys.conf.rst',
 ]
 foreach component : components
     configure_file(

@@ -76,11 +76,11 @@ if [ ! -d "/etc/nvme" ]; then
 fi
 
 if [ ! -s /etc/nvme/hostnqn ]; then
-    sudo stasadm hostnqn -f /etc/nvme/hostnqn
+    sudo sh -c 'nvme gen-hostnqn > /etc/nvme/hostnqn'
 fi
 
 if [ ! -s /etc/nvme/hostid ]; then
-    sudo stasadm hostid -f /etc/nvme/hostid
+    sudo sh -c 'uuidgen > /etc/nvme/hostid'
 fi
 
 #####################################################################

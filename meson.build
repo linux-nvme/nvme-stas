@@ -169,13 +169,6 @@ stacctl = configure_file(
     copy: true,
 )
 
-stasadm = configure_file(
-    input: 'stasadm.py',
-    output: 'stasadm',
-    install_dir: bindir,
-    copy: true,
-)
-
 #===========================================================================
 install_subdir(
     'etc/stas',
@@ -200,7 +193,7 @@ endforeach
 
 #===========================================================================
 # Make a list of modules to lint
-modules_to_lint = [stafd, stafctl, stacd, stacctl, stasadm]
+modules_to_lint = [stafd, stafctl, stacd, stacctl]
 packages_to_lint = []
 
 #===========================================================================

@@ -753,7 +753,6 @@ run_unit_test ${TEST_DIR}/test-nbft.py
 run_unit_test sudo ${TEST_DIR}/test-nvme_options.py  # Test both with super user...
 run_unit_test ${TEST_DIR}/test-nvme_options.py       # ... and with regular user
 run_unit_test ${TEST_DIR}/test-service.py
-#run_unit_test ${TEST_DIR}/test-stasadm.py
 run_unit_test ${TEST_DIR}/test-stas.py
 run_unit_test ${TEST_DIR}/test-timeparse.py
 run_unit_test ${TEST_DIR}/test-transport_id.py

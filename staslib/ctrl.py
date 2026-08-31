@@ -39,7 +39,7 @@ _CONN_PARAMS = (
 )
 
 
-def host_identity(tid, sysconf):
+def host_identity(tid, sysconf, conn_conf):
     '''Return the (hostnqn, hostid, hostsymname) a connection is made under.
 
     A connection may name its own identity - that is what a [Host] section in
@@ -47,11 +47,14 @@ def host_identity(tid, sysconf):
     all: pairing a configured host NQN with the system's host ID invents an
     identity nobody configured, and the two are meant to travel together
     (TP4126). Pure function, so it is directly unit-testable.
+
+    The NQN and ID fall back to the system files; the symbolic name has no
+    such file and falls back to the connectivity configuration's [Host].
     '''
     if tid.hostnqn and tid.hostnqn != sysconf.hostnqn:
         return tid.hostnqn, tid.cfg.get('hostid'), tid.cfg.get('hostsymname')
 
-    return sysconf.hostnqn, sysconf.hostid, tid.cfg.get('hostsymname', sysconf.hostsymname)
+    return sysconf.hostnqn, sysconf.hostid, tid.cfg.get('hostsymname', conn_conf.hostsymname)
 
 
 DLP_CHANGED = (
@@ -88,13 +91,12 @@ class Controller(stas.ControllerABC):
         sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
 
-        hostnqn, hostid, hostsymname = host_identity(tid, sysconf)
+        hostnqn, hostid, hostsymname = host_identity(tid, sysconf, conf.ConnConf())
 
         self._ctx = nvme.GlobalCtx(owner=defs.REGISTRY_OWNER)
         self._ctx.hostnqn = hostnqn
         self._ctx.hostid = hostid
         self._host = nvme.Host(self._ctx, hostnqn=hostnqn, hostid=hostid, hostsymname=hostsymname)
-        self._host.kxchap_host_key = sysconf.hostkey if self._nvme_options.kxchap_hostkey_supp else None
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
         self._ctrl = None  # libnvme's nvme.Ctrl object
