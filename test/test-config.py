@@ -67,7 +67,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Global', 'tron'): False,
             ('Global', 'ignore-iface'): False,
             ('Global', 'ip-family'): (4, 6),
-            ('Discovery controller connection management', 'persistent-connections'): True,
             ('Global', 'pleo'): True,
             ('Service Discovery', 'zeroconf'): True,
             ('Controllers', 'controller'): list(),
@@ -83,7 +82,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertEqual(service_conf.conf_file, StasProcessConfUnitTest.FNAME)
         self.assertTrue(service_conf.tron)
         self.assertTrue(getattr(service_conf, 'tron'))
-        self.assertTrue(service_conf.persistent_connections)
         self.assertTrue(service_conf.pleo_enabled)
         self.assertEqual(service_conf.honor_fabric_zoning, True)
         self.assertFalse(service_conf.ignore_iface)
@@ -203,6 +201,54 @@ class TestDcGiveupTimeout(unittest.TestCase):
         cnf = self._load('not-a-timespan')
         with self.assertLogs(level='WARNING'):
             self.assertEqual(cnf.dc_giveup_timeout_sec, 72 * 60 * 60)
+
+
+class TestEpcsdPollInterval(unittest.TestCase):
+    '''Unit tests for epcsd-poll-interval-minutes'''
+
+    SECTION = 'Discovery controller connection management'
+
+    def setUp(self):
+        fd, self.fname = tempfile.mkstemp(prefix='stas-poll-', suffix='.conf')
+        os.close(fd)
+        self.addCleanup(os.remove, self.fname)
+        conf.SvcConf.destroy()
+        self.addCleanup(conf.SvcConf.destroy)
+
+    def _load(self, value):
+        with open(self.fname, 'w') as f:
+            f.write('[%s]\nepcsd-poll-interval-minutes=%s\n' % (TestEpcsdPollInterval.SECTION, value))
+        cnf = conf.SvcConf()
+        cnf.set_conf_file(self.fname)
+        return cnf
+
+    def test_minutes_are_returned_as_seconds(self):
+        self.assertEqual(self._load('15').epcsd_poll_interval_sec, 900)
+        self.assertEqual(self._load('1').epcsd_poll_interval_sec, 60)
+
+    def test_zero_is_rejected(self):
+        '''This poll is the only way a parked controller comes back, so
+        "never" is not a valid answer.'''
+        cnf = self._load('0')
+        with self.assertLogs(level='WARNING'):
+            self.assertEqual(cnf.epcsd_poll_interval_sec, 900)  # the default
+
+    def test_a_negative_value_is_rejected(self):
+        cnf = self._load('-5')
+        with self.assertLogs(level='WARNING'):
+            self.assertEqual(cnf.epcsd_poll_interval_sec, 900)
+
+    def test_garbage_is_rejected(self):
+        cnf = self._load('quarter-hourly')
+        with self.assertLogs(level='WARNING'):
+            self.assertEqual(cnf.epcsd_poll_interval_sec, 900)
+
+    def test_the_default_is_fifteen_minutes(self):
+        with open(self.fname, 'w') as f:
+            f.write('[%s]\n' % TestEpcsdPollInterval.SECTION)
+        cnf = conf.SvcConf()
+        cnf.set_conf_file(self.fname)
+        self.assertEqual(cnf.epcsd_poll_interval_sec, 900)
 
 
 class TestParseController(unittest.TestCase):

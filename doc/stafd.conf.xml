@@ -202,19 +202,42 @@
             </para>
 
             <varlistentry>
-                <term><varname>persistent-connections=</varname></term>
+                <term><varname>epcsd-poll-interval-minutes=</varname></term>
                 <listitem>
                     <para>
-                        Takes a boolean argument. Whether connections to
-                        Discovery Controllers (DC) are persistent. When
-                        true, connections initiated by stafd will persists
-                        even when stafd is stopped. When
-                        <parameter>false</parameter>, <code>stafd</code>
-                        will disconnect from all DCs it is connected to on
-                        exit.
+                        Takes an unsigned integer argument. How often to
+                        reconnect and re-check a Discovery Controller (DC)
+                        that does not support persistent discovery
+                        connections. Such a DC is disconnected between
+                        checks: there is nothing to hold open, and it cannot
+                        report that its discovery log pages changed, so
+                        polling is the only way to notice that they did.
                     </para>
                     <para>
-                        Defaults to <parameter>false</parameter>.
+                        A value of 0 is not valid. Unlike an interval that
+                        merely schedules extra work, this poll is the only
+                        way a disconnected DC comes back.
+                    </para>
+                    <para>
+                        Whether a DC's connection is held open at all is not
+                        configured here. That is the <varname>persistent</varname>
+                        key of
+                        <citerefentry>
+                            <refentrytitle>nvme-stas.conf</refentrytitle>
+                            <manvolnum>5</manvolnum>
+                        </citerefentry>,
+                        which takes <parameter>no</parameter>,
+                        <parameter>auto</parameter> or
+                        <parameter>force</parameter> and may be set for each
+                        DC. It defaults to <parameter>auto</parameter>: hold
+                        the connection open wherever the DC reports, through
+                        the EPCSD flag of its discovery log page entry, that
+                        it supports one. Note this default differs from that
+                        of the <code>nvme-cli</code> tools, which hold nothing
+                        open unless asked to.
+                    </para>
+                    <para>
+                        Defaults to <parameter>15</parameter>.
                     </para>
                 </listitem>
             </varlistentry>

@@ -2,7 +2,7 @@
 import os
 import logging
 import unittest
-from staslib import conf, log, service
+from staslib import conf, ctrl, log, service, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -122,6 +122,145 @@ class TestCtrlTerminator(unittest.TestCase):
         term.kill()
         self.assertEqual(removed, [True])
 
+
+class FakeDc:
+    '''Just enough of a discovery controller for referral_eflags().'''
+
+    def __init__(self, tid, referrals):
+        self.tid = tid
+        self._referrals = referrals
+
+    def referrals(self):
+        return self._referrals
+
+
+class FakeStaf:
+    '''Stands in for the service. referral_eflags() reaches for nothing else,
+    so the real method can be called against this.'''
+
+    def __init__(self, controllers):
+        self._controllers = controllers
+
+    def get_controllers(self):
+        return self._controllers
+
+
+class TestReferralEflags(unittest.TestCase):
+    '''Unit tests for Staf.referral_eflags(): what a discovery controller
+    published about another one it referred us to.'''
+
+    EPCSD = 2
+
+    HOST_TRADDR = '1.2.3.4'
+    HOST_IFACE = 'eth0'
+    HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
+
+    @staticmethod
+    def _parent(referrals):
+        parent_tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'trsvcid': '8009',
+                'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
+                'host-traddr': TestReferralEflags.HOST_TRADDR,
+                'host-iface': TestReferralEflags.HOST_IFACE,
+                'hostnqn': TestReferralEflags.HOSTNQN,
+            }
+        )
+        return FakeDc(parent_tid, referrals)
+
+    @staticmethod
+    def _referral_dlpe(traddr, eflags):
+        return {
+            'subtype': ctrl.SUBTYPE_REFERRAL,
+            'trtype': 'tcp',
+            'traddr': traddr,
+            'trsvcid': '8009',
+            'subnqn': 'nqn.2014-08.org.nvmexpress.discovery',
+            'eflags': str(eflags),
+        }
+
+    @staticmethod
+    def _referred_tid(traddr):
+        '''The TID the parent's referral entry designates. Spelled out rather
+        than built with tid_from_dlpe(), so this does not merely agree with
+        itself.'''
+        return trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': traddr,
+                'trsvcid': '8009',
+                'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
+                'host-traddr': TestReferralEflags.HOST_TRADDR,
+                'host-iface': TestReferralEflags.HOST_IFACE,
+                'hostnqn': TestReferralEflags.HOSTNQN,
+            }
+        )
+
+    def _lookup(self, controllers, tid):
+        return service.Staf.referral_eflags(FakeStaf(controllers), tid)
+
+    def test_finds_what_the_parent_published(self):
+        parent = self._parent([self._referral_dlpe('2.2.2.2', TestReferralEflags.EPCSD)])
+        self.assertEqual(self._lookup([parent], self._referred_tid('2.2.2.2')), TestReferralEflags.EPCSD)
+
+    def test_zero_is_an_answer_not_an_absence(self):
+        '''A parent saying "no EPCSD" must be distinguishable from no parent
+        at all: the caller falls back only on None.'''
+        parent = self._parent([self._referral_dlpe('2.2.2.2', 0)])
+        self.assertEqual(self._lookup([parent], self._referred_tid('2.2.2.2')), 0)
+
+    def test_none_when_nobody_refers_to_it(self):
+        parent = self._parent([self._referral_dlpe('2.2.2.2', TestReferralEflags.EPCSD)])
+        self.assertIsNone(self._lookup([parent], self._referred_tid('9.9.9.9')))
+
+    def test_none_when_there_are_no_controllers(self):
+        self.assertIsNone(self._lookup([], self._referred_tid('2.2.2.2')))
+
+    def test_searches_every_controller(self):
+        quiet = self._parent([])
+        talkative = self._parent([self._referral_dlpe('3.3.3.3', TestReferralEflags.EPCSD)])
+        self.assertEqual(
+            self._lookup([quiet, talkative], self._referred_tid('3.3.3.3')), TestReferralEflags.EPCSD
+        )
+
+
+class TestDefaultConf(unittest.TestCase):
+    '''SvcConf builds its valid-option set from the daemon's DEFAULT_CONF, not
+    from OPTION_CHECKER, so an option missing there is rejected as invalid no
+    matter how well OPTION_CHECKER knows it. These pin that both ways.'''
+
+    DAEMONS = (('stafd', service.Staf), ('stacd', service.Stac))
+
+    def test_every_default_is_a_known_option(self):
+        '''A typo in DEFAULT_CONF would otherwise sit there unnoticed.'''
+        for name, daemon in TestDefaultConf.DAEMONS:
+            for section, option in daemon.DEFAULT_CONF:
+                with self.subTest(daemon=name, section=section, option=option):
+                    self.assertIn(section, conf.SvcConf.OPTION_CHECKER)
+                    self.assertIn(option, conf.SvcConf.OPTION_CHECKER[section])
+
+    def test_each_daemon_accepts_its_whole_section(self):
+        '''The section that belongs to a daemon must be listed in full. This is
+        what catches an option added to OPTION_CHECKER and to the shipped .conf
+        file, but forgotten here - the daemon would reject it as invalid.'''
+        owned = {
+            'stafd': 'Discovery controller connection management',
+            'stacd': 'I/O controller connection management',
+        }
+        for name, daemon in TestDefaultConf.DAEMONS:
+            section = owned[name]
+            declared = {opt for sect, opt in daemon.DEFAULT_CONF if sect == section}
+            with self.subTest(daemon=name, section=section):
+                self.assertEqual(declared, set(conf.SvcConf.OPTION_CHECKER[section]))
+
+    def test_the_common_sections_are_covered(self):
+        '''Both daemons read [Global] tron and [Controllers] exclude.'''
+        for name, daemon in TestDefaultConf.DAEMONS:
+            with self.subTest(daemon=name):
+                self.assertIn(('Global', 'tron'), daemon.DEFAULT_CONF)
+                self.assertIn(('Controllers', 'exclude'), daemon.DEFAULT_CONF)
 
 if __name__ == '__main__':
     unittest.main()

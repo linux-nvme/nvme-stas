@@ -208,21 +208,24 @@ class Service(stas.ServiceABC):
 class Stac(Service):
     '''STorage Appliance Connector (STAC)'''
 
+    # The options stacd accepts, with their defaults. SvcConf builds its
+    # valid-option set from this, so an option missing here is rejected as
+    # invalid however well OPTION_CHECKER knows it.
+    DEFAULT_CONF = {
+        ('Global', 'tron'): False,
+        ('Global', 'ignore-iface'): False,
+        ('Global', 'ip-family'): (4, 6),
+        ('Controllers', 'exclude'): list(),
+        ('I/O controller connection management', 'honor-fabric-zoning'): True,
+        ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
+    }
+
     CONFIGURES_DCS = False
 
     CONF_STABILITY_LONG_SOAK_TIME_SEC = 10
 
     def __init__(self, args, dbus):
-        default_conf = {
-            ('Global', 'tron'): False,
-            ('Global', 'ignore-iface'): False,
-            ('Global', 'ip-family'): (4, 6),
-            ('Controllers', 'exclude'): list(),
-            ('I/O controller connection management', 'honor-fabric-zoning'): True,
-            ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
-        }
-
-        super().__init__(args, default_conf, self._reload_hdlr)
+        super().__init__(args, Stac.DEFAULT_CONF, self._reload_hdlr)
 
         # Create the D-Bus instance.
         self._config_dbus(dbus, defs.STACD_DBUS_NAME, defs.STACD_DBUS_PATH)
@@ -319,7 +322,7 @@ class Stac(Service):
             host_iface = staf_data['discovery-controller']['host-iface']
             hostnqn = staf_data['discovery-controller']['hostnqn']
             for dlpe in staf_data['log-pages']:
-                if dlpe.get('subtype') == 'nvme':  # eliminate discovery controllers
+                if dlpe.get('subtype') == ctrl.SUBTYPE_IOC:  # eliminate discovery controllers
                     tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn)
                     discovered_ctrls[tid] = dlpe
 
@@ -453,21 +456,24 @@ def _remove_stale_udev_rule_override():
 class Staf(Service):
     '''STorage Appliance Finder (STAF)'''
 
+    # The options stafd accepts, with their defaults. SvcConf builds its
+    # valid-option set from this, so an option missing here is rejected as
+    # invalid however well OPTION_CHECKER knows it.
+    DEFAULT_CONF = {
+        ('Global', 'tron'): False,
+        ('Global', 'ignore-iface'): False,
+        ('Global', 'ip-family'): (4, 6),
+        ('Global', 'pleo'): True,
+        ('Service Discovery', 'zeroconf'): True,
+        ('Controllers', 'exclude'): list(),
+        ('Discovery controller connection management', 'dc-giveup-timeout'): timeparse.timeparse('72hours'),
+        ('Discovery controller connection management', 'epcsd-poll-interval-minutes'): 15,
+    }
+
     CONFIGURES_DCS = True
 
     def __init__(self, args, dbus):
-        default_conf = {
-            ('Global', 'tron'): False,
-            ('Discovery controller connection management', 'persistent-connections'): True,
-            ('Discovery controller connection management', 'dc-giveup-timeout'): timeparse.timeparse('72hours'),
-            ('Global', 'ignore-iface'): False,
-            ('Global', 'ip-family'): (4, 6),
-            ('Global', 'pleo'): True,
-            ('Service Discovery', 'zeroconf'): True,
-            ('Controllers', 'exclude'): list(),
-        }
-
-        super().__init__(args, default_conf, self._reload_hdlr)
+        super().__init__(args, Staf.DEFAULT_CONF, self._reload_hdlr)
 
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
         self._avahi.config_stypes(conf.SvcConf().stypes)
@@ -517,8 +523,13 @@ class Staf(Service):
         return controllers
 
     def _keep_connections_on_exit(self):
-        '''Return True if connections should persist when stafd exits.'''
-        return conf.SvcConf().persistent_connections
+        '''Return True if connections should persist when stafd exits.
+
+        A connection we hold open is one worth keeping; a parked DC has none
+        to keep. "no" says not to hold discovery connections at all, so on the
+        way out there is nothing to leave behind.
+        '''
+        return any(not dc.parked() for dc in self.get_controllers())
 
     def _reload_hdlr(self):
         '''Reload the configuration file. Triggered by SIGHUP (systemctl reload stafd).'''
@@ -575,6 +586,27 @@ class Staf(Service):
             for controller in self.get_controllers()
             for dlpe in controller.referrals()
         ]
+
+    def referral_eflags(self, tid):
+        '''Return the EFLAGS a discovery controller published for @tid in the
+        referral entry that led us to it, or None if no DC refers to it.
+
+        A DC that publishes no entry of its own leaves its parent's referral
+        entry as the only statement about whether it supports a persistent
+        connection.
+        '''
+        for controller in self.get_controllers():
+            for dlpe in controller.referrals():
+                referred = stas.tid_from_dlpe(
+                    dlpe,
+                    controller.tid.host_traddr,
+                    controller.tid.host_iface,
+                    controller.tid.hostnqn,
+                )
+                if referred == tid:
+                    return ctrl.get_eflags(dlpe)
+
+        return None
 
     def _config_ctrls_finish(self, configured_ctrl_list: list):
         '''Finish discovery controller configuration after hostname resolution.

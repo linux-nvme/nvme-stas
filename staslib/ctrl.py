@@ -72,6 +72,22 @@ def get_ncc(eflags: int):
     return eflags & nvme.NVMF_DISC_EFLAGS_NCC != 0
 
 
+# Discovery Log Page Entry subtypes, spelled the way libnvme spells them
+# (libnvmf_subtype_str()). They read as the spec describes them rather than as
+# the enum names suggest, which is the point: NVME_NQN_DISC is a referral to
+# *another* discovery service, while NVME_NQN_CURR is the entry describing the
+# controller that served the log page.
+SUBTYPE_REFERRAL = 'discovery subsystem referral'  # NVME_NQN_DISC
+SUBTYPE_IOC = 'nvme subsystem'  # NVME_NQN_NVME
+SUBTYPE_SELF = 'current discovery subsystem'  # NVME_NQN_CURR
+
+
+def get_epcsd(eflags: int):
+    """Return True if the Explicit Persistent Connection Support for Discovery
+    (EPCSD) bit is set in eflags."""
+    return eflags & nvme.NVMF_DISC_EFLAGS_EPCSD != 0
+
+
 def dlp_supp_opts_as_string(dlp_supp_opts: int):
     '''Return a list of human-readable option names supported by the
     Get Discovery Log Page command.'''
@@ -136,6 +152,12 @@ class Controller(stas.ControllerABC):
     def connected(self):
         '''Return True if a connection to the controller is currently established.'''
         return self._ctrl and self._ctrl.connected
+
+    def parked(self):
+        '''Return True if this controller is disconnected on purpose. Only a
+        discovery controller can be, so this is the answer for every other
+        kind.'''
+        return False
 
     def controller_id_dict(self) -> dict:
         '''Return the controller ID as a dict.'''
@@ -214,6 +236,11 @@ class Controller(stas.ControllerABC):
         self._ctrl = None
         self._device = None
         self._connect_attempts = 0
+        if self.parked():
+            # We disconnected this controller on purpose. The poll timer, not
+            # the retry timer, is what brings it back.
+            return
+
         # Reset the retry interval to fast since this is effectively a fresh start
         self._retry_connect_tmr.start(self.FAST_CONNECT_RETRY_PERIOD_SEC)
 
@@ -407,7 +434,6 @@ class Dc(Controller):
 
     GET_LOG_PAGE_RETRY_PERIOD_SEC = 20
     REGISTRATION_RETRY_PERIOD_SEC = 5
-    GET_SUPPORTED_RETRY_PERIOD_SEC = 5
 
     def __init__(self, staf, tid: trid.TID, log_pages=None, origin=None):
         super().__init__(tid, staf, discovery_ctrl=True)
@@ -425,6 +451,14 @@ class Dc(Controller):
         self._ctrl_unresponsive_time = None  # The time at which connectivity was lost
         self._ctrl_unresponsive_tmr = gutil.GTimer(0, self._serv.controller_unresponsive, self.tid)
 
+        # A DC that does not support persistent discovery connections is
+        # "parked": disconnected, but still tracked, with a timer to reconnect
+        # and re-read its log pages. There is nothing to hold open, and no AEN
+        # will arrive to tell us the log pages changed, so polling is the only
+        # way to notice.
+        self._parked = False
+        self._epcsd_poll_tmr = gutil.GTimer(0, self._on_epcsd_poll_expired)
+
     def _release_resources(self):
         logging.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
         super()._release_resources()
@@ -432,8 +466,12 @@ class Dc(Controller):
         if self._ctrl_unresponsive_tmr is not None:
             self._ctrl_unresponsive_tmr.kill()
 
+        if self._epcsd_poll_tmr is not None:
+            self._epcsd_poll_tmr.kill()
+
         self._log_pages = list()
         self._ctrl_unresponsive_tmr = None
+        self._epcsd_poll_tmr = None
 
     def _kill_ops(self):
         super()._kill_ops()
@@ -475,6 +513,10 @@ class Dc(Controller):
         '''Called when a SIGHUP/reload signal is received.'''
         logging.debug('Dc.reload_hdlr()                   - %s | %s', self.id, self.device)
 
+        # "persistent" may have changed. Re-decide now rather than waiting for
+        # the next log page retrieval, which for a connected and quiet
+        # controller may never come.
+        self._apply_persistence_policy()
         self._handle_lost_controller()
         self._resync_with_controller()
 
@@ -486,6 +528,9 @@ class Dc(Controller):
         )
         info = super().info()
         info['origin'] = self.origin
+        info['persistent'] = self.persistence_mode()
+        info['epcsd'] = str(self.epcsd())
+        info['parked'] = str(self._parked)
         if self.origin == 'discovered':
             # The code that handles "unresponsive" DCs only applies to
             # discovered DCs. So, let's only print that info when it's relevant.
@@ -516,16 +561,135 @@ class Dc(Controller):
 
     def referrals(self) -> list:
         '''Return the list of referral entries from the cached log pages.'''
-        return [page for page in self._log_pages if page['subtype'] == 'referral']
+        return [page for page in self._log_pages if page['subtype'] == SUBTYPE_REFERRAL]
+
+    # --------------------------------------------------------------------------
+    # Persistent discovery connections (EPCSD, TP8010)
+
+    def persistence_mode(self):
+        """Return "no", "auto" or "force" for this discovery controller.
+
+        The mode comes from the connectivity configuration: this DC's own
+        "persistent" key when it has one, else the defaults for discovery
+        controllers. Note the default differs from libnvme's, whose unset
+        value behaves as "no": stafd exists to hold discovery connections
+        open so that it is told when log pages change, so tearing them down
+        by default would defeat the daemon. nvme-discoverd makes the same
+        choice.
+        """
+        mode = self.tid.cfg.get('persistent', conf.ConnConf().defaults(True).get('persistent'))
+        return mode if mode in ('no', 'auto', 'force') else 'auto'
+
+    def _self_entry(self):
+        """Return this controller's own entry in its log pages, if it published
+        one. That entry describes the DC we are already connected to, which is
+        why it is exempt from the address filtering."""
+        for page in self._log_pages:
+            if page.get('subtype') == SUBTYPE_SELF:
+                return page
+
+        return None
+
+    def epcsd(self):
+        """Return True if this DC supports persistent discovery connections.
+
+        Its own entry decides. Failing that, what the DC that referred us to
+        it said about it - a referral entry carries the referred-to DC's
+        EPCSD. Failing both, assume it does not, which is what libnvme's
+        dc_decide() and nvme-discoverd both do.
+        """
+        self_entry = self._self_entry()
+        if self_entry is not None:
+            return get_epcsd(get_eflags(self_entry))
+
+        eflags = self._serv.referral_eflags(self.tid)
+        return get_epcsd(eflags) if eflags is not None else False
+
+    def _apply_persistence_policy(self):
+        """Decide whether to hold this DC's connection open, and park it if
+        not. Called after every log page retrieval, which is the only point
+        at which the answer can change."""
+        mode = self.persistence_mode()
+        if mode == 'force' or (mode == 'auto' and self.epcsd()):
+            self._unpark()
+        else:
+            self._park(mode)
+
+    def _park(self, mode):
+        """Disconnect, but keep tracking. The log pages stay cached - stacd is
+        still entitled to the controllers this DC reported - and a timer
+        brings us back to re-read them."""
+        if self._parked:
+            return
+
+        self._parked = True
+        interval = conf.SvcConf().epcsd_poll_interval_sec
+        logging.info(
+            '%s | %s - persistent=%s%s, disconnecting; re-checking in %s sec',
+            self.id,
+            self.device,
+            mode,
+            ' and EPCSD=0' if mode == 'auto' else '',
+            interval,
+        )
+        self._epcsd_poll_tmr.start(interval)
+        self.disconnect(self._on_parked, False)
+
+    def _on_parked(self, _controller, success):
+        """Disconnect completed. Nothing to do but say so: unlike every other
+        disconnect in the daemon, this one does not dispose of the object."""
+        logging.debug('Dc._on_parked()                    - %s | %s: success=%s', self.id, self.device, success)
+
+    def _unpark(self):
+        """This DC supports a persistent connection after all, so stop polling
+        and let the ordinary connect path hold it open."""
+        if not self._parked:
+            return
+
+        logging.info('%s | %s - persistent discovery connection supported, resuming', self.id, self.device)
+        self._parked = False
+        self._epcsd_poll_tmr.stop()
+
+    def _on_epcsd_poll_expired(self):
+        """Time to look again: reconnect and re-read the log pages, since a
+        parked DC cannot tell us they changed."""
+        logging.info('%s | %s - Poll interval expired, re-checking', self.id, self.device)
+        self._parked = False
+        if not self.connected():
+            self._connect_attempts = 0
+            self._try_to_connect_deferred.schedule()
+
+        return GLib.SOURCE_REMOVE
+
+    def parked(self):
+        """Return True if this DC is parked: deliberately disconnected because
+        it does not support a persistent discovery connection."""
+        return self._parked
+
+    # A Direct Discovery controller, as sysfs reports it. "ddc" is what a
+    # controller implementing TP8010 says; "none" is what everything older
+    # says, because DCTYPE was carved out of a previously unused field that
+    # defaults to 0 ("Discovery controller type is not reported"), so every
+    # DC predating the CDC reads as "none". A CDC is required to report
+    # "cdc", so excluding that one value happens to give the right answer
+    # today. Name the two we mean anyway: a third type of discovery
+    # controller would otherwise be taken for a DDC by a test that only ever
+    # knew how to rule out CDCs.
+    DDC_DCTYPES = ('none', 'ddc')
 
     def _is_ddc(self):
-        return self._ctrl and self._ctrl.dctype != 'cdc'
+        return self._ctrl is not None and self._ctrl.dctype in Dc.DDC_DCTYPES
 
     def _on_aen(self, aen: int):
         if aen == DLP_CHANGED and self._get_log_op:
             self._get_log_op.run_async()
 
     def _handle_lost_controller(self):
+        if self._parked:
+            # Disconnected because it does not support a persistent connection,
+            # not because we lost it.
+            return
+
         if self.origin == 'discovered':  # Only apply to mDNS-discovered DCs
             if not self._serv.is_avahi_reported(self.tid) and not self.connected():
                 timeout = conf.SvcConf().dc_giveup_timeout_sec
@@ -584,6 +748,12 @@ class Dc(Controller):
         return self._udev.find_nvme_dc_device(self.tid)
 
     def _post_registration_actions(self):
+        # PLEOS - whether this controller can return port-local entries only -
+        # is reported in the Supported Log Pages log page, so learning it costs
+        # a second Get Log Page. Only ask when the answer could change what we
+        # do: the spec says to ignore PLEOS on anything but a DDC, and only a
+        # DDC may support the feature, so a CDC is never worth asking; and if
+        # PLEO is disabled we would not set it whatever the answer.
         if conf.SvcConf().pleo_enabled and self._is_ddc():
             self._get_supported_op = gutil.AsyncTask(
                 self._on_get_supported_success, self._on_get_supported_fail, self._ctrl.get_supported_log_pages
@@ -706,21 +876,30 @@ class Dc(Controller):
             op_obj.kill()
             return
 
-        logging.debug(
-            'Dc._on_get_supported_fail()        - %s | %s: %s. Retry in %s sec',
+        # No retry. A controller that answers "unrecognized" will not start
+        # recognising it, and PLEOS is only ever consulted to decide whether
+        # to set PLEO. So assume PLEOS=0 - do not set PLEO - and go get the
+        # log pages, which is the point of all this. That is exactly what we
+        # would do for a DDC that answered and reported no PLEO support.
+        #
+        # Retrying instead used to mean never retrieving the log pages at
+        # all: stacd would learn of no I/O controllers, and the only clue was
+        # a single throttled error line.
+        #
+        # The cost is that a DDC which does support PLEO returns entries that
+        # may not be reachable through the port we asked on. Same as
+        # configuring pleo=disabled, so not a new exposure.
+        logging.error(
+            '%s | %s - Failed to Get supported log pages from Discovery Controller. %s. '
+            'Assuming PLEOS=0 and retrieving the discovery log page without PLEO.',
             self.id,
             self.device,
             err,
-            Dc.GET_SUPPORTED_RETRY_PERIOD_SEC,
         )
-        if fail_cnt == 1:  # Throttle the logs. Only print the first time the command fails
-            logging.error(
-                '%s | %s - Failed to Get supported log pages from Discovery Controller. %s',
-                self.id,
-                self.device,
-                err,
-            )
-        op_obj.retry(Dc.GET_SUPPORTED_RETRY_PERIOD_SEC)
+        op_obj.kill()
+        self._get_supported_op = None
+        self._get_log_op = gutil.AsyncTask(self._on_get_log_success, self._on_get_log_fail, self._ctrl.discover)
+        self._get_log_op.run_async()
 
     # --------------------------------------------------------------------------
     def _on_get_log_success(self, op_obj: gutil.AsyncTask, data):
@@ -734,12 +913,20 @@ class Dc(Controller):
         # Note that for historical reasons too long to explain, the CDC may
         # return invalid addresses ('0.0.0.0', '::', or ''). Those need to
         # be filtered out.
+        #
+        # The exception is this controller's own entry (NVME_NQN_CURR): it
+        # is not something to connect to, it describes the controller we are
+        # already talking to, and its EFLAGS carry that controller's EPCSD.
+        # An address we would never dial is no reason to discard it. Nothing
+        # connects it either way - referrals() takes only "referral" entries
+        # and stacd only "nvme" ones.
         referrals_before = self.referrals()
         self._log_pages = (
             [
                 {k.strip(): str(v).strip() for k, v in dictionary.items()}
                 for dictionary in data
-                if dictionary.get('traddr', '').strip() not in ('0.0.0.0', '::', '')
+                if dictionary.get('subtype') == SUBTYPE_SELF
+                or dictionary.get('traddr', '').strip() not in ('0.0.0.0', '::', '')
             ]
             if data
             else list()
@@ -748,6 +935,7 @@ class Dc(Controller):
             '%s | %s - Received discovery log pages (num records=%s).', self.id, self.device, len(self._log_pages)
         )
         referrals_after = self.referrals()
+        self._apply_persistence_policy()
         self._serv.log_pages_changed(self, self.device)
         if referrals_after != referrals_before:
             logging.debug(
