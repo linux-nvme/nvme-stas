@@ -481,6 +481,7 @@ class ConnConf(metaclass=singleton.Singleton):
         self._dc_defaults = dict()
         self._ioc_defaults = dict()
         self._host = dict()
+        self._loaded = False
         self.reload()
 
     @property
@@ -498,11 +499,13 @@ class ConnConf(metaclass=singleton.Singleton):
 
         A file that does not validate is rejected and the last known good
         configuration is left running: a fat-fingered edit must never tear down
-        working connections. An absent file is not an error - it simply
-        configures no controllers.
+        working connections. At startup there is no such configuration to keep,
+        and the daemon carries on with no controllers configured rather than
+        refusing to start - the file can be fixed and the daemon reloaded. An
+        absent file is not an error - it simply configures no controllers.
 
         Return True if the configuration was (re)loaded, False if the file was
-        rejected and the previous one kept.
+        rejected.
         '''
         ctx = libnvme_ctx()
         try:
@@ -511,15 +514,24 @@ class ConnConf(metaclass=singleton.Singleton):
             defaults = nvme.config_defaults(ctx, self._conf_file)
             host = nvme.config_host(ctx, self._conf_file)
         except (OSError, ValueError) as ex:
-            logging.error(
-                'File:%s - Invalid connectivity configuration, keeping the previous one: %s', self._conf_file, ex
-            )
+            if self._loaded:
+                logging.error(
+                    'File:%s - Invalid connectivity configuration, keeping the previous one: %s', self._conf_file, ex
+                )
+            else:
+                logging.error(
+                    'File:%s - Invalid connectivity configuration, no controllers will be configured '
+                    'until it is fixed and the configuration reloaded: %s',
+                    self._conf_file,
+                    ex,
+                )
             return False
 
         self._connections = connections
         self._dc_defaults = self._params(defaults.get('dc', {}))
         self._ioc_defaults = self._params(defaults.get('ioc', {}))
         self._host = host
+        self._loaded = True
         logging.debug('ConnConf.reload()                  - %s connection(s)', len(connections))
         return True
 

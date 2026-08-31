@@ -208,10 +208,29 @@ class Test(unittest.TestCase):
             '[Discovery Controller]\n'
             'controller = transport=tcp;traddr=9.9.9.9;trsvcid=8009\n' % HOSTNQN
         )
-        self.assertFalse(cnf.reload())
+        with self.assertLogs(level='ERROR') as logs:
+            self.assertFalse(cnf.reload())
+        self.assertIn('keeping the previous one', logs.output[0])
+
         dcs = cnf.get_controllers(True)
         self.assertEqual(len(dcs), 1)
         self.assertEqual(dcs[0]['traddr'], '1.1.1.1')  # the good one, still there
+
+    def test_a_rejected_file_at_startup_says_so(self):
+        '''There is no previous configuration to keep the first time round, so
+        the daemon starts with nothing configured and must not claim otherwise.'''
+        self._write(
+            '[Host]\nhostnqn = %s\n'
+            '[Host]\nhostnqn = nqn.2014-08.org.nvmexpress:uuid:aaaaaaaa-0000-0000-0000-000000000002\n' % HOSTNQN
+        )
+        conf.ConnConf.destroy()
+        with self.assertLogs(level='ERROR') as logs:
+            cnf = conf.ConnConf(conf_file=self.fname)
+
+        self.assertIn('no controllers will be configured', logs.output[0])
+        self.assertNotIn('keeping the previous one', logs.output[0])
+        self.assertEqual(cnf.get_controllers(True), [])
+        self.assertEqual(cnf.get_controllers(False), [])
 
 
 if __name__ == '__main__':
