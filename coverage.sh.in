@@ -287,7 +287,7 @@ reconnect-delay   = NaN
 
 [Discovery controller connection management]
 persistent-connections           = false
-zeroconf-connections-persistence = -1
+dc-giveup-timeout = infinity
 
 [Hello]
 hello = bye
@@ -404,7 +404,7 @@ tron = true
 
 [Discovery controller connection management]
 persistent-connections           = false
-zeroconf-connections-persistence = 0.5
+dc-giveup-timeout = 0.5
 
 [Service Discovery]
 zeroconf = enabled
@@ -443,7 +443,7 @@ pleo              = disabled
 
 [Discovery controller connection management]
 persistent-connections            = false
-zeroconf-connections-persistence  = 1:01
+dc-giveup-timeout  = 1:01
 
 [Controllers]
 exclude=transport=tcp;traddr=1.1.1.1
@@ -648,7 +648,7 @@ tron              = true
 
 [Discovery controller connection management]
 persistent-connections=false
-zeroconf-connections-persistence=0.5
+dc-giveup-timeout=0.5
 
 [Service Discovery]
 zeroconf=disabled
@@ -670,7 +670,7 @@ pleo=disabled
 
 [Discovery controller connection management]
 persistent-connections=false
-zeroconf-connections-persistence=0
+dc-giveup-timeout=0
 EOF
 log_file_contents 0 "${stafd_conf_fname}"
 printf "\n"

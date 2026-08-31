@@ -146,6 +146,24 @@ def _to_ncc(text):
     return value
 
 
+def _to_giveup_timeout(text):
+    """Convert a give-up timeout to a number of seconds.
+
+    "infinity" means never give up, and is carried as -1 because that is what
+    the rest of the code tests for. 0 means give up immediately. Anything
+    negative is rejected: "infinity" is how you spell forever.
+    """
+    value = _parse_single_val(text)
+    if value is not None and str(value).strip().lower() == 'infinity':
+        return -1
+
+    seconds = timeparse.timeparse(value)
+    if seconds is None or seconds < 0:
+        raise InvalidOption
+
+    return seconds
+
+
 def _to_ip_family(text):
     return tuple((4 if token == 'ipv4' else 6 for token in _parse_single_val(text).split('+')))
 
@@ -217,8 +235,8 @@ class SvcConf(metaclass=singleton.Singleton):
                 'default': True,
                 'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
             },
-            'zeroconf-connections-persistence': {
-                'convert': lambda text: timeparse.timeparse(_parse_single_val(text)),
+            'dc-giveup-timeout': {
+                'convert': _to_giveup_timeout,
                 'default': timeparse.timeparse('72hours'),
             },
         },
@@ -292,10 +310,8 @@ class SvcConf(metaclass=singleton.Singleton):
     ignore_iface = property(functools.partial(get_option, section='Global', option='ignore-iface'))
     pleo_enabled = property(functools.partial(get_option, section='Global', option='pleo'))
 
-    zeroconf_persistence_sec = property(
-        functools.partial(
-            get_option, section='Discovery controller connection management', option='zeroconf-connections-persistence'
-        )
+    dc_giveup_timeout_sec = property(
+        functools.partial(get_option, section='Discovery controller connection management', option='dc-giveup-timeout')
     )
 
     honor_fabric_zoning = property(

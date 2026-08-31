@@ -459,9 +459,7 @@ class Staf(Service):
         default_conf = {
             ('Global', 'tron'): False,
             ('Discovery controller connection management', 'persistent-connections'): True,
-            ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
-                '72hours'
-            ),
+            ('Discovery controller connection management', 'dc-giveup-timeout'): timeparse.timeparse('72hours'),
             ('Global', 'ignore-iface'): False,
             ('Global', 'ip-family'): (4, 6),
             ('Global', 'pleo'): True,

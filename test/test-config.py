@@ -156,6 +156,55 @@ class StasSysConfUnitTest(unittest.TestCase):
         self.assertEqual(system_conf.hostnqn, StasSysConfUnitTest.NQN)
 
 
+class TestDcGiveupTimeout(unittest.TestCase):
+    '''Unit tests for the dc-giveup-timeout encoding: "infinity" never gives
+    up, 0 gives up immediately, anything else is a time span.'''
+
+    SECTION = 'Discovery controller connection management'
+
+    def setUp(self):
+        fd, self.fname = tempfile.mkstemp(prefix='stas-giveup-', suffix='.conf')
+        os.close(fd)
+        self.addCleanup(os.remove, self.fname)
+        conf.SvcConf.destroy()
+        self.addCleanup(conf.SvcConf.destroy)
+
+    def _load(self, value):
+        with open(self.fname, 'w') as f:
+            f.write('[%s]\ndc-giveup-timeout=%s\n' % (TestDcGiveupTimeout.SECTION, value))
+        cnf = conf.SvcConf()
+        cnf.set_conf_file(self.fname)
+        return cnf
+
+    def test_infinity_never_gives_up(self):
+        # Carried as -1: that is what the code that arms the timer tests for.
+        self.assertEqual(self._load('infinity').dc_giveup_timeout_sec, -1)
+        self.assertEqual(self._load('INFINITY').dc_giveup_timeout_sec, -1)
+
+    def test_zero_gives_up_immediately(self):
+        self.assertEqual(self._load('0').dc_giveup_timeout_sec, 0)
+
+    def test_a_time_span_is_seconds(self):
+        self.assertEqual(self._load('72hours').dc_giveup_timeout_sec, 72 * 60 * 60)
+        self.assertEqual(self._load('3 days 5 hours').dc_giveup_timeout_sec, (3 * 24 + 5) * 60 * 60)
+
+    def test_a_unit_less_value_is_seconds_not_hours(self):
+        self.assertEqual(self._load('72').dc_giveup_timeout_sec, 72)
+
+    def test_a_negative_value_is_rejected(self):
+        '''"infinity" is how forever is spelled; -1 no longer means anything.'''
+        cnf = self._load('-1')
+        # The conversion is lazy: it happens when the property is read, not
+        # when the file is loaded, so the warning lands here.
+        with self.assertLogs(level='WARNING'):
+            self.assertEqual(cnf.dc_giveup_timeout_sec, 72 * 60 * 60)  # the default
+
+    def test_garbage_falls_back_to_the_default(self):
+        cnf = self._load('not-a-timespan')
+        with self.assertLogs(level='WARNING'):
+            self.assertEqual(cnf.dc_giveup_timeout_sec, 72 * 60 * 60)
+
+
 class TestParseController(unittest.TestCase):
     '''Unit tests for conf._parse_controller() — a pure function.'''
 

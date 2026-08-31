@@ -459,7 +459,7 @@ class Dc(Controller):
     @property
     def origin(self):
         '''Return how this controller was discovered: "discovered" (mDNS/TP8009),
-        "configured" (stafd.conf), or "referral".'''
+        "configured" (nvme-stas.conf), or "referral".'''
         return self._origin
 
     @origin.setter
@@ -480,7 +480,7 @@ class Dc(Controller):
 
     def info(self) -> dict:
         '''Return status info for this discovery controller.'''
-        timeout = conf.SvcConf().zeroconf_persistence_sec
+        timeout = conf.SvcConf().dc_giveup_timeout_sec
         unresponsive_time = (
             time.asctime(self._ctrl_unresponsive_time) if self._ctrl_unresponsive_time is not None else '---'
         )
@@ -528,7 +528,7 @@ class Dc(Controller):
     def _handle_lost_controller(self):
         if self.origin == 'discovered':  # Only apply to mDNS-discovered DCs
             if not self._serv.is_avahi_reported(self.tid) and not self.connected():
-                timeout = conf.SvcConf().zeroconf_persistence_sec
+                timeout = conf.SvcConf().dc_giveup_timeout_sec
                 if timeout >= 0:
                     if self._ctrl_unresponsive_time is None:
                         self._ctrl_unresponsive_time = time.localtime()

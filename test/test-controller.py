@@ -113,12 +113,12 @@ zeroconf=enabled
 
 [Discovery controller connection management]
 persistent-connections=true
-zeroconf-connections-persistence=10 seconds
+dc-giveup-timeout=10 seconds
 '''
 
 stafd_conf_2 = '''
 [Discovery controller connection management]
-zeroconf-connections-persistence=-1
+dc-giveup-timeout=infinity
 '''
 
 stafd_conf_3 = '''
@@ -158,9 +158,7 @@ class Test(TestCase):
         default_conf = {
             ('Global', 'tron'): False,
             ('Discovery controller connection management', 'persistent-connections'): True,
-            ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
-                '72hours'
-            ),
+            ('Discovery controller connection management', 'dc-giveup-timeout'): timeparse.timeparse('72hours'),
             ('Global', 'ignore-iface'): False,
             ('Global', 'ip-family'): (4, 6),
             ('Global', 'pleo'): True,
