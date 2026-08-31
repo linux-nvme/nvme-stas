@@ -135,7 +135,7 @@ $ stacctl ls
 [{'device': 'nvme1',
   'host-iface': '',
   'host-traddr': '',
-  'subsysnqn': 'klingons',
+  'subsysnqn': 'nqn.1988-11.com.dell:klingons',
   'traddr': '::1',
   'transport': 'tcp',
   'trsvcid': '8009'},
@@ -149,7 +149,7 @@ $ stacctl ls
  {'device': 'nvme3',
   'host-iface': '',
   'host-traddr': '',
-  'subsysnqn': 'starfleet',
+  'subsysnqn': 'nqn.1988-11.com.dell:starfleet',
   'traddr': '::1',
   'transport': 'tcp',
   'trsvcid': '8009'}]
@@ -163,7 +163,7 @@ You can use the `nvmet.py` script to simulate the removal of a subsystem, which 
 
 ```bash
 $ cd $STAS_DIR/utils/nvmet
-$ sudo ./nvmet.py unlink -p 1 -s klingons
+$ sudo ./nvmet.py unlink -p 1 -s nqn.1988-11.com.dell:klingons
 ```
 
 Observe what happens in the journal. `stafd` will receive the AEN and update the DLPEs by performing a Get Discovery Log Page command. And `stacd` will disconnect from the "`klingons`" subsystem (use `stacctl ls` to confirm).
@@ -171,10 +171,10 @@ Observe what happens in the journal. `stafd` will receive the AEN and update the
 Then, add the subsystem back as follows:
 
 ```bash
-$ sudo ./nvmet.py link -p 1 -s klingons
+$ sudo ./nvmet.py link -p 1 -s nqn.1988-11.com.dell:klingons
 ```
 
-**NOTE**: I know, "`klingons`" is not a valid NQN, but it sure is easier to remember and to type than a valid NQN. Fortunately, the `nvmet` driver doesn't care what the actual subsystem's NQN looks like. :smile:
+**NOTE**: The `nvmet` driver does not care what a subsystem's NQN looks like, and these used to be plain words - "`klingons`", "`starfleet`" - which were far easier to type. They are real NQNs now because the connectivity configuration is validated by libnvme, which rejects anything that is not one, and a subsystem that cannot be named there cannot be configured.
 
 ## Stopping nvmet
 
