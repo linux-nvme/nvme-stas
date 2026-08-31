@@ -27,11 +27,6 @@ _LIBNVME_CTX = None
 _EXCLUSION_KEYS = frozenset(('transport', 'traddr', 'trsvcid', 'nqn', 'host-traddr', 'host-iface', 'hostnqn', 'hostid'))
 
 
-# Options that used to live in stafd.conf/stacd.conf and now live in the
-# connectivity configuration. Reported by name rather than as "unknown".
-_MOVED_OPTIONS = {'controller': defs.NVME_STAS_CONF_FILE}
-
-
 class InvalidOption(Exception):
     '''Exception raised when an invalid option value is detected'''
 
@@ -193,9 +188,6 @@ class SvcConf(metaclass=singleton.Singleton):
                 'default': False,
                 'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
             },
-            'kato': {
-                'convert': _to_int,
-            },
             'pleo': {
                 'convert': functools.partial(_to_bool, positive='enabled'),
                 'default': True,
@@ -206,43 +198,10 @@ class SvcConf(metaclass=singleton.Singleton):
                 'default': (4, 6),
                 'txt-chk': lambda text: _parse_single_val(text) in ('ipv4', 'ipv6', 'ipv4+ipv6', 'ipv6+ipv4'),
             },
-            'queue-size': {
-                'convert': _to_int,
-                'rng-chk': lambda value: None if value in range(16, 1025) else range(16, 1025),
-            },
-            'hdr-digest': {
-                'convert': _to_bool,
-                'default': False,
-                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
-            'data-digest': {
-                'convert': _to_bool,
-                'default': False,
-                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
             'ignore-iface': {
                 'convert': _to_bool,
                 'default': False,
                 'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
-            'nr-io-queues': {
-                'convert': _to_int,
-            },
-            'ctrl-loss-tmo': {
-                'convert': _to_int,
-            },
-            'disable-sqflow': {
-                'convert': _to_bool,
-                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
-            },
-            'nr-poll-queues': {
-                'convert': _to_int,
-            },
-            'nr-write-queues': {
-                'convert': _to_int,
-            },
-            'reconnect-delay': {
-                'convert': _to_int,
             },
         },
         'Service Discovery': {
@@ -329,19 +288,9 @@ class SvcConf(metaclass=singleton.Singleton):
         return self._check(text, section, option, default)
 
     tron = property(functools.partial(get_option, section='Global', option='tron'))
-    kato = property(functools.partial(get_option, section='Global', option='kato'))
     ip_family = property(functools.partial(get_option, section='Global', option='ip-family'))
-    queue_size = property(functools.partial(get_option, section='Global', option='queue-size'))
-    hdr_digest = property(functools.partial(get_option, section='Global', option='hdr-digest'))
-    data_digest = property(functools.partial(get_option, section='Global', option='data-digest'))
     ignore_iface = property(functools.partial(get_option, section='Global', option='ignore-iface'))
     pleo_enabled = property(functools.partial(get_option, section='Global', option='pleo'))
-    nr_io_queues = property(functools.partial(get_option, section='Global', option='nr-io-queues'))
-    ctrl_loss_tmo = property(functools.partial(get_option, section='Global', option='ctrl-loss-tmo'))
-    disable_sqflow = property(functools.partial(get_option, section='Global', option='disable-sqflow'))
-    nr_poll_queues = property(functools.partial(get_option, section='Global', option='nr-poll-queues'))
-    nr_write_queues = property(functools.partial(get_option, section='Global', option='nr-write-queues'))
-    reconnect_delay = property(functools.partial(get_option, section='Global', option='reconnect-delay'))
 
     zeroconf_persistence_sec = property(
         functools.partial(
@@ -506,18 +455,6 @@ class SvcConf(metaclass=singleton.Singleton):
                         if option not in self._valid_conf.get(section, []):
                             invalid_options.add(option)
 
-                    # An option that moved to the connectivity configuration
-                    # deserves better than "unknown option".
-                    for option in sorted(invalid_options & _MOVED_OPTIONS.keys()):
-                        logging.error(
-                            'File:%s [%s]: "%s" has moved to %s',
-                            self.conf_file,
-                            section,
-                            option,
-                            _MOVED_OPTIONS[option],
-                        )
-                    invalid_options -= _MOVED_OPTIONS.keys()
-
                     if len(invalid_options) != 0:
                         logging.error(
                             'File:%s [%s] contains invalid options: %s',
@@ -555,16 +492,12 @@ class ConnConf(metaclass=singleton.Singleton):
     several entries, one per path.
     '''
 
-    # libnvme names the connection parameters the way "nvme connect" does. Ours
-    # agree except for the keep-alive timeout, where we kept the kernel's name.
-    _ALIASES = {'keep-alive-tmo': 'kato'}
-
     # Parameters we hand to the kernel as-is. Everything else libnvme resolves
     # is carried through untouched for whoever knows what to do with it (the
     # credentials, for instance, which ctrl.py reads straight from the TID).
     _NUMERIC = frozenset(
         (
-            'kato',
+            'keep-alive-tmo',
             'tos',
             'queue-size',
             'nr-io-queues',
@@ -580,6 +513,9 @@ class ConnConf(metaclass=singleton.Singleton):
     def __init__(self, conf_file=defs.NVME_STAS_CONF_FILE):
         self._conf_file = conf_file
         self._connections = list()
+        self._dc_defaults = dict()
+        self._ioc_defaults = dict()
+        self._host = dict()
         self.reload()
 
     @property
@@ -607,6 +543,8 @@ class ConnConf(metaclass=singleton.Singleton):
         try:
             nvme.config_validate(ctx, self._conf_file)
             connections = nvme.config_read(ctx, self._conf_file)
+            defaults = nvme.config_defaults(ctx, self._conf_file)
+            host = nvme.config_host(ctx, self._conf_file)
         except (OSError, ValueError) as ex:
             logging.error(
                 'File:%s - Invalid connectivity configuration, keeping the previous one: %s', self._conf_file, ex
@@ -614,6 +552,9 @@ class ConnConf(metaclass=singleton.Singleton):
             return False
 
         self._connections = connections
+        self._dc_defaults = self._params(defaults.get('dc', {}))
+        self._ioc_defaults = self._params(defaults.get('ioc', {}))
+        self._host = host
         logging.debug('ConnConf.reload()                  - %s connection(s)', len(connections))
         return True
 
@@ -625,6 +566,31 @@ class ConnConf(metaclass=singleton.Singleton):
         when False. One file serves both daemons.
         '''
         return [self._to_cid(conn) for conn in self._connections if conn.get('is_dc', False) == discovery]
+
+    def defaults(self, discovery: bool):
+        '''Return the default connection parameters for a controller we
+        discovered, which is in no file and so has no parameters of its own.
+
+        These are the top-level file's defaults for the controller's class. A
+        drop-in's are deliberately out of reach: a controller found over mDNS,
+        or in a discovery log page, cannot be attributed to one.
+        '''
+        return self._dc_defaults if discovery else self._ioc_defaults
+
+    hostnqn = property(lambda self: self._host.get('hostnqn'))
+    hostid = property(lambda self: self._host.get('hostid'))
+    hostsymname = property(lambda self: self._host.get('hostsymname'))
+
+    def _params(self, params: dict):
+        '''Convert libnvme's parameters to the types the kernel expects,
+        dropping anything we cannot represent.'''
+        out = dict()
+        for option, text in params.items():
+            value = self._value(option, text)
+            if value is not None:
+                out[option] = value
+
+        return out
 
     def _to_cid(self, conn: dict):
         '''Translate one libnvme connection into a controller-identifier dict.'''
@@ -645,11 +611,7 @@ class ConnConf(metaclass=singleton.Singleton):
             if conn.get(key):
                 cid[key] = conn[key]
 
-        for key, text in conn.get('params', {}).items():
-            option = self._ALIASES.get(key, key)
-            value = self._value(option, text)
-            if value is not None:
-                cid[option] = value
+        cid.update(self._params(conn.get('params', {})))
 
         return cid
 
@@ -666,7 +628,7 @@ class ConnConf(metaclass=singleton.Singleton):
 
         if option in self._NUMERIC:
             try:
-                return timeparse.timeparse(text) if option == 'kato' else int(text)
+                return int(text)
             except (ValueError, TypeError):
                 logging.warning(
                     'File:%s: %s - invalid value "%s", the kernel default will be used',

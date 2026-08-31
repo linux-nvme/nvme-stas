@@ -17,10 +17,14 @@ from libnvme3 import nvme
 from staslib import conf, defs, gutil, trid, udev, stas
 
 
-# Connection parameters that also exist in the [Global] section of
-# stafd.conf/stacd.conf, as (connectivity-config name, kernel name).
-_GLOBAL_PARAMS = (
-    ('kato', 'keep_alive_tmo'),
+# Connection parameters, as (connectivity-configuration name, kernel name).
+_CONN_PARAMS = (
+    ('keep-alive-tmo', 'keep_alive_tmo'),
+    ('tos', 'tos'),
+    ('tls', 'tls'),
+    ('concat', 'concat'),
+    ('keyring', 'keyring'),
+    ('tls-key', 'tls_key'),
     ('queue-size', 'queue_size'),
     ('hdr-digest', 'hdr_digest'),
     ('data-digest', 'data_digest'),
@@ -30,15 +34,6 @@ _GLOBAL_PARAMS = (
     ('nr-poll-queues', 'nr_poll_queues'),
     ('nr-write-queues', 'nr_write_queues'),
     ('reconnect-delay', 'reconnect_delay'),
-)
-
-# Parameters the connectivity configuration can express and [Global] cannot.
-_CONN_PARAMS = (
-    ('tos', 'tos'),
-    ('tls', 'tls'),
-    ('concat', 'concat'),
-    ('keyring', 'keyring'),
-    ('tls-key', 'tls_key'),
     ('tls-key-identity', 'tls_key_identity'),
     ('fast-io-fail-tmo', 'fast_io_fail_tmo'),
 )
@@ -239,23 +234,14 @@ class Controller(stas.ControllerABC):
         if self.tid.host_iface and not service_conf.ignore_iface and self._nvme_options.host_iface_supp:
             cfg['host_iface'] = self.tid.host_iface
 
-        for option, keyword in _GLOBAL_PARAMS:
-            # A value from the connectivity configuration wins; [Global] is the
-            # default for the controllers we discover, which are in no file.
-            ovrd_val = self.tid.cfg.get(option, None)
-            if ovrd_val is not None:
-                cfg[keyword] = ovrd_val
-            else:
-                glob_val = service_conf.get_option('Global', option)
-                if glob_val is not None:
-                    cfg[keyword] = glob_val
-
+        # A configured controller arrives with its parameters already resolved
+        # by libnvme. One we discovered is in no file, so it draws the defaults
+        # for its class.
+        defaults = conf.ConnConf().defaults(self._discovery_ctrl)
         for option, keyword in _CONN_PARAMS:
-            # Parameters only the connectivity configuration can express: they
-            # have no [Global] equivalent to fall back to.
-            val = self.tid.cfg.get(option, None)
-            if val is not None:
-                cfg[keyword] = val
+            value = self.tid.cfg.get(option, defaults.get(option))
+            if value is not None:
+                cfg[keyword] = value
 
         return cfg
 

@@ -152,7 +152,7 @@
 
                     <row>
                         <entry><programlisting>$ systemctl reload &daemon; </programlisting></entry>
-                        <entry>Reload configuration. This is done in real time without restarting the daemon. The <code>SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code>kato</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</entry>
+                        <entry>Reload configuration. This is done in real time without restarting the daemon. The <code>SIGHUP</code> signal is used to tell the daemon to reload its configuration file. Note that configuration parameters that affect connections (e.g. <code>keep-alive-tmo</code>), will not apply to existing connections. Only connections established after the configuration was changed will utilize the new configuration parameters.</entry>
                     </row>
                 </tbody>
             </tgroup>

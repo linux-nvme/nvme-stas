@@ -85,8 +85,16 @@
         <para>
             Drop-ins are read from
             <filename>/etc/nvme/nvme-stas.conf.d/*.conf</filename>, one host
-            persona per file. A documented example is installed as
-            <filename>/etc/nvme/nvme-stas.conf.doc</filename>.
+            persona per file.
+        </para>
+
+        <para>
+            The installed file is commented throughout except for the
+            Discovery Controller keep-alive timeout. The kernel applies its 30
+            second discovery default only when it recognises the well-known
+            discovery NQN, so a Discovery Controller with its own unique NQN
+            would otherwise get the 5 second I/O default; setting it
+            explicitly gives every Discovery Controller the same keep-alive.
         </para>
     </refsect1>
 

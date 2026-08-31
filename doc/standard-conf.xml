@@ -23,50 +23,6 @@
             </listitem>
         </varlistentry>
 
-        <varlistentry id='hdr-digest'>
-            <term><varname>hdr-digest=</varname></term>
-
-            <listitem id='hdr-digest-text'>
-                <para>
-                    Enable Protocol Data Unit (PDU) Header Digest. Takes a
-                    boolean argument. NVMe/TCP facilitates an optional PDU
-                    Header digest. Digests are calculated using the CRC32C
-                    algorithm. If <parameter>true</parameter>, Header Digests
-                    are inserted in PDUs and checked for errors. Defaults to
-                    <parameter>false</parameter>.
-                </para>
-            </listitem>
-        </varlistentry>
-
-        <varlistentry id='data-digest'>
-            <term><varname>data-digest=</varname></term>
-
-            <listitem id='data-digest-text'>
-                <para>
-                    Enable Protocol Data Unit (PDU) Data Digest. Takes a
-                    boolean argument. NVMe/TCP facilitates an optional PDU
-                    Data digest. Digests are calculated using the CRC32C
-                    algorithm. If <parameter>true</parameter>, Data Digests
-                    are inserted in PDUs and checked for errors. Defaults to
-                    <parameter>false</parameter>.
-                </para>
-            </listitem>
-        </varlistentry>
-
-        <varlistentry id='kato'>
-            <term><varname>kato=</varname></term>
-
-            <listitem id='kato-text'>
-                <para>
-                    Keep Alive Timeout (KATO) in seconds. Takes an unsigned
-                    integer. This field specifies the timeout value for the Keep
-                    Alive feature in seconds. Defaults to 30 seconds for
-                    Discovery Controller connections and 120 seconds for I/O
-                    Controller connections.
-                </para>
-            </listitem>
-        </varlistentry>
-
         <varlistentry id='ip-family'>
             <term><varname>ip-family=</varname></term>
 
@@ -91,88 +47,6 @@
             </listitem>
         </varlistentry>
 
-        <varlistentry id='queue-size'>
-            <term><varname>queue-size=</varname></term>
-
-            <listitem id='queue-size-text'>
-                <para>
-                    Takes a value in the range 16...1024.
-                </para>
-
-                <para>
-                    Overrides the default number of elements in the I/O queues
-                    created by the driver. This option will be ignored for
-                    discovery, but will be passed on to the subsequent connect
-                    call.
-                </para>
-
-                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-
-                <para>
-                    Defaults to <parameter>128</parameter>.
-                </para>
-            </listitem>
-        </varlistentry>
-
-        <varlistentry id='reconnect-delay'>
-            <term><varname>reconnect-delay=</varname></term>
-
-            <listitem id='reconnect-delay-text'>
-                <para>
-                    Takes a value in the range 1 to N seconds.
-                </para>
-
-                <para>
-                    Overrides the default delay before reconnect is attempted
-                    after a connect loss.
-                </para>
-
-                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-
-                <para>
-                    Defaults to <parameter>10</parameter>. Retry to connect every 10 seconds.
-                </para>
-            </listitem>
-        </varlistentry>
-
-        <varlistentry id='ctrl-loss-tmo'>
-            <term><varname>ctrl-loss-tmo=</varname></term>
-
-            <listitem id='ctrl-loss-tmo-text'>
-                <para>
-                    Takes a value in the range -1, 0, ..., N seconds. -1 means
-                    retry forever. 0 means do not retry.
-                </para>
-
-                <para>
-                    Overrides the default controller loss timeout period (in seconds).
-                </para>
-
-                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-
-                <para>
-                    Defaults to <parameter>600</parameter> seconds (10 minutes).
-                </para>
-            </listitem>
-        </varlistentry>
-
-        <varlistentry id='disable-sqflow'>
-            <term><varname>disable-sqflow=</varname></term>
-
-            <listitem id='disable-sqflow-text'>
-                <para>
-                    Takes a boolean argument. Disables SQ flow control to omit
-                    head doorbell update for submission queues when sending nvme
-                    completions.
-                </para>
-
-                <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-
-                <para>
-                    Defaults to <parameter>false</parameter>.
-                </para>
-            </listitem>
-        </varlistentry>
     </variablelist>
 
     <refsect2 id='controller'>
@@ -180,21 +54,6 @@
 
         <para>The following options are available in the
             <literal>[Controllers]</literal> section:</para>
-
-        <para>
-            Controllers are no longer configured here. Which controllers to
-            connect to, and with what parameters, is the
-            <emphasis>connectivity configuration</emphasis>,
-            <filename>/etc/nvme/nvme-stas.conf</filename>. See
-            <citerefentry><refentrytitle>nvme-stas.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
-        </para>
-
-        <para>
-            A <varname>controller=</varname> entry left in this file is
-            reported at start-up, naming the file it moved to, and is
-            otherwise ignored.
-        </para>
-
 
         <varlistentry>
             <term><varname>exclude=</varname></term>

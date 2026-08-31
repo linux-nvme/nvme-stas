@@ -215,19 +215,8 @@ class Stac(Service):
     def __init__(self, args, dbus):
         default_conf = {
             ('Global', 'tron'): False,
-            ('Global', 'hdr-digest'): False,
-            ('Global', 'data-digest'): False,
-            ('Global', 'kato'): None,  # None to let the driver decide the default
-            ('Global', 'nr-io-queues'): None,  # None to let the driver decide the default
-            ('Global', 'nr-write-queues'): None,  # None to let the driver decide the default
-            ('Global', 'nr-poll-queues'): None,  # None to let the driver decide the default
-            ('Global', 'queue-size'): None,  # None to let the driver decide the default
-            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
-            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Global', 'ignore-iface'): False,
             ('Global', 'ip-family'): (4, 6),
-            ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'honor-fabric-zoning'): True,
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
@@ -289,7 +278,7 @@ class Stac(Service):
         sd_notify('RELOADING=1')
         service_cnf = conf.SvcConf()
         service_cnf.reload()
-        conf.ConnConf().reload()
+        self._conn_conf.reload()
         self.tron = service_cnf.tron
         self._cfg_soak_tmr.start(self.CONF_STABILITY_SOAK_TIME_SEC)
 
@@ -469,13 +458,6 @@ class Staf(Service):
     def __init__(self, args, dbus):
         default_conf = {
             ('Global', 'tron'): False,
-            ('Global', 'hdr-digest'): False,
-            ('Global', 'data-digest'): False,
-            ('Global', 'kato'): 30,
-            ('Global', 'queue-size'): None,  # None to let the driver decide the default
-            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
-            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Discovery controller connection management', 'persistent-connections'): True,
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
                 '72hours'
@@ -484,7 +466,6 @@ class Staf(Service):
             ('Global', 'ip-family'): (4, 6),
             ('Global', 'pleo'): True,
             ('Service Discovery', 'zeroconf'): True,
-            ('Controllers', 'controller'): list(),
             ('Controllers', 'exclude'): list(),
         }
 
@@ -549,7 +530,7 @@ class Staf(Service):
         sd_notify('RELOADING=1')
         service_cnf = conf.SvcConf()
         service_cnf.reload()
-        conf.ConnConf().reload()
+        self._conn_conf.reload()
         self.tron = service_cnf.tron
         self._avahi.kick_start()  # Make sure Avahi is running
         self._avahi.config_stypes(service_cnf.stypes)

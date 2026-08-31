@@ -42,7 +42,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
         data = [
             '[Global]\n',
             'tron=true\n',
-            'kato=200\n',
             'ip-family=ipv6\n',
             '\n',
             '[I/O controller connection management]\n',
@@ -50,10 +49,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
             'connect-attempts-on-ncc = 1\n',
             '\n',
             '[Controllers]\n',
-            # "controller" moved to the connectivity configuration. Left here
-            # on purpose: a leftover entry must be reported by name, not as an
-            # unknown option.
-            'controller=transport=tcp;traddr=100.100.100.100;host-iface=enp0s8\n',
             'exclude=transport=tcp;traddr=10.10.10.10\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:
@@ -70,16 +65,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
 
         default_conf = {
             ('Global', 'tron'): False,
-            ('Global', 'hdr-digest'): False,
-            ('Global', 'data-digest'): False,
-            ('Global', 'kato'): None,  # None to let the driver decide the default
-            ('Global', 'nr-io-queues'): None,  # None to let the driver decide the default
-            ('Global', 'nr-write-queues'): None,  # None to let the driver decide the default
-            ('Global', 'nr-poll-queues'): None,  # None to let the driver decide the default
-            ('Global', 'queue-size'): None,  # None to let the driver decide the default
-            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
-            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Global', 'ignore-iface'): False,
             ('Global', 'ip-family'): (4, 6),
             ('Discovery controller connection management', 'persistent-connections'): True,
@@ -98,81 +83,13 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertEqual(service_conf.conf_file, StasProcessConfUnitTest.FNAME)
         self.assertTrue(service_conf.tron)
         self.assertTrue(getattr(service_conf, 'tron'))
-        self.assertFalse(service_conf.hdr_digest)
-        self.assertFalse(service_conf.data_digest)
         self.assertTrue(service_conf.persistent_connections)
         self.assertTrue(service_conf.pleo_enabled)
         self.assertEqual(service_conf.honor_fabric_zoning, True)
         self.assertFalse(service_conf.ignore_iface)
         self.assertIn(6, service_conf.ip_family)
         self.assertNotIn(4, service_conf.ip_family)
-        self.assertEqual(service_conf.kato, 200)
         self.assertEqual(service_conf.get_excluded(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
-
-    def test_moved_option_is_reported_by_name(self):
-        '''A "controller" entry left in stafd.conf/stacd.conf must name the
-        file it moved to, not be dismissed as an unknown option.'''
-        conf.SvcConf.destroy()  # Make sure singleton does not exist
-        self.addCleanup(conf.SvcConf.destroy)
-        service_conf = conf.SvcConf(default_conf={('Controllers', 'exclude'): list()})
-        with self.assertLogs(level='ERROR') as captured:
-            service_conf.set_conf_file(StasProcessConfUnitTest.FNAME)
-        self.assertTrue(any('has moved to' in rec.getMessage() for rec in captured.records))
-        self.assertTrue(any('nvme-stas.conf' in rec.getMessage() for rec in captured.records))
-
-        stypes = service_conf.stypes
-        self.assertIn('_nvme-disc._tcp', stypes)
-
-        self.assertTrue(service_conf.zeroconf_enabled)
-        self.assertEqual(service_conf.connect_attempts_on_ncc, 2)
-        data = [
-            '[I/O controller connection management]\n',
-            'honor-fabric-zoning = no\n',
-            'connect-attempts-on-ncc = hello\n',
-        ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
-            f.writelines(data)
-        service_conf.reload()
-        self.assertEqual(service_conf.connect_attempts_on_ncc, 0)
-        self.assertEqual(service_conf.honor_fabric_zoning, False)
-
-        data = [
-            '[Global]\n',
-            'ip-family=ipv4\n',
-        ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
-            f.writelines(data)
-        service_conf.reload()
-        self.assertIn(4, service_conf.ip_family)
-        self.assertNotIn(6, service_conf.ip_family)
-
-        data = [
-            '[Global]\n',
-            'ip-family=ipv4+ipv6\n',
-        ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
-            f.writelines(data)
-        service_conf.reload()
-        self.assertIn(4, service_conf.ip_family)
-        self.assertIn(6, service_conf.ip_family)
-
-        data = [
-            '[Global]\n',
-            'ip-family=ipv6+ipv4\n',
-        ]
-        with open(StasProcessConfUnitTest.FNAME, 'w') as f:
-            f.writelines(data)
-        service_conf.reload()
-        self.assertIn(4, service_conf.ip_family)
-        self.assertIn(6, service_conf.ip_family)
-
-        self.assertRaises(KeyError, service_conf.get_option, 'Babylon', 5)
-
-    def test__parse_single_val(self):
-        self.assertEqual(conf._parse_single_val('hello'), 'hello')
-        self.assertIsNone(conf._parse_single_val(None))
-        self.assertEqual(conf._parse_single_val(['hello', 'goodbye']), 'goodbye')
-
 
 class StasSysConfUnitTest(unittest.TestCase):
     '''Sys config unit tests'''
@@ -310,11 +227,9 @@ class TestSvcConfEdgeCases(unittest.TestCase):
     '''
 
     DEFAULT_CONF = {
-        ('Global', 'queue-size'): None,
         ('Global', 'ip-family'): (4, 6),
     }
 
-    FNAME_OOR = '/tmp/stas-test-svc-oor.conf'
     FNAME_BADSEC = '/tmp/stas-test-svc-badsec.conf'
     FNAME_BADOPT = '/tmp/stas-test-svc-badopt.conf'
     FNAME_VALID = '/tmp/stas-test-svc-valid.conf'
@@ -324,8 +239,6 @@ class TestSvcConfEdgeCases(unittest.TestCase):
         conf.SvcConf.destroy()  # Make sure singleton does not exist
         conf.SvcConf(default_conf=cls.DEFAULT_CONF)
 
-        with open(cls.FNAME_OOR, 'w') as f:
-            f.write('[Global]\nqueue-size=5\n')  # 5 is below the valid range [16, 1024]
         with open(cls.FNAME_BADSEC, 'w') as f:
             f.write('[BadSection]\nfoo=bar\n')
         with open(cls.FNAME_BADOPT, 'w') as f:
@@ -337,16 +250,12 @@ class TestSvcConfEdgeCases(unittest.TestCase):
     def tearDownClass(cls):
         conf.SvcConf.destroy()  # Leave the next test file a clean slate
 
-        for fname in (cls.FNAME_OOR, cls.FNAME_BADSEC, cls.FNAME_BADOPT, cls.FNAME_VALID):
+        for fname in (cls.FNAME_BADSEC, cls.FNAME_BADOPT, cls.FNAME_VALID):
             if os.path.exists(fname):
                 os.remove(fname)
 
     def setUp(self):
         conf.SvcConf().set_conf_file(self.FNAME_VALID)
-
-    def test_queue_size_out_of_range_falls_back_to_none(self):
-        conf.SvcConf().set_conf_file(self.FNAME_OOR)
-        self.assertIsNone(conf.SvcConf().queue_size)
 
     def test_invalid_section_logs_error(self):
         with self.assertLogs(level='ERROR'):

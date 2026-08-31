@@ -122,7 +122,7 @@ class Test(unittest.TestCase):
             'controller    = transport=tcp;traddr=2.2.2.2;trsvcid=4420\n'
         )
         dc = cnf.get_controllers(True)[0]
-        self.assertEqual(dc['kato'], 30)  # keep-alive-tmo is spelled kato here
+        self.assertEqual(dc['keep-alive-tmo'], 30)
         self.assertEqual(dc['ctrl-loss-tmo'], 600)
         self.assertNotIn('nr-io-queues', dc)  # an I/O default, not a DC one
 
@@ -158,6 +158,39 @@ class Test(unittest.TestCase):
             'controller = transport=tcp;traddr=2.2.2.2;trsvcid=4420\n'
         )
         self.assertNotIn('ctrl-loss-tmo', cnf.get_controllers(False)[0])
+
+    def test_defaults_are_exposed_by_controller_class(self):
+        '''What a controller we discovered draws on: it is in no file, so it
+        gets the top-level defaults for its class.'''
+        cnf = self._load(
+            '[Discovery Controller Defaults]\n'
+            'keep-alive-tmo = 30\n'
+            '\n'
+            '[I/O Controller Defaults]\n'
+            'ctrl-loss-tmo = 900\n'
+        )
+        self.assertEqual(cnf.defaults(True), {'keep-alive-tmo': 30})
+        self.assertEqual(cnf.defaults(False), {'ctrl-loss-tmo': 900})
+
+    def test_host_identity_without_connections(self):
+        '''A [Host] and nothing else still names the persona - the case of a
+        host that connects only what it discovers.'''
+        cnf = self._load(
+            '[Host]\n'
+            'hostnqn     = %s\n'
+            'hostid      = %s\n'
+            'hostsymname = solo\n' % (HOSTNQN, HOSTID)
+        )
+        self.assertEqual(cnf.get_controllers(True), [])
+        self.assertEqual(cnf.hostnqn, HOSTNQN)
+        self.assertEqual(cnf.hostid, HOSTID)
+        self.assertEqual(cnf.hostsymname, 'solo')
+
+    def test_no_host_section(self):
+        cnf = self._load('[Discovery Controller]\ncontroller = transport=tcp;traddr=1.1.1.1\n')
+        self.assertIsNone(cnf.hostnqn)
+        self.assertIsNone(cnf.hostid)
+        self.assertIsNone(cnf.hostsymname)
 
     def test_a_rejected_file_keeps_the_previous_configuration(self):
         '''A fat-fingered edit must never tear down working connections.'''

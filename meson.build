@@ -182,9 +182,8 @@ install_subdir(
     install_dir: etcdir,
 )
 
-# The connectivity configuration is documentation only: nvme-stas configures no
-# controllers when /etc/nvme/nvme-stas.conf is absent, and installing a live
-# file would overwrite the administrator's on every upgrade.
+# The connectivity configuration. Packaged %config(noreplace), like
+# stafd.conf and stacd.conf, so an upgrade never overwrites an edited one.
 install_subdir(
     'etc/nvme',
     install_dir: etcdir,

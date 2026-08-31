@@ -104,13 +104,6 @@ class TestIoc(ctrl.Ioc):
 stafd_conf_1 = '''
 [Global]
 tron=false
-hdr-digest=false
-data-digest=false
-kato=30
-queue-size=128
-reconnect-delay=10
-ctrl-loss-tmo=600
-disable-sqflow=false
 ignore-iface=false
 ip-family=ipv4+ipv6
 pleo=enabled
@@ -164,13 +157,6 @@ class Test(TestCase):
 
         default_conf = {
             ('Global', 'tron'): False,
-            ('Global', 'hdr-digest'): False,
-            ('Global', 'data-digest'): False,
-            ('Global', 'kato'): None,  # None to let the driver decide the default
-            ('Global', 'queue-size'): None,  # None to let the driver decide the default
-            ('Global', 'reconnect-delay'): None,  # None to let the driver decide the default
-            ('Global', 'ctrl-loss-tmo'): None,  # None to let the driver decide the default
-            ('Global', 'disable-sqflow'): None,  # None to let the driver decide the default
             ('Discovery controller connection management', 'persistent-connections'): True,
             ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
                 '72hours'
@@ -344,10 +330,11 @@ class Test(TestCase):
             controller._try_to_connect()
         self.assertTrue(len(captured.records) > 0)
         self.assertTrue(
-            captured.records[0]
-            .getMessage()
-            .startswith(
-                "Controller._do_connect()           - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={"
+            any(
+                record.getMessage().startswith(
+                    "Controller._do_connect()           - (tcp, 10.10.10.10, 8009, nqn.1988-11.com.dell:SFSS:2:20220208134025e8, wlp0s20f3, 1.2.3.4) Connecting to nvme control with cfg={"
+                )
+                for record in captured.records
             )
         )
         self.assertEqual(controller._connect_attempts, 1)

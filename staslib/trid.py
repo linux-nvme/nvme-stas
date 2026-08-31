@@ -46,7 +46,7 @@ class TID:
             'nr-write-queues':    str, # [optional]
             'nr-poll-queues':     str, # [optional]
             'queue-size':         str, # [optional]
-            'kato':               str, # [optional]
+            'keep-alive-tmo':     str, # [optional]
             'reconnect-delay':    str, # [optional]
             'ctrl-loss-tmo':      str, # [optional]
             'disable-sqflow':     str, # [optional]

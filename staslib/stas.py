@@ -477,6 +477,10 @@ class ServiceABC(abc.ABC):
     def __init__(self, args, default_conf, reload_hdlr):
         service_conf = conf.SvcConf(default_conf=default_conf)
         service_conf.set_conf_file(args.conf_file)  # reload configuration
+        # Read the connectivity configuration now, at startup, so that a
+        # malformed file is reported here instead of at the first connection
+        # attempt, where it would be lost among the connection logging.
+        self._conn_conf = conf.ConnConf()
         self._tron = args.tron or service_conf.tron
         log.set_level_from_tron(self._tron)
 
@@ -693,7 +697,7 @@ class ServiceABC(abc.ABC):
         # Note that the NBFT is deliberately not consulted here. Controllers
         # described by it were connected by the initramfs and are not ours to
         # manage; protected() keeps us from disconnecting them.
-        configured_controllers = [trid.TID(cid) for cid in conf.ConnConf().get_controllers(self.CONFIGURES_DCS)]
+        configured_controllers = [trid.TID(cid) for cid in self._conn_conf.get_controllers(self.CONFIGURES_DCS)]
         configured_controllers = remove_excluded(configured_controllers)
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
