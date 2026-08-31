@@ -393,41 +393,6 @@ class SvcConf(metaclass=singleton.Singleton):
             )
             return self._defaults.get((section, option), default)
 
-        value_in_range = checker.get('rng-chk', None)
-        if value_in_range is not None:
-            expected_range = value_in_range(value)
-            if expected_range is not None:
-                logging.warning(
-                    'File:%s [%s]: %s - "%s" is not within range %s..%s. Default will be used',
-                    self.conf_file,
-                    section,
-                    option,
-                    value,
-                    min(expected_range),
-                    max(expected_range),
-                )
-                return self._defaults.get((section, option), default)
-
-        list_checker = checker.get('lst-chk', None)
-        if list_checker:
-            values = set()
-            for item in value:
-                if item not in list_checker:
-                    logging.warning(
-                        'File:%s [%s]: %s - List checker found invalid item "%s" will be ignored.',
-                        self.conf_file,
-                        section,
-                        option,
-                        item,
-                    )
-                else:
-                    values.add(item)
-
-            if len(values) == 0:
-                return self._defaults.get((section, option), default)
-
-            value = list(values)
-
         return value
 
     def _read_conf_file(self):
