@@ -189,6 +189,20 @@ class TestDcGiveupTimeout(unittest.TestCase):
     def test_a_unit_less_value_is_seconds_not_hours(self):
         self.assertEqual(self._load('72').dc_giveup_timeout_sec, 72)
 
+    def test_a_span_means_what_it_means_to_systemd(self):
+        '''nvme-discoverd takes the same key and parses it with a copy of
+        systemd's parse_time(), so a span a user writes once must be read the
+        same way by both daemons. These four are where the module that used to
+        do this parsing (pytimeparse) disagreed with systemd.'''
+        self.assertEqual(self._load('500ms').dc_giveup_timeout_sec, 0.5)
+        self.assertEqual(self._load('1week').dc_giveup_timeout_sec, 7 * 24 * 60 * 60)
+        self.assertEqual(self._load('1y').dc_giveup_timeout_sec, 31557600)
+
+        # Colon notation is pytimeparse syntax that systemd does not have.
+        cnf = self._load('1:30')
+        with self.assertLogs(level='WARNING'):
+            self.assertEqual(cnf.dc_giveup_timeout_sec, 72 * 60 * 60)  # the default
+
     def test_a_negative_value_is_rejected(self):
         '''"infinity" is how forever is spelled; -1 no longer means anything.'''
         cnf = self._load('-1')

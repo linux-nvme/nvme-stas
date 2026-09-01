@@ -246,9 +246,12 @@
                 <term><varname>dc-giveup-timeout=</varname></term>
                 <listitem>
                     <para>
-                        Takes a unit-less value in seconds, or a time span value
-                        such as "72hours" or "5days". Note that the unit is
-                        seconds, so "72" means 72 seconds and not 72 hours.
+                        Takes a systemd time span such as "72hours" or
+                        "3 days 5 hours", or a unit-less value in seconds. Note
+                        that the unit is seconds, so "72" means 72 seconds and
+                        not 72 hours. The span is parsed exactly as systemd
+                        parses one, which is also how nvme-discoverd reads this
+                        same parameter.
                         A value of 0 means no persistence. In other words,
                         configuration acquired through zeroconf (mDNS service
                         discovery) will be removed immediately when mDNS no
@@ -296,6 +299,10 @@
             <citerefentry>
                 <refentrytitle>nvme-stas.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>systemd.time</refentrytitle>
+                <manvolnum>7</manvolnum>
             </citerefentry>
         </para>
     </refsect1>
