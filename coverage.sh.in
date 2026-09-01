@@ -750,6 +750,63 @@ log ">>>>>>>>>>>>>>>>>>>>> Marker [9] <<<<<<<<<<<<<<<<<<<<<"
 printf "\n"
 
 #*******************************************************************************
+# The other side of the phase above. nvmet listens on "::", so it reports its
+# IPv4 addresses in IPv4-mapped form ("::ffff:127.0.0.1") in the discovery log
+# pages. Those name IPv4 controllers however they are spelled, and
+# "ip-family=ipv4" has to keep them: reading the mapped form as IPv6 would
+# throw away every controller this target advertises. stacd is where it
+# matters most - the mapped addresses arrive in the log pages it reads from
+# stafd - so both daemons are set to IPv4 here.
+log "Change stafd config [6]: IPv4 only, against a target reporting IPv4-mapped addresses"
+cat > "${stafd_conf_fname}" <<'EOF'
+[Global]
+tron=true
+ip-family=ipv4
+EOF
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
+
+log "Change stacd config [2]: IPv4 only"
+cat > "${stacd_conf_fname}" <<'EOF'
+[Global]
+tron=true
+ip-family=ipv4
+EOF
+log_file_contents 0 "${stacd_conf_fname}"
+printf "\n"
+
+cat > "${stas_conf_fname}" <<'EOF'
+[Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
+keep-alive-tmo = 30
+
+[Discovery Controller]
+controller = transport=tcp;traddr=localhost;trsvcid=8009
+EOF
+log_file_contents 0 "${stas_conf_fname}"
+printf "\n"
+
+reload_cfg "stafd"
+reload_cfg "stacd"
+sleep 5
+
+# Put both families back. Nothing later changes stacd.conf, and the phases
+# that follow reach subsystems over a link-local IPv6 address, which an
+# IPv4-only stacd would drop.
+log "Change stacd config [3]: both families again"
+cat > "${stacd_conf_fname}" <<'EOF'
+[Global]
+tron=true
+EOF
+log_file_contents 0 "${stacd_conf_fname}"
+printf "\n"
+
+reload_cfg "stacd"
+sleep 3
+
+#*******************************************************************************
 # Remove one of the NVMe device's
 file=/tmp/getdev-XXX.py
 getdev=$(mktemp $file)
@@ -844,7 +901,7 @@ sleep 2
 log ">>>>>>>>>>>>>>>>>>>>> Marker [11] <<<<<<<<<<<<<<<<<<<<<"
 printf "\n"
 
-log "Change stafd config [6]: connect under a persona"
+log "Change stafd config [7]: connect under a persona"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron              = true
@@ -885,7 +942,7 @@ sleep 2
 # DC does not support a persistent connection: stafd disconnects it, keeps its
 # log pages, and comes back on the poll timer. One minute is the shortest
 # interval the option accepts, so this phase is deliberately slow.
-log "Change stafd config [7]: let a DC park, then come back"
+log "Change stafd config [8]: let a DC park, then come back"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron                        = true
@@ -926,7 +983,7 @@ run_cmd_coverage stafctl status
 #*******************************************************************************
 # A connectivity configuration that libnvme rejects outright. stafd must keep
 # the previous one running rather than tear down working connections.
-log "Change stafd config [8]: a connectivity configuration that must be rejected"
+log "Change stafd config [9]: a connectivity configuration that must be rejected"
 cat > "${stas_conf_fname}" <<'EOF'
 [Discovery Controller Defaults]
 # nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
@@ -962,25 +1019,19 @@ find subprojects/nvme-cli/libnvme/libnvme3/__pycache__ -maxdepth 0 -type d 2>/de
 
 #*******************************************************************************
 # Run unit tests
+#
+# Every test/test-*.py, found rather than listed: the list this replaces had
+# fallen four files behind (test-conn-conf, test-exclusions, test-protection
+# and test-singleton were never added to it), and the code they cover read as
+# untested in the report for no better reason than that.
 TEST_DIR=$( realpath ../test )
-run_unit_test ${TEST_DIR}/test-avahi.py
-run_unit_test ${TEST_DIR}/test-config.py
-run_unit_test ${TEST_DIR}/test-controller.py
-run_unit_test ${TEST_DIR}/test-defs.py
-run_unit_test ${TEST_DIR}/test-gtimer.py
-run_unit_test ${TEST_DIR}/test-gutil.py
-run_unit_test ${TEST_DIR}/test-iputil.py
-run_unit_test ${TEST_DIR}/test-log.py
-run_unit_test ${TEST_DIR}/test-nbft_conf.py
-run_unit_test ${TEST_DIR}/test-nbft.py
-run_unit_test sudo ${TEST_DIR}/test-nvme_options.py  # Test both with super user...
-run_unit_test ${TEST_DIR}/test-nvme_options.py       # ... and with regular user
-run_unit_test ${TEST_DIR}/test-service.py
-run_unit_test ${TEST_DIR}/test-stas.py
-run_unit_test ${TEST_DIR}/test-timeparse.py
-run_unit_test ${TEST_DIR}/test-transport_id.py
-run_unit_test ${TEST_DIR}/test-udev.py
-run_unit_test ${TEST_DIR}/test-version.py
+for test_file in "${TEST_DIR}"/test-*.py; do
+	run_unit_test "${test_file}"
+done
+
+# NvmeOptions probes /dev/nvme-fabrics, which reads differently depending on
+# who is asking, so it runs a second time as root.
+run_unit_test sudo ${TEST_DIR}/test-nvme_options.py
 
 #*******************************************************************************
 # Stop nvme target simulator

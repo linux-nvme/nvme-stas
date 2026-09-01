@@ -79,8 +79,12 @@ def remove_invalid_addresses(controllers: list):
     for controller in controllers:
         if controller.transport in ('tcp', 'rdma'):
             # Let's make sure that traddr is
-            # syntactically a valid IPv4 or IPv6 address.
-            ip = iputil.get_ipaddress_obj(controller.traddr)
+            # syntactically a valid IPv4 or IPv6 address. A target listening
+            # on the IPv6 wildcard reports its IPv4 addresses in IPv4-mapped
+            # form ("::ffff:1.2.3.4"), which is an IPv4 address wearing IPv6
+            # spelling: convert it, or the family check below reads it as
+            # version 6 and "ip-family=ipv4" throws away an IPv4 controller.
+            ip = iputil.get_ipaddress_obj(controller.traddr, ipv4_mapped_convert=True)
             if ip is None:
                 logging.warning('%s IP address is not valid', controller)
                 continue
@@ -135,12 +139,14 @@ def _addresses_match(val: str, ctrl_val: str, transport: str):
     '''Return True if two addresses designate the same thing. Addresses are
     compared in normalized form, the way libnvme's exclusion list does it, so
     that two spellings of one address match: "fe80::1" designates the same
-    controller as "fe80:0000:0000:0000:0000:0000:0000:0001".'''
+    controller as "fe80:0000:0000:0000:0000:0000:0000:0001", and "1.2.3.4" the
+    same controller as the IPv4-mapped "::ffff:1.2.3.4" a target listening on
+    the IPv6 wildcard reports.'''
     if transport == 'fc':
         return _fc_wwn(val) == _fc_wwn(ctrl_val)
 
-    ip = iputil.get_ipaddress_obj(val)
-    ctrl_ip = iputil.get_ipaddress_obj(ctrl_val)
+    ip = iputil.get_ipaddress_obj(val, ipv4_mapped_convert=True)
+    ctrl_ip = iputil.get_ipaddress_obj(ctrl_val, ipv4_mapped_convert=True)
     if ip is not None and ctrl_ip is not None:
         return ip == ctrl_ip
 
