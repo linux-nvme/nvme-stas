@@ -146,6 +146,35 @@ def _to_ncc(text):
     return value
 
 
+def _to_giveup_timeout(text):
+    """Convert a give-up timeout to a number of seconds.
+
+    "infinity" means never give up, and is carried as -1 because that is what
+    the rest of the code tests for. 0 means give up immediately. Anything
+    negative is rejected: "infinity" is how you spell forever.
+    """
+    value = _parse_single_val(text)
+    if value is not None and str(value).strip().lower() == 'infinity':
+        return -1
+
+    seconds = timeparse.timeparse(value)
+    if seconds is None or seconds < 0:
+        raise InvalidOption
+
+    return seconds
+
+
+def _to_poll_interval(text):
+    """Convert a poll interval in minutes. Unlike an interval that merely
+    schedules extra work, this one is the only way back for a parked
+    discovery controller, so 0 - "never" - is not a valid answer."""
+    value = _to_int(text)
+    if value <= 0:
+        raise InvalidOption
+
+    return value
+
+
 def _to_ip_family(text):
     return tuple((4 if token == 'ipv4' else 6 for token in _parse_single_val(text).split('+')))
 
@@ -212,13 +241,12 @@ class SvcConf(metaclass=singleton.Singleton):
             },
         },
         'Discovery controller connection management': {
-            'persistent-connections': {
-                'convert': _to_bool,
-                'default': True,
-                'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('false', 'true'),
+            'epcsd-poll-interval-minutes': {
+                'convert': _to_poll_interval,
+                'default': 15,
             },
-            'zeroconf-connections-persistence': {
-                'convert': lambda text: timeparse.timeparse(_parse_single_val(text)),
+            'dc-giveup-timeout': {
+                'convert': _to_giveup_timeout,
                 'default': timeparse.timeparse('72hours'),
             },
         },
@@ -292,10 +320,8 @@ class SvcConf(metaclass=singleton.Singleton):
     ignore_iface = property(functools.partial(get_option, section='Global', option='ignore-iface'))
     pleo_enabled = property(functools.partial(get_option, section='Global', option='pleo'))
 
-    zeroconf_persistence_sec = property(
-        functools.partial(
-            get_option, section='Discovery controller connection management', option='zeroconf-connections-persistence'
-        )
+    dc_giveup_timeout_sec = property(
+        functools.partial(get_option, section='Discovery controller connection management', option='dc-giveup-timeout')
     )
 
     honor_fabric_zoning = property(
@@ -316,20 +342,11 @@ class SvcConf(metaclass=singleton.Singleton):
         return ['_nvme-disc._tcp', '_nvme-disc._udp'] if self.zeroconf_enabled else list()
 
     @property
-    def persistent_connections(self):
-        '''Return the "persistent-connections" config parameter.'''
+    def epcsd_poll_interval_sec(self):
+        '''Return how often to re-check a parked discovery controller, in
+        seconds. Configured in minutes, used as a timer value.'''
         section = 'Discovery controller connection management'
-        option = 'persistent-connections'
-
-        # Use ignore_default=True so we can distinguish "not set in file" from
-        # "set to false". The per-daemon default (stafd vs stacd) differs and is
-        # held in self._defaults rather than in OPTION_CHECKER, so we fall back
-        # to that dict explicitly.
-        value = self.get_option(section, option, ignore_default=True)
-        if value is not None:
-            return value
-
-        return self._defaults.get((section, option), True)
+        return 60 * self.get_option(section, 'epcsd-poll-interval-minutes')
 
     def get_excluded(self):
         '''Return the list of excluded controllers. This is the union of the
@@ -481,6 +498,7 @@ class ConnConf(metaclass=singleton.Singleton):
         self._dc_defaults = dict()
         self._ioc_defaults = dict()
         self._host = dict()
+        self._loaded = False
         self.reload()
 
     @property
@@ -498,11 +516,13 @@ class ConnConf(metaclass=singleton.Singleton):
 
         A file that does not validate is rejected and the last known good
         configuration is left running: a fat-fingered edit must never tear down
-        working connections. An absent file is not an error - it simply
-        configures no controllers.
+        working connections. At startup there is no such configuration to keep,
+        and the daemon carries on with no controllers configured rather than
+        refusing to start - the file can be fixed and the daemon reloaded. An
+        absent file is not an error - it simply configures no controllers.
 
         Return True if the configuration was (re)loaded, False if the file was
-        rejected and the previous one kept.
+        rejected.
         '''
         ctx = libnvme_ctx()
         try:
@@ -511,15 +531,24 @@ class ConnConf(metaclass=singleton.Singleton):
             defaults = nvme.config_defaults(ctx, self._conf_file)
             host = nvme.config_host(ctx, self._conf_file)
         except (OSError, ValueError) as ex:
-            logging.error(
-                'File:%s - Invalid connectivity configuration, keeping the previous one: %s', self._conf_file, ex
-            )
+            if self._loaded:
+                logging.error(
+                    'File:%s - Invalid connectivity configuration, keeping the previous one: %s', self._conf_file, ex
+                )
+            else:
+                logging.error(
+                    'File:%s - Invalid connectivity configuration, no controllers will be configured '
+                    'until it is fixed and the configuration reloaded: %s',
+                    self._conf_file,
+                    ex,
+                )
             return False
 
         self._connections = connections
         self._dc_defaults = self._params(defaults.get('dc', {}))
         self._ioc_defaults = self._params(defaults.get('ioc', {}))
         self._host = host
+        self._loaded = True
         logging.debug('ConnConf.reload()                  - %s connection(s)', len(connections))
         return True
 

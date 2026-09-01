@@ -286,8 +286,7 @@ queue-size        = 2000000
 reconnect-delay   = NaN
 
 [Discovery controller connection management]
-persistent-connections           = false
-zeroconf-connections-persistence = -1
+dc-giveup-timeout = infinity
 
 [Hello]
 hello = bye
@@ -329,6 +328,9 @@ cat > "${stas_conf_fname}" <<'EOF'
 hostsymname = coverage-host
 
 [Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
 keep-alive-tmo  = 30
 queue-size      = 2000000
 ctrl-loss-tmo   = 10
@@ -403,8 +405,7 @@ cat > "${stafd_conf_fname}" <<'EOF'
 tron = true
 
 [Discovery controller connection management]
-persistent-connections           = false
-zeroconf-connections-persistence = 0.5
+dc-giveup-timeout = 0.5
 
 [Service Discovery]
 zeroconf = enabled
@@ -419,6 +420,9 @@ cat > "${stas_conf_fname}" <<'EOF'
 hostsymname = coverage-host
 
 [Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
 keep-alive-tmo = 30
 
 [Discovery Controller]
@@ -442,8 +446,7 @@ ip-family         = ipv4
 pleo              = disabled
 
 [Discovery controller connection management]
-persistent-connections            = false
-zeroconf-connections-persistence  = 1:01
+dc-giveup-timeout  = 1:01
 
 [Controllers]
 exclude=transport=tcp;traddr=1.1.1.1
@@ -454,6 +457,9 @@ printf "\n"
 # Whitespace around the separators is deliberate - libnvme tolerates it.
 cat > "${stas_conf_fname}" <<'EOF'
 [Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
 keep-alive-tmo  = 30
 queue-size      =
 reconnect-delay = 1
@@ -509,6 +515,9 @@ sleep 5
 log "Change connectivity configuration: a configured I/O subsystem"
 cat > "${stas_conf_fname}" <<'EOF'
 [Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
 keep-alive-tmo = 30
 
 [I/O Controller Defaults]
@@ -647,8 +656,7 @@ cat > "${stafd_conf_fname}" <<'EOF'
 tron              = true
 
 [Discovery controller connection management]
-persistent-connections=false
-zeroconf-connections-persistence=0.5
+dc-giveup-timeout=0.5
 
 [Service Discovery]
 zeroconf=disabled
@@ -669,8 +677,7 @@ ip-family=ipv6
 pleo=disabled
 
 [Discovery controller connection management]
-persistent-connections=false
-zeroconf-connections-persistence=0
+dc-giveup-timeout=0
 EOF
 log_file_contents 0 "${stafd_conf_fname}"
 printf "\n"
@@ -681,6 +688,9 @@ printf "\n"
 # separately, below, since one of them would sink the whole file.
 cat > "${stas_conf_fname}" <<'EOF'
 [Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
 keep-alive-tmo  = 30
 queue-size      = 2000000
 reconnect-delay = 1
@@ -839,6 +849,9 @@ hostid      = aaaaaaaa-0000-0000-0000-000000000001
 hostsymname = persona-one
 
 [Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
 keep-alive-tmo = 30
 
 [Discovery Controller]
@@ -854,11 +867,57 @@ reload_cfg "stafd"
 sleep 2
 
 #*******************************************************************************
-# A connectivity configuration that libnvme rejects outright. stafd must keep
-# the previous one running rather than tear down working connections.
-log "Change stafd config [7]: a connectivity configuration that must be rejected"
+# Let a discovery controller park. nvmet reports EPCSD=0, so under "auto" the
+# DC does not support a persistent connection: stafd disconnects it, keeps its
+# log pages, and comes back on the poll timer. One minute is the shortest
+# interval the option accepts, so this phase is deliberately slow.
+log "Change stafd config [7]: let a DC park, then come back"
+cat > "${stafd_conf_fname}" <<'EOF'
+[Global]
+tron                        = true
+
+[Discovery controller connection management]
+epcsd-poll-interval-minutes = 1
+EOF
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
+
 cat > "${stas_conf_fname}" <<'EOF'
 [Discovery Controller Defaults]
+persistent     = auto
+keep-alive-tmo = 30
+
+[Discovery Controller]
+controller = transport=tcp;traddr=localhost;trsvcid=8009
+EOF
+log_file_contents 0 "${stas_conf_fname}"
+printf "\n"
+
+reload_cfg "stafd"
+
+# The DC is created fresh by this config change, so it first spends up to
+# GET_SUPPORTED_MAX_ATTEMPTS * GET_SUPPORTED_RETRY_PERIOD_SEC seconds finding
+# out that nvmet does not implement Get Supported Log Pages, then fetches the
+# log page anyway. Only then is its persistence decided.
+sleep 30
+log "stafd should now have parked the DC (EPCSD=0)"
+run_cmd_coverage stafctl ls
+run_cmd_coverage stafctl status
+
+log "Waiting out the poll interval so the DC comes back"
+sleep 75
+run_cmd_coverage stafctl ls
+run_cmd_coverage stafctl status
+
+#*******************************************************************************
+# A connectivity configuration that libnvme rejects outright. stafd must keep
+# the previous one running rather than tear down working connections.
+log "Change stafd config [8]: a connectivity configuration that must be rejected"
+cat > "${stas_conf_fname}" <<'EOF'
+[Discovery Controller Defaults]
+# nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
+# connections open anyway - that is what "force" is for.
+persistent     = force
 queue-size = NaN
 
 [Discovery Controller]

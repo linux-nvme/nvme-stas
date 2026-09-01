@@ -73,6 +73,11 @@ class TestDc(ctrl.Dc):
 
 
 class TestStaf:
+    referral_eflags_value = None
+
+    def referral_eflags(self, tid):
+        return TestStaf.referral_eflags_value
+
     def is_avahi_reported(self, tid):
         return False
 
@@ -112,13 +117,12 @@ pleo=enabled
 zeroconf=enabled
 
 [Discovery controller connection management]
-persistent-connections=true
-zeroconf-connections-persistence=10 seconds
+dc-giveup-timeout=10 seconds
 '''
 
 stafd_conf_2 = '''
 [Discovery controller connection management]
-zeroconf-connections-persistence=-1
+dc-giveup-timeout=infinity
 '''
 
 stafd_conf_3 = '''
@@ -157,10 +161,8 @@ class Test(TestCase):
 
         default_conf = {
             ('Global', 'tron'): False,
-            ('Discovery controller connection management', 'persistent-connections'): True,
-            ('Discovery controller connection management', 'zeroconf-connections-persistence'): timeparse.timeparse(
-                '72hours'
-            ),
+            ('Discovery controller connection management', 'epcsd-poll-interval-minutes'): 15,
+            ('Discovery controller connection management', 'dc-giveup-timeout'): timeparse.timeparse('72hours'),
             ('Global', 'ignore-iface'): False,
             ('Global', 'ip-family'): (4, 6),
             ('Global', 'pleo'): True,
@@ -508,6 +510,232 @@ class Test(TestCase):
 
         # _should_try_to_reconnect: ncc=False → max_connect_attempts=0 → always True
         self.assertTrue(ioc._should_try_to_reconnect())
+
+
+class TestPersistence(TestCase):
+    '''Unit tests for the EPCSD persistence policy of a discovery controller'''
+
+    EPCSD = 2  # NVMF_DISC_EFLAGS_EPCSD (bit 1; bit 2 is NCC)
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        TestStaf.referral_eflags_value = None
+        self.addCleanup(setattr, TestStaf, 'referral_eflags_value', None)
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+
+    def _dc(self, cfg=None, log_pages=None):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        if cfg:
+            cid.update(cfg)
+        return TestDc(TestStaf(), tid=trid.TID(cid), log_pages=log_pages)
+
+    def test_mode_defaults_to_auto(self):
+        '''libnvme treats an unset value as "no"; a discovery daemon cannot.'''
+        self.assertEqual(self._dc().persistence_mode(), 'auto')
+
+    def test_mode_comes_from_the_controller(self):
+        self.assertEqual(self._dc(cfg={'persistent': 'force'}).persistence_mode(), 'force')
+        self.assertEqual(self._dc(cfg={'persistent': 'no'}).persistence_mode(), 'no')
+
+    def test_an_unknown_mode_falls_back_to_auto(self):
+        self.assertEqual(self._dc(cfg={'persistent': 'sometimes'}).persistence_mode(), 'auto')
+
+    def test_epcsd_comes_from_the_self_entry(self):
+        dc = self._dc(log_pages=[{'subtype': ctrl.SUBTYPE_SELF, 'eflags': str(TestPersistence.EPCSD)}])
+        self.assertTrue(dc.epcsd())
+
+        dc = self._dc(log_pages=[{'subtype': ctrl.SUBTYPE_SELF, 'eflags': '0'}])
+        self.assertFalse(dc.epcsd())
+
+    def test_the_self_entry_wins_over_the_parent(self):
+        TestStaf.referral_eflags_value = 0
+        dc = self._dc(log_pages=[{'subtype': ctrl.SUBTYPE_SELF, 'eflags': str(TestPersistence.EPCSD)}])
+        self.assertTrue(dc.epcsd())
+
+    def test_the_parent_answers_when_there_is_no_self_entry(self):
+        TestStaf.referral_eflags_value = TestPersistence.EPCSD
+        dc = self._dc(log_pages=[{'subtype': ctrl.SUBTYPE_IOC, 'eflags': '0'}])
+        self.assertTrue(dc.epcsd())
+
+    def test_a_ddc_is_recognised_by_naming_both_spellings(self):
+        """DCTYPE was carved out of a field that defaults to 0, so a legacy DDC
+        reports "none" rather than "ddc". Both mean DDC; only a CDC is not one,
+        and an unknown future type must not be mistaken for one."""
+        dc = self._dc()
+        for dctype, expected in (('ddc', True), ('none', True), ('cdc', False), ('something-new', False)):
+            dc._ctrl.dctype = dctype
+            with self.subTest(dctype=dctype):
+                self.assertEqual(dc._is_ddc(), expected)
+
+    def test_only_a_discovery_controller_can_be_parked(self):
+        """parked() is asked of every controller when one is removed, so it has
+        to answer for I/O controllers too."""
+        ioc = TestIoc(TestStaf(), tid=trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.x'}))
+        self.assertFalse(ioc.parked())
+
+    def test_no_self_entry_and_no_parent_means_no(self):
+        '''What libnvme's dc_decide() and nvme-discoverd both assume.'''
+        self.assertFalse(self._dc().epcsd())
+
+
+class ParkableDc(TestDc):
+    '''A Dc whose disconnect is recorded rather than performed, so parking can
+    be tested without a main loop.'''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.disconnects = []
+
+    def disconnect(self, disconnected_cb, keep_connection):
+        self.disconnects.append(keep_connection)
+        self._connected = False
+
+
+class TestParking(TestCase):
+    '''Unit tests for parking: a discovery controller that does not support a
+    persistent connection is disconnected but kept, and polled.'''
+
+    EPCSD = 2
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        TestStaf.referral_eflags_value = None
+        self.addCleanup(setattr, TestStaf, 'referral_eflags_value', None)
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+
+    def _dc(self, persistent=None, eflags=0, origin='discovered'):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        if persistent:
+            cid['persistent'] = persistent
+        dc = ParkableDc(
+            TestStaf(),
+            tid=trid.TID(cid),
+            log_pages=[{'subtype': ctrl.SUBTYPE_SELF, 'eflags': str(eflags)}],
+            origin=origin,
+        )
+        return dc
+
+    def test_auto_parks_a_dc_without_epcsd(self):
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        self.assertTrue(dc.parked())
+        self.assertEqual(dc.disconnects, [False])  # do not keep the connection
+
+    def test_auto_holds_a_dc_with_epcsd(self):
+        dc = self._dc(eflags=TestParking.EPCSD)
+        dc._apply_persistence_policy()
+        self.assertFalse(dc.parked())
+        self.assertEqual(dc.disconnects, [])
+
+    def test_force_never_parks(self):
+        '''For a DC whose own EPCSD cannot be trusted.'''
+        dc = self._dc(persistent='force', eflags=0)
+        dc._apply_persistence_policy()
+        self.assertFalse(dc.parked())
+        self.assertEqual(dc.disconnects, [])
+
+    def test_no_parks_even_with_epcsd(self):
+        dc = self._dc(persistent='no', eflags=TestParking.EPCSD)
+        dc._apply_persistence_policy()
+        self.assertTrue(dc.parked())
+
+    def test_parking_is_not_repeated(self):
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        dc._apply_persistence_policy()
+        self.assertEqual(dc.disconnects, [False])
+
+    def test_a_dc_unparks_when_epcsd_appears(self):
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        self.assertTrue(dc.parked())
+
+        dc._log_pages = [{'subtype': ctrl.SUBTYPE_SELF, 'eflags': str(TestParking.EPCSD)}]
+        dc._apply_persistence_policy()
+        self.assertFalse(dc.parked())
+
+    def test_a_parked_dc_is_not_treated_as_lost(self):
+        '''It is disconnected because we disconnected it, not because it went
+        away, so the give-up timer must not start counting toward deletion.'''
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        self.assertTrue(dc.parked())
+
+        dc._handle_lost_controller()
+        self.assertEqual(dc._ctrl_unresponsive_time, None)
+
+    def test_a_dc_that_really_is_lost_still_counts(self):
+        '''The guard must not swallow the case it is guarding against.'''
+        dc = self._dc(eflags=TestParking.EPCSD)
+        dc._apply_persistence_policy()
+        self.assertFalse(dc.parked())
+
+        dc.set_connected(False)
+        dc._handle_lost_controller()
+        self.assertIsNotNone(dc._ctrl_unresponsive_time)
+
+    def test_get_supported_failure_fetches_the_log_pages_anyway(self):
+        """A controller that answers "unrecognized" will not answer differently
+        on a second try, and PLEOS is only consulted to decide whether to set
+        PLEO. Retrying instead meant never retrieving the log pages at all."""
+        dc = self._dc(eflags=0)
+
+        class Op:
+            killed = False
+
+            def kill(self):
+                Op.killed = True
+
+            def retry(self, _interval):
+                raise AssertionError('must not retry')
+
+        with self.assertLogs(level='ERROR'):
+            dc._on_get_supported_fail(Op(), 'NvmeError: unrecognized', 1)
+
+        self.assertTrue(Op.killed)
+        self.assertIsNone(dc._get_supported_op)
+        self.assertIsNotNone(dc._get_log_op)  # went on to fetch the log pages
+
+    def test_a_self_entry_survives_the_address_filter(self):
+        """A CDC may report an unusable address; those entries are dropped.
+        The controller's own entry is exempt: it is not something we dial, and
+        its EFLAGS are where EPCSD comes from."""
+        dc = self._dc(eflags=0)
+        dc._on_get_log_success(
+            None,
+            [
+                {'subtype': ctrl.SUBTYPE_SELF, 'traddr': '0.0.0.0', 'eflags': str(TestParking.EPCSD)},
+                {'subtype': ctrl.SUBTYPE_IOC, 'traddr': '0.0.0.0', 'subnqn': 'nqn.dropped'},
+                {'subtype': ctrl.SUBTYPE_IOC, 'traddr': '1.1.1.1', 'subnqn': 'nqn.kept'},
+            ],
+        )
+
+        subnqns = [page.get('subnqn') for page in dc.log_pages()]
+        self.assertIn('nqn.kept', subnqns)
+        self.assertNotIn('nqn.dropped', subnqns)  # unusable address, still filtered
+
+        self.assertIsNotNone(dc._self_entry())
+        self.assertTrue(dc.epcsd())  # and it is what we read EPCSD from
+
+    def test_the_poll_timer_brings_it_back(self):
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        self.assertTrue(dc.parked())
+
+        dc._on_epcsd_poll_expired()
+        self.assertFalse(dc.parked())
 
 
 if __name__ == '__main__':
