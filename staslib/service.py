@@ -292,13 +292,19 @@ class Stac(Service):
         return GLib.SOURCE_CONTINUE
 
     def _get_log_pages_from_stafd(self):
+        '''Return stafd's discovery log pages, or None if stafd could not be reached.
+
+        None and an empty list mean different things. An empty list is stafd
+        telling us that nothing is discovered, which is information we can act
+        on. None is stafd telling us nothing at all, which is not.
+        '''
         if self._staf:
             try:
                 return json.loads(self._staf.get_all_log_pages(True))
             except dasbus.error.DBusError as ex:
                 logging.debug('Stac._get_log_pages_from_stafd()   - %s', ex)
 
-        return list()
+        return None
 
     def _config_ctrls_finish(self, configured_ctrl_list: list):
         '''Finish I/O controller configuration after hostname resolution, then reconcile running controllers.'''
@@ -316,8 +322,10 @@ class Stac(Service):
 
         logging.debug('Stac._config_ctrls_finish()        - configured_ctrl_list = %s', configured_ctrl_list)
 
+        staf_data_list = self._get_log_pages_from_stafd()
+
         discovered_ctrls = dict()
-        for staf_data in self._get_log_pages_from_stafd():
+        for staf_data in staf_data_list or list():
             host_traddr = staf_data['discovery-controller']['host-traddr']
             host_iface = staf_data['discovery-controller']['host-iface']
             hostnqn = staf_data['discovery-controller']['hostnqn']
@@ -336,7 +344,17 @@ class Stac(Service):
         new_controller_tids = set(controllers)
         cur_controller_tids = set(self._controllers.keys())
         controllers_to_add = new_controller_tids - cur_controller_tids
-        controllers_to_del = cur_controller_tids - new_controller_tids
+
+        # Everything we learn through discovery comes from stafd. While we
+        # cannot reach it, a controller missing from the list above is missing
+        # because nobody told us about it, not because it went away. Acting on
+        # that would disconnect every controller we ever discovered, so until
+        # stafd answers again we only add.
+        if staf_data_list is None:
+            controllers_to_del = set()
+            logging.debug('Stac._config_ctrls_finish()        - Nothing heard from stafd. Removing no controller.')
+        else:
+            controllers_to_del = cur_controller_tids - new_controller_tids
 
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_add   = %s', list(controllers_to_add))
         logging.debug('Stac._config_ctrls_finish()        - controllers_to_del   = %s', list(controllers_to_del))
