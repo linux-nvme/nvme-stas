@@ -42,7 +42,7 @@ jobs:
           sudo apt-get install --yes --quiet swig libjson-c-dev
 
       - name: "INIT: CodeQL"
-        uses: github/codeql-action/init@v4.37.4
+        uses: github/codeql-action/init@v4.37.9
         with:
           languages: python
           config-file: ./.github/codeql/codeql-config.yml
@@ -57,6 +57,6 @@ jobs:
           echo "PYTHONPATH=.build:.build/subprojects/nvme-cli/libnvme:/usr/lib/python3/dist-packages/" >> $GITHUB_ENV
 
       - name: "ANALYZE: CodeQL"
-        uses: github/codeql-action/analyze@v4.37.4
+        uses: github/codeql-action/analyze@v4.37.9
         with:
           category: "/language:python"
