@@ -2,6 +2,7 @@
 import os
 import logging
 import unittest
+import unittest.mock
 from staslib import conf, ctrl, log, service, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
 
@@ -261,6 +262,56 @@ class TestDefaultConf(unittest.TestCase):
             with self.subTest(daemon=name):
                 self.assertIn(('Global', 'tron'), daemon.DEFAULT_CONF)
                 self.assertIn(('Controllers', 'exclude'), daemon.DEFAULT_CONF)
+
+
+class TestStacReconcileWithoutStafd(unittest.TestCase):
+    '''stacd learns about I/O controllers from stafd and from nowhere else. When
+    stafd cannot be reached, an I/O controller missing from the discovery log
+    pages is missing because nobody told us about it, not because it went away.
+    These pin that stacd tells the two apart.'''
+
+    TID = trid.TID(
+        {
+            'transport': 'tcp',
+            'traddr': '10.10.10.10',
+            'trsvcid': '4420',
+            'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
+        }
+    )
+
+    def setUp(self):
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        self.addCleanup(conf.SvcConf.destroy)
+        conf.SvcConf(default_conf=service.Stac.DEFAULT_CONF)
+
+    def _make_stac(self, log_pages):
+        '''Build the smallest object _config_ctrls_finish() will run against, holding
+        one I/O controller and told to expect @log_pages back from stafd.'''
+        stac = unittest.mock.Mock()  # No spec: _udev and friends are instance attributes
+        stac._alive = lambda: True
+        stac._get_log_pages_from_stafd = lambda: log_pages
+        stac._udev.find_nvme_ioc_device = lambda tid: None
+        stac._controllers = {TestStacReconcileWithoutStafd.TID: unittest.mock.Mock()}
+        return stac
+
+    def test_no_controller_is_removed_when_stafd_is_unreachable(self):
+        '''None means "we were told nothing", so nothing may be disconnected.'''
+        stac = self._make_stac(None)
+
+        service.Stac._config_ctrls_finish(stac, list())
+
+        stac._terminator.dispose.assert_not_called()
+        self.assertIn(TestStacReconcileWithoutStafd.TID, stac._controllers)
+
+    def test_a_controller_is_removed_when_stafd_reports_nothing(self):
+        '''An empty list means "nothing is discovered", which we can act on.'''
+        stac = self._make_stac(list())
+
+        service.Stac._config_ctrls_finish(stac, list())
+
+        stac._terminator.dispose.assert_called_once()
+        self.assertNotIn(TestStacReconcileWithoutStafd.TID, stac._controllers)
+
 
 if __name__ == '__main__':
     unittest.main()
