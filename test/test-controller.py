@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import logging
 import unittest
+import unittest.mock
 from libnvme3 import nvme
 from staslib import conf, ctrl, timeparse, trid
 from pyfakefs.fake_filesystem_unittest import TestCase
@@ -918,6 +919,122 @@ class TestCallbacksOnADeadObject(TestCase):
         dc._connect_attempts = 1
         dc._on_connect_fail(DeadObjectOp(), FakeError(), 1)
         self.assertGreater(dc._retry_connect_tmr.time_remaining(), 0)
+
+
+class RecordingStaf(TestStaf):
+    """A service that counts the notifications a controller sends it."""
+
+    def __init__(self):
+        self.referrals_changed_count = 0
+
+    def referrals_changed(self):
+        self.referrals_changed_count += 1
+
+
+class TestReferralsChanged(TestCase):
+    """A discovery controller tells the service when the set of referrals in
+    its log pages changes, and only then: stafd reconfigures its controllers
+    on that signal, so repeating it for an unchanged list is work nobody
+    needs."""
+
+    REFERRAL = {'subtype': ctrl.SUBTYPE_REFERRAL, 'traddr': '2.2.2.2', 'trsvcid': '8009'}
+    IOC = {'subtype': ctrl.SUBTYPE_IOC, 'traddr': '3.3.3.3', 'trsvcid': '4420'}
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        TestStaf.referral_eflags_value = None
+        self.addCleanup(setattr, TestStaf, 'referral_eflags_value', None)
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+
+    def _dc(self):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        staf = RecordingStaf()
+        # ParkableDc so the persistence policy _on_get_log_success applies does
+        # not perform a real disconnect.
+        return ParkableDc(staf, tid=trid.TID(cid)), staf
+
+    def test_a_referral_appearing_tells_the_service(self):
+        dc, staf = self._dc()
+
+        dc._on_get_log_success(RecordingOp(), [TestReferralsChanged.REFERRAL])
+
+        self.assertEqual(staf.referrals_changed_count, 1)
+
+    def test_an_unchanged_referral_list_says_nothing_more(self):
+        dc, staf = self._dc()
+
+        dc._on_get_log_success(RecordingOp(), [TestReferralsChanged.REFERRAL])
+        dc._on_get_log_success(RecordingOp(), [TestReferralsChanged.REFERRAL])
+
+        self.assertEqual(staf.referrals_changed_count, 1)
+
+    def test_a_referral_going_away_tells_the_service(self):
+        dc, staf = self._dc()
+
+        dc._on_get_log_success(RecordingOp(), [TestReferralsChanged.REFERRAL])
+        dc._on_get_log_success(RecordingOp(), [TestReferralsChanged.IOC])
+
+        self.assertEqual(staf.referrals_changed_count, 2)
+
+    def test_log_pages_without_referrals_say_nothing(self):
+        """An I/O controller entry is not a referral, however it changes."""
+        dc, staf = self._dc()
+
+        dc._on_get_log_success(RecordingOp(), [TestReferralsChanged.IOC])
+
+        self.assertEqual(staf.referrals_changed_count, 0)
+
+
+class TestUnusableConfiguration(TestCase):
+    """libnvme refuses to build a controller from a configuration it cannot
+    turn into a connection - an incomplete host identity, most likely. There
+    is nothing to retry until the configuration changes, but the retry timer
+    is how we find out that it has."""
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+
+    def _dc(self):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        return TestDc(TestStaf(), tid=trid.TID(cid))
+
+    def test_a_configuration_libnvme_refuses_is_retried_later(self):
+        dc = self._dc()
+        dc._connect_op = None
+
+        with unittest.mock.patch.object(ctrl.nvme, 'Ctrl', side_effect=ValueError('no host identity')):
+            with self.assertLogs(level='ERROR') as captured:
+                dc._do_connect()  # must not raise
+
+        self.assertIn('Cannot create controller', captured.records[0].getMessage())
+        self.assertIsNone(dc._connect_op)  # no connection was attempted
+        self.assertGreater(dc._retry_connect_tmr.time_remaining(), 0)
+        self.assertEqual(dc._retry_connect_tmr.get_timeout(), ctrl.Controller.CONNECT_RETRY_PERIOD_SEC)
+
+    def test_a_configuration_libnvme_accepts_is_not_retried(self):
+        """The guard must not swallow the case it is guarding against."""
+        dc = self._dc()
+        dc._connect_op = None
+
+        with unittest.mock.patch.object(ctrl.nvme, 'Ctrl'):
+            with unittest.mock.patch.object(ctrl.gutil, 'AsyncTask'):  # do not actually connect
+                dc._do_connect()
+
+        self.assertIsNotNone(dc._connect_op)
+        self.assertEqual(dc._retry_connect_tmr.time_remaining(), 0)
 
 
 if __name__ == '__main__':
