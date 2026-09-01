@@ -784,5 +784,141 @@ class TestParking(TestCase):
         self.assertFalse(dc.parked())
 
 
+class DeadObjectOp:
+    """An AsyncTask that records being killed instead of doing anything."""
+
+    def __init__(self):
+        self.killed = False
+
+    def kill(self):
+        self.killed = True
+
+
+class FakeError:
+    """The shape of the GLib error the failure callbacks log."""
+
+    domain = 'test-domain'
+    message = 'test message'
+
+    def __str__(self):
+        return FakeError.message
+
+
+class FakeUdevObject:
+    action = 'change'
+    sys_name = 'nvme666'
+
+
+class RecordingDc(TestDc):
+    """Records the work a callback would do if it got past the _alive() check."""
+
+    def __init__(self, *args, **kwargs):
+        self.registration_actions = 0
+        super().__init__(*args, **kwargs)
+
+    def _post_registration_actions(self):
+        self.registration_actions += 1
+
+
+class TestCallbacksOnADeadObject(TestCase):
+    """Every asynchronous callback can land after the controller it belongs to
+    has been torn down: the operation was already in flight when we stopped
+    caring about the answer. Each one asks _alive() first and returns. The
+    window is a scheduling race, so the integration run cannot reach these;
+    each test below names the work that must not happen."""
+
+    FAILURE_CALLBACKS = ('_on_registration_fail', '_on_get_supported_fail', '_on_get_log_fail')
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+
+    def _dc(self, alive):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        dc = RecordingDc(TestStaf(), tid=trid.TID(cid))
+        if not alive:
+            dc._cancellable.cancel()  # what kill() does, and what _alive() reports on
+        self.assertEqual(dc._alive(), alive)
+        return dc
+
+    def test_a_dead_controller_does_not_reset_its_connect_attempts(self):
+        dc = self._dc(alive=False)
+        dc._connect_attempts = 5
+
+        dc._on_connect_success(DeadObjectOp(), None)
+
+        self.assertEqual(dc._connect_attempts, 5)
+
+    def test_a_dead_controller_does_not_schedule_a_reconnect(self):
+        """A failed connection normally arms the retry timer. Nobody is waiting
+        for this one any more."""
+        dc = self._dc(alive=False)
+        dc._connect_attempts = 1
+
+        dc._on_connect_fail(DeadObjectOp(), FakeError(), 1)
+
+        self.assertEqual(dc._retry_connect_tmr.time_remaining(), 0)
+
+    def test_a_dead_controller_does_not_act_on_a_registration(self):
+        dc = self._dc(alive=False)
+
+        dc._on_registration_success(DeadObjectOp(), None)
+
+        self.assertEqual(dc.registration_actions, 0)
+
+    def test_a_dead_controller_does_not_go_on_to_fetch_log_pages(self):
+        dc = self._dc(alive=False)
+
+        dc._on_get_supported_success(DeadObjectOp(), None)
+
+        self.assertIsNone(dc._get_log_op)
+
+    def test_a_dead_controller_does_not_cache_log_pages(self):
+        dc = self._dc(alive=False)
+
+        dc._on_get_log_success(DeadObjectOp(), [{'subtype': ctrl.SUBTYPE_IOC, 'traddr': '1.1.1.1'}])
+
+        self.assertEqual(dc.log_pages(), [])
+
+    def test_a_dead_controller_ignores_a_udev_event(self):
+        dc = self._dc(alive=False)
+
+        dc._on_udev_notification(FakeUdevObject())  # must not raise
+
+        self.assertEqual(dc.log_pages(), [])
+
+    def test_a_failure_callback_releases_its_operation_and_stops(self):
+        """A failed operation still has to be let go of, dead object or not."""
+        for name in TestCallbacksOnADeadObject.FAILURE_CALLBACKS:
+            with self.subTest(callback=name):
+                dc = self._dc(alive=False)
+                op = DeadObjectOp()
+
+                getattr(dc, name)(op, FakeError(), 0)
+
+                self.assertTrue(op.killed)
+                self.assertIsNone(dc._get_log_op)
+
+    def test_a_live_controller_still_does_the_work(self):
+        """The guards must not swallow the cases they are guarding against."""
+        dc = self._dc(alive=True)
+
+        dc._on_get_log_success(DeadObjectOp(), [{'subtype': ctrl.SUBTYPE_IOC, 'traddr': '1.1.1.1'}])
+        self.assertEqual(len(dc.log_pages()), 1)
+
+        dc._on_registration_success(DeadObjectOp(), None)
+        self.assertEqual(dc.registration_actions, 1)
+
+        dc._connect_attempts = 1
+        dc._on_connect_fail(DeadObjectOp(), FakeError(), 1)
+        self.assertGreater(dc._retry_connect_tmr.time_remaining(), 0)
+
+
 if __name__ == '__main__':
     unittest.main()

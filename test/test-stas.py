@@ -49,6 +49,23 @@ class TestExcluded(unittest.TestCase):
         excluded = [{'transport': 'tcp'}]
         self.assertTrue(stas._excluded(excluded, {'transport': 'tcp', 'traddr': '99.99.99.99'}))
 
+    def test_a_mapped_address_matches_its_ipv4_spelling(self):
+        """A target listening on the IPv6 wildcard advertises "::ffff:1.2.3.4".
+        An "exclude=" entry naming 1.2.3.4 means that controller."""
+        excluded = [{'transport': 'tcp', 'traddr': '1.2.3.4'}]
+        self.assertTrue(stas._excluded(excluded, {'transport': 'tcp', 'traddr': '::ffff:1.2.3.4'}))
+
+    def test_an_exclusion_written_in_mapped_form_matches_the_plain_address(self):
+        """And the same the other way round, since either side may be spelled
+        either way."""
+        excluded = [{'transport': 'tcp', 'traddr': '::ffff:1.2.3.4'}]
+        self.assertTrue(stas._excluded(excluded, {'transport': 'tcp', 'traddr': '1.2.3.4'}))
+
+    def test_a_mapped_address_does_not_match_a_different_address(self):
+        """The guard must not swallow the case it is guarding against."""
+        excluded = [{'transport': 'tcp', 'traddr': '1.2.3.4'}]
+        self.assertFalse(stas._excluded(excluded, {'transport': 'tcp', 'traddr': '::ffff:5.6.7.8'}))
+
     def test_one_field_mismatch_not_excluded(self):
         excluded = [{'transport': 'tcp', 'traddr': '1.2.3.4'}]
         self.assertFalse(stas._excluded(excluded, {'transport': 'tcp', 'traddr': '5.5.5.5'}))

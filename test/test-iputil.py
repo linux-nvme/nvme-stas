@@ -5,7 +5,7 @@ import logging
 import unittest
 import ipaddress
 import subprocess
-from staslib import iputil, log, stas, trid
+from staslib import conf, iputil, log, stas, trid
 
 IP = shutil.which('ip')
 
@@ -121,6 +121,44 @@ class Test(unittest.TestCase):
 
         # IPv4-mapped IPv6 address with convert=False → stays as IPv6
         self.assertEqual(ipaddress.IPv6Address('::ffff:102:304'), iputil.get_ipaddress_obj('::ffff:1.2.3.4', ipv4_mapped_convert=False))
+
+
+
+class TestIpv4MappedAddresses(unittest.TestCase):
+    """A target listening on the IPv6 wildcard reports its IPv4 addresses in
+    IPv4-mapped form ("::ffff:10.0.0.40") in the discovery log pages. That is
+    a second spelling of "10.0.0.40", not an IPv6 address, and stas must not
+    take it for one."""
+
+    def setUp(self):
+        conf.SvcConf.destroy()
+        self.addCleanup(conf.SvcConf.destroy)
+
+    @staticmethod
+    def _tid(traddr):
+        return trid.TID({'transport': 'tcp', 'traddr': traddr, 'trsvcid': '8009', 'subsysnqn': 'nqn.probe'})
+
+    def test_a_mapped_address_survives_an_ipv4_only_family(self):
+        """It is an IPv4 address, so "ip-family=ipv4" must keep it."""
+        conf.SvcConf(default_conf={('Global', 'ip-family'): (4,)})
+        tid = TestIpv4MappedAddresses._tid('::ffff:10.0.0.40')
+
+        self.assertIn(tid, stas.remove_invalid_addresses([tid]))
+
+    def test_a_real_ipv6_address_is_still_dropped_by_an_ipv4_only_family(self):
+        """The guard must not swallow the case it is guarding against."""
+        conf.SvcConf(default_conf={('Global', 'ip-family'): (4,)})
+        tid = TestIpv4MappedAddresses._tid('2607:f8b0:4004:c06::66')
+
+        self.assertNotIn(tid, stas.remove_invalid_addresses([tid]))
+
+    def test_a_mapped_address_is_dropped_by_an_ipv6_only_family(self):
+        """It is IPv4 however it is spelled, so "ip-family=ipv6" must drop it."""
+        conf.SvcConf(default_conf={('Global', 'ip-family'): (6,)})
+        tid = TestIpv4MappedAddresses._tid('::ffff:10.0.0.40')
+
+        self.assertNotIn(tid, stas.remove_invalid_addresses([tid]))
+
 
 if __name__ == "__main__":
     unittest.main()
