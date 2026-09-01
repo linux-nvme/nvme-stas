@@ -717,6 +717,14 @@ controller = transport=XM;traddr=2.2.2.2
 
 [Discovery Controller]
 controller = transport=tcp;traddr=555.555.555.555
+
+# A port nobody listens on, so the target refuses the connection outright.
+# nvmet listens on "::", which accepts everything that reaches it, so this
+# is the only entry that exercises ECONNREFUSED. Note the address has to be
+# IPv6: this phase sets "ip-family=ipv6", which would filter out 127.0.0.1
+# before we ever tried to connect.
+[Discovery Controller]
+controller = transport=tcp;traddr=::1;trsvcid=8010
 EOF
 log_file_contents 0 "${stas_conf_fname}"
 printf "\n"
@@ -767,15 +775,21 @@ print("")
 sys.exit(1)
 EOF
 
+# Wait for a connected controller rather than sampling once. A controller
+# takes a moment to come up after a reload, and a discovery controller that
+# is parked reports "nvme?" until its poll timer brings it back, so a single
+# look can miss a connection that is on its way.
 get_device() {
     local bus=$1
     local path=$2
-    dev=$(python3 ${getdev} ${bus} ${path})
-    if [[ -z "${dev}" ]]; then
-        # failed - try one more time after a short delay
-        sleep 1
+    local dev=""
+    for _ in $(seq 1 15); do
         dev=$(python3 ${getdev} ${bus} ${path})
-    fi
+        if [[ -n "${dev}" ]]; then
+            break
+        fi
+        sleep 1
+    done
     echo ${dev}
 }
 
