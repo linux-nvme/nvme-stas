@@ -725,6 +725,18 @@ class Dc(Controller):
 
     def _resync_with_controller(self):
         '''Communicate with DC to resync the states'''
+        if self._parked:
+            # There is nothing to talk to. A parked DC is one we disconnected
+            # on purpose, and the events that bring us here are the tail end
+            # of that very disconnect: udev reports the connection we have
+            # already torn down, and reload_hdlr() resyncs right after asking
+            # _apply_persistence_policy() to park. Either way, resuming the
+            # conversation now only earns a NotConnectedError and a retry
+            # timer on a controller that is meant to stay down until the
+            # poll brings it back.
+            logging.debug('Dc._resync_with_controller()       - %s | %s: parked', self.id, self.device)
+            return
+
         if self._register_op:
             self._register_op.run_async()
         elif self._get_supported_op:
