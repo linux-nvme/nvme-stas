@@ -9,7 +9,9 @@
 '''This module defines the base Service object from
 which the Staf and the Stac objects are derived.'''
 
+import os
 import json
+import pickle
 import logging
 import pathlib
 from itertools import filterfalse
@@ -250,23 +252,28 @@ class Stac(Service):
         self._staf_watcher = None
 
     def _dump_last_known_config(self, controllers):
-        config = list(controllers.keys())
-        logging.debug('Stac._dump_last_known_config()     - IOC count = %s', len(config))
-        self._write_lkc(config)
+        '''Nothing to save. What stacd is managing is already recorded where it
+        cannot go stale: the connection exists in the kernel, and the registry
+        entry beside it names us as its owner.'''
 
     def _load_last_known_config(self):
-        config = self._read_lkc() or list()
-        logging.debug('Stac._load_last_known_config()     - IOC count = %s', len(config))
+        '''Re-adopt the I/O controller connections we made before restarting.
 
+        The kernel lists what is connected and the registry says who made each
+        one; between them there is nothing left for stacd to remember. Note
+        that this asks for connections owned by us, not merely for ones nobody
+        else owns - an unowned connection predates the registry or belongs to
+        somebody who never registered it, and adopting it would be taking over
+        a connection we never made.
+        '''
         controllers = {}
-        for tid in config:
-            # Only create Ioc objects if there is already a connection in the kernel
-            # First, regenerate the TID (in case of soft. upgrade and TID object
-            # has changed internally)
-            tid = trid.TID(tid.as_dict())
-            if udev.UDEV.find_nvme_ioc_device(tid) is not None:
-                controllers[tid] = ctrl.Ioc(self, tid)
+        for device, tid in udev.UDEV.get_ioc_tids().items():
+            if not stas.owned_by_us(device):
+                continue
+            logging.debug('Stac._load_last_known_config()     - %s | %s: adopted', tid, device)
+            controllers[tid] = ctrl.Ioc(self, tid)
 
+        logging.debug('Stac._load_last_known_config()     - IOC count = %s', len(controllers))
         return controllers
 
     def _keep_connections_on_exit(self):
@@ -377,8 +384,6 @@ class Stac(Service):
             if tid in discovered_ctrls:
                 dlpe = discovered_ctrls[tid]
                 controller.update_dlpe(dlpe)
-
-        self._dump_last_known_config(self._controllers)
 
     def _connect_to_staf(self, _):
         '''Connect to the stafd D-Bus interface and hook up signal handlers.'''
@@ -491,6 +496,10 @@ class Staf(Service):
     CONFIGURES_DCS = True
 
     def __init__(self, args, dbus):
+        # Set before super().__init__(), which calls _load_last_known_config().
+        self._lkc_file = os.path.join(
+            os.environ.get('RUNTIME_DIRECTORY', os.path.join('/run', defs.PROG_NAME)), 'last-known-config.pickle'
+        )
         super().__init__(args, Staf.DEFAULT_CONF, self._reload_hdlr)
 
         self._avahi = avahi.Avahi(self._sysbus, self._avahi_change)
@@ -504,8 +513,34 @@ class Staf(Service):
     def info(self) -> dict:
         '''Return the status info for this object (used for debug).'''
         info = super().info()
+        info['last known config file'] = self._lkc_file
         info['avahi'] = self._avahi.info()
         return info
+
+    def _read_lkc(self):
+        '''Read the last known config from file.
+
+        Security note: pickle.load() is used here. This is safe because the
+        LKC file is written exclusively by this process to a path under
+        RUNTIME_DIRECTORY (e.g. /run/nvme-stas/), which is only writable by
+        root. No untrusted data can reach this code path.
+        '''
+        try:
+            with open(self._lkc_file, 'rb') as file:
+                return pickle.load(file)
+        except (FileNotFoundError, AttributeError, EOFError, pickle.UnpicklingError):
+            return None
+
+    def _write_lkc(self, config):
+        '''Write the last known config to file. If config is empty, the file is truncated.'''
+        try:
+            # Note that if config is empty we still
+            # want to open/close the file to empty it.
+            with open(self._lkc_file, 'wb') as file:
+                if config:
+                    pickle.dump(config, file)
+        except FileNotFoundError as ex:
+            logging.error('Unable to save last known config: %s', ex)
 
     def _release_resources(self):
         logging.debug('Staf._release_resources()')

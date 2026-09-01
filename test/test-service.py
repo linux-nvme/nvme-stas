@@ -1,9 +1,13 @@
 #!/usr/bin/python3
 import os
+import atexit
+import shutil
 import logging
+import tempfile
 import unittest
 import unittest.mock
-from staslib import conf, ctrl, log, service, trid
+from libnvme3 import nvme
+from staslib import conf, ctrl, defs, log, service, trid, udev
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -311,6 +315,78 @@ class TestStacReconcileWithoutStafd(unittest.TestCase):
 
         stac._terminator.dispose.assert_called_once()
         self.assertNotIn(TestStacReconcileWithoutStafd.TID, stac._controllers)
+
+
+def libnvme_sandbox():
+    '''Return a directory where libnvme reads its host-wide config files.
+
+    libnvme's test base dir is process-global and only the first call takes
+    effect, so every test file that needs one must agree on the same path:
+    "meson test" runs each file in its own process, but pytest runs them all
+    in one. The path must be under /tmp.
+    '''
+    path = os.path.join(tempfile.gettempdir(), 'nvme-stas-test-%d' % os.getpid())
+    if not os.path.exists(path):
+        os.makedirs(path)
+        atexit.register(shutil.rmtree, path, ignore_errors=True)
+    conf.libnvme_ctx().set_test_base_dir(path)
+    return path
+
+
+class TestStacAdoptOnStartup(unittest.TestCase):
+    '''stacd has no memory of its own across a restart: it re-adopts the I/O
+    controllers it was managing by asking the kernel what is connected and the
+    registry who owns each one. These pin which connections that takes.'''
+
+    @classmethod
+    def setUpClass(cls):
+        cls.SANDBOX = libnvme_sandbox()
+
+    def _register(self, device, owner):
+        nvme.registry_update(conf.libnvme_ctx(), device, 'owner', owner)
+        self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
+
+    @staticmethod
+    def _tid(traddr):
+        return trid.TID({'transport': 'tcp', 'traddr': traddr, 'trsvcid': '4420', 'subsysnqn': 'nqn.probe'})
+
+    def _adopted(self, ioc_tids):
+        '''Run the startup scan over @ioc_tids and return the TIDs it adopted.'''
+        stac = unittest.mock.Mock()
+        with unittest.mock.patch.object(udev.UDEV, 'get_ioc_tids', return_value=ioc_tids):
+            with unittest.mock.patch.object(ctrl, 'Ioc', side_effect=lambda serv, tid: tid):
+                return service.Stac._load_last_known_config(stac)
+
+    def test_a_connection_we_own_is_adopted(self):
+        self._register('nvme71', defs.REGISTRY_OWNER)
+        tid = TestStacAdoptOnStartup._tid('10.10.10.71')
+
+        self.assertEqual(list(self._adopted({'nvme71': tid})), [tid])
+
+    def test_a_connection_owned_by_somebody_else_is_left_alone(self):
+        self._register('nvme72', 'discoverd')
+
+        self.assertEqual(self._adopted({'nvme72': TestStacAdoptOnStartup._tid('10.10.10.72')}), {})
+
+    def test_an_unowned_connection_is_not_adopted(self):
+        '''The one that separates this from protected(), which lets an unowned
+        connection through. Here, nothing naming us means we did not make it.'''
+        self.assertEqual(self._adopted({'nvme73': TestStacAdoptOnStartup._tid('10.10.10.73')}), {})
+
+    def test_only_the_connections_we_own_are_picked_out_of_a_mixed_bag(self):
+        self._register('nvme74', defs.REGISTRY_OWNER)
+        self._register('nvme75', 'discoverd')
+        ours = TestStacAdoptOnStartup._tid('10.10.10.74')
+
+        adopted = self._adopted(
+            {
+                'nvme74': ours,
+                'nvme75': TestStacAdoptOnStartup._tid('10.10.10.75'),
+                'nvme76': TestStacAdoptOnStartup._tid('10.10.10.76'),  # unowned
+            }
+        )
+
+        self.assertEqual(list(adopted), [ours])
 
 
 if __name__ == '__main__':

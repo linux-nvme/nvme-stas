@@ -13,7 +13,6 @@ import os
 import sys
 import abc
 import signal
-import pickle
 import logging
 import dasbus.connection
 from gi.repository import Gio, GLib
@@ -206,6 +205,20 @@ def _owner(device):
         # A registry we can't read must not get in the way of a teardown.
         logging.warning('Unable to read the registry entry of %s: %s', device, ex)
         return None
+
+
+# ******************************************************************************
+def owned_by_us(device):
+    '''Return True if the registry says this connection is one of ours.
+
+    Note that this asks a different question from protected(), which lets an
+    unowned connection through: a connection nobody has claimed is one we may
+    take over. Here we are deciding what to adopt when we start with no memory
+    of what we were doing, and an unowned connection is precisely what we must
+    not take: it is somebody else's doing, or it predates the registry. Only
+    an entry naming us says we made it.
+    '''
+    return _owner(device) == defs.REGISTRY_OWNER
 
 
 # ******************************************************************************
@@ -485,9 +498,6 @@ class ServiceABC(abc.ABC):
         self._tron = args.tron or service_conf.tron
         log.set_level_from_tron(self._tron)
 
-        self._lkc_file = os.path.join(
-            os.environ.get('RUNTIME_DIRECTORY', os.path.join('/run', defs.PROG_NAME)), 'last-known-config.pickle'
-        )
         self._loop = GLib.MainLoop()
         self._cancellable = Gio.Cancellable()
         self._resolver = gutil.NameResolver()
@@ -531,7 +541,6 @@ class ServiceABC(abc.ABC):
         self._cfg_soak_tmr = None
         self._cancellable = None
         self._resolver = None
-        self._lkc_file = None
         self._sysbus = None
 
     def _config_dbus(self, iface_obj, bus_name: str, obj_name: str):
@@ -565,7 +574,6 @@ class ServiceABC(abc.ABC):
         '''Return the status info for this object (used for debug).'''
         nvme_options = conf.NvmeOptions()
         info = conf.SysConf().as_dict()
-        info['last known config file'] = self._lkc_file
         info['config soak timer'] = str(self._cfg_soak_tmr)
         info['kernel support.TP8013'] = str(nvme_options.discovery_supp)
         info['kernel support.host_iface'] = str(nvme_options.host_iface_supp)
@@ -702,31 +710,6 @@ class ServiceABC(abc.ABC):
         configured_controllers = remove_excluded(configured_controllers)
         self._resolver.resolve_ctrl_async(self._cancellable, configured_controllers, self._config_ctrls_finish)
 
-    def _read_lkc(self):
-        '''Read the last known config from file.
-
-        Security note: pickle.load() is used here. This is safe because the
-        LKC file is written exclusively by this process to a path under
-        RUNTIME_DIRECTORY (e.g. /run/nvme-stas/), which is only writable by
-        root. No untrusted data can reach this code path.
-        '''
-        try:
-            with open(self._lkc_file, 'rb') as file:
-                return pickle.load(file)
-        except (FileNotFoundError, AttributeError, EOFError, pickle.UnpicklingError):
-            return None
-
-    def _write_lkc(self, config):
-        '''Write the last known config to file. If config is empty, the file is truncated.'''
-        try:
-            # Note that if config is empty we still
-            # want to open/close the file to empty it.
-            with open(self._lkc_file, 'wb') as file:
-                if config:
-                    pickle.dump(config, file)
-        except FileNotFoundError as ex:
-            logging.error('Unable to save last known config: %s', ex)
-
     @abc.abstractmethod
     def _disconnect_all(self):
         '''Tell all controller objects to disconnect'''
@@ -746,8 +729,14 @@ class ServiceABC(abc.ABC):
 
     @abc.abstractmethod
     def _load_last_known_config(self):
-        '''Load last known config from file (if any)'''
+        '''Return the controllers this service was already managing, if any.
+
+        Called at startup, before the main loop runs. What "already managing"
+        means is the service's own business: stafd remembers what it had,
+        stacd works it out from the connections on the system.'''
 
     @abc.abstractmethod
     def _dump_last_known_config(self, controllers):
-        '''Save last known config to file'''
+        '''Record what this service is managing, for _load_last_known_config()
+        to find after a restart. A service that can work it out from the system
+        has nothing to do here.'''
