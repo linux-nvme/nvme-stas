@@ -14,7 +14,7 @@ import logging
 from functools import partial
 import pyudev
 from gi.repository import GLib
-from staslib import defs, iputil
+from staslib import defs, iputil, trid
 
 
 # ******************************************************************************
@@ -429,6 +429,35 @@ class Udev:
             return attr_str[start:]
 
         return attr_str[start:end]
+
+    def get_ioc_tids(self) -> dict:
+        '''Return {sys_name: TID} for every I/O controller connection on the system.
+
+        This is how stacd finds the connections it was managing before it
+        restarted. The kernel is the only thing that knows what is actually
+        connected; whether a connection is ours is a separate question, which
+        the ownership registry answers.
+        '''
+        ifaces = iputil.net_if_addrs()
+        return {
+            device.sys_name: self.get_tid(device, ifaces)
+            for device in self._context.list_devices(subsystem='nvme')
+            if self.is_ioc_device(device)
+        }
+
+    @staticmethod
+    def get_tid(device, ifaces):
+        '''Return the Transport ID (TID) associated with a udev device.'''
+        cid = Udev.get_cid(device)
+        if cid['transport'] == 'tcp':
+            src_addr = cid['src-addr']
+            if not cid['host-iface'] and src_addr:
+                # We'll try to find the interface from the source address on
+                # the connection. Only available if kernel exposes the source
+                # address (src_addr) in the "address" attribute.
+                cid['host-iface'] = iputil.get_interface(ifaces, iputil.get_ipaddress_obj(src_addr))
+
+        return trid.TID(cid)
 
     @staticmethod
     def get_cid(device):

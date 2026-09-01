@@ -22,11 +22,8 @@ SyslogIdentifier=stacd
 ExecStart=/usr/bin/python3 -u /usr/sbin/stacd --syslog
 ExecReload=/bin/kill -HUP $MAINPID
 
-# Run-time directory: /run/stacd
 # Cache directory: /var/cache/stacd
-RuntimeDirectory=stacd
 CacheDirectory=stacd
-RuntimeDirectoryPreserve=yes
 
 ProtectHome=true
 ProtectKernelModules=true
