@@ -597,6 +597,16 @@ class ParkableDc(TestDc):
         self._connected = False
 
 
+class RecordingOp:
+    """An AsyncTask that records whether it was run instead of running."""
+
+    def __init__(self):
+        self.ran = False
+
+    def run_async(self):
+        self.ran = True
+
+
 class TestParking(TestCase):
     '''Unit tests for parking: a discovery controller that does not support a
     persistent connection is disconnected but kept, and polled.'''
@@ -685,6 +695,42 @@ class TestParking(TestCase):
         dc.set_connected(False)
         dc._handle_lost_controller()
         self.assertIsNotNone(dc._ctrl_unresponsive_time)
+
+    def test_a_parked_dc_does_not_resync(self):
+        """A parked DC is reached by _on_nvme_event(), when udev reports the
+        connection we already tore down, and by reload_hdlr() right after it
+        parks. Either way there is nothing connected to talk to, and asking
+        only earns a NotConnectedError and a retry timer."""
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        self.assertTrue(dc.parked())
+
+        dc._get_log_op = RecordingOp()
+        dc._resync_with_controller()
+        self.assertFalse(dc._get_log_op.ran)
+
+    def test_a_connected_dc_still_resyncs(self):
+        """The guard must not swallow the case it is guarding against."""
+        dc = self._dc(eflags=TestParking.EPCSD)
+        dc._apply_persistence_policy()
+        self.assertFalse(dc.parked())
+
+        dc._get_log_op = RecordingOp()
+        dc._resync_with_controller()
+        self.assertTrue(dc._get_log_op.ran)
+
+    def test_a_reload_that_parks_does_not_then_resync(self):
+        """reload_hdlr() re-decides persistence and then resyncs, in that
+        order. A reload that parks the controller must not turn round and
+        talk to it."""
+        dc = self._dc(persistent='no', eflags=TestParking.EPCSD)
+        dc._get_log_op = RecordingOp()
+
+        dc._apply_persistence_policy()  # what reload_hdlr() does, in order
+        dc._resync_with_controller()
+
+        self.assertTrue(dc.parked())
+        self.assertFalse(dc._get_log_op.ran)
 
     def test_get_supported_failure_fetches_the_log_pages_anyway(self):
         """A controller that answers "unrecognized" will not answer differently
