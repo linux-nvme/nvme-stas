@@ -199,26 +199,40 @@ To run the coverage test, from the root of the `nvme-stas` git repo:
 $ make coverage
 ```
 
-This will start `stafd`, `stacd`, and the `nvmet` target. At the end, if all goes well, you should get an output similar to this:
+This will start `stafd`, `stacd`, and the `nvmet` target. The daemons do not read the machine's `/etc/nvme`: they run in a mount namespace where a directory the script writes (host NQN, host ID, and libnvme's exclusion lists) is bind-mounted over it, so the same phases connect the same controllers on any machine. The `nvme` commands the script invokes run outside that namespace and act on the live system. The script tries the bind mount once on a throw-away unit before it starts anything; where that does not work — a systemd too old for `BindPaths=`, or a machine that refuses mount namespacing — it says so and falls back to the real directory.
+
+At the end, if all goes well, you should get an output similar to this:
 
 ```bash
-Name                 Stmts   Miss  Cover
-----------------------------------------
-stacctl                 53      0   100%
-stacd                  190      3    98%
-stafctl                 75      0   100%
-stafd                  246     21    91%
-staslib/avahi.py       185     19    90%
-staslib/defs.py         22      0   100%
-staslib/stas.py        858     51    94%
-staslib/version.py      31      0   100%
-----------------------------------------
-TOTAL                 1660     94    94%
+Name                   Stmts   Miss  Cover
+------------------------------------------
+staslib/avahi.py         297     30    90%
+staslib/conf.py          370     30    92%
+staslib/service.py       375     29    92%
+staslib/gutil.py         264     19    93%
+staslib/stas.py          340     24    93%
+staslib/udev.py          243     11    95%
+staslib/ctrl.py          473     14    97%
+staslib/timeparse.py      83      1    99%
+stacctl                   56      0   100%
+stacd                     49      0   100%
+stafctl                   79      0   100%
+stafd                     62      0   100%
+staslib/__init__.py        2      0   100%
+staslib/defs.py           29      0   100%
+staslib/iputil.py        133      0   100%
+staslib/log.py            25      0   100%
+staslib/nbft.py            9      0   100%
+staslib/singleton.py      21      0   100%
+staslib/trid.py           55      0   100%
+staslib/version.py        33      0   100%
+------------------------------------------
+TOTAL                   2998    158    95%
 ```
 
 Note that the Python coverage package has trouble tracking code executed in threads. And since nvme-stas uses threads, some of the code will not be accounted for (in other words, you'll never get 100% coverage).
 
-Also note, that some of the code (e.g. explicit registration per TP8010) only gets executed when connected to a CDC (not a DDC). So, depending on your environment you will most likely get different coverage result. The above test was done on a system where mDNS discovery with a CDC was available, which provides more coverage than using the `nvmet` driver alone.
+Also note, that some of the code (e.g. explicit registration per TP8010) only gets executed when connected to a CDC (not a DDC). So, depending on your environment you will most likely get different coverage result. 
 
 An HTML output is also available where you can click on each file and which lines of code got executed and which ones were missed. In your web browser, simply type `file:///[$STAS_DIR]/.build/coverage/index.html`  (you must replace `[$STAS_DIR]` by the actual location of the nvme-stas repo where `make coverage` was run) . You should get something like this:
 
