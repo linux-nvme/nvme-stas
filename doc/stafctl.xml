@@ -67,7 +67,7 @@
                     <para>
                         Show the list of discovery controllers. This will list
                         all the controllers configured in
-                        <citerefentry><refentrytitle>stafd.conf</refentrytitle>
+                        <citerefentry><refentrytitle>nvme-stas.conf</refentrytitle>
                         <manvolnum>5</manvolnum></citerefentry> as well as those
                         discovered with mDNS service discovery.
                     </para>
@@ -104,6 +104,7 @@
             <xi:include href="standard-options.xml" xpointer="trsvcid"/>
             <xi:include href="standard-options.xml" xpointer="host-traddr"/>
             <xi:include href="standard-options.xml" xpointer="host-iface"/>
+            <xi:include href="standard-options.xml" xpointer="hostnqn"/>
             <xi:include href="standard-options.xml" xpointer="nqn"/>
         </variablelist>
     </refsect1>
@@ -137,6 +138,7 @@
 [{'device':      'nvme0',
   'host-iface':  '',
   'host-traddr': '',
+  'hostnqn':     'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
   'subsysnqn':   'nqn.2014-08.org.nvmexpress.discovery',
   'traddr':      '::1',
   'transport':   'tcp',
@@ -159,9 +161,9 @@
   'cntlid':  '65535',
   'portid':  '1',
   'subnqn':  'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
-  'subtype': 'nvme',
+  'subtype': 'nvme subsystem',
   'traddr':  '::1',
-  'treq':    'disable sqflow',
+  'treq':    'not specified, sq flow control disable supported',
   'trsvcid': '8009',
   'trtype':  'tcp'},
  {'adrfam':  'ipv6',
@@ -169,9 +171,9 @@
   'cntlid':  '65535',
   'portid':  '1',
   'subnqn':  'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aedead',
-  'subtype': 'nvme',
+  'subtype': 'nvme subsystem',
   'traddr':  '::1',
-  'treq':    'disable sqflow',
+  'treq':    'not specified, sq flow control disable supported',
   'trsvcid': '8009',
   'trtype':  'tcp'},
  {'adrfam':  'ipv6',
@@ -179,9 +181,9 @@
   'cntlid':  '65535',
   'portid':  '1',
   'subnqn':  'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34aebeef',
-  'subtype': 'nvme',
+  'subtype': 'nvme subsystem',
   'traddr':  '::1',
-  'treq':    'disable sqflow',
+  'treq':    'not specified, sq flow control disable supported',
   'trsvcid': '8009',
   'trtype':  'tcp'}]</programlisting>
         </example>
@@ -193,6 +195,10 @@
         <para>
             <citerefentry>
                 <refentrytitle>stafd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
             </citerefentry>,
             <citerefentry>

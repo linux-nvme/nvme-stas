@@ -148,8 +148,9 @@
                         (<filename>/etc/nvme/hostnqn</filename> and
                         <filename>/etc/nvme/hostid</filename>). A different
                         identity is a different persona and belongs in its own
-                        drop-in file. Give a persona both a
-                        <varname>hostnqn</varname> and a
+                        drop-in file, which must state its
+                        <varname>hostnqn</varname> explicitly. Give a persona
+                        both a <varname>hostnqn</varname> and a
                         <varname>hostid</varname>: without an explicit host ID
                         the kernel generates one that changes on every reboot,
                         which breaks persistent reservations.
@@ -201,10 +202,48 @@
             semicolon-separated list of <literal>key=value</literal> pairs,
             using the <command>nvme connect</command> option names:
             <programlisting>controller = transport=[trtype];traddr=[traddr];trsvcid=[trsvcid];host-traddr=[traddr];host-iface=[iface]</programlisting>
-            The subsystem NQN is not part of the address: it comes from the
-            section. Beyond addressing, any <command>nvme connect</command>
+            <varname>transport</varname> and <varname>traddr</varname> are
+            required; the rest are optional. The subsystem NQN is not part of
+            the address: it comes from the section. Beyond addressing, any <command>nvme connect</command>
             option may appear on the line as a per-path override, with the
             exception of the security parameters.
+        </para>
+    </refsect1>
+
+    <refsect1>
+        <title>Persistent discovery connections</title>
+        <para>
+            <varname>persistent</varname> states whether a Discovery
+            Controller's connection is held open. It is accepted on a
+            <literal>[Discovery Controller]</literal> section, on
+            <literal>[Discovery Controller Defaults]</literal> and on a
+            <varname>controller=</varname> line, and only on those: it has no
+            meaning for an I/O controller.
+        </para>
+        <para>
+            It takes <parameter>no</parameter>, <parameter>auto</parameter> or
+            <parameter>force</parameter>, and defaults to
+            <parameter>auto</parameter> &#8212; hold the connection open
+            wherever the Discovery Controller reports, through the EPCSD flag
+            of its own discovery log page entry, that it supports one.
+        </para>
+        <para>
+            Note that this default differs from libnvme's, where an unset
+            value behaves as <parameter>no</parameter>. A daemon whose purpose
+            is to be told when discovery log pages change cannot default to
+            disconnecting. It is the same choice nvme-discoverd makes.
+        </para>
+        <para>
+            A Discovery Controller that does not support a persistent
+            connection is <emphasis>parked</emphasis>:
+            <command>stafd</command> disconnects it, keeps its log pages, and
+            re-reads them on a timer, since a disconnected controller cannot
+            report that they changed. How often is
+            <varname>epcsd-poll-interval-minutes</varname> of
+            <citerefentry>
+                <refentrytitle>stafd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
         </para>
     </refsect1>
 

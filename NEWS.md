@@ -2,15 +2,94 @@
 
 ## Changes with release 3.0
 
-**Support for libnvme 3.0**:
+nvme-stas 3.0 is a **non-backward-compatible release**. It requires libnvme 3.0 and nvme-cli 3.0, its configuration files have moved and changed format, and several configuration keys, D-Bus argument names and command-line options were renamed. Nothing from 2.x is aliased: a stale value is meant to fail rather than silently change behaviour.
 
-nvme-stas 3.0 has been updated to align with the libnvme 3.0 release. The libnvme 3.0 update includes significant API changes and removes compatibility with prior libnvme versions (≤1.x). As a result, nvme-stas 3.0 requires libnvme 3.0 at runtime and is not compatible with earlier libnvme releases. Users upgrading to nvme-stas 3.0 must ensure that libnvme 3.0 is installed in their environment. 
+### Requires libnvme 3.0 and nvme-cli 3.0
 
-***Note**: The last version of libnvme prior to 3.0 is 1.16.1. And the last version of nvme-cli prior to 3.0 is 2.16. There will be no libnvme 2.x. Instead, and to synchronize libnvme with nvme-cli, the next release of both libnvme and nvme-cli will be 3.0.*
+libnvme 3.0 introduces significant API changes and drops compatibility with prior versions (≤ 1.x). nvme-stas 3.0 requires libnvme 3.0 at runtime and does not work with earlier releases. The Python bindings are now the `libnvme3` package (`from libnvme3 import nvme`).
 
-This release also replaces "black" with "ruff" as the code formatter to the GitHub actions. A new command, `make check-format`, was added to allow users to verify their code before submitting a pull request.
+nvme-stas also now depends on **nvme-cli** itself, which owns `/etc/nvme` and generates the host identity.
+
+***Note**: the last release of libnvme prior to 3.0 was 1.16.1, and the last release of nvme-cli prior to 3.0 was 2.16. There is no libnvme 2.x — libnvme and nvme-cli were synchronized on 3.0.*
+
+### All configuration now lives in /etc/nvme
+
+`/etc/stas` is gone. `stafd.conf` and `stacd.conf` are now `/etc/nvme/stafd.conf` and `/etc/nvme/stacd.conf`, alongside `nvme-fabrics.conf` and `nvme-discoverd.conf`.
+
+`sys.conf` and the `stasadm` tool are also gone. The host identity comes from the files the nvme-cli family already keeps it in — `/etc/nvme/hostnqn` and `/etc/nvme/hostid` — which `stas-config@.service` still generates when they are missing, using `nvme gen-hostnqn` and `uuidgen`.
+
+### Which controllers to connect to moved to /etc/nvme/nvme-stas.conf
+
+Which controllers to connect to, and with what parameters, moved out of `stafd.conf`/`stacd.conf` and into a new file, `/etc/nvme/nvme-stas.conf`, in **libnvme's INI format**, read by libnvme's own parser. One format, one parser: nvme-stas, the nvme-cli tools and nvme-discoverd all read the same thing. nvme-stas reads its *own* file, because a host must be able to run nvme-stas and nvme-discoverd side by side without either acting on the other's configuration. Drop-ins are read from `/etc/nvme/nvme-stas.conf.d/*.conf`, one host persona per file.
+
+One file serves both daemons: stafd takes the `[Discovery Controller]` sections, stacd the `[Subsystem]` ones.
+
+Concretely:
+
+* The `controller=` keyword of the `[Controllers]` section is **gone from `stafd.conf`/`stacd.conf`**. A Discovery Controller is now a `[Discovery Controller]` section, and an I/O subsystem a `[Subsystem]` section with one `controller=` line per path. An entry left behind in the old files is reported in the log rather than silently ignored.
+* The connection tunables are gone from `[Global]`: `kato`, `queue-size`, `reconnect-delay`, `ctrl-loss-tmo`, `nr-io-queues`, `nr-write-queues`, `nr-poll-queues`, `hdr-digest`, `data-digest`, `disable-sqflow` and the authentication keys are all set in `nvme-stas.conf` now, under their `nvme connect` names (`kato` is `keep-alive-tmo` there). `stafd.conf` and `stacd.conf` are left to daemon behaviour alone.
+* The host symbolic name and the KX-HMAC-CHAP secrets are set in the `[Host]` section of `nvme-stas.conf`. An identity is taken whole or not at all — nvme-stas never pairs a configured host NQN with the system's host ID.
+* `stafd` and `stacd` take a new `--conn-conf-file` (`-c`) option to point at a different connectivity configuration.
+* A file that does not validate is rejected and the last known good one keeps running, so a fat-fingered edit never tears down working connections.
+
+See the new `nvme-stas.conf(5)` man page.
+
+### nvme-stas no longer disconnects connections it did not make
+
+libnvme's **ownership registry** records who made each NVMe-oF connection. stafd and stacd consult it before adopting a connection, and a controller owned by somebody else is left alone. This closes a long-standing hazard: with `disconnect-scope=all-connections-matching-disconnect-trtypes`, stacd used to tear down connections made by nvme-discoverd, by a human running `nvme connect`, or by the initramfs from the NBFT — which is how it came to disconnect FC connections on hosts that used stacd for TCP only.
+
+* `disconnect-scope` and `disconnect-trtypes` are **replaced** by a single `honor-fabric-zoning = yes | no` (default `yes`). `yes` is what `only-stas-connections` did; `no` is what `no-disconnect` did. The old values are not accepted.
+* nvme-stas no longer shadows nvme-cli's `70-nvmf-autoconnect.rules` with an override in `/run/udev/rules.d`. The registry settles the race at the source: `nvme connect-all` reads the Discovery Controller's owner and does nothing when it belongs to somebody else. A stale override left by a 2.x installation is removed at startup.
+* NBFT controllers are no longer folded into the set stafd and stacd manage — they were connected by the initramfs and are not nvme-stas' to manage. Note the consequence: stafd no longer connects to an NBFT discovery controller, so its log pages no longer reach stacd unless that controller is also configured or discovered.
+* stacd no longer keeps a "last known config" file. On startup it asks the kernel what is connected and the registry who owns it. stacd no longer writes to `$RUNTIME_DIRECTORY` at all. stafd keeps its file, which holds the cached discovery log pages and each controller's origin.
+
+### libnvme's host-wide exclusion list is honored
+
+Exclusions could previously only be configured with the `exclude=` keyword. nvme-stas now also honors libnvme's host-wide exclusion list — `/etc/nvme/exclusions.conf` and `/etc/nvme/exclusions.conf.d/`, managed with `nvme exclusion` — so an administrator's exclusions apply to every NVMe-oF tool on the host, and `nvme disconnect --exclude` is no longer undone by the next reconnect. The list is re-read on every connection attempt, so an entry takes effect with no reload.
+
+A controller is excluded if it matches either source. `exclude=` still works but is **deprecated** and will be removed in a future release.
+
+Exclusions are now also checked on the connect path, not only when the list of managed controllers is rebuilt. A controller excluded while the daemons were running could previously still be reconnected by the retry timer.
+
+### Discovery controller connection management
+
+Whether a Discovery Controller's connection is held open is now the `persistent` key of the connectivity configuration, settable per DC. It defaults to `auto` — hold it open wherever the DC reports through the EPCSD flag that it supports one. That differs from libnvme, whose unset value behaves as `no`, because a daemon that exists to be told when discovery log pages change cannot default to disconnecting; it is the same choice nvme-discoverd makes.
+
+A DC that does not support a persistent connection is *parked*: nvme-stas disconnects, keeps its log pages, and re-reads them on a timer, since the DC cannot report that they changed. The new `epcsd-poll-interval-minutes` in `stafd.conf` sets how often (default 15; 0 is not valid, as the poll is the only way back).
+
+* `persistent-connections` is gone. What is kept on exit is now simply whatever is still held open.
+* `zeroconf-connections-persistence` is renamed **`dc-giveup-timeout`**, and nvme-discoverd takes the same key with the same encoding. The old `-1` is gone: use `infinity` to never give up, and a negative value is now rejected.
+
+### Time spans are parsed the way systemd parses them
+
+`dc-giveup-timeout` is a time span, and a span a user writes once has to mean one thing in both nvme-stas and nvme-discoverd. The parser was a vendored copy of pytimeparse with a grammar of its own; it now implements systemd's, as documented in `systemd.time(7)`.
+
+Spans that only pytimeparse accepted — `hrs`/`secs`/`mins`/`dy`, uppercase units, comma-separated terms, colon notation, `inf`/`1e5`/`nan` — now fall back to the default with a warning. Spans that only systemd accepts — `500ms`, `1week`, `1y` — now work. **One value keeps parsing and changes meaning: `1M` was 60 seconds and is now one month** (`m` is minutes, `M` is months).
+
+### Renamed
+
+* **`dhchap` → `kxchap`**, following TP4201, which renames the crypto-related fields. The configuration keys are `kxchap-secret` and `kxchap-ctrl-secret`. The kernel option names in `/dev/nvme-fabrics` and the nvmet configfs attributes are unchanged.
+* **`host-nqn` → `hostnqn`**, the spelling libnvme, nvme-cli and the kernel all use. This changes the key in the controller-identifier dicts published over D-Bus, the D-Bus method and signal argument names, and `stafctl`'s `--host-nqn` option, now `--hostnqn`. **The D-Bus data format shared by stafd, stacd, stafctl and stacctl is not compatible with 2.x.**
+* Discovery Log Page Entry subtypes and TREQ are now spelled the way libnvme's own decoders spell them, so `stafctl dlp` reports, for example, `nvme subsystem` rather than `nvme`.
+
+### Bug fixes
+
+* **stacd no longer disconnects everything when it cannot reach stafd.** `_get_log_pages_from_stafd()` returned an empty list both when stafd said "nothing is discovered" and when it could not be reached at all, so no information read as negative information and, with `honor-fabric-zoning` on, every discovered controller was disconnected. Nothing orders stacd after stafd, so this needed no outage — only stafd being slow to claim its bus name.
+* **An IPv4-mapped address is an IPv4 address.** A target listening on the IPv6 wildcard reports `::ffff:1.2.3.4` where another would report `1.2.3.4`. A host configured with `ip-family=ipv4` discarded those controllers, and `exclude=1.2.3.4` did not exclude them.
+* **A Discovery Controller that cannot answer Get Supported Log Pages now gets its log pages read anyway.** The failure used to be retried forever, so the discovery log pages were never retrieved and stacd learned of no I/O controllers — which is what a plain nvmet target did with the default `pleo=enabled`. PLEOS is only consulted to decide whether to set PLEO, so it is assumed to be 0.
+* A parked Discovery Controller is no longer talked to. The disconnect leaves a wake of udev events that used to start a log page retrieval against a controller that was no longer there.
+* A bare `exclude=` line, which sets no field, used to exclude every controller. It is now dropped.
+* Exclusion matching compares addresses in normalized form, so `fe80::1` and its expanded spelling designate the same controller.
+
+### Development and packaging
+
+* **ruff** replaces pylint, pyflakes and black. `make check-format` verifies the code before submitting a pull request.
+* CodeQL static analysis was added to CI, the workflows were reworked, and the linters now actually see `staslib` — a `.gitignore` interaction meant they never had.
+* Unit test coverage grew substantially; the automated `make coverage` run now stands at 95%, and runs the daemons against a `/etc/nvme` the script writes itself so a run does not depend on what the machine happens to have.
+* Running stafd and stacd in containers is documented as an unsupported deployment model, and the Docker artifacts were removed. See `CONTAINERS.md`.
 
 ## Changes with release 2.4.1
+
 
 Bug fix:
 

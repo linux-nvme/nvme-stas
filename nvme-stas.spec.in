@@ -33,7 +33,7 @@ Requires:      python3-systemd
 Requires:      python3-gobject
 
 %description
-nvme-stas is a Central Discovery Controller (CDC) client for Linux. It
+nvme-stas is a Centralized Discovery Controller (CDC) client for Linux. It
 handles Asynchronous Event Notifications (AEN), Automated NVMe subsystem
 connection controls, Error handling and reporting, and Automatic (zeroconf)
 and Manual configuration. nvme-stas is composed of two daemons:

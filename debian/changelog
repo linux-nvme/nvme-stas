@@ -1,13 +1,30 @@
 nvme-stas (3.0) stable; urgency=medium
 
-  * Support for libnvme 3.0: nvme-stas 3.0 has been updated to align with the
-    libnvme 3.0 release. The libnvme 3.0 update includes significant API changes
-    and removes compatibility with prior libnvme versions (≤1.x). As a result,
-    nvme-stas 3.0 requires libnvme 3.0 at runtime and is not compatible with
-    earlier libnvme releases. Users upgrading to nvme-stas 3.0 must ensure that
-    libnvme 3.0 is installed in their environment.
+  * Non-backward-compatible release. See NEWS.md for the full list.
+  * Requires libnvme 3.0 and nvme-cli 3.0. libnvme 3.0 makes significant API
+    changes and drops compatibility with prior versions; the Python bindings
+    are now the libnvme3 package.
+  * All configuration moved to /etc/nvme. /etc/stas is gone, and so are
+    sys.conf and the stasadm tool; the host identity now comes from
+    /etc/nvme/hostnqn and /etc/nvme/hostid.
+  * Which controllers to connect to, and with what parameters, moved out of
+    stafd.conf/stacd.conf into /etc/nvme/nvme-stas.conf, in libnvme's INI
+    format, read by libnvme's own parser. The controller= keyword and the
+    [Global] connection tunables are gone from the daemon configuration files.
+  * nvme-stas no longer disconnects connections it did not make: libnvme's
+    ownership registry is consulted before adopting one. disconnect-scope and
+    disconnect-trtypes are replaced by honor-fabric-zoning. The override that
+    suppressed nvme-cli's udev rule is gone.
+  * libnvme's host-wide exclusion list (nvme exclusion) is honored; the
+    exclude= keyword is deprecated.
+  * Discovery connections are held open only where EPCSD says to; a controller
+    that cannot hold one is polled instead. persistent-connections is gone and
+    zeroconf-connections-persistence is renamed dc-giveup-timeout.
+  * Time spans are parsed the way systemd parses them.
+  * Renames: dhchap to kxchap (TP4201), host-nqn to hostnqn. The D-Bus data
+    format is not compatible with 2.x.
 
- -- Martin Belanger <martin.belanger@dell.com>  Thu, 11 Dec 2025 11:30:00 -0500
+ -- Martin Belanger <martin.belanger@dell.com>  Tue, 08 Sep 2026 11:30:00 -0500
 
 nvme-stas (0.1) stable; urgency=medium
 

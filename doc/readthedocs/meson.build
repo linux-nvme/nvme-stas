@@ -17,6 +17,7 @@ components = [
     'environment.txt',
     'installation.rst',
     'nvme-stas.rst',
+    'nvme-stas.conf.rst',
     conf.get('STACD_DBUS_NAME') + '.debug.rst',
     conf.get('STACD_DBUS_NAME') + '.rst',
     conf.get('STAFD_DBUS_NAME') + '.debug.rst',

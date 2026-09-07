@@ -38,7 +38,7 @@ Description: NVMe Storage Appliance Services (STAS)
  stafd and stacd, to be used to access NVMe over TCP:
  .
    * Storage Appliance Finder (stafd):
-     automatically locate Central or Direct Discovery Controllers (CDC, DDC)
+     automatically locate Centralized or Direct Discovery Controllers (CDC, DDC)
      with zeroconf (mDNS).
  .
    * Storage Appliance Connector (stacd):

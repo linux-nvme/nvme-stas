@@ -6,10 +6,12 @@ Both **`stafd`** and **`stacd`** expose D-Bus interfaces that allow external pro
 
 **D-Bus Service Names**
 
-| Component | D-Bus Service Name             |
-| --------- | ------------------------------ |
-| `stafd`   | **`org.nvmexpress.staf.conf`** |
-| `stacd`   | **`org.nvmexpress.stac.conf`** |
+| Component | D-Bus Service Name        |
+| --------- | ------------------------- |
+| `stafd`   | **`org.nvmexpress.staf`** |
+| `stacd`   | **`org.nvmexpress.stac`** |
+
+The matching D-Bus policy files are installed as `/usr/share/dbus-1/system.d/org.nvmexpress.staf.conf` and `org.nvmexpress.stac.conf`.
 
 ------
 
@@ -42,8 +44,7 @@ To increase the limit, update the `igmp_max_memberships` sysctl parameter. Usefu
 
 ## **Testing**
 
-For information on executing or writing tests, refer to:
- **[TESTING.md](./TESTING.md)**
+For information on executing or writing tests, refer to: **[TESTING.md](./TESTING.md)**
 
 ------
 

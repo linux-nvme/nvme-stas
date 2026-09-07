@@ -74,7 +74,7 @@ Both daemons are driven by the **GLib main loop** — no `asyncio`, no threading
 
 **Controller removal**: When `_on_ctrl_removed()` fires (udev "remove" event), `_connect_attempts` resets to 0 and the retry timer restarts at `FAST_CONNECT_RETRY_PERIOD_SEC` — effectively a fresh connection attempt.
 
-**Last-known-config**: Persisted as a pickle file in `$RUNTIME_DIRECTORY` (typically `/run/nvme-stas/`). `pickle.load()` is safe here because that directory is root-only writable.
+**Last-known-config**: `stafd` only. Persisted as a pickle file in `$RUNTIME_DIRECTORY` (`/run/stafd/`, from `RuntimeDirectory=stafd` in the unit). `pickle.load()` is safe here because that directory is root-only writable. `stacd` has no state file — it asks the kernel what is connected and libnvme's ownership registry who owns it.
 
 ## NVMe Specification Context
 
