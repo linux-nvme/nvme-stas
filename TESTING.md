@@ -18,12 +18,14 @@ There are two ways to run the tests.
 
 A script is provided (`utils/nvmet/nvmet.py`) to simplify the configuration of the `nvmet` driver. The script comes with a companion configuration file (`utils/nvmet/nvmet.conf`). The configuration file is where you configure the port(s) and subsystem(s) to create. The default configuration will create 3 subsystems under port 1. This is mapped to the local IPv6 loopback address (`::1`).
 
-Since nvmet doesn't provide a mDNS responder, you will need to manually configure `stafd` (`/etc/nvme/stafd.conf`) so that it connects to the DDC that the nvmet driver creates by adding the DDC's address under the `[Controllers]` section. For example:
+Since nvmet doesn't provide a mDNS responder, you will need to manually configure the DDC that the nvmet driver creates. Controllers live in the connectivity configuration, `/etc/nvme/nvme-stas.conf`, as of nvme-stas 3.0 — not in `stafd.conf`. Add a `[Discovery Controller]` section:
 
 ```bash
-[Controllers]
-controller=transport=tcp;traddr=localhost
+[Discovery Controller]
+controller = transport=tcp;traddr=localhost
 ```
+
+See `man nvme-stas.conf` for the full format.
 
 ## Monitoring
 
@@ -84,13 +86,20 @@ if [ ! -s /etc/nvme/hostid ]; then
 fi
 
 #####################################################################
-# Edit /etc/nvme/stafd.conf to enable tracing and add the local 
-# nvmet driver as the Discovery Controller to connect to.
+# Enable tracing in both daemons.
 FILES="stafd.conf stacd.conf"
 for file in ${FILES}; do
 	sudo sed -i '/^#tron=false/a tron=true' /etc/nvme/${file}
 done 
-sudo sed -i '/^#controller=$/a controller=transport=tcp;traddr=localhost' /etc/nvme/stafd.conf
+
+#####################################################################
+# Add the local nvmet driver as the Discovery Controller to connect
+# to. Controllers go in the connectivity configuration, not stafd.conf.
+sudo tee -a /etc/nvme/nvme-stas.conf > /dev/null <<'EOF'
+
+[Discovery Controller]
+controller = transport=tcp;traddr=localhost
+EOF
 
 ```
 
@@ -122,6 +131,7 @@ $ stafctl ls
 [{'device': 'nvme0',
   'host-iface': '',
   'host-traddr': '',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
   'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
   'traddr': '::1',
   'transport': 'tcp',
@@ -135,6 +145,7 @@ $ stacctl ls
 [{'device': 'nvme1',
   'host-iface': '',
   'host-traddr': '',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
   'subsysnqn': 'nqn.1988-11.com.dell:klingons',
   'traddr': '::1',
   'transport': 'tcp',
@@ -142,6 +153,7 @@ $ stacctl ls
  {'device': 'nvme2',
   'host-iface': '',
   'host-traddr': '',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
   'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
   'traddr': '::1',
   'transport': 'tcp',
@@ -149,6 +161,7 @@ $ stacctl ls
  {'device': 'nvme3',
   'host-iface': '',
   'host-traddr': '',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
   'subsysnqn': 'nqn.1988-11.com.dell:starfleet',
   'traddr': '::1',
   'transport': 'tcp',

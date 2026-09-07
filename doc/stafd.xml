@@ -51,13 +51,17 @@
             <command>&daemon;</command>
             is a system daemon that can be used to automatically locate and
             connect to NVMe-oF Discovery Controllers using mDNS service discovery.
-            It can also be manually configured with
+            Discovery Controllers that cannot be located using mDNS can be
+            stated explicitly in the connectivity configuration,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
+            The daemon's own behaviour is configured in
             <citerefentry>
                 <refentrytitle>&daemon;.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
-            </citerefentry>
-            to connect to Discovery Controllers that cannot be located using
-            mDNS.
+            </citerefentry>.
         </para>
     </refsect1>
 
@@ -209,11 +213,16 @@
             <command>&daemon;</command> can automatically locate discovery
             controllers (DC) with the help of Avahi and connect to them. However,
             <command>&daemon;</command> can also operate in a non-automatic
-            mode based on manually entered configuration. In other words,
-            DCs can be entered in a configuration named
-            <filename>/etc/nvme/&daemon;.conf</filename>.
-            This configuration file also provides additional parameters, such
-            as log-level attributes used for debugging purposes.
+            mode based on manually entered configuration. DCs are entered as
+            <literal>[Discovery Controller]</literal> sections of the
+            connectivity configuration,
+            <filename>/etc/nvme/nvme-stas.conf</filename>, which also carries
+            the parameters their connections are made with.
+        </para>
+        <para>
+            The daemon's own behaviour &#8212; tracing, mDNS, exclusions and
+            the discovery connection management &#8212; is configured
+            separately, in <filename>/etc/nvme/&daemon;.conf</filename>.
         </para>
     </refsect1>
 
@@ -233,6 +242,10 @@
         <para>
             <citerefentry>
                 <refentrytitle>&daemon;.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
             </citerefentry>,
             <citerefentry>

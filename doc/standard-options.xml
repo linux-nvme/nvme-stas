@@ -105,6 +105,24 @@
       </listitem>
   </varlistentry>
 
+  <varlistentry id='hostnqn'>
+      <term><option>-qNQN</option></term>
+      <term><option>--hostnqn=NQN</option></term>
+      <listitem>
+          <para>
+              This field specifies the host NVMe Qualified Name that the
+              connection was made under. It defaults to the host NQN read
+              from <filename>/etc/nvme/hostnqn</filename>, which is what a
+              connection uses unless the connectivity configuration gave it
+              a different identity. See
+              <citerefentry>
+                  <refentrytitle>nvme-stas.conf</refentrytitle>
+                  <manvolnum>5</manvolnum>
+              </citerefentry>.
+          </para>
+      </listitem>
+  </varlistentry>
+
   <varlistentry id='nqn'>
       <term><option>-nNQN</option></term>
       <term><option>--nqn=NQN</option></term>

@@ -55,6 +55,24 @@
         <para>The following options are available in the
             <literal>[Controllers]</literal> section:</para>
 
+        <note>
+            <para>
+                The <varname>controller=</varname> keyword no longer belongs
+                here. Which controllers to connect to, and with what
+                parameters, is stated in
+                <filename>/etc/nvme/nvme-stas.conf</filename> as of
+                nvme-stas 3.0 &mdash; a Discovery Controller as a
+                <literal>[Discovery Controller]</literal> section, an I/O
+                subsystem as a <literal>[Subsystem]</literal> section. See
+                <citerefentry>
+                    <refentrytitle>nvme-stas.conf</refentrytitle>
+                    <manvolnum>5</manvolnum>
+                </citerefentry>.
+                A <varname>controller=</varname> entry left behind in this
+                file is reported in the log, not silently ignored.
+            </para>
+        </note>
+
         <varlistentry>
             <term><varname>exclude=</varname></term>
 

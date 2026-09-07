@@ -41,7 +41,7 @@ To work around all of the above, a container running `stafd`/`stacd` would need 
 - `--privileged` (or a large set of Linux capabilities)
 - `--net=host`
 - Bind-mount of `/var/run/dbus`
-- Bind-mount or volume for `/run/nvme-stas`
+- Bind-mount or volume for `/run/stafd`
 - Bind-mount of `/dev`
 
 At that point, the container has essentially unrestricted access to the host and provides no meaningful isolation. The operational complexity is strictly greater than simply running the daemons as systemd units, which is what they are designed to be.

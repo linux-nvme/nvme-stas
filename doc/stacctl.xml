@@ -68,7 +68,7 @@
                         Show the list of I/O controllers. This will list
                         all the I/O controllers configured in
                         <citerefentry>
-                            <refentrytitle>stacd.conf</refentrytitle>
+                            <refentrytitle>nvme-stas.conf</refentrytitle>
                             <manvolnum>5</manvolnum>
                         </citerefentry> as well as those discovered by the
                         <citerefentry>
@@ -211,6 +211,10 @@
         <para>
             <citerefentry>
                 <refentrytitle>stacd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
             </citerefentry>,
             <citerefentry>

@@ -1,15 +1,24 @@
-# Feature Comparison: nvme-stas vs. nvme-cli
+# Feature Comparison: nvme-stas vs. nvme-cli vs. nvme-discoverd
 
-| Feature | nvme-stas | nvme-cli |
-| --- | --- | --- |
-| IP address family filter | **Yes** – configured via `ip-family=[ipv4, ipv6, ipv4+ipv6]` in `/etc/nvme/*.conf` | **No** |
-| Automatic DIM registration with a Centralized Discovery Controller (CDC) per TP8010 | **Yes** | **No** – manual only via `nvme dim` |
-| Automatic (zeroconf) discovery of Direct/Centralized Discovery Controllers (DDC/CDC) | **Yes** – registers with the Avahi daemon to receive mDNS notifications when CDCs or DDCs are detected, and connects to them automatically | **No** |
-| Manual Discovery Controller (DC) configuration with explicit include/exclude | **Yes** – use `controller=` and `exclude=` in `/etc/nvme/stafd.conf`; exclusions are useful for filtering out unwanted mDNS-discovered DCs | **Partial** – no way to exclude DCs (moot since mDNS is not supported); use `/etc/nvme/discovery.conf` to include controllers |
-| Manual I/O Controller (IOC) configuration with explicit include/exclude | **Yes** – use `controller=` and `exclude=` in `/etc/nvme/stacd.conf`; exclusions filter out unwanted IOCs from log pages (ideally handled via proper zone definitions at the DC) | **Partial** – JSON config files are supported, but excluding IOCs is not possible |
-| AEN monitoring + automatic connection/disconnection for Fabric Zoning | **Yes** – responds to Fabric Zoning changes with connect and disconnect operations with retries (configurable via `/etc/nvme/stacd.conf`) | **Partial** – responds to Fabric Zoning changes with connect-only, no retries (one-shot udev rule) |
-| Use PLEO bit to retrieve only Port Local Entries from log pages | **Yes** | **No** |
-| Automatic Layer 3 connectivity without static routes | **Yes** – configurable via `ignore-iface=` in `/etc/nvme/*.conf` | **No** – manual only via `--host-iface` |
-| Explicit exclusion of specific discovery interfaces | **Yes** – use `exclude = host-iface=<interface>` in `/etc/nvme/*.conf` | **No** – not applicable without mDNS support |
-| AVE client support | **Planned** (implementation TBD) | **No** |
-| Human-friendly `nvme list` output | **No** – `stafctl` and `stacctl` output JSON only; not a significant gap since `nvme list -v` covers this well | **Yes** – via `nvme list -v` |
+Compares nvme-stas 3.0 with the two connection-management mechanisms that ship in nvme-cli 3.0. They are not the same kind of thing, so each gets its own column: **nvme-cli** is a set of one-shot commands (`nvme connect-all`, `nvme discover`, plus the legacy udev / `nvmf-connect@.service` autoconnect rules) that do their work and exit, while **nvme-discoverd** is a persistent daemon, like nvme-stas.
+
+All three read the same INI-format connectivity configuration through libnvme's parser: nvme-stas from `/etc/nvme/nvme-stas.conf`, the nvme-cli tools and `nvme-discoverd` from `/etc/nvme/nvme-fabrics.conf`. The legacy `config.json` and `discovery.conf` are converted with `nvme config-convert`.
+
+| Feature | nvme-stas | nvme-cli | nvme-discoverd |
+| --- | --- | --- | --- |
+| IP address family filter | **Yes** – configured via `ip-family=[ipv4, ipv6, ipv4+ipv6]` in `/etc/nvme/stafd.conf` and `/etc/nvme/stacd.conf` | **No** | **No** |
+| Automatic DIM registration with a Centralized Discovery Controller (CDC) per TP8010 | **Yes** | **No** – manual only via `nvme dim` | **No** |
+| Automatic (zeroconf) discovery of Direct/Centralized Discovery Controllers (DDC/CDC) per TP8009 | **Yes** – registers with the Avahi daemon to receive mDNS notifications when CDCs or DDCs are detected, and connects to them automatically | **No** | **No** – explicitly out of scope for this release |
+| Manual Discovery Controller (DC) configuration | **Yes** – a `[Discovery Controller]` section in `/etc/nvme/nvme-stas.conf` | **Yes** – a `[Discovery Controller]` section in `/etc/nvme/nvme-fabrics.conf` | **Yes** – the same file as nvme-cli |
+| Manual I/O Controller (IOC) configuration | **Yes** – a `[Subsystem]` section in `/etc/nvme/nvme-stas.conf` | **Yes** – a `[Subsystem]` section in `/etc/nvme/nvme-fabrics.conf` | **Yes** – the same file as nvme-cli |
+| TLS and in-band authentication | **Yes** – the security keys of the connectivity configuration (`tls`, `tls-key`, `tls-key-identity`, `keyring`, `concat`, `kxchap-secret`, `kxchap-ctrl-secret`), applied per connection | **Yes** – the same keys, their `--tls`/`--tls-key`/`--keyring` command-line equivalents, and the tooling that generates and installs PSKs (`nvme gen-tls-key`, `nvme tls-key`, `nvme keys ...`) | **Yes** – the same keys, forwarded verbatim to the `nvme connect` it runs |
+| Excluding controllers | **Yes** – libnvme's host-wide exclusion list (`nvme exclusion`), re-read on every connection attempt, plus the deprecated `exclude=` keyword | **Yes** – the same host-wide list, consulted by `nvme connect-all` | **Yes** – the same host-wide list, checked before every connect decision, NBFT-sourced controllers included |
+| AEN monitoring + automatic connection **and disconnection** for Fabric Zoning | **Yes** – responds to Fabric Zoning changes with connect and disconnect operations, with retries (`honor-fabric-zoning=` in `/etc/nvme/stacd.conf`) | **No** – `nvme connect-all` is one-shot, and the legacy udev rule is connect-only with no retry | **Partial** – acts on the Discovery Log Page Changed AEN and reconnects with exponential backoff, but never disconnects a live controller in response to a discovery change |
+| Ownership: never disconnect somebody else's connection | **Yes** – consults libnvme's ownership registry before adopting a connection, and registers `owner=stas` on its own | **Yes** – `--owner` on `nvme connect`/`connect-all`; `nvme connect-all` skips a Discovery Controller owned by somebody else | **Yes** – registers `owner=discoverd` (or `owner=nbft` for an NBFT-sourced controller) and checks the registry before every connect |
+| Use PLEO bit to retrieve only Port Local Entries from log pages | **Yes** | **No** | **No** |
+| Persistent discovery connections driven by EPCSD | **Yes** – `persistent=auto` by default: hold the connection open wherever the DC reports EPCSD support, and poll a parked DC every `epcsd-poll-interval-minutes` | **Partial** – `--persistent[=auto]` leaves a DC connection open only where EPCSD=1, but being one-shot it never re-checks one it left disconnected | **Yes** – the same `auto` default and the same `epcsd-poll-interval-minutes` key, with the same default of 15 |
+| Automatic Layer 3 connectivity without static routes | **Yes** – configurable via `ignore-iface=` in `/etc/nvme/stafd.conf` and `/etc/nvme/stacd.conf` | **No** – manual only via `--host-iface` | **No** – `host-iface` is taken as configured |
+| AVE client support | **Planned** (implementation TBD) | **No** – the AVE Discovery log page can be read manually with `nvme log ave-discovery` | **No** |
+| Human-friendly `nvme list` output | **No** – `stafctl` and `stacctl` output JSON only; not a significant gap since `nvme list -v` covers this well | **Yes** – via `nvme list -v` | **N/A** – no listing tool of its own |
+
+`nvme-discoverd` is a technology preview in nvme-cli 3.0: its Meson option defaults to `disabled`, and the legacy udev autoconnect units remain the default mechanism.

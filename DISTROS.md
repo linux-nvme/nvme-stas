@@ -6,7 +6,7 @@ This document describes the requirements and guidelines for packaging **nvme-sta
 
 `nvme-stas` is a Python 3 project and does not require build-time libraries. However, it uses **Meson** for build configuration, installation, and testing.
 
-Meson is a fundamental requirement — not merely a convenience wrapper. `nvme-stas` depends on **libnvme3**, which is a C library that is part of the **nvme-cli** project and is itself built with Meson. By also using Meson, `nvme-stas` can declare `nvme-cli` as a [Meson subproject](https://mesonbuild.com/Subprojects.html), allowing the entire stack (libnvme3 → nvme-cli → nvme-stas) to be configured and built with a single `meson setup` + `meson compile` invocation. This is especially important for development and CI environments where a specific, unreleased version of libnvme must be paired with a matching nvme-stas.
+Meson is a fundamental requirement — not merely a convenience wrapper. `nvme-stas` depends on **libnvme3**, which is a C library that is part of the **nvme-cli** project and is itself built with Meson. By also using Meson, `nvme-stas` can declare `nvme-cli` as a [Meson subproject](https://mesonbuild.com/Subprojects.html), allowing the entire stack (libnvme3 → nvme-cli → nvme-stas) to be configured and built with a single `meson setup` + `meson compile` invocation. This is especially important for development and CI environments, where a specific version of libnvme — often one newer than any distribution ships — must be paired with a matching nvme-stas.
 
 | Library / Program | Purpose                                                              | Mandatory? |
 | ----------------- | -------------------------------------------------------------------- | ---------- |
@@ -84,10 +84,7 @@ Both `libnvme3` and `nvme-cli` rely on:
 - `/etc/nvme/hostnqn`
 - `/etc/nvme/hostid`
 
-Distributions should create these files on install. nvme-stas depends on
-nvme-cli, whose own packaging generally does this already; where it does not,
-a maintainer script can do it.
-Example (Debian maintainer script):
+Distributions should create these files on install. nvme-stas depends on nvme-cli, whose own packaging generally does this already; where it does not, a maintainer script can do it. Example (Debian maintainer script):
 
 ```
 if [ "$1" = "configure" ]; then
@@ -105,10 +102,7 @@ fi
 
 Note there is no `nvme gen-hostid`; the Host ID is a plain UUID.
 
-nvme-stas also ships `stas-config@hostnqn.service` and
-`stas-config@hostid.service`, which generate the same two files at boot if
-they are missing. They are guarded by `ConditionFileNotEmpty`, so they do
-nothing on a host whose packaging already created them.
+nvme-stas also ships `stas-config@hostnqn.service` and `stas-config@hostid.service`, which generate the same two files at boot if they are missing. They are guarded by `ConditionFileNotEmpty`, so they do nothing on a host whose packaging already created them.
 
 ### nvme-stas Configuration Files
 
@@ -150,21 +144,12 @@ These rules attempt to auto-connect I/O controllers on kernel events.
 
 ### Resolution
 
-libnvme's **ownership registry** settles the race at the source. Every controller
-nvme-stas connects is recorded as `owner=stas` in `/run/nvme/registry`, and
-`nvme connect-all` reads the Discovery Controller's owner before it does anything:
-when the controller belongs to somebody else, it skips the whole operation.
+libnvme's **ownership registry** settles the race at the source. Every controller nvme-stas connects is recorded as `owner=stas` in `/run/nvme/registry`, and `nvme connect-all` reads the Discovery Controller's owner before it does anything: when the controller belongs to somebody else, it skips the whole operation.
 
 This means:
 
-- Each orchestrator owns the connections it makes, and no orchestrator disconnects
-  or takes over another's
+- Each orchestrator owns the connections it makes, and no orchestrator disconnects or takes over another's
 - nvme-stas and nvme-cli's udev rules coexist without racing
-- Hybrid configurations work as expected: controllers configured through nvme-cli
-  keep being handled by nvme-cli's udev rules, and those configured through
-  nvme-stas by nvme-stas
+- Hybrid configurations work as expected: controllers configured through nvme-cli keep being handled by nvme-cli's udev rules, and those configured through nvme-stas by nvme-stas
 
-Up to nvme-stas 2.x, the same problem was addressed by **disabling nvme-cli's udev
-rules** — nvme-stas installed `/run/udev/rules.d/70-nvmf-autoconnect.rules`, which
-took precedence over the file shipped by the nvme-cli package. That override is
-gone as of 3.0; nvme-cli's rules are left in place.
+Up to nvme-stas 2.x, the same problem was addressed by **disabling nvme-cli's udev rules** — nvme-stas installed `/run/udev/rules.d/70-nvmf-autoconnect.rules`, which took precedence over the file shipped by the nvme-cli package. That override is gone as of 3.0; nvme-cli's rules are left in place.

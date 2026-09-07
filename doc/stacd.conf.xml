@@ -83,61 +83,6 @@
                 <xi:include href="standard-conf.xml" xpointer="ip-family"/>
 
                 <varlistentry>
-                    <term><varname>nr-io-queues=</varname></term>
-
-                    <listitem>
-                        <para>
-                            Takes a value in the range 1...N. Overrides the
-                            default number of I/O queues created by the driver.
-                        </para>
-
-                        <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-                        <para>
-                            Default: Depends on kernel and other run
-                            time factors (e.g. number of CPUs).
-                        </para>
-                    </listitem>
-                </varlistentry>
-
-                <varlistentry>
-                    <term><varname>nr-write-queues=</varname></term>
-
-                    <listitem>
-                        <para>
-                            Takes a value in the range 1...N. Adds additional
-                            queues that will be used for write I/O.
-                        </para>
-
-                        <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-
-                        <para>
-                            Default: Depends on kernel and other run
-                            time factors (e.g. number of CPUs).
-                        </para>
-                    </listitem>
-                </varlistentry>
-
-                <varlistentry>
-                    <term><varname>nr-poll-queues=</varname></term>
-
-                    <listitem>
-                        <para>
-                            Takes a value in the range 1...N. Adds additional
-                            queues that will be used for polling latency
-                            sensitive I/O.
-                        </para>
-
-                        <para>Note: This parameter is identical to that provided by nvme-cli.</para>
-
-                        <para>
-                            Default: Depends on kernel and other run
-                            time factors (e.g. number of CPUs).
-                        </para>
-                    </listitem>
-                </varlistentry>
-
-
-                <varlistentry>
                     <term><varname>ignore-iface=</varname></term>
                     <listitem>
                         <para>
@@ -277,7 +222,7 @@
 
                         <row>
                             <entry>Manual Config</entry>
-                            <entry>Refers to manually adding entries to <filename>stacd.conf</filename> with the <varname>controller=</varname> parameter.</entry>
+                            <entry>Refers to manually adding <literal>[Subsystem]</literal> sections to <filename>/etc/nvme/nvme-stas.conf</filename> (see <citerefentry><refentrytitle>nvme-stas.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>).</entry>
                         </row>
 
                         <row>
@@ -317,8 +262,12 @@
                 <orderedlist>
                     <listitem>
                         <para>
-                            Manual Config by adding <varname>controller=</varname> entries
-                            to the <literal>[Controllers]</literal> section (see below).
+                            Manual Config by adding a
+                            <literal>[Subsystem]</literal> section to
+                            <citerefentry>
+                                <refentrytitle>nvme-stas.conf</refentrytitle>
+                                <manvolnum>5</manvolnum>
+                            </citerefentry>.
                         </para>
                     </listitem>
                     <listitem>
@@ -347,14 +296,24 @@
                             <orderedlist numeration='lowerroman'>
                                 <listitem>
                                     <para>
-                                        by adding <varname>exclude=</varname> entries to
-                                        the <literal>[Controllers]</literal> section (see below).
+                                        by adding an entry to libnvme's
+                                        host-wide exclusion list with
+                                        <command>nvme exclusion</command>, or
+                                        to the deprecated
+                                        <varname>exclude=</varname> keyword of
+                                        the <literal>[Controllers]</literal>
+                                        section (see below).
                                     </para>
                                 </listitem>
                                 <listitem>
                                     <para>
-                                        by removing <varname>controller=</varname> entries
-                                        from the <literal>[Controllers]</literal> section.
+                                        by removing the
+                                        <literal>[Subsystem]</literal> section
+                                        from
+                                        <citerefentry>
+                                            <refentrytitle>nvme-stas.conf</refentrytitle>
+                                            <manvolnum>5</manvolnum>
+                                        </citerefentry>.
                                     </para>
                                 </listitem>
                             </orderedlist>

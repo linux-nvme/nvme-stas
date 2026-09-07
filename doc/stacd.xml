@@ -54,13 +54,18 @@
             <citerefentry>
                 <refentrytitle>stafd</refentrytitle>
                 <manvolnum>8</manvolnum>
-            </citerefentry>. It can also be manually configured with
+            </citerefentry>. I/O Controllers that cannot be found
+            automatically can be stated explicitly in the connectivity
+            configuration,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
+            The daemon's own behaviour is configured in
             <citerefentry>
                 <refentrytitle>&daemon;.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
-            </citerefentry>
-            to connect to I/O Controllers that otherwise cannot be found
-            automatically.
+            </citerefentry>.
         </para>
     </refsect1>
 
@@ -197,11 +202,16 @@
             <command>&daemon;</command> can automatically set up the I/O
             connections to discovered storage subsystems. However,
             <command>&daemon;</command> can also operate in a non-automatic
-            mode based on manually entered configuration. In other words,
-            storage subsystems can be entered in a configuration file named
+            mode based on manually entered configuration. Storage subsystems
+            are entered as <literal>[Subsystem]</literal> sections of the
+            connectivity configuration,
+            <filename>/etc/nvme/nvme-stas.conf</filename>, which also carries
+            the parameters their connections are made with.
+        </para>
+        <para>
+            The daemon's own behaviour &#8212; tracing, exclusions and the
+            fabric zoning policy &#8212; is configured separately, in
             <filename>/etc/nvme/&daemon;.conf</filename>.
-            This configuration file also provides additional parameters,
-            as log-level attributes used for debugging purposes.
         </para>
     </refsect1>
 
@@ -221,6 +231,10 @@
         <para>
             <citerefentry>
                 <refentrytitle>&daemon;.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
             </citerefentry>,
             <citerefentry>

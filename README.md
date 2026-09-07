@@ -52,6 +52,8 @@ The fundamental reason is that **nvme-cli is stateless**: it issues one-off comm
 - Establishes NVMe-oF I/O controller connections.
 - Provides a D-Bus API for client tools to inspect I/O controller state.
 
+Neither daemon disconnects a connection it did not make. libnvme's **ownership registry** records who established each NVMe-oF connection, and *nvme-stas* consults it before adopting one, so connections belonging to `nvme-cli`, `nvme-discoverd` or the initramfs (NBFT) are left alone.
+
 ![Definition](./doc/images/STAF-STAC-libnvme.png)
 
 ## Design Notes
@@ -79,9 +81,7 @@ Equivalent service units exist for *stacd*. Signals like `SIGTERM` and `SIGHUP` 
 
 ## Configuration
 
-Configuration is split between the connectivity configuration, which says
-which controllers to connect to and with what parameters, and each daemon's
-own behaviour:
+Configuration is split between the connectivity configuration, which says which controllers to connect to and with what parameters, and each daemon's own behaviour:
 
 | File                          | Applies To    | Purpose                                                      |
 | ----------------------------- | ------------- | ------------------------------------------------------------ |
@@ -89,11 +89,7 @@ own behaviour:
 | `/etc/nvme/stafd.conf`        | stafd         | Daemon behaviour                                             |
 | `/etc/nvme/stacd.conf`        | stacd         | Daemon behaviour                                             |
 
-The connectivity configuration is libnvme's INI format, read by libnvme's own
-parser, so *nvme-stas*, the *nvme-cli* tools and *nvme-discoverd* all
-understand one format. *nvme-stas* keeps its own file: a host must be able to
-run *nvme-stas* and *nvme-discoverd* side by side, each connecting its own
-controllers.
+The connectivity configuration is libnvme's INI format, read by libnvme's own parser, so *nvme-stas*, the *nvme-cli* tools and *nvme-discoverd* all understand one format. *nvme-stas* keeps its own file: a host must be able to run *nvme-stas* and *nvme-discoverd* side by side, each connecting its own controllers.
 
 Both services can operate with **automatically discovered controllers** (via Avahi) or **manually specified entries** in their respective config files.
 
@@ -118,30 +114,15 @@ This ensures consistency with other NVMe tools like `nvme-cli` and `libnvme`. Al
 
 ## Excluding Controllers
 
-Controllers that *nvme-stas* must not connect to are configured in libnvme's
-host-wide exclusion list — `/etc/nvme/exclusions.conf` and
-`/etc/nvme/exclusions.conf.d/` — which is managed with `nvme exclusion` and is
-honored by every NVMe-oF tool on the host. *stafd* and *stacd* re-read it on
-every connection attempt, so changes take effect without reloading either
-daemon. The older `exclude=` keyword of `stafd.conf`/`stacd.conf` is still
-honored in addition to that list, but is deprecated and will be removed in a
-future release.
+Controllers that *nvme-stas* must not connect to are configured in libnvme's host-wide exclusion list — `/etc/nvme/exclusions.conf` and `/etc/nvme/exclusions.conf.d/` — which is managed with `nvme exclusion` and is honored by every NVMe-oF tool on the host. *stafd* and *stacd* re-read it on every connection attempt, so changes take effect without reloading either daemon. The older `exclude=` keyword of `stafd.conf`/`stacd.conf` is still honored in addition to that list, but is deprecated and will be removed in a future release.
 
 ## D-Bus Security and Trust
 
-Both *stafd* and *stacd* communicate over the **system D-Bus bus**. D-Bus policy
-files (installed under `/usr/share/dbus-1/system.d/`) control which callers are
-allowed to own or interact with the service names. Only processes running as
-**root** (or with explicit D-Bus policy permission) can invoke the service
-interfaces.
+Both *stafd* and *stacd* communicate over the **system D-Bus bus**. D-Bus policy files (installed under `/usr/share/dbus-1/system.d/`) control which callers are allowed to own or interact with the service names. Only processes running as **root** (or with explicit D-Bus policy permission) can invoke the service interfaces.
 
-*stacd* subscribes to D-Bus signals emitted by *stafd* (`log_pages_changed` and
-`dc_removed`). These signals arrive over the trusted system bus — *stacd* does
-not accept instructions from untrusted sources.
+*stacd* subscribes to D-Bus signals emitted by *stafd* (`log_pages_changed` and `dc_removed`). These signals arrive over the trusted system bus — *stacd* does not accept instructions from untrusted sources.
 
-The host credentials written to `/run/nvme-stas/` by the daemons (e.g. the
-last-known-config pickle file) are protected by root-only filesystem
-permissions. Do not grant untrusted users write access to that directory.
+*stafd* caches its discovery log pages in its runtime directory, `/run/stafd/`, which is protected by root-only filesystem permissions. Do not grant untrusted users write access to that directory. *stacd* keeps no state file: on startup it asks the kernel what is connected and libnvme's ownership registry who owns each connection.
 
 ## Build, Install & Tests
 
@@ -163,13 +144,11 @@ For users unfamiliar with Meson, an alternate `configure && make` build is provi
 - `stafctl` – interact with *stafd*.
 - `stacctl` – interact with *stacd*.
 
-The host NQN and Host ID are generated by *nvme-cli* (`nvme gen-hostnqn`) and
-`uuidgen`, which the `stas-config@.service` units run on first start.
+The host NQN and Host ID are generated by *nvme-cli* (`nvme gen-hostnqn`) and `uuidgen`, which the `stas-config@.service` units run on first start.
 
 ## Addendum 
 
-For additional troubleshooting and building info, refer to: 
-[**ADDENDUM.md**](./ADDENDUM.md)
+For additional troubleshooting and building info, refer to: [**ADDENDUM.md**](./ADDENDUM.md)
 
 
 

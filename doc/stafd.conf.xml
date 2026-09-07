@@ -232,9 +232,14 @@
                         DC. It defaults to <parameter>auto</parameter>: hold
                         the connection open wherever the DC reports, through
                         the EPCSD flag of its discovery log page entry, that
-                        it supports one. Note this default differs from that
-                        of the <code>nvme-cli</code> tools, which hold nothing
-                        open unless asked to.
+                        it supports one. Note this default differs from
+                        libnvme's, where an unset value behaves as
+                        <parameter>no</parameter> &#8212; as it does for a
+                        plain <command>nvme connect-all</command>, which holds
+                        nothing open unless asked to. It is the same choice
+                        <command>nvme-discoverd</command> makes, which parks an
+                        EPCSD=0 Discovery Controller on the same
+                        <varname>epcsd-poll-interval-minutes</varname>.
                     </para>
                     <para>
                         Defaults to <parameter>15</parameter>.

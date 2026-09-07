@@ -1,5 +1,5 @@
-# Copyright (c) 2022, Dell Inc. or its subsidiaries.  All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2022, Dell Inc. or its subsidiaries.  All rights reserved.
 # See the LICENSE file for details.
 #
 # This file is part of NVMe STorage Appliance Services (nvme-stas).
@@ -17,6 +17,7 @@ components = [
     'environment.txt',
     'installation.rst',
     'nvme-stas.rst',
+    'nvme-stas.conf.rst',
     conf.get('STACD_DBUS_NAME') + '.debug.rst',
     conf.get('STACD_DBUS_NAME') + '.rst',
     conf.get('STAFD_DBUS_NAME') + '.debug.rst',

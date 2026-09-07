@@ -3,7 +3,7 @@ Welcome to nvme-stas's documentation!
 
 What does nvme-stas provide?
 
-* A Central Discovery Controller (CDC) client for Linux
+* A Centralized Discovery Controller (CDC) client for Linux
 * Asynchronous Event Notifications (AEN) handling
 * Automated NVMe subsystem connection controls
 * Error handling and reporting
@@ -15,6 +15,7 @@ What does nvme-stas provide?
 
    installation.rst
    nvme-stas.rst
+   nvme-stas.conf.rst
    stafd-index.rst
    stacd-index.rst
    stas-config.target.rst
