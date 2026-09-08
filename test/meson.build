@@ -74,6 +74,7 @@ else
         ['Test defs.py',       [],           [srce_dir / 'test-defs.py',         ]],
         ['Test Exclusions',    [],           [srce_dir / 'test-exclusions.py',   ]],
         ['Test gutil.py',      [],           [srce_dir / 'test-gutil.py',        ]],
+        ['Test IDL',           [],           [srce_dir / 'test-idl.py',          ]],
         ['Test Udev',          [],           [srce_dir / 'test-udev.py',         ]],
         ['Test timeparse',     [],           [srce_dir / 'test-timeparse.py',    ]],
     ]

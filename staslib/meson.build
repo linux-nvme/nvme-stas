@@ -7,7 +7,7 @@
 # Authors: Martin Belanger <Martin.Belanger@dell.com>
 #
 
-files_to_configure = [ 'defs.py', '__init__.py', 'stafd.idl', 'stacd.idl' ]
+files_to_configure = [ 'defs.py', '__init__.py' ]
 configured_files = []
 foreach file : files_to_configure
     configured_files += configure_file(
@@ -16,6 +16,20 @@ foreach file : files_to_configure
         configuration: conf
     )
 endforeach
+
+# The D-Bus IDLs are also configured, but are kept in variables of their own
+# because doc/meson.build generates the D-Bus DocBooks from them.
+stafd_idl = configure_file(
+    input: 'stafd.idl',
+    output: 'stafd.idl',
+    configuration: conf
+)
+stacd_idl = configure_file(
+    input: 'stacd.idl',
+    output: 'stacd.idl',
+    configuration: conf
+)
+configured_files += [ stafd_idl, stacd_idl ]
 
 files_to_copy = [
     'avahi.py',
