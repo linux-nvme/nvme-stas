@@ -35,28 +35,48 @@ if want_man or want_html or want_readthedocs
             else
                 deps = deps.split(':')
             endif
-            docbooks += [ [stem, manvolnum, fname, deps] ]
+            docbooks += [ [stem, manvolnum, files(fname), deps] ]
         endforeach
     endif
 
     # Generate DocBooks from IDL queried directly from the D-Bus services.
-    out_dir = conf.get('BUILD_DIR') / 'man-tmp'
+    # gdbus-codegen writes one DocBook per D-Bus interface, named after that
+    # interface, and each IDL declares the daemon's interface plus its .debug
+    # companion. They are built by a custom_target so that the man and html
+    # targets can take them by reference: passing a generated file by name is
+    # a hard error in Meson 2.0.
     env = environment({'PYTHONPATH': conf.get('PYTHONPATH')})
-    idls = [ 'stafd.idl', 'stacd.idl' ]
-    foreach idl : idls
-        rr = run_command(
-            dbus2doc,
-            '--idl', conf.get('BUILD_DIR') / 'staslib' / idl,
-            '--output-directory', out_dir,
-            '--tmp', meson.current_build_dir(),
+    dbus_idls = [
+        [ stafd_idl, [ conf.get('STAFD_DBUS_NAME'), conf.get('STAFD_DBUS_NAME') + '.debug' ] ],
+        [ stacd_idl, [ conf.get('STACD_DBUS_NAME'), conf.get('STACD_DBUS_NAME') + '.debug' ] ],
+    ]
+    foreach tuple : dbus_idls
+        idl   = tuple[0]
+        stems = tuple[1]
+
+        outputs = []
+        foreach stem : stems
+            outputs += stem + '.xml'
+        endforeach
+
+        idl_docbooks = custom_target(
+            'docbooks-' + stems[0],
+            input: idl,
+            output: outputs,
+            command: [
+                dbus2doc,
+                '--idl', '@INPUT@',
+                '--output-directory', '@OUTDIR@',
+                '--tmp', '@PRIVATE_DIR@',
+            ],
             env: env,
-            check: true)
-        output = rr.stdout().strip()
-        if output != ''
-            foreach stem : output.split(';')
-                docbooks += [ [stem, '5', out_dir / stem + '.xml', []] ]
-            endforeach
-        endif
+        )
+
+        i = 0
+        foreach stem : stems
+            docbooks += [ [stem, '5', idl_docbooks[i], []] ]
+            i += 1
+        endforeach
     endforeach
 
 
@@ -89,7 +109,7 @@ if want_man or want_html or want_readthedocs
     foreach tuple: docbooks
         stem = tuple[0]
         sect = tuple[1]
-        file = files(tuple[2])
+        file = tuple[2]
         deps = tuple[3]
 
         if want_man
