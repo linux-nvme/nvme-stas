@@ -108,6 +108,22 @@ class TestTidFromDlpe(unittest.TestCase):
         'subnqn': SUBSYSNQN,
     }
 
+    def setUp(self):
+        # test_none_hostnqn_falls_back_to_sysconf omits hostnqn, so TID falls
+        # back to SysConf.hostnqn. Point it at a throwaway file instead of the
+        # real /etc/nvme/hostnqn.
+        tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmpdir, True)
+        hostnqn_file = os.path.join(tmpdir, 'hostnqn')
+        hostid_file = os.path.join(tmpdir, 'hostid')
+        with open(hostnqn_file, 'w') as f:
+            f.write(HOSTNQN + '\n')
+        with open(hostid_file, 'w') as f:
+            f.write('01234567-89ab-cdef-0123-456789abcdef\n')
+        conf.SysConf.destroy()
+        self.addCleanup(conf.SysConf.destroy)
+        conf.SysConf(hostnqn_file=hostnqn_file, hostid_file=hostid_file)
+
     def test_returns_tid_instance(self):
         result = stas.tid_from_dlpe(self.DLPE, host_traddr='1.2.3.4', host_iface='eth0', hostnqn=HOSTNQN)
         self.assertIsInstance(result, trid.TID)
@@ -133,8 +149,7 @@ class TestTidFromDlpe(unittest.TestCase):
         self.assertEqual(result.host_traddr, '1.2.3.4')
 
     def test_none_hostnqn_falls_back_to_sysconf(self):
-        # When hostnqn is None, TID falls back to SysConf.hostnqn (which may
-        # itself be None if /etc/nvme/hostnqn is absent — that is acceptable here)
+        # When hostnqn is None, TID falls back to SysConf.hostnqn.
         result = stas.tid_from_dlpe(self.DLPE, host_traddr='', host_iface='', hostnqn=None)
         self.assertIsInstance(result, trid.TID)
 

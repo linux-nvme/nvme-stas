@@ -46,14 +46,28 @@ class TestLibnvmeExclusions(unittest.TestCase):
         if not os.path.exists(cls.DROPIN_DIR):
             os.mkdir(cls.DROPIN_DIR)
 
+        # test_hostid_of_this_host_excludes_everything reads SysConf().hostid.
+        # Point it at a throwaway file instead of the real /etc/nvme/hostid.
+        conf.SysConf.destroy()
+        with open(os.path.join(cls.SANDBOX, 'hostnqn'), 'w') as f:
+            f.write(HOSTNQN + '\n')
+        with open(os.path.join(cls.SANDBOX, 'hostid'), 'w') as f:
+            f.write('01234567-89ab-cdef-0123-456789abcdef\n')
+        conf.SysConf(hostnqn_file=os.path.join(cls.SANDBOX, 'hostnqn'), hostid_file=os.path.join(cls.SANDBOX, 'hostid'))
+
     @classmethod
     def tearDownClass(cls):
         # Remove only what we created: the sandbox is shared with any other
         # test file running in this process.
+        conf.SysConf.destroy()
         cls._write_exclusions(None)
         shutil.rmtree(cls.DROPIN_DIR, ignore_errors=True)
         if os.path.exists(cls.CONF_FILE):
             os.remove(cls.CONF_FILE)
+        for name in ('hostnqn', 'hostid'):
+            path = os.path.join(cls.SANDBOX, name)
+            if os.path.exists(path):
+                os.remove(path)
         try:
             os.rmdir(cls.SANDBOX)
         except OSError:

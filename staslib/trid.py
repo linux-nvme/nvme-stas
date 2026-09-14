@@ -65,10 +65,12 @@ class TID:
             self._trsvcid = (
                 trsvcid if trsvcid else (TID.RDMA_IP_PORT if self._transport == 'rdma' else TID.DISC_IP_PORT)
             )
-        sysconf = conf.SysConf()
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
-        self._hostnqn = cid.get('hostnqn', sysconf.hostnqn)
+        # cid.get('hostnqn', conf.SysConf().hostnqn) would read the system
+        # host NQN unconditionally: dict.get() evaluates its default argument
+        # before checking the key, even when 'hostnqn' is already present.
+        self._hostnqn = cid['hostnqn'] if 'hostnqn' in cid else conf.SysConf().hostnqn
         self._subsysnqn = cid.get('subsysnqn', '')
         self._key = (
             self._transport,
@@ -118,8 +120,7 @@ class TID:
         if cfg:
             data.update(cfg)
 
-        sysconf = conf.SysConf()
-        data['hostnqn'] = getattr(self, '_hostnqn', sysconf.hostnqn)
+        data['hostnqn'] = self._hostnqn if hasattr(self, '_hostnqn') else conf.SysConf().hostnqn
 
         return data
 

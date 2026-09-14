@@ -274,12 +274,16 @@ class TestStacReconcileWithoutStafd(unittest.TestCase):
     pages is missing because nobody told us about it, not because it went away.
     These pin that stacd tells the two apart.'''
 
+    # Built at class-definition time, i.e. at module import: SysConf is not
+    # faked yet at that point, so hostnqn must be explicit or this would
+    # depend on the real /etc/nvme/hostnqn.
     TID = trid.TID(
         {
             'transport': 'tcp',
             'traddr': '10.10.10.10',
             'trsvcid': '4420',
             'subsysnqn': 'nqn.1988-11.com.dell:PowerSANxxx:01:20210225100113-454f73093ceb4847a7bdfc6e34ae8e28',
+            'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab',
         }
     )
 
