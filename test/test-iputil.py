@@ -1,7 +1,9 @@
 #!/usr/bin/python3
+import os
 import json
 import shutil
 import logging
+import tempfile
 import unittest
 import ipaddress
 import subprocess
@@ -10,10 +12,28 @@ from staslib import conf, iputil, log, stas, trid
 IP = shutil.which('ip')
 
 
+def _isolated_sysconf(test):
+    '''Point SysConf at a throwaway hostnqn/hostid pair instead of the real
+    /etc/nvme files, for tests that build a TID with no explicit hostnqn and
+    so fall back to the system identity.'''
+    tmpdir = tempfile.mkdtemp()
+    test.addCleanup(shutil.rmtree, tmpdir, True)
+    hostnqn_file = os.path.join(tmpdir, 'hostnqn')
+    hostid_file = os.path.join(tmpdir, 'hostid')
+    with open(hostnqn_file, 'w') as f:
+        f.write('nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n')
+    with open(hostid_file, 'w') as f:
+        f.write('01234567-89ab-cdef-0123-456789abcdef\n')
+    conf.SysConf.destroy()
+    test.addCleanup(conf.SysConf.destroy)
+    conf.SysConf(hostnqn_file=hostnqn_file, hostid_file=hostid_file)
+
+
 class Test(unittest.TestCase):
     '''iputil.py unit tests'''
 
     def setUp(self):
+        _isolated_sysconf(self)
         log.init(syslog=False)
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
@@ -131,6 +151,7 @@ class TestIpv4MappedAddresses(unittest.TestCase):
     take it for one."""
 
     def setUp(self):
+        _isolated_sysconf(self)
         conf.SvcConf.destroy()
         self.addCleanup(conf.SvcConf.destroy)
 
