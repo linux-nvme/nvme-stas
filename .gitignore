@@ -4,7 +4,7 @@ redhat-linux-build     # RPMs Artifacts
 __pycache__
 
 subprojects/*
-!subprojects/*.wrap
+!subprojects/nvme-cli.wrap
 
 .vscode
 .claude
