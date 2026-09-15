@@ -82,6 +82,10 @@ check-format:
 coverage: stas
 	cd ${BUILD-DIR} && ./coverage.sh
 
+.PHONY: check-deps
+check-deps:
+	meson compile -C ${BUILD-DIR} check-deps
+
 ################################################################################
 # Debian (*.deb)
 # Use "DEB_BUILD_OPTIONS=nocheck make deb" to skip unit testing.
