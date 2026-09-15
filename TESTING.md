@@ -204,6 +204,18 @@ This requires the [Python coverage package](https://coverage.readthedocs.io/en/6
 $ sudo apt-get install python3-coverage
 ```
 
+That package installs its command as `/usr/bin/python3-coverage`, not `coverage`, but the script invokes the bare `coverage` name. Point `coverage` at it with a **hard link, not a symlink**: coverage.py's own `sys.path` setup compares the path it was invoked with against the resolved script location, and a symlink makes those disagree, silently breaking `staslib`/`libnvme3` imports from `.build` (a hard link has no separate resolved location, so they always agree).
+
+```bash
+$ sudo ln /usr/bin/python3-coverage /usr/local/bin/coverage
+```
+
+You also need avahi utilities to tickle the Avahi daemon:
+
+```bash
+$ sudo apt-get install avahi-utils
+```
+
 Note that this test cannot be run while `stafd` and `stacd` are running. Make sure to stop `stafd` and `stacd` if they are running (`systemctl stop [stafd|stacd]`). You may also need to mask those services (`systemctl mask [stafd|stacd]`) if coverage fails to start. 
 
 To run the coverage test, from the root of the `nvme-stas` git repo:
