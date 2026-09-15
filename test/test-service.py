@@ -321,6 +321,82 @@ class TestStacReconcileWithoutStafd(unittest.TestCase):
         self.assertNotIn(TestStacReconcileWithoutStafd.TID, stac._controllers)
 
 
+class TestStacIocCrossTransport(unittest.TestCase):
+    '''An I/O controller entry inherits its Discovery Controller's host-traddr
+    and host-iface, both of which are transport-specific (host-iface is
+    TCP-only; host-traddr's encoding differs per transport), so an entry
+    naming a different transport than the Discovery Controller it came from
+    can never be turned into a working connection and must not be dialed.'''
+
+    def setUp(self):
+        conf.SvcConf.destroy()
+        self.addCleanup(conf.SvcConf.destroy)
+        conf.SvcConf(default_conf=service.Stac.DEFAULT_CONF)
+
+    def _make_stac(self, log_pages):
+        stac = unittest.mock.Mock()
+        stac._alive = lambda: True
+        stac._get_log_pages_from_stafd = lambda: log_pages
+        stac._udev.find_nvme_ioc_device = lambda tid: None
+        stac._controllers = {}
+        return stac
+
+    def _staf_data(self, dc_transport, entries):
+        return [
+            {
+                'discovery-controller': {
+                    'transport': dc_transport,
+                    'traddr': '10.10.10.10',
+                    'trsvcid': '8009',
+                    'host-traddr': '',
+                    'host-iface': '',
+                    'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab',
+                },
+                'log-pages': entries,
+            }
+        ]
+
+    def test_a_cross_transport_entry_is_skipped(self):
+        '''An fc entry from a tcp Discovery Controller cannot be dialed.'''
+        staf_data = self._staf_data(
+            'tcp',
+            [
+                {
+                    'subtype': ctrl.SUBTYPE_IOC,
+                    'trtype': 'fc',
+                    'traddr': 'nn-0x1:pn-0x2',
+                    'subnqn': 'nqn.cross-transport',
+                }
+            ],
+        )
+        stac = self._make_stac(staf_data)
+
+        with self.assertLogs(level='DEBUG') as captured:
+            service.Stac._config_ctrls_finish(stac, list())
+        self.assertTrue(any('different transport' in record.getMessage() for record in captured.records))
+
+        self.assertEqual(stac._controllers, {})
+
+    def test_a_same_transport_entry_is_kept(self):
+        staf_data = self._staf_data(
+            'tcp',
+            [
+                {
+                    'subtype': ctrl.SUBTYPE_IOC,
+                    'trtype': 'tcp',
+                    'traddr': '20.20.20.20',
+                    'trsvcid': '4420',
+                    'subnqn': 'nqn.same-transport',
+                }
+            ],
+        )
+        stac = self._make_stac(staf_data)
+
+        service.Stac._config_ctrls_finish(stac, list())
+
+        self.assertEqual(len(stac._controllers), 1)
+
+
 def libnvme_sandbox():
     '''Return a directory where libnvme reads its host-wide config files.
 
