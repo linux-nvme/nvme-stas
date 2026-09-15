@@ -55,7 +55,6 @@ endif
 
 # Check if the runtime Python modules are present. These are not needed
 # to build nvme-stas, but will be needed to run the tests.
-missing_runtime_mods = false
 py_modules_reqd = [
     ['libnvme3', 'Install python3-libnvme3 (deb/rpm)'],
     ['dasbus',   'Install python3-dasbus (deb/rpm) OR pip install dasbus'],
@@ -66,14 +65,25 @@ py_modules_reqd = [
 foreach p : py_modules_reqd
     if run_command(python3, '-c', 'import @0@'.format(p[0]), check: false).returncode() != 0
         warning('Missing runtime module "@0@". @1@'.format(p[0], p[1]))
-        missing_runtime_mods = true
     endif
 endforeach
 
-if missing_runtime_mods and get_option('rt_pymods_reqd')
-    error('Please install missing runtime modules')
-endif
+# "meson compile check-deps" (or "ninja check-deps") re-runs the same check
+# on demand, any time after configuring, and prints an install suggestion for
+# anything missing. Not part of the default build: nothing here runs unless
+# this target is asked for by name. A separate script, not an inline snippet,
+# so a human reads a plain report instead of ninja's command-failure dump.
+check_deps_args = []
+foreach p : py_modules_reqd
+    check_deps_args += [p[0], p[1]]
+endforeach
 
+check_runtime_deps = run_target(
+    'check-runtime-deps',
+    command: [python3, files('utils/check-runtime-deps.py')] + check_deps_args,
+)
+
+alias_target('check-deps', check_runtime_deps)
 
 #===============================================================================
 conf = configuration_data()
