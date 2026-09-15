@@ -333,13 +333,26 @@ class Stac(Service):
 
         discovered_ctrls = dict()
         for staf_data in staf_data_list or list():
+            dc_transport = staf_data['discovery-controller']['transport']
             host_traddr = staf_data['discovery-controller']['host-traddr']
             host_iface = staf_data['discovery-controller']['host-iface']
             hostnqn = staf_data['discovery-controller']['hostnqn']
             for dlpe in staf_data['log-pages']:
-                if dlpe.get('subtype') == ctrl.SUBTYPE_IOC:  # eliminate discovery controllers
-                    tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn)
-                    discovered_ctrls[tid] = dlpe
+                if dlpe.get('subtype') != ctrl.SUBTYPE_IOC:  # eliminate discovery controllers
+                    continue
+                if dlpe.get('trtype') != dc_transport:
+                    # host-iface and host-traddr, inherited below, are
+                    # transport-specific and cannot apply across a transport
+                    # boundary (see stas.tid_from_dlpe()).
+                    logging.debug(
+                        'Stac._config_ctrls_finish()        - Ignoring %s subsystem %s: different transport (%s)',
+                        dlpe.get('trtype'),
+                        dlpe.get('subnqn'),
+                        dc_transport,
+                    )
+                    continue
+                tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn)
+                discovered_ctrls[tid] = dlpe
 
         discovered_ctrl_list = list(discovered_ctrls.keys())
         logging.debug('Stac._config_ctrls_finish()        - discovered_ctrl_list = %s', discovered_ctrl_list)

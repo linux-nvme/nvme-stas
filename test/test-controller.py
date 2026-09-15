@@ -584,6 +584,29 @@ class TestPersistence(TestCase):
         '''What libnvme's dc_decide() and nvme-discoverd both assume.'''
         self.assertFalse(self._dc().epcsd())
 
+    def test_a_multihomed_dc_picks_its_own_self_entry(self):
+        """A multi-homed DC reporting one self entry per interface must not
+        have its EPCSD read from an entry describing a different interface."""
+        dc = self._dc(
+            log_pages=[
+                {
+                    'subtype': ctrl.SUBTYPE_SELF,
+                    'trtype': 'tcp',
+                    'traddr': '9.9.9.9',  # a different interface of the same DC
+                    'trsvcid': '8009',
+                    'eflags': str(TestPersistence.EPCSD),
+                },
+                {
+                    'subtype': ctrl.SUBTYPE_SELF,
+                    'trtype': 'tcp',
+                    'traddr': '1.1.1.1',  # the interface this DC is connected on
+                    'trsvcid': '8009',
+                    'eflags': '0',
+                },
+            ]
+        )
+        self.assertFalse(dc.epcsd())  # must read the matching entry's EFLAGS, not the other one's
+
 
 class ParkableDc(TestDc):
     '''A Dc whose disconnect is recorded rather than performed, so parking can
@@ -937,8 +960,8 @@ class TestReferralsChanged(TestCase):
     on that signal, so repeating it for an unchanged list is work nobody
     needs."""
 
-    REFERRAL = {'subtype': ctrl.SUBTYPE_REFERRAL, 'traddr': '2.2.2.2', 'trsvcid': '8009'}
-    IOC = {'subtype': ctrl.SUBTYPE_IOC, 'traddr': '3.3.3.3', 'trsvcid': '4420'}
+    REFERRAL = {'subtype': ctrl.SUBTYPE_REFERRAL, 'trtype': 'tcp', 'traddr': '2.2.2.2', 'trsvcid': '8009'}
+    IOC = {'subtype': ctrl.SUBTYPE_IOC, 'trtype': 'tcp', 'traddr': '3.3.3.3', 'trsvcid': '4420'}
 
     def setUp(self):
         self.setUpPyfakefs()
@@ -988,6 +1011,25 @@ class TestReferralsChanged(TestCase):
 
         dc._on_get_log_success(RecordingOp(), [TestReferralsChanged.IOC])
 
+        self.assertEqual(staf.referrals_changed_count, 0)
+
+    def test_a_cross_transport_referral_is_ignored(self):
+        """An fc referral from a tcp Discovery Controller inherits host-iface
+        and a host-traddr encoding that cannot apply on fc, so it must not be
+        treated as a referral at all."""
+        dc, staf = self._dc()
+        cross_transport_referral = {
+            'subtype': ctrl.SUBTYPE_REFERRAL,
+            'trtype': 'fc',
+            'traddr': 'nn-0x1:pn-0x2',
+            'trsvcid': '',
+        }
+
+        with self.assertLogs(level='DEBUG') as captured:
+            dc._on_get_log_success(RecordingOp(), [cross_transport_referral])
+        self.assertTrue(any('different transport' in record.getMessage() for record in captured.records))
+
+        self.assertEqual(dc.referrals(), [])
         self.assertEqual(staf.referrals_changed_count, 0)
 
 

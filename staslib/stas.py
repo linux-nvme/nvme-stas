@@ -135,7 +135,7 @@ def _fc_wwn(traddr: str):
     return traddr.replace(',', ':', 1)
 
 
-def _addresses_match(val: str, ctrl_val: str, transport: str):
+def addresses_match(val: str, ctrl_val: str, transport: str):
     '''Return True if two addresses designate the same thing. Addresses are
     compared in normalized form, the way libnvme's exclusion list does it, so
     that two spellings of one address match: "fe80::1" designates the same
@@ -161,7 +161,7 @@ def _values_match(key: str, val: str, ctrl_val, transport: str):
         return False
 
     if key in ('traddr', 'host-traddr'):
-        return _addresses_match(val, ctrl_val, transport)
+        return addresses_match(val, ctrl_val, transport)
 
     return val == ctrl_val
 

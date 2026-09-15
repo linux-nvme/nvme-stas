@@ -237,7 +237,13 @@ run_cmd_coverage() {
 	fi
 	cmd="$@"
 	log "Invoke: ${input}"
-	${COVERAGE} run --rcfile=.coveragerc ${cmd} </dev/null >${SCRATCH_FILE} 2>&1
+	# PYTHONPATH here, not just in the sudo branch's "env": without it this
+	# falls back to whatever staslib/libnvme3 happen to be importable from
+	# the ambient environment - a system install, if one exists - rather
+	# than the one just built in this .build tree. sudo strips a plain
+	# prefix, which is why that branch also carries its own via "env"; here
+	# it is redundant with that "env" but harmless.
+	PYTHONPATH=${PYTHON_PATH} ${COVERAGE} run --rcfile=.coveragerc ${cmd} </dev/null >${SCRATCH_FILE} 2>&1
 	log_file_contents $? ${SCRATCH_FILE}
 	printf "\n"
 }

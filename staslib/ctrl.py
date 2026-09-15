@@ -560,8 +560,33 @@ class Dc(Controller):
         return self._log_pages
 
     def referrals(self) -> list:
-        '''Return the list of referral entries from the cached log pages.'''
-        return [page for page in self._log_pages if page['subtype'] == SUBTYPE_REFERRAL]
+        '''Return the list of referral entries from the cached log pages whose
+        transport matches this Discovery Controller's own.
+
+        A referral is turned into a connection attempt by inheriting this
+        DC's host-traddr, host-iface and hostnqn (stas.tid_from_dlpe()), and
+        both host-iface (TCP-only) and host-traddr (transport-specific
+        encoding) cannot apply across a transport boundary. The
+        specification allows a Discovery Service to report multi-protocol
+        referrals (Base Spec 2.4, Figure 320, subtype 01), but there is no
+        transport pairing where acting on one is safe, so it is skipped
+        rather than attempted.
+        '''
+        referrals = []
+        for page in self._log_pages:
+            if page['subtype'] != SUBTYPE_REFERRAL:
+                continue
+            if page['trtype'] != self.tid.transport:
+                logging.debug(
+                    '%s | %s - Ignoring referral to a %s subsystem: different transport (%s)',
+                    self.id,
+                    self.device,
+                    page['trtype'],
+                    self.tid.transport,
+                )
+                continue
+            referrals.append(page)
+        return referrals
 
     # --------------------------------------------------------------------------
     # Persistent discovery connections (EPCSD, TP8010)
@@ -583,9 +608,27 @@ class Dc(Controller):
     def _self_entry(self):
         """Return this controller's own entry in its log pages, if it published
         one. That entry describes the DC we are already connected to, which is
-        why it is exempt from the address filtering."""
-        for page in self._log_pages:
-            if page.get('subtype') == SUBTYPE_SELF:
+        why it is exempt from the address filtering - a self entry's address
+        need not be dialable, and a lone one is unambiguous however it reads.
+
+        A multi-homed DC may report more than one self entry, one per
+        interface (Base Spec 2.4, Figure 320, subtype 03). Only then does it
+        matter which one this is: only the entry describing the interface
+        this log page was actually fetched over is trustworthy for its
+        EFLAGS - a self entry for the DC's other interface could carry
+        different flags - so with more than one, transport, traddr and
+        trsvcid must all match this DC's own.
+        """
+        self_entries = [page for page in self._log_pages if page.get('subtype') == SUBTYPE_SELF]
+        if len(self_entries) <= 1:
+            return self_entries[0] if self_entries else None
+
+        for page in self_entries:
+            if (
+                page.get('trtype') == self.tid.transport
+                and stas.addresses_match(page.get('traddr', ''), self.tid.traddr, self.tid.transport)
+                and page.get('trsvcid') == self.tid.trsvcid
+            ):
                 return page
 
         return None
