@@ -1,5 +1,25 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 3.1
+
+nvme-stas 3.1 is a minor release, timed to ship alongside nvme-cli 3.1. It carries no breaking changes and remains compatible with any libnvme/nvme-cli 3.x.
+
+### The deprecated `exclude=` keyword is gone
+
+`exclude=` in `stafd.conf`/`stacd.conf`, deprecated in 3.0 in favour of libnvme's host-wide exclusion list, has been removed. Controllers are now excluded solely via `/etc/nvme/exclusions.conf` and `/etc/nvme/exclusions.conf.d/`, managed with `nvme exclusion`. The `[Controllers]` section is also gone from both files — it held no other option once `exclude=` left. `nvme-stas(7)` now documents both how controllers are included (manually, in `/etc/nvme/nvme-stas.conf`) and excluded, in one place.
+
+### Bug fixes
+
+* **A Discovery Controller's referral or I/O controller entry naming a different transport than the DC's own is skipped, not dialed.** Such an entry inherits `host-iface` (TCP-only) and `host-traddr` (transport-specific encoding) from its DC, neither of which applies across a transport boundary. A multi-homed DC's several self entries (subtype 03, one per interface) are also now matched by transport/traddr/trsvcid before their EPCSD flag is trusted, when there is more than one; a lone self entry is still trusted regardless of its address.
+* **Constructing a `TID` with an explicit `hostnqn` no longer touches `/etc/nvme/hostnqn`.** The default value in a `dict.get()` call was evaluated unconditionally, so every `TID()` read the system host NQN file and could abort the process even when the caller had already supplied one.
+
+### Development and packaging
+
+* `meson compile check-deps` (also `make check-deps`) replaces the `rt_pymods_reqd` configure-time option: it reports missing run-time Python modules on demand, any time after configuring, with an install hint for each — and always exits 0, since it's a report for a human, not a build gate.
+* The D-Bus DocBooks are now generated with a build-time `custom_target` instead of at configure time, clearing a Meson deprecation warning that was due to become a hard error in Meson 2.0. A new test checks each D-Bus IDL against its generated DocBook.
+* `.gitignore` no longer un-ignores every `subprojects/*.wrap` — only `nvme-cli.wrap`, the one that actually belongs in the repository. Meson-generated wrap-redirect stubs for nvme-cli's own dependencies no longer show up as untracked files.
+* The coverage run now tests `stafctl`/`stacctl` against the build's own libnvme, not whatever happens to be installed system-wide. Bootstrapping a coverage run on a new machine also surfaced two setup gaps, now in `TESTING.md`: `python3-coverage` needs a hard link (not a symlink) to answer to a bare `coverage` name, and `avahi-publish` ships in the separate `avahi-utils` package.
+
 ## Changes with release 3.0
 
 nvme-stas 3.0 is a **non-backward-compatible release**. It requires libnvme 3.0 and nvme-cli 3.0, its configuration files have moved and changed format, and several configuration keys, D-Bus argument names and command-line options were renamed. Nothing from 2.x is aliased: a stale value is meant to fail rather than silently change behaviour.
