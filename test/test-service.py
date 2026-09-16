@@ -261,11 +261,10 @@ class TestDefaultConf(unittest.TestCase):
                 self.assertEqual(declared, set(conf.SvcConf.OPTION_CHECKER[section]))
 
     def test_the_common_sections_are_covered(self):
-        '''Both daemons read [Global] tron and [Controllers] exclude.'''
+        '''Both daemons read [Global] tron.'''
         for name, daemon in TestDefaultConf.DAEMONS:
             with self.subTest(daemon=name):
                 self.assertIn(('Global', 'tron'), daemon.DEFAULT_CONF)
-                self.assertIn(('Controllers', 'exclude'), daemon.DEFAULT_CONF)
 
 
 class TestStacReconcileWithoutStafd(unittest.TestCase):

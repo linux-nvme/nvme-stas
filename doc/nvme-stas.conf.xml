@@ -56,30 +56,38 @@
             <citerefentry project="man-pages"><refentrytitle>stacd</refentrytitle>
             <manvolnum>8</manvolnum></citerefentry> should connect to, and with
             what parameters. Daemon behaviour &#8212; tracing, mDNS, fabric
-            zoning, exclusions &#8212; is configured separately, in
+            zoning &#8212; is configured separately, in
             <citerefentry><refentrytitle>stafd.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>
             and
             <citerefentry><refentrytitle>stacd.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+            Excluding a controller, regardless of how it was included, is
+            independent of this file and is described in
+            <citerefentry><refentrytitle>nvme-stas</refentrytitle><manvolnum>7</manvolnum></citerefentry>.
         </para>
 
         <para>
             The format is libnvme's, and is parsed by libnvme itself, so
             nvme-stas, the nvme-cli tools and nvme-discoverd all read one
-            format through one parser.
+            format through one parser. For the design rationale behind the
+            format, see libnvme's
+            <ulink url="https://github.com/linux-nvme/nvme-cli/blob/master/libnvme/design/CONFIG.md">CONFIG.md</ulink>
+            design document.
         </para>
 
         <para>
-            nvme-stas reads its <emphasis>own</emphasis> file.
-            <filename>/etc/nvme/nvme-fabrics.conf</filename> belongs to the
-            nvme-cli tools and nvme-discoverd: a host must be able to run
+            You may find more than one config file in <filename>/etc/nvme/</filename>.
+            <filename>nvme-stas.conf</filename> belongs to nvme-stas.
+            <filename>nvme-fabrics.conf</filename> belongs to the
+            nvme-cli tools and nvme-discoverd. A host must be able to run
             nvme-stas and nvme-discoverd side by side, each connecting its own
             controllers, with neither acting on the other's configuration.
         </para>
 
         <para>
-            The file is optional. If it does not exist, nvme-stas configures no
-            controllers &#8212; that is not an error. Controllers discovered
-            over mDNS, or learned from a Discovery Log Page, need no entry here.
+            <filename>/etc/nvme/nvme-stas.conf</filename> is optional. If it does
+            not exist, nvme-stas configures no controllers &#8212; that is not an
+            error. Controllers discovered over mDNS, or learned from a Discovery
+            Log Page, need no entry here.
         </para>
 
         <para>
@@ -228,17 +236,11 @@
             of its own discovery log page entry, that it supports one.
         </para>
         <para>
-            Note that this default differs from libnvme's, where an unset
-            value behaves as <parameter>no</parameter>. A daemon whose purpose
-            is to be told when discovery log pages change cannot default to
-            disconnecting. It is the same choice nvme-discoverd makes.
-        </para>
-        <para>
             A Discovery Controller that does not support a persistent
             connection is <emphasis>parked</emphasis>:
             <command>stafd</command> disconnects it, keeps its log pages, and
-            re-reads them on a timer, since a disconnected controller cannot
-            report that they changed. How often is
+            polls them on a timer, since a disconnected controller
+            cannot report that they changed. The polling period is
             <varname>epcsd-poll-interval-minutes</varname> of
             <citerefentry>
                 <refentrytitle>stafd.conf</refentrytitle>

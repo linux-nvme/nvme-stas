@@ -217,7 +217,6 @@ class Stac(Service):
         ('Global', 'tron'): False,
         ('Global', 'ignore-iface'): False,
         ('Global', 'ip-family'): (4, 6),
-        ('Controllers', 'exclude'): list(),
         ('I/O controller connection management', 'honor-fabric-zoning'): True,
         ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
     }
@@ -501,7 +500,6 @@ class Staf(Service):
         ('Global', 'ip-family'): (4, 6),
         ('Global', 'pleo'): True,
         ('Service Discovery', 'zeroconf'): True,
-        ('Controllers', 'exclude'): list(),
         ('Discovery controller connection management', 'dc-giveup-timeout'): timeparse.timeparse('72hours'),
         ('Discovery controller connection management', 'epcsd-poll-interval-minutes'): 15,
     }

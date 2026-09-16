@@ -172,6 +172,45 @@
         </para>
     </refsect2>
 
+    <refsect2>
+        <title>Including controllers</title>
+        <para>
+            Both <code>stafd</code> and <code>stacd</code> can be told which
+            controllers to connect to explicitly, instead of relying solely
+            on mDNS discovery or Discovery Log Page Entries. A Discovery
+            Controller for <code>stafd</code> is a
+            <code>[Discovery Controller]</code> section, and an I/O subsystem
+            for <code>stacd</code> is a <code>[Subsystem]</code> section,
+            both in the connectivity configuration
+            (<filename>/etc/nvme/nvme-stas.conf</filename>). See
+            <citerefentry>
+                <refentrytitle>nvme-stas.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
+        </para>
+    </refsect2>
+
+    <refsect2>
+        <title>Excluding controllers</title>
+        <para>
+            Controllers that should not be connected to are excluded via
+            libnvme's host-wide exclusion list:
+            <filename>/etc/nvme/exclusions.conf</filename> and
+            <filename>/etc/nvme/exclusions.conf.d/</filename>, which are
+            managed with <code>nvme exclusion</code>. That list is honored
+            by every NVMe-oF tool on the host, not just <code>stafd</code>
+            and <code>stacd</code>, and it is read live: an entry added
+            there takes effect on the next connection attempt, without
+            reloading <code>stafd</code> or <code>stacd</code>.
+        </para>
+        <para>
+            For the design rationale behind the exclusion list, see
+            libnvme's
+            <ulink url="https://github.com/linux-nvme/nvme-cli/blob/master/libnvme/design/EXCLUSIONS.md">EXCLUSIONS.md</ulink>
+            design document.
+        </para>
+    </refsect2>
+
   </refsect1>
 
 

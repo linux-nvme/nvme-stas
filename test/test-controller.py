@@ -126,11 +126,6 @@ stafd_conf_2 = '''
 dc-giveup-timeout=infinity
 '''
 
-stafd_conf_3 = '''
-[Controllers]
-exclude=transport=tcp;traddr=10.10.10.10
-'''
-
 
 class Test(TestCase):
     '''Unit tests for class Controller'''
@@ -168,7 +163,6 @@ class Test(TestCase):
             ('Global', 'ip-family'): (4, 6),
             ('Global', 'pleo'): True,
             ('Service Discovery', 'zeroconf'): True,
-            ('Controllers', 'exclude'): list(),
         }
 
         self.stafd_conf_file1 = '/etc/nvme/stafd1.conf'
@@ -176,9 +170,6 @@ class Test(TestCase):
 
         self.stafd_conf_file2 = '/etc/nvme/stafd2.conf'
         self.fs.create_file(self.stafd_conf_file2, contents=stafd_conf_2)
-
-        self.stafd_conf_file3 = '/etc/nvme/stafd3.conf'
-        self.fs.create_file(self.stafd_conf_file3, contents=stafd_conf_3)
 
         conf.SvcConf.destroy()  # Make sure singleton does not exist
         self.addCleanup(conf.SvcConf.destroy)
@@ -355,10 +346,13 @@ class Test(TestCase):
         controller._try_to_connect()
         self.assertEqual(controller._connect_attempts, 1)
 
-        # Exclude the controller and make sure no new attempt is made
-        self.svcconf.set_conf_file(self.stafd_conf_file3)
-        with self.assertLogs(logger=logging.getLogger(), level='INFO') as captured:
-            controller._try_to_connect()
+        # Exclude the controller (via libnvme's host-wide exclusion list, the
+        # only exclusion mechanism there is) and make sure no new attempt is
+        # made
+        excluded = [{'transport': 'tcp', 'traddr': '10.10.10.10'}]
+        with unittest.mock.patch.object(conf.SvcConf, 'get_excluded', return_value=excluded):
+            with self.assertLogs(logger=logging.getLogger(), level='INFO') as captured:
+                controller._try_to_connect()
         self.assertTrue(captured.records[0].getMessage().endswith('Controller is excluded. Do not connect.'))
         self.assertEqual(controller._connect_attempts, 1)
 

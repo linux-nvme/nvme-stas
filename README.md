@@ -114,7 +114,7 @@ This ensures consistency with other NVMe tools like `nvme-cli` and `libnvme`. Al
 
 ## Excluding Controllers
 
-Controllers that *nvme-stas* must not connect to are configured in libnvme's host-wide exclusion list — `/etc/nvme/exclusions.conf` and `/etc/nvme/exclusions.conf.d/` — which is managed with `nvme exclusion` and is honored by every NVMe-oF tool on the host. *stafd* and *stacd* re-read it on every connection attempt, so changes take effect without reloading either daemon. The older `exclude=` keyword of `stafd.conf`/`stacd.conf` is still honored in addition to that list, but is deprecated and will be removed in a future release.
+Controllers that *nvme-stas* must not connect to are configured in libnvme's host-wide exclusion list — `/etc/nvme/exclusions.conf` and `/etc/nvme/exclusions.conf.d/` — which is managed with `nvme exclusion` and is honored by every NVMe-oF tool on the host. *stafd* and *stacd* re-read it on every connection attempt, so changes take effect without reloading either daemon.
 
 ## D-Bus Security and Trust
 
