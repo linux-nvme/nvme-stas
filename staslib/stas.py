@@ -151,7 +151,8 @@ def addresses_match(val: str, ctrl_val: str, transport: str):
         return ip == ctrl_ip
 
     # Not a numeric address on either side. This is how a hostname in an
-    # "exclude=" entry gets matched before name resolution has taken place.
+    # exclusion list entry gets matched before name resolution has taken
+    # place.
     return val == ctrl_val
 
 
@@ -309,7 +310,7 @@ def remove_protected(controllers: list, find_device):
 
 # ******************************************************************************
 def excluded(controller):
-    '''Return True if controller is excluded by the configuration file.'''
+    '''Return True if controller is excluded by libnvme's host-wide exclusion list.'''
     return _excluded(conf.SvcConf().get_excluded(), controller.as_dict())
 
 

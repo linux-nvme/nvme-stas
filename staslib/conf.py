@@ -61,8 +61,8 @@ def libnvme_ctx():
 
 
 def _libnvme_excluded():
-    '''Return libnvme's host-wide exclusion list, in the same format as the
-    "exclude=" entries of stafd.conf/stacd.conf.
+    '''Return libnvme's host-wide exclusion list, as a list of dicts suitable
+    for stas._excluded().
 
     The list (/etc/nvme/exclusions.conf and /etc/nvme/exclusions.conf.d/) is
     read live, on every call. It is a host-wide file that other tools
@@ -121,10 +121,6 @@ def _parse_single_val(text):
         return None
 
     return text[-1]
-
-
-def _parse_list(text):
-    return text if isinstance(text, list) else [text]
 
 
 def _to_int(text):
@@ -261,12 +257,6 @@ class SvcConf(metaclass=singleton.Singleton):
                 'default': 0,
             },
         },
-        'Controllers': {
-            'exclude': {
-                'convert': _parse_list,
-                'default': [],
-            },
-        },
     }
 
     def __init__(self, default_conf=None, conf_file='/dev/null'):
@@ -349,9 +339,7 @@ class SvcConf(metaclass=singleton.Singleton):
         return 60 * self.get_option(section, 'epcsd-poll-interval-minutes')
 
     def get_excluded(self):
-        '''Return the list of excluded controllers. This is the union of the
-        "exclude=" entries of this daemon's config file and libnvme's host-wide
-        exclusion list: a controller is excluded if it matches either.
+        '''Return libnvme's host-wide exclusion list.
 
         Each entry is a dict with optional keys:
         {
@@ -359,30 +347,14 @@ class SvcConf(metaclass=singleton.Singleton):
             'traddr':      [TRADDR],
             'trsvcid':     [TRSVCID],
             'host-iface':  [IFACE],
-            'host-traddr': [TRADDR],   (libnvme entries only)
-            'hostnqn':     [NQN],      (libnvme entries only)
+            'host-traddr': [TRADDR],
+            'hostnqn':     [NQN],
             'subsysnqn':   [NQN],
         }
 
-        Note that "exclude=" is deprecated in favour of libnvme's list, and
-        that the two are not read the same way: "exclude=" is read from the
-        config file we already hold, whereas libnvme's list is re-read from
-        disk on every call (see _libnvme_excluded()).
+        The list is re-read from disk on every call (see _libnvme_excluded()).
         '''
-        controller_list = self.get_option('Controllers', 'exclude')
-        excluded = [_parse_controller(controller) for controller in controller_list]
-        for controller in excluded:
-            controller.pop('host-traddr', None)  # remove host-traddr
-            try:
-                # replace 'nqn' key by 'subsysnqn', if present.
-                controller['subsysnqn'] = controller.pop('nqn')
-            except KeyError:
-                pass
-
-        # An entry that sets no field would match every controller.
-        excluded = [controller for controller in excluded if controller]
-
-        return excluded + _libnvme_excluded()
+        return _libnvme_excluded()
 
     def _check(self, text, section, option, default):
         checker = self.OPTION_CHECKER[section][option]

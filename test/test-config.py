@@ -31,13 +31,15 @@ class StasProcessConfUnitTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         '''Create a temporary configuration file'''
-        # get_excluded() also reads libnvme's host-wide exclusion list. Point
+        # get_excluded() reads libnvme's host-wide exclusion list. Point
         # libnvme at a sandbox so this test doesn't depend on what
         # /etc/nvme/exclusions.conf happens to hold on the build machine.
         cls.SANDBOX = libnvme_sandbox()
         for fname in (os.path.join(cls.SANDBOX, 'exclusions.conf'), os.path.join(cls.SANDBOX, 'exclusions.conf.d')):
             if os.path.exists(fname):
                 shutil.rmtree(fname, ignore_errors=True) if os.path.isdir(fname) else os.remove(fname)
+        with open(os.path.join(cls.SANDBOX, 'exclusions.conf'), 'w') as f:
+            f.write('[exclusions]\nexclusion = transport=tcp;traddr=10.10.10.10\n')
 
         data = [
             '[Global]\n',
@@ -47,9 +49,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
             '[I/O controller connection management]\n',
             'honor-fabric-zoning = joe\n',
             'connect-attempts-on-ncc = 1\n',
-            '\n',
-            '[Controllers]\n',
-            'exclude=transport=tcp;traddr=10.10.10.10\n',
         ]
         with open(StasProcessConfUnitTest.FNAME, 'w') as f:
             f.writelines(data)
@@ -59,6 +58,9 @@ class StasProcessConfUnitTest(unittest.TestCase):
         '''Delete the temporary configuration file'''
         if os.path.exists(StasProcessConfUnitTest.FNAME):
             os.remove(StasProcessConfUnitTest.FNAME)
+        exclusions_file = os.path.join(cls.SANDBOX, 'exclusions.conf')
+        if os.path.exists(exclusions_file):
+            os.remove(exclusions_file)
 
     def test_config(self):
         '''Check we can read the temporary configuration file'''
@@ -70,7 +72,6 @@ class StasProcessConfUnitTest(unittest.TestCase):
             ('Global', 'pleo'): True,
             ('Service Discovery', 'zeroconf'): True,
             ('Controllers', 'controller'): list(),
-            ('Controllers', 'exclude'): list(),
             ('I/O controller connection management', 'honor-fabric-zoning'): True,
             ('I/O controller connection management', 'connect-attempts-on-ncc'): 0,
         }

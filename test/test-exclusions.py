@@ -28,8 +28,8 @@ def libnvme_sandbox():
 
 # ==============================================================================
 class TestLibnvmeExclusions(unittest.TestCase):
-    '''Unit tests for libnvme's host-wide exclusion list, which stas reads in
-    addition to the "exclude=" keyword of stafd.conf/stacd.conf.
+    '''Unit tests for libnvme's host-wide exclusion list, which stas reads to
+    decide which controllers not to connect to.
 
     libnvme reads its files from C, which is why these tests use a real
     directory under /tmp (redirected with ctx.set_test_base_dir()) instead of
@@ -42,7 +42,6 @@ class TestLibnvmeExclusions(unittest.TestCase):
         # <base>/exclusions.conf.d/<name>.conf
         cls.SANDBOX = libnvme_sandbox()
         cls.DROPIN_DIR = os.path.join(cls.SANDBOX, 'exclusions.conf.d')
-        cls.CONF_FILE = os.path.join(cls.SANDBOX, 'stafd.conf')
         if not os.path.exists(cls.DROPIN_DIR):
             os.mkdir(cls.DROPIN_DIR)
 
@@ -62,8 +61,6 @@ class TestLibnvmeExclusions(unittest.TestCase):
         conf.SysConf.destroy()
         cls._write_exclusions(None)
         shutil.rmtree(cls.DROPIN_DIR, ignore_errors=True)
-        if os.path.exists(cls.CONF_FILE):
-            os.remove(cls.CONF_FILE)
         for name in ('hostnqn', 'hostid'):
             path = os.path.join(cls.SANDBOX, name)
             if os.path.exists(path):
@@ -75,7 +72,6 @@ class TestLibnvmeExclusions(unittest.TestCase):
 
     def setUp(self):
         self._write_exclusions(None)
-        self._write_conf()
 
     @classmethod
     def _write_exclusions(cls, entries, name=None):
@@ -89,13 +85,6 @@ class TestLibnvmeExclusions(unittest.TestCase):
         with open(fname, 'w') as f:
             f.write('[exclusions]\n')
             f.writelines(['exclusion = ' + entry + '\n' for entry in entries])
-
-    def _write_conf(self, excluded=()):
-        '''Write stafd.conf with the given "exclude=" entries.'''
-        with open(self.CONF_FILE, 'w') as f:
-            f.write('[Controllers]\n')
-            f.writelines(['exclude=' + entry + '\n' for entry in excluded])
-        conf.SvcConf().set_conf_file(self.CONF_FILE)
 
     def _make_tid(self, **kwargs):
         cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': SUBSYSNQN, 'hostnqn': HOSTNQN}
@@ -192,23 +181,8 @@ class TestLibnvmeExclusions(unittest.TestCase):
         self._write_exclusions(['traddr=10.10.10.10'])
         self.assertTrue(stas.excluded(tid))
 
-    def test_both_sources_are_honored(self):
-        self._write_conf(['transport=tcp;traddr=10.10.10.10'])
-        self._write_exclusions(['traddr=20.20.20.20'])
-        self.assertTrue(stas.excluded(self._make_tid(traddr='10.10.10.10')))
-        self.assertTrue(stas.excluded(self._make_tid(traddr='20.20.20.20')))
-        self.assertFalse(stas.excluded(self._make_tid(traddr='30.30.30.30')))
-
-    def test_empty_exclude_keyword_excludes_nothing(self):
-        # An "exclude=" with no key=value pair sets no field. It must not be
-        # read as "exclude everything".
-        self._write_conf([''])
-        self.assertEqual(conf.SvcConf().get_excluded(), [])
-        self.assertFalse(stas.excluded(self._make_tid()))
-
-    def test_remove_excluded_uses_both_sources(self):
-        self._write_conf(['traddr=10.10.10.10'])
-        self._write_exclusions(['traddr=20.20.20.20'])
+    def test_remove_excluded(self):
+        self._write_exclusions(['traddr=10.10.10.10', 'traddr=20.20.20.20'])
         kept = self._make_tid(traddr='30.30.30.30')
         controllers = [self._make_tid(traddr='10.10.10.10'), self._make_tid(traddr='20.20.20.20'), kept]
         self.assertEqual(stas.remove_excluded(controllers), [kept])
