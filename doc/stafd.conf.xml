@@ -290,8 +290,6 @@
                 </listitem>
             </varlistentry>
         </refsect2>
-
-        <xi:include href="standard-conf.xml" xpointer="controller"/>
     </refsect1>
 
     <refsect1>

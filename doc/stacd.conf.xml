@@ -298,11 +298,7 @@
                                     <para>
                                         by adding an entry to libnvme's
                                         host-wide exclusion list with
-                                        <command>nvme exclusion</command>, or
-                                        to the deprecated
-                                        <varname>exclude=</varname> keyword of
-                                        the <literal>[Controllers]</literal>
-                                        section (see below).
+                                        <command>nvme exclusion</command>.
                                     </para>
                                 </listitem>
                                 <listitem>
@@ -365,7 +361,8 @@
                             made is kept, whatever the CDC says. Connections can
                             then only be removed with the <code>nvme-cli</code>
                             command "<code>nvme disconnect</code>", by adding an
-                            <varname>exclude=</varname> entry, or by rebooting.
+                            entry to libnvme's host-wide exclusion list, or by
+                            rebooting.
                         </para>
 
                         <para>
@@ -433,8 +430,6 @@
                 </varlistentry>
             </variablelist>
         </refsect2>
-
-        <xi:include href="standard-conf.xml" xpointer="controller"/>
     </refsect1>
 
     <refsect1>
