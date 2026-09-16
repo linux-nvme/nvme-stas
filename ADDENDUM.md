@@ -88,6 +88,12 @@ sudo apt-get install -y docbook-xml docbook-xsl xsltproc libglib2.0-dev
 sudo dnf install -y docbook-style-xsl libxslt glib2-devel
 ```
 
+**Dependency to build Read-the-Docs:**
+
+```bash
+sudo apt-get install -y pandoc
+```
+
 ------
 
 ### **Building Man and HTML Pages**
