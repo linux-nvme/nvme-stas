@@ -1,6 +1,6 @@
 # Feature Comparison: nvme-stas vs. nvme-cli vs. nvme-discoverd
 
-Compares nvme-stas 3.0 with the two connection-management mechanisms that ship in nvme-cli 3.0. They are not the same kind of thing, so each gets its own column: **nvme-cli** is a set of one-shot commands (`nvme connect-all`, `nvme discover`, plus the legacy udev / `nvmf-connect@.service` autoconnect rules) that do their work and exit, while **nvme-discoverd** is a persistent daemon, like nvme-stas.
+Compares nvme-stas 3.1 with the two connection-management mechanisms that ship in nvme-cli 3.1. They are not the same kind of thing, so each gets its own column: **nvme-cli** is a set of one-shot commands (`nvme connect-all`, `nvme discover`, plus the legacy udev / `nvmf-connect@.service` autoconnect rules) that do their work and exit, while **nvme-discoverd** is a persistent daemon, like nvme-stas.
 
 All three read the same INI-format connectivity configuration through libnvme's parser: nvme-stas from `/etc/nvme/nvme-stas.conf`, the nvme-cli tools and `nvme-discoverd` from `/etc/nvme/nvme-fabrics.conf`. The legacy `config.json` and `discovery.conf` are converted with `nvme config-convert`.
 
@@ -21,4 +21,4 @@ All three read the same INI-format connectivity configuration through libnvme's 
 | AVE client support | **Planned** (implementation TBD) | **No** – the AVE Discovery log page can be read manually with `nvme log ave-discovery` | **No** |
 | Human-friendly `nvme list` output | **No** – `stafctl` and `stacctl` output JSON only; not a significant gap since `nvme list -v` covers this well | **Yes** – via `nvme list -v` | **N/A** – no listing tool of its own |
 
-`nvme-discoverd` is a technology preview in nvme-cli 3.0: its Meson option defaults to `disabled`, and the legacy udev autoconnect units remain the default mechanism.
+`nvme-discoverd` is a technology preview in nvme-cli 3.1: its Meson option defaults to `disabled`, and the legacy udev autoconnect units remain the default mechanism. It is aimed at becoming official in nvme-cli 3.2 or later.

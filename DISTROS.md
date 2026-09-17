@@ -27,7 +27,7 @@ Static code analysis tools can be executed via `meson test`. These tools are **n
 ### **Python and nvme-stas Requirements**
 
 - **Minimum Python version:** **3.6**
-- nvme-stas relies on **libnvme3** for kernel interaction. nvme-stas **3.0** requires **libnvme 3.0 or later**.
+- nvme-stas relies on **libnvme3** for kernel interaction. nvme-stas **3.x** requires **libnvme 3.0 or later**.
 - Full nvme-stas functionality requires **Linux kernel 5.18**.
   - Older kernels work but will have reduced functionality unless distribution kernels have appropriate backports.
 
@@ -43,7 +43,7 @@ The following NVMe driver features affect nvme-stas behavior. Kernel 5.17+ is st
 | TP8010 (Host Registration)  | **5.18**             | Adds DC reconnect events and exposes `dctype` via sysfs      |
 | Additional TCP improvements | **6.1**              | Source IP exposure, `host_iface` improvements, rediscover events |
 
-### **nvme-stas 3.0: Required Runtime Packages and Modules**
+### **nvme-stas 3.x: Required Runtime Packages and Modules**
 
 The following were validated during development; equivalent or newer versions should work.
 
