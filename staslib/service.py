@@ -336,6 +336,7 @@ class Stac(Service):
             host_traddr = staf_data['discovery-controller']['host-traddr']
             host_iface = staf_data['discovery-controller']['host-iface']
             hostnqn = staf_data['discovery-controller']['hostnqn']
+            hostid = staf_data['discovery-controller'].get('hostid')
             for dlpe in staf_data['log-pages']:
                 if dlpe.get('subtype') != ctrl.SUBTYPE_IOC:  # eliminate discovery controllers
                     continue
@@ -350,7 +351,7 @@ class Stac(Service):
                         dc_transport,
                     )
                     continue
-                tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn)
+                tid = stas.tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn, hostid)
                 discovered_ctrls[tid] = dlpe
 
         discovered_ctrl_list = list(discovered_ctrls.keys())
@@ -646,6 +647,7 @@ class Staf(Service):
                 controller.tid.host_traddr,
                 controller.tid.host_iface,
                 controller.tid.hostnqn,
+                controller.tid.hostid,
             )
             for controller in self.get_controllers()
             for dlpe in controller.referrals()
@@ -666,6 +668,7 @@ class Staf(Service):
                     controller.tid.host_traddr,
                     controller.tid.host_iface,
                     controller.tid.hostnqn,
+                    controller.tid.hostid,
                 )
                 if referred == tid:
                     return ctrl.get_eflags(dlpe)

@@ -112,8 +112,13 @@ def remove_invalid_addresses(controllers: list):
 
 
 # ******************************************************************************
-def tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn):
-    '''Convert a Discovery Log Page Entry (DLPE) to a controller ID dict.'''
+def tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn, hostid=None):
+    '''Convert a Discovery Log Page Entry (DLPE) to a controller ID dict.
+
+    host_traddr, host_iface, hostnqn and hostid all come from the Discovery
+    Controller that reported this entry - a referral or an I/O controller
+    connection inherits its parent DC's whole identity, not just its NQN.
+    '''
     cid = {
         'transport': dlpe['trtype'],
         'traddr': dlpe['traddr'],
@@ -124,6 +129,8 @@ def tid_from_dlpe(dlpe, host_traddr, host_iface, hostnqn):
     }
     if hostnqn:
         cid['hostnqn'] = hostnqn
+    if hostid:
+        cid['hostid'] = hostid
     return trid.TID(cid)
 
 

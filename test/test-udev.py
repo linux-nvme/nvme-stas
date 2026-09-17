@@ -3,6 +3,7 @@ import json
 import shutil
 import logging
 import unittest
+import unittest.mock
 import subprocess
 from staslib import defs, iputil, log, trid, udev
 
@@ -213,6 +214,14 @@ class Test(unittest.TestCase):
         log.init(syslog=False)
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
+
+        # These fixtures set "hostnqn": "" throughout: they are testing
+        # _cid_matches_tid()'s address/interface matching, not identity
+        # resolution, and must not depend on this machine's own
+        # /etc/nvme/hostnqn or nvme-stas.conf.
+        patcher = unittest.mock.patch.object(trid, '_host_identity', return_value=('', '', ''))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
         # Retrieve the list of Interfaces and all the associated IP addresses
         # using standard bash utility (ip address).

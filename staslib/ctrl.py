@@ -39,24 +39,6 @@ _CONN_PARAMS = (
 )
 
 
-def host_identity(tid, sysconf, conn_conf):
-    '''Return the (hostnqn, hostid, hostsymname) a connection is made under.
-
-    A connection may name its own identity - that is what a [Host] section in
-    the connectivity configuration is for. Take that identity whole or not at
-    all: pairing a configured host NQN with the system's host ID invents an
-    identity nobody configured, and the two are meant to travel together
-    (TP4126). Pure function, so it is directly unit-testable.
-
-    The NQN and ID fall back to the system files; the symbolic name has no
-    such file and falls back to the connectivity configuration's [Host].
-    '''
-    if tid.hostnqn and tid.hostnqn != sysconf.hostnqn:
-        return tid.hostnqn, tid.cfg.get('hostid'), tid.cfg.get('hostsymname')
-
-    return sysconf.hostnqn, sysconf.hostid, tid.cfg.get('hostsymname', conn_conf.hostsymname)
-
-
 DLP_CHANGED = (
     (nvme.NVME_LOG_LID_DISCOVERY << 16) | (nvme.NVME_AER_NOTICE_DISC_CHANGED << 8) | nvme.NVME_AER_NOTICE
 )  # 0x70f002
@@ -104,15 +86,15 @@ class Controller(stas.ControllerABC):
     '''Base class for managing the connection to an NVMe controller.'''
 
     def __init__(self, tid: trid.TID, service, discovery_ctrl: bool = False):
-        sysconf = conf.SysConf()
         self._nvme_options = conf.NvmeOptions()
 
-        hostnqn, hostid, hostsymname = host_identity(tid, sysconf, conf.ConnConf())
+        hostid = tid.hostid or None
+        hostsymname = tid.cfg.get('hostsymname')
 
         self._ctx = nvme.GlobalCtx(owner=defs.REGISTRY_OWNER)
-        self._ctx.hostnqn = hostnqn
+        self._ctx.hostnqn = tid.hostnqn
         self._ctx.hostid = hostid
-        self._host = nvme.Host(self._ctx, hostnqn=hostnqn, hostid=hostid, hostsymname=hostsymname)
+        self._host = nvme.Host(self._ctx, hostnqn=tid.hostnqn, hostid=hostid, hostsymname=hostsymname)
         self._udev = udev.UDEV
         self._device = None  # Refers to the nvme device (e.g. /dev/nvme[n])
         self._ctrl = None  # libnvme's nvme.Ctrl object
@@ -168,11 +150,12 @@ class Controller(stas.ControllerABC):
     def details(self) -> dict:
         '''Return detailed debug info about this controller.'''
         details = super().details()
-        # Note that 'hostnqn' is deliberately not read from the sysfs here:
-        # the TID already provides it, and the two are equal by construction
-        # for a controller we manage (see Udev._cid_matches_tid()). Reading it
-        # would only overwrite it with an empty string while disconnected.
-        details.update(self._udev.get_attributes(self.device, ('hostid', 'model', 'serial', 'dctype', 'cntrltype')))
+        # Note that 'hostnqn' and 'hostid' are deliberately not read from the
+        # sysfs here: the TID already provides both, and they are equal by
+        # construction for a controller we manage (see
+        # Udev._cid_matches_tid()). Reading them would only overwrite them
+        # with an empty string while disconnected.
+        details.update(self._udev.get_attributes(self.device, ('model', 'serial', 'dctype', 'cntrltype')))
         details['connected'] = str(self.connected())
         return details
 

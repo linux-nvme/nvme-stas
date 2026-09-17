@@ -19,6 +19,58 @@ from staslib import conf
 _MD5_KWARGS = {'usedforsecurity': False} if 'usedforsecurity' in inspect.signature(hashlib.md5).parameters else {}
 
 
+def _hostid_from_hostnqn(hostnqn: str) -> str:
+    '''Recover a host ID already encoded in a uuid:-form host NQN. This is
+    a spec-based policy for nvme-stas only. nvme-cli/nvme-discoverd may
+    behave differently.
+
+    NVMe Base Specification 4.7's UUID-based NQN format embeds a 128-bit
+    RFC 9562 UUID - the same type and size Fabrics requires for a Host
+    Identifier (TP4110). TP4126 generates both fields from that same System
+    UUID, so the two values are the same UUID by construction whenever the
+    host NQN takes this form. This is not borrowing an identity from
+    elsewhere; it is reading the one the host NQN already carries.
+
+    Return '' if hostnqn has no "uuid:" component to recover one from.
+    '''
+    _, sep, uuid = hostnqn.partition('uuid:')
+    return uuid if sep else ''
+
+
+def _host_identity(cid: dict):
+    '''Resolve the host NQN, host ID, and host symbolic name for a connection.
+
+    If the connection specifies a host NQN, it defines its own host identity.
+    In this case, use the host ID and symbolic name from the same connection
+    configuration without falling back to the system defaults. A host ID
+    missing from that same configuration may still be recovered from a
+    uuid:-form host NQN (see _hostid_from_hostnqn()); if it cannot be, the
+    host ID is left blank and the connection will fail at connect time with
+    no fallback - a host NQN configured on its own is otherwise an incomplete
+    identity, not a request to invent the rest of one.
+
+    Otherwise, use the default identity from the main configuration. The host
+    NQN and host ID are resolved independently, with each falling back to the
+    corresponding /etc/nvme/hostnqn or /etc/nvme/hostid file.
+
+    The host symbolic name follows the source of the host NQN. It is used only
+    when the host NQN comes from the main configuration, and is not set when
+    the NQN falls back to /etc/nvme/hostnqn.
+    '''
+    hostnqn = cid.get('hostnqn', '')
+    if hostnqn:
+        hostid = cid.get('hostid', '') or _hostid_from_hostnqn(hostnqn)
+        return hostnqn, hostid, cid.get('hostsymname', '')
+
+    conn_conf = conf.ConnConf()
+    sysconf = conf.SysConf()
+    hostid = conn_conf.hostid or sysconf.hostid
+    if conn_conf.hostnqn:
+        return conn_conf.hostnqn, hostid, conn_conf.hostsymname or ''
+
+    return sysconf.hostnqn, hostid, ''
+
+
 class TID:
     '''Transport Identifier'''
 
@@ -36,6 +88,7 @@ class TID:
             'host-traddr': str, # [optional]
             'host-iface':  str, # [optional]
             'hostnqn':     str, # [optional]
+            'hostid':      str, # [optional]
 
             # Connection parameters
             'kxchap-secret':      str, # [optional]
@@ -50,12 +103,24 @@ class TID:
             'reconnect-delay':    str, # [optional]
             'ctrl-loss-tmo':      str, # [optional]
             'disable-sqflow':     str, # [optional]
+            'hostsymname':        str, # [optional]
         }
         '''
         self._cfg = {
             k: v
             for k, v in cid.items()
-            if k not in ('transport', 'traddr', 'subsysnqn', 'trsvcid', 'host-traddr', 'host-iface')
+            if k
+            not in (
+                'transport',
+                'traddr',
+                'subsysnqn',
+                'trsvcid',
+                'host-traddr',
+                'host-iface',
+                'hostnqn',
+                'hostid',
+                'hostsymname',
+            )
         }
         self._transport = cid.get('transport', '')
         self._traddr = cid.get('traddr', '')
@@ -67,10 +132,12 @@ class TID:
             )
         self._host_traddr = cid.get('host-traddr', '')
         self._host_iface = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
-        # cid.get('hostnqn', conf.SysConf().hostnqn) would read the system
-        # host NQN unconditionally: dict.get() evaluates its default argument
-        # before checking the key, even when 'hostnqn' is already present.
-        self._hostnqn = cid['hostnqn'] if 'hostnqn' in cid else conf.SysConf().hostnqn
+        self._hostnqn, self._hostid, hostsymname = _host_identity(cid)
+        if hostsymname:
+            # Unlike hostnqn/hostid, hostsymname is a display label with no
+            # bearing on the connection - it stays a connection parameter,
+            # not a dedicated field, and plays no part in _key.
+            self._cfg['hostsymname'] = hostsymname
         self._subsysnqn = cid.get('subsysnqn', '')
         self._key = (
             self._transport,
@@ -80,6 +147,7 @@ class TID:
             self._host_traddr,
             self._host_iface,
             self._hostnqn,
+            self._hostid,
         )
         self._hash = int.from_bytes(
             hashlib.md5(''.join(self._key).encode('utf-8'), **_MD5_KWARGS).digest(), 'big'
@@ -99,6 +167,7 @@ class TID:
     subsysnqn = property(lambda self: self._subsysnqn)
     transport = property(lambda self: self._transport)
     hostnqn = property(lambda self: self._hostnqn)
+    hostid = property(lambda self: self._hostid)
     trsvcid = property(lambda self: self._trsvcid)
     traddr = property(lambda self: self._traddr)
     cfg = property(lambda self: self._cfg)
@@ -121,6 +190,13 @@ class TID:
             data.update(cfg)
 
         data['hostnqn'] = self._hostnqn if hasattr(self, '_hostnqn') else conf.SysConf().hostnqn
+
+        # hostid used to live in _cfg rather than as its own field. A TID
+        # pickled from that era already had it merged into data above by the
+        # _cfg update; only fall further back to '' for a TID pickled before
+        # hostid was tracked at all. hostsymname still lives in _cfg, so it
+        # needs no equivalent handling here.
+        data['hostid'] = getattr(self, '_hostid', data.get('hostid', ''))
 
         return data
 

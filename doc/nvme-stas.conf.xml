@@ -157,17 +157,25 @@
                         <filename>/etc/nvme/hostid</filename>). A different
                         identity is a different persona and belongs in its own
                         drop-in file, which must state its
-                        <varname>hostnqn</varname> explicitly. Give a persona
-                        both a <varname>hostnqn</varname> and a
-                        <varname>hostid</varname>: without an explicit host ID
-                        the kernel generates one that changes on every reboot,
-                        which breaks persistent reservations.
+                        <varname>hostnqn</varname> explicitly, and normally
+                        needs its own <varname>hostid</varname> too: a
+                        <varname>hostnqn</varname> on its own is an incomplete
+                        identity, and the connection will fail rather than
+                        borrow a <varname>hostid</varname> from elsewhere. The
+                        one exception is a <literal>uuid:</literal>-form NQN
+                        (<literal>nqn.2014-08.org.nvmexpress:uuid:&lt;UUID&gt;</literal>)
+                        — its trailing UUID is already a valid host ID by
+                        construction (NVMe Base Specification 4.7, NVMe-oF Boot
+                        HostNQN and HostID TP4126), so nvme-stas recovers the
+                        host ID from it instead of treating it as missing.
                     </para>
                     <para>
                         nvme-stas takes a connection's identity whole or not at
                         all. It never pairs a configured host NQN with the
                         system's host ID, which would invent an identity nobody
-                        configured.
+                        configured — recovering a host ID already encoded in a
+                        <literal>uuid:</literal> host NQN is reading the
+                        identity as given, not inventing one.
                     </para>
                 </listitem>
             </varlistentry>

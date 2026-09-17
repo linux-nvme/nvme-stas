@@ -186,7 +186,7 @@ class Test(TestCase):
         conn_conf = conf.ConnConf()
         tid = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.unrelated'})
         self.assertEqual(
-            ctrl.host_identity(tid, sysconf, conn_conf),
+            (tid.hostnqn, tid.hostid or None, tid.cfg.get('hostsymname')),
             (sysconf.hostnqn, sysconf.hostid, conn_conf.hostsymname),
         )
 
@@ -194,7 +194,6 @@ class Test(TestCase):
         '''A connection that names its own host NQN is a persona. It must not
         borrow the system host ID: that would make the subsystem treat the two
         as the same host.'''
-        sysconf = conf.SysConf()
         tid = trid.TID(
             {
                 'transport': 'tcp',
@@ -206,7 +205,7 @@ class Test(TestCase):
             }
         )
         self.assertEqual(
-            ctrl.host_identity(tid, sysconf, conf.ConnConf()),
+            (tid.hostnqn, tid.hostid, tid.cfg.get('hostsymname')),
             ('nqn.1988-11.com.dell:persona:1', 'aaaaaaaa-0000-0000-0000-000000000001', 'persona-1'),
         )
 
@@ -220,13 +219,16 @@ class Test(TestCase):
                 'hostnqn': 'nqn.1988-11.com.dell:persona:2',
             }
         )
-        _, hostid, _ = ctrl.host_identity(tid, sysconf, conf.ConnConf())
-        self.assertIsNone(hostid)
-        self.assertNotEqual(hostid, sysconf.hostid)
+        self.assertEqual(tid.hostid, '')
+        self.assertNotEqual(tid.hostid, sysconf.hostid)
 
     def test_the_symbolic_name_alone_does_not_make_a_persona(self):
-        '''hostsymname does not discriminate identity, so naming one keeps the
-        system host NQN and host ID.'''
+        '''hostsymname does not discriminate identity, so naming one on a
+        connection with no hostnqn of its own keeps the system host NQN and
+        host ID. It does not, however, carry a hostsymname belonging to no
+        [Host] in particular - see test_main_file_host_can_set_just_the_hostid
+        for why a hostsymname is only honoured alongside the hostnqn it
+        actually came with.'''
         sysconf = conf.SysConf()
         tid = trid.TID(
             {
@@ -237,9 +239,77 @@ class Test(TestCase):
             }
         )
         self.assertEqual(
-            ctrl.host_identity(tid, sysconf, conf.ConnConf()),
-            (sysconf.hostnqn, sysconf.hostid, 'just-a-name'),
+            (tid.hostnqn, tid.hostid, tid.cfg.get('hostsymname')),
+            (sysconf.hostnqn, sysconf.hostid, None),
         )
+
+    def test_main_file_host_can_set_just_the_hostid(self):
+        '''A main-file [Host] is not a persona: its hostnqn and hostid apply
+        independently, each falling back to the flat files on its own. A
+        hostid alone must not be discarded, and hostnqn must still default.
+
+        A hostsymname set alongside that lone hostid must NOT come along for
+        the ride: hostsymname is the human name for whichever hostnqn is in
+        effect, and here that is the flat file's, which has no such concept.
+
+        ConnConf reads its file through libnvme's C parser, which does not
+        see pyfakefs's fake filesystem, so its properties are mocked here
+        directly rather than exercising a real (or fake) file - the parser
+        itself is covered by test-conn-conf.py.'''
+        sysconf = conf.SysConf()
+        with unittest.mock.patch.object(
+            conf.ConnConf, 'hostnqn', new_callable=unittest.mock.PropertyMock, return_value=None
+        ), unittest.mock.patch.object(
+            conf.ConnConf,
+            'hostid',
+            new_callable=unittest.mock.PropertyMock,
+            return_value='bbbbbbbb-0000-0000-0000-000000000002',
+        ), unittest.mock.patch.object(
+            conf.ConnConf, 'hostsymname', new_callable=unittest.mock.PropertyMock, return_value='lab-host-01'
+        ):
+            tid = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.unrelated'})
+
+        self.assertEqual(tid.hostnqn, sysconf.hostnqn)
+        self.assertEqual(tid.hostid, 'bbbbbbbb-0000-0000-0000-000000000002')
+        self.assertEqual(tid.cfg.get('hostsymname'), None)
+
+    def test_main_file_hostsymname_follows_its_own_hostnqn(self):
+        '''hostsymname is the human name for whichever hostnqn is in effect.
+        When the main file's [Host] supplies that hostnqn, its own
+        hostsymname comes along with it.'''
+        with unittest.mock.patch.object(
+            conf.ConnConf,
+            'hostnqn',
+            new_callable=unittest.mock.PropertyMock,
+            return_value='nqn.1988-11.com.dell:default:1',
+        ), unittest.mock.patch.object(
+            conf.ConnConf, 'hostid', new_callable=unittest.mock.PropertyMock, return_value=None
+        ), unittest.mock.patch.object(
+            conf.ConnConf, 'hostsymname', new_callable=unittest.mock.PropertyMock, return_value='lab-host-01'
+        ):
+            tid = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.unrelated'})
+
+        self.assertEqual(tid.hostnqn, 'nqn.1988-11.com.dell:default:1')
+        self.assertEqual(tid.cfg.get('hostsymname'), 'lab-host-01')
+
+    def test_a_full_persona_never_touches_the_flat_files(self):
+        '''A connection that names both its own hostnqn and hostid must not
+        need /etc/nvme/hostnqn or /etc/nvme/hostid to exist at all.'''
+        conf.SysConf.destroy()
+        self.addCleanup(conf.SysConf.destroy)
+        conf.SysConf(hostnqn_file='/does/not/exist/hostnqn', hostid_file='/does/not/exist/hostid')
+
+        tid = trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': '1.1.1.1',
+                'subsysnqn': 'nqn.unrelated',
+                'hostnqn': 'nqn.1988-11.com.dell:persona:3',
+                'hostid': 'cccccccc-0000-0000-0000-000000000003',
+            }
+        )
+        self.assertEqual(tid.hostnqn, 'nqn.1988-11.com.dell:persona:3')
+        self.assertEqual(tid.hostid, 'cccccccc-0000-0000-0000-000000000003')
 
     def tearDown(self):
         pass
@@ -314,7 +384,6 @@ class Test(TestCase):
                 'device': 'nvme?',
                 'connect attempts': '1',
                 'retry connect timer': '60.0s [off]',
-                'hostid': '',
                 'model': '',
                 'serial': '',
                 'connect operation': "{'fail count': 0, 'completed': False, 'alive': True}",
