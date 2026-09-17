@@ -834,7 +834,7 @@ class Dc(Controller):
             self._register_op = gutil.AsyncTask(
                 self._on_registration_success,
                 self._on_registration_fail,
-                self._ctrl.registration_ctlr,
+                self._ctrl.registration_control,
                 nvme.NVMF_DIM_TAS_REGISTER,
             )
             self._register_op.run_async()

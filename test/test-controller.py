@@ -38,6 +38,8 @@ class TestDc(ctrl.Dc):
             def __init__(this):
                 this.name = 'nvme666'
                 this.dctype = 'none'
+                this.registration_supported = False
+                this.registration_control_calls = []
 
             @property
             def connected(this):
@@ -48,6 +50,9 @@ class TestDc(ctrl.Dc):
 
             def discover(this, lsp=0):
                 return []
+
+            def registration_control(this, tas):
+                this.registration_control_calls.append(tas)
 
         self._ctrl = Ctrl()
 
@@ -454,6 +459,21 @@ class Test(TestCase):
         # _on_registration_fail: fail_cnt=2 → throttled (no extra error log)
         with self.assertLogs(logger=logging.getLogger(), level='DEBUG'):
             dc._on_registration_fail(op, FakeErr(), 2)
+
+    def test_registration_is_started_with_the_real_libnvme_method(self):
+        '''self._ctrl is libnvme's own nvme.Ctrl object. A wrong method name
+        here (e.g. a stale "registration_ctlr") would only ever surface as an
+        AttributeError against a real DC, since nothing else calls through
+        it - assert the AsyncTask is wired to the attribute that actually
+        exists on nvme.Ctrl, not just that something got scheduled.'''
+        dc = TestDc(TestStaf(), tid=self.NVME_TID)
+        dc._ctrl.registration_supported = True
+
+        dc._on_connect_success(MockOp(), None)
+
+        self.assertIsNotNone(dc._register_op)
+        self.assertEqual(dc._register_op._operation, dc._ctrl.registration_control)
+        self.assertEqual(dc._register_op._op_args, (nvme.NVMF_DIM_TAS_REGISTER,))
 
     def test_dc_log_page_callbacks(self):
         op = MockOp()
