@@ -54,7 +54,16 @@ jobs:
           sudo nvme version
 
       - name: "TEST: make coverage"
-        run: make coverage
+        # A normal run takes about 5 minutes. Timing out cancels the step
+        # the normal way, so the steps below still collect what they can.
+        timeout-minutes: 15
+        run: |
+          # Kernel messages and a heartbeat, streamed into this log as
+          # they happen, so that a run that stops shows why and when.
+          sudo dmesg --follow-new --time-format iso &
+          while sleep 60; do echo "heartbeat $(date -u +%T)"; done &
+          trap 'sudo kill $(jobs -p) 2>/dev/null' EXIT
+          make coverage
 
       - name: "REPORT: coverage.xml"
         if: always()
