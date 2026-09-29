@@ -58,6 +58,13 @@ jobs:
           sudo ldconfig
           sudo systemctl daemon-reload
           sudo udevadm control --reload
+          # A distribution package also creates the host identity, and the
+          # purge above removed Ubuntu's. The host ID is the UUID of the
+          # uuid:-form host NQN, so the two are paired.
+          sudo mkdir -p /etc/nvme
+          sudo sh -c 'nvme gen-hostnqn > /etc/nvme/hostnqn'
+          sudo sh -c "sed -n 's/.*:uuid://p' /etc/nvme/hostnqn > /etc/nvme/hostid"
+          test -s /etc/nvme/hostid
           nvme version
           grep -- '--owner=autoconnect' /usr/lib/systemd/system/nvmf-connect@.service
           test ! -e /usr/lib/systemd/system/nvme-discoverd.service
