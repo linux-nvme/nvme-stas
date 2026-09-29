@@ -15,7 +15,7 @@ import pprint
 from argparse import ArgumentParser
 import dasbus.error
 from dasbus.connection import SystemMessageBus
-from staslib import conf, defs
+from staslib import defs
 
 
 def tron(args):
@@ -167,8 +167,8 @@ PRSR.add_argument(
     '--hostnqn',
     metavar='<nqn>',
     action='store',
-    help='This field specifies the host NQN (default: "%(default)s")',
-    default=conf.SysConf().hostnqn,
+    help='This field specifies the host NQN (default: the one stafd connects under by default)',
+    default='',
 )
 PRSR.add_argument(
     '-n',

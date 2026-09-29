@@ -1,0 +1,105 @@
+name: Nightly coverage
+
+# Runs "make coverage": stafd and stacd as systemd units against a local
+# nvmet target and avahi, with coverage.py measuring both daemons.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Every day at 2:00 AM UTC
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    # Scheduled runs only upstream; forks can still run it by hand.
+    if: github.event_name != 'schedule' || github.repository == 'linux-nvme/nvme-stas'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: "CHECKOUT: nvme-stas"
+        uses: actions/checkout@v7
+
+      - name: "INSTALL: build packages"
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --quiet meson ninja-build cmake swig libjson-c-dev libssl-dev libkeyutils-dev
+          sudo apt-get install --yes --quiet iproute2 libglib2.0-dev libgirepository1.0-dev libsystemd-dev
+
+      - name: "INSTALL: python packages"
+        run: |
+          sudo apt-get install --yes --quiet python3-pip python3-wheel python3-systemd python3-pyudev python3-lxml python3-dasbus python3-gi python3-importlib-resources python3-pyfakefs
+
+      - name: "INSTALL: coverage test packages"
+        run: |
+          # nvmet and nvme-tcp are not in the Azure kernel's base modules.
+          sudo apt-get install --yes --quiet "linux-modules-extra-$(uname -r)"
+          sudo apt-get install --yes --quiet avahi-daemon avahi-utils python3-coverage
+          # coverage.sh runs a bare "coverage". A hard link, not a symlink:
+          # see TESTING.md.
+          sudo ln /usr/bin/python3-coverage /usr/local/bin/coverage
+
+      - name: "BUILD: nvme-stas"
+        run: make
+
+      - name: "INSTALL: nvme-cli 3.x"
+        run: |
+          # The runner image ships Ubuntu's nvme-cli 2.x, whose autoconnect
+          # udev rule runs "nvme connect-all" on every Discovery Log Page
+          # change, including on stafd's controllers, and follows the
+          # referrals nvmet.conf sets up. Replace it with the nvme-cli
+          # checkout nvme-stas builds against, installed the way a
+          # distribution would. Its autoconnect only acts on controllers
+          # it owns, and nvme-discoverd stays out of stafd's way.
+          sudo apt-get purge --yes --quiet nvme-cli
+          meson setup .build-nvme subprojects/nvme-cli --prefix /usr --sysconfdir /etc --buildtype release -Dpython=enabled -Dnvme-discoverd=disabled -Dnvmf-autoconnect=enabled
+          meson compile -C .build-nvme
+          sudo meson install -C .build-nvme
+          sudo ldconfig
+          sudo systemctl daemon-reload
+          sudo udevadm control --reload
+          # A distribution package also creates the host identity, and the
+          # purge above removed Ubuntu's. The host ID is the UUID of the
+          # uuid:-form host NQN, so the two are paired.
+          sudo mkdir -p /etc/nvme
+          sudo sh -c 'nvme gen-hostnqn > /etc/nvme/hostnqn'
+          sudo sh -c "sed -n 's/.*:uuid://p' /etc/nvme/hostnqn > /etc/nvme/hostid"
+          test -s /etc/nvme/hostid
+          nvme version
+          grep -- '--owner=autoconnect' /usr/lib/systemd/system/nvmf-connect@.service
+          test ! -e /usr/lib/systemd/system/nvme-discoverd.service
+
+      - name: "TEST: make coverage"
+        # A normal run takes about 5 minutes. Timing out cancels the step
+        # the normal way, so the steps below still collect what they can.
+        timeout-minutes: 15
+        run: make coverage
+
+      - name: "REPORT: coverage.xml"
+        if: always()
+        working-directory: .build
+        run: coverage xml -i --rcfile=.coveragerc -o coverage.xml
+
+      - name: "COLLECT: journal"
+        if: always()
+        run: |
+          # Everything from the run's last START marker on, unfiltered, so
+          # kernel messages and other daemons are included.
+          sudo journalctl -b -o short-iso --no-pager | tac | sed '/START-START/q' | tac > journal.txt
+          wc -l journal.txt
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: |
+            .build/coverage/
+            .build/coverage.xml
+            journal.txt
+
+      - uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: .build/coverage.xml
+          disable_search: true
+          flags: integration
+          fail_ci_if_error: false

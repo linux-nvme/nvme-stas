@@ -77,10 +77,10 @@ etc_nvme_populate() {
 	echo 'a1b2c3d4-0000-4000-8000-000000000001' > "${ETC_NVME_DIR}/hostid"
 
 	# libnvme's host-wide exclusion list, which stas re-reads on every
-	# connection attempt. "starfleet" is one of the three subsystems nvmet
+	# connection attempt. "starfleet" is one of the four subsystems nvmet
 	# serves and is named nowhere else in this script, so excluding it here
 	# is what exercises the list against a live target: stacd must connect
-	# the other two and leave this one alone.
+	# the other three and leave this one alone.
 	cat > "${ETC_NVME_DIR}/exclusions.conf" <<'EOF'
 [exclusions]
 exclusion = nqn=nqn.1988-11.com.dell:starfleet

@@ -18,6 +18,11 @@ from argparse import ArgumentParser
 
 VERSION = 1.0
 DEFAULT_CONFIG_FILE = './nvmet.conf'
+NULL_BLK_DEV = '/dev/nullb0'
+# Used instead of NULL_BLK_DEV when the kernel has no null_blk module
+# (e.g. Azure kernels). nvmet serves a regular file just as well.
+BACKING_FILE = '/var/tmp/nvmet-backing.img'
+BACKING_FILE_SIZE = 1 << 30
 
 
 class Fore:
@@ -128,6 +133,18 @@ def _create_subsystem(subsysnqn: str, allowed_hosts: list) -> str:
             _symlink_allowed_hosts(hostnqn, subsysnqn)
 
 
+def _backing_dev() -> str:
+    _modprobe('null_blk', ['nr_devices=1'])
+    if args.dry_run or os.path.exists(NULL_BLK_DEV):
+        return NULL_BLK_DEV
+
+    print(f'###{Fore.GREEN} null_blk unavailable, using a sparse file instead{Style.RESET_ALL}')
+    print(f'truncate -s {BACKING_FILE_SIZE} "{BACKING_FILE}"')
+    with open(BACKING_FILE, 'w') as f:
+        f.truncate(BACKING_FILE_SIZE)
+    return BACKING_FILE
+
+
 def _create_namespace(subsysnqn: str, id: str, node: str) -> str:
     print(f'###{Fore.GREEN} Add namespace: {id}{Style.RESET_ALL}')
     dname = os.path.join('/sys/kernel/config/nvmet/subsystems/', subsysnqn, 'namespaces', id)
@@ -158,6 +175,22 @@ def _create_port(port: str, traddr: str, trsvcid: str, trtype: str, adrfam: str)
         _echo(trsvcid, os.path.join(dname, 'addr_trsvcid'))
     if adrfam:
         _echo(adrfam, os.path.join(dname, 'addr_adrfam'))
+
+
+def _create_referral(port: str, name: str, referral: dict):
+    '''A referral makes @port's discovery log page list another Discovery
+    Controller. The kernel always reports it under the well-known
+    discovery NQN, and enabling or disabling it sends a "Discovery Log
+    Page changed" AEN to the hosts connected to @port.'''
+    traddr, trsvcid = referral.get('traddr'), referral.get('trsvcid')
+    print(f'###{Fore.GREEN} Create referral: port {port} -> {traddr}:{trsvcid}{Style.RESET_ALL}')
+    dname = os.path.join('/sys/kernel/config/nvmet/ports', port, 'referrals', name)
+    _mkdir(dname)
+    for key in ('trtype', 'adrfam', 'traddr', 'trsvcid', 'portid', 'treq'):
+        value = referral.get(key)
+        if value is not None:
+            _echo(value, os.path.join(dname, f'addr_{key}'))
+    _echo(1, os.path.join(dname, 'enable'))
 
 
 def _map_subsystems_to_ports(subsystems: list):
@@ -196,9 +229,8 @@ def create(args):
 
     print('')
 
-    # Create a dummy null block device (if one doesn't already exist)
-    dev_node = '/dev/nullb0'
-    _modprobe('null_blk', ['nr_devices=1'])
+    # Create a dummy block device (if one doesn't already exist)
+    dev_node = _backing_dev()
 
     ports = config.get('ports')
     if ports is None:
@@ -254,6 +286,23 @@ def create(args):
     print('')
     _map_subsystems_to_ports(subsystems)
 
+    for port in ports:
+        for i, referral in enumerate(port.get('referrals', [])):
+            print('')
+            id, name = str(port.get('id')), str(referral.get('name', i))
+            traddr, trsvcid, trtype, adrfam = (
+                referral.get('traddr'),
+                referral.get('trsvcid'),
+                referral.get('trtype'),
+                referral.get('adrfam'),
+            )
+            if _args_valid(id, traddr, trsvcid, trtype, adrfam):
+                _create_referral(id, name, referral)
+            else:
+                print(
+                    f'{Fore.RED}### Config file "{args.conf_file}" error in "referrals" of port {id}: name={name}, traddr={traddr}, trsvcid={trsvcid}, trtype={trtype}, adrfam={adrfam}{Style.RESET_ALL}'
+                )
+
     print('')
 
 
@@ -272,6 +321,11 @@ def clean(args):
         _runcmd(['rm', '-f', str(dname)], quiet=True)
 
     print(f'###{Fore.GREEN} 2nd) Remove directories{Style.RESET_ALL}')
+    # A port cannot be removed while it still has referrals
+    print('rmdir /sys/kernel/config/nvmet/ports/*/referrals/*')
+    for dname in pathlib.Path('/sys/kernel/config/nvmet/ports').glob('*/referrals/*'):
+        _runcmd(['rmdir', str(dname)], quiet=True)
+
     print('rmdir /sys/kernel/config/nvmet/ports/*')
     for dname in pathlib.Path('/sys/kernel/config/nvmet/ports').glob('*'):
         _runcmd(['rmdir', str(dname)], quiet=True)
@@ -294,6 +348,9 @@ def clean(args):
 
     _modprobe('nvmet', ['--remove'])
     _modprobe('null_blk', ['--remove'])
+
+    print(f'rm -f "{BACKING_FILE}"')
+    _runcmd(['rm', '-f', BACKING_FILE], quiet=True)
 
 
 def link(args):
@@ -337,6 +394,16 @@ def ls(args):
             'adrfam': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_adrfam')),
             'trtype': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_trtype')),
         }
+
+        referrals = list()
+        for referral_path in sorted(port_path.glob('referrals/*')):
+            referral = {'name': referral_path.parts[-1]}
+            for key in ('trtype', 'adrfam', 'traddr', 'trsvcid', 'portid', 'treq'):
+                referral[key] = _read_attr_from_file(os.path.join(str(referral_path), f'addr_{key}'))
+            referral['enable'] = _read_attr_from_file(os.path.join(str(referral_path), 'enable'))
+            referrals.append(referral)
+        if referrals:
+            port['referrals'] = referrals
 
         ports.append(port)
 

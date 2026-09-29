@@ -111,10 +111,11 @@
       <listitem>
           <para>
               This field specifies the host NVMe Qualified Name that the
-              connection was made under. It defaults to the host NQN read
-              from <filename>/etc/nvme/hostnqn</filename>, which is what a
-              connection uses unless the connectivity configuration gave it
-              a different identity. See
+              connection was made under. When omitted, the daemon uses the
+              host NQN it connects under by default: the one from the
+              connectivity configuration's <literal>[Host]</literal> section,
+              or else the one read from
+              <filename>/etc/nvme/hostnqn</filename>. See
               <citerefentry>
                   <refentrytitle>nvme-stas.conf</refentrytitle>
                   <manvolnum>5</manvolnum>
