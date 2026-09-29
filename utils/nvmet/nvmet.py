@@ -177,6 +177,22 @@ def _create_port(port: str, traddr: str, trsvcid: str, trtype: str, adrfam: str)
         _echo(adrfam, os.path.join(dname, 'addr_adrfam'))
 
 
+def _create_referral(port: str, name: str, referral: dict):
+    '''A referral makes @port's discovery log page list another Discovery
+    Controller. The kernel always reports it under the well-known
+    discovery NQN, and enabling or disabling it sends a "Discovery Log
+    Page changed" AEN to the hosts connected to @port.'''
+    traddr, trsvcid = referral.get('traddr'), referral.get('trsvcid')
+    print(f'###{Fore.GREEN} Create referral: port {port} -> {traddr}:{trsvcid}{Style.RESET_ALL}')
+    dname = os.path.join('/sys/kernel/config/nvmet/ports', port, 'referrals', name)
+    _mkdir(dname)
+    for key in ('trtype', 'adrfam', 'traddr', 'trsvcid', 'portid', 'treq'):
+        value = referral.get(key)
+        if value is not None:
+            _echo(value, os.path.join(dname, f'addr_{key}'))
+    _echo(1, os.path.join(dname, 'enable'))
+
+
 def _map_subsystems_to_ports(subsystems: list):
     print(f'###{Fore.GREEN} Map subsystems to ports{Style.RESET_ALL}')
     for subsystem in subsystems:
@@ -270,6 +286,23 @@ def create(args):
     print('')
     _map_subsystems_to_ports(subsystems)
 
+    for port in ports:
+        for i, referral in enumerate(port.get('referrals', [])):
+            print('')
+            id, name = str(port.get('id')), str(referral.get('name', i))
+            traddr, trsvcid, trtype, adrfam = (
+                referral.get('traddr'),
+                referral.get('trsvcid'),
+                referral.get('trtype'),
+                referral.get('adrfam'),
+            )
+            if _args_valid(id, traddr, trsvcid, trtype, adrfam):
+                _create_referral(id, name, referral)
+            else:
+                print(
+                    f'{Fore.RED}### Config file "{args.conf_file}" error in "referrals" of port {id}: name={name}, traddr={traddr}, trsvcid={trsvcid}, trtype={trtype}, adrfam={adrfam}{Style.RESET_ALL}'
+                )
+
     print('')
 
 
@@ -288,6 +321,11 @@ def clean(args):
         _runcmd(['rm', '-f', str(dname)], quiet=True)
 
     print(f'###{Fore.GREEN} 2nd) Remove directories{Style.RESET_ALL}')
+    # A port cannot be removed while it still has referrals
+    print('rmdir /sys/kernel/config/nvmet/ports/*/referrals/*')
+    for dname in pathlib.Path('/sys/kernel/config/nvmet/ports').glob('*/referrals/*'):
+        _runcmd(['rmdir', str(dname)], quiet=True)
+
     print('rmdir /sys/kernel/config/nvmet/ports/*')
     for dname in pathlib.Path('/sys/kernel/config/nvmet/ports').glob('*'):
         _runcmd(['rmdir', str(dname)], quiet=True)
@@ -356,6 +394,16 @@ def ls(args):
             'adrfam': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_adrfam')),
             'trtype': _read_attr_from_file(os.path.join('/sys/kernel/config/nvmet/ports', id, 'addr_trtype')),
         }
+
+        referrals = list()
+        for referral_path in sorted(port_path.glob('referrals/*')):
+            referral = {'name': referral_path.parts[-1]}
+            for key in ('trtype', 'adrfam', 'traddr', 'trsvcid', 'portid', 'treq'):
+                referral[key] = _read_attr_from_file(os.path.join(str(referral_path), f'addr_{key}'))
+            referral['enable'] = _read_attr_from_file(os.path.join(str(referral_path), 'enable'))
+            referrals.append(referral)
+        if referrals:
+            port['referrals'] = referrals
 
         ports.append(port)
 
