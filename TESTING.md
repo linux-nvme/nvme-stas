@@ -16,7 +16,7 @@ There are two ways to run the tests.
 
 # Manual testing using the nvmet driver
 
-A script is provided (`utils/nvmet/nvmet.py`) to simplify the configuration of the `nvmet` driver. The script comes with a companion configuration file (`utils/nvmet/nvmet.conf`). The configuration file is where you configure the port(s) and subsystem(s) to create. The default configuration will create 3 subsystems under port 1. This is mapped to the local IPv6 loopback address (`::1`).
+A script is provided (`utils/nvmet/nvmet.py`) to simplify the configuration of the `nvmet` driver. The script comes with a companion configuration file (`utils/nvmet/nvmet.conf`). The configuration file is where you configure the port(s) and subsystem(s) to create. The default configuration creates two ports. Port 1 listens on port 8009 of every local address, IPv4 and IPv6, and serves 3 subsystems. Port 2 listens on IPv4 port 4420 and serves a 4th subsystem, `romulans`. Each port's discovery log page has a referral to the other, so `stafd` only needs to be told about port 1 and finds port 2 by following the referral.
 
 Since nvmet doesn't provide a mDNS responder, you will need to manually configure the DDC that the nvmet driver creates. Controllers live in the connectivity configuration, `/etc/nvme/nvme-stas.conf`, as of nvme-stas 3.0 — not in `stafd.conf`. Add a `[Discovery Controller]` section:
 
@@ -124,7 +124,7 @@ $ sudo systemctl start stafd stacd
 
 ## So, is it running yet?
 
-You should have seen `stafd` and `stacd` starting in the first terminal where `journalctl` is following the system log. At this point `stafd` should have connected to the `nvmet` discovery controller and retrieved the discovery log page entries (DLPE). And `stacd` should have retrieved the DLPEs from `stafd` and connected to the 3 subsystems defined in `nvmet.conf`. This can be confirmed as follows:
+You should have seen `stafd` and `stacd` starting in the first terminal where `journalctl` is following the system log. At this point `stafd` should have connected to the `nvmet` discovery controller on port 8009, followed its referral to the one on port 4420, and retrieved the discovery log page entries (DLPE) of both. And `stacd` should have retrieved the DLPEs from `stafd` and connected to the 4 subsystems defined in `nvmet.conf`. This can be confirmed as follows:
 
 ```bash
 $ stafctl ls
@@ -135,14 +135,22 @@ $ stafctl ls
   'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
   'traddr': '::1',
   'transport': 'tcp',
-  'trsvcid': '8009'}]
+  'trsvcid': '8009'},
+ {'device': 'nvme1',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery',
+  'traddr': '127.0.0.1',
+  'transport': 'tcp',
+  'trsvcid': '4420'}]
 ```
 
 And:
 
 ```bash
 $ stacctl ls
-[{'device': 'nvme1',
+[{'device': 'nvme2',
   'host-iface': '',
   'host-traddr': '',
   'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
@@ -150,7 +158,7 @@ $ stacctl ls
   'traddr': '::1',
   'transport': 'tcp',
   'trsvcid': '8009'},
- {'device': 'nvme2',
+ {'device': 'nvme3',
   'host-iface': '',
   'host-traddr': '',
   'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
@@ -158,14 +166,22 @@ $ stacctl ls
   'traddr': '::1',
   'transport': 'tcp',
   'trsvcid': '8009'},
- {'device': 'nvme3',
+ {'device': 'nvme4',
   'host-iface': '',
   'host-traddr': '',
   'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
   'subsysnqn': 'nqn.1988-11.com.dell:starfleet',
   'traddr': '::1',
   'transport': 'tcp',
-  'trsvcid': '8009'}]
+  'trsvcid': '8009'},
+ {'device': 'nvme5',
+  'host-iface': '',
+  'host-traddr': '',
+  'hostnqn': 'nqn.2014-08.org.nvmexpress:uuid:13730573-e8d7-446e-81f6-042a497846d5',
+  'subsysnqn': 'nqn.1988-11.com.dell:romulans',
+  'traddr': '127.0.0.1',
+  'transport': 'tcp',
+  'trsvcid': '4420'}]
 ```
 
 You can also use `nvme-cli` to list the connections. For example: `nvme list -v`.
