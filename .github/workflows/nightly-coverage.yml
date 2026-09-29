@@ -44,21 +44,23 @@ jobs:
 
       - name: "INSTALL: nvme-cli 3.x"
         run: |
-          # The runner image ships Ubuntu's nvme-cli 2.x. Its autoconnect
+          # The runner image ships Ubuntu's nvme-cli 2.x, whose autoconnect
           # udev rule runs "nvme connect-all" on every Discovery Log Page
           # change, including on stafd's controllers, and follows the
-          # referrals nvmet.conf sets up. 3.x only acts on controllers it
-          # owns. Replace it with the nvme-cli checkout nvme-stas builds
-          # against.
+          # referrals nvmet.conf sets up. Replace it with the nvme-cli
+          # checkout nvme-stas builds against, installed the way a
+          # distribution would. Its autoconnect only acts on controllers
+          # it owns, and nvme-discoverd stays out of stafd's way.
           sudo apt-get purge --yes --quiet nvme-cli
-          meson setup .build-nvme subprojects/nvme-cli --prefix=/usr --sysconfdir=/etc -Dpython=disabled -Ddocs=false -Dtests=false -Dexamples=false
+          meson setup .build-nvme subprojects/nvme-cli --prefix /usr --sysconfdir /etc --buildtype release -Dpython=enabled -Dnvme-discoverd=disabled -Dnvmf-autoconnect=enabled
           meson compile -C .build-nvme
           sudo meson install -C .build-nvme
           sudo ldconfig
           sudo systemctl daemon-reload
           sudo udevadm control --reload
           nvme version
-          grep ExecStart /usr/lib/systemd/system/nvmf-connect@.service
+          grep -- '--owner=autoconnect' /usr/lib/systemd/system/nvmf-connect@.service
+          test ! -e /usr/lib/systemd/system/nvme-discoverd.service
 
       - name: "TEST: make coverage"
         # A normal run takes about 5 minutes. Timing out cancels the step
