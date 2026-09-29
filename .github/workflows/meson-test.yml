@@ -70,15 +70,10 @@ jobs:
           name: "Linux_Meson_Testlog"
           path: .build/meson-logs/*
 
-      - name: "Generate coverage report"
+      # meson runs each test file in its own process. Running them all in
+      # one catches tests that depend on each other's state.
+      - name: "TEST: all tests in one process"
         run: |
-          sudo apt-get install python3-pytest python3-pytest-cov
-          echo $( pwd )
+          sudo apt-get install python3-pytest
           cp -r .build/staslib/* ./staslib/.
-          python3 -m pytest --cov=./staslib --cov-report=xml test/test-*.py
-
-      - uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          flags: unit
+          python3 -m pytest test/test-*.py
