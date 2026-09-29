@@ -18,6 +18,11 @@ from argparse import ArgumentParser
 
 VERSION = 1.0
 DEFAULT_CONFIG_FILE = './nvmet.conf'
+NULL_BLK_DEV = '/dev/nullb0'
+# Used instead of NULL_BLK_DEV when the kernel has no null_blk module
+# (e.g. Azure kernels). nvmet serves a regular file just as well.
+BACKING_FILE = '/var/tmp/nvmet-backing.img'
+BACKING_FILE_SIZE = 1 << 30
 
 
 class Fore:
@@ -128,6 +133,18 @@ def _create_subsystem(subsysnqn: str, allowed_hosts: list) -> str:
             _symlink_allowed_hosts(hostnqn, subsysnqn)
 
 
+def _backing_dev() -> str:
+    _modprobe('null_blk', ['nr_devices=1'])
+    if args.dry_run or os.path.exists(NULL_BLK_DEV):
+        return NULL_BLK_DEV
+
+    print(f'###{Fore.GREEN} null_blk unavailable, using a sparse file instead{Style.RESET_ALL}')
+    print(f'truncate -s {BACKING_FILE_SIZE} "{BACKING_FILE}"')
+    with open(BACKING_FILE, 'w') as f:
+        f.truncate(BACKING_FILE_SIZE)
+    return BACKING_FILE
+
+
 def _create_namespace(subsysnqn: str, id: str, node: str) -> str:
     print(f'###{Fore.GREEN} Add namespace: {id}{Style.RESET_ALL}')
     dname = os.path.join('/sys/kernel/config/nvmet/subsystems/', subsysnqn, 'namespaces', id)
@@ -196,9 +213,8 @@ def create(args):
 
     print('')
 
-    # Create a dummy null block device (if one doesn't already exist)
-    dev_node = '/dev/nullb0'
-    _modprobe('null_blk', ['nr_devices=1'])
+    # Create a dummy block device (if one doesn't already exist)
+    dev_node = _backing_dev()
 
     ports = config.get('ports')
     if ports is None:
@@ -294,6 +310,9 @@ def clean(args):
 
     _modprobe('nvmet', ['--remove'])
     _modprobe('null_blk', ['--remove'])
+
+    print(f'rm -f "{BACKING_FILE}"')
+    _runcmd(['rm', '-f', BACKING_FILE], quiet=True)
 
 
 def link(args):
