@@ -1,16 +1,29 @@
-name: Nightly coverage
+name: Coverage
 
 # Runs "make coverage": stafd and stacd as systemd units against a local
-# nvmet target and avahi, with coverage.py measuring both daemons.
+# nvmet target and avahi, with coverage.py measuring both daemons. The
+# unit tests run inside it too, so this is the one coverage figure
+# uploaded to Codecov.
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # nvme-stas builds against nvme-cli's HEAD, which changes far more often
+  # than nvme-stas does. The weekly run catches a change there that breaks
+  # nvme-stas while nothing here moves.
   schedule:
-    - cron: '0 2 * * *'  # Every day at 2:00 AM UTC
+    - cron: '0 2 * * 0'  # Sundays at 2:00 AM UTC
   workflow_dispatch:
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   coverage:
-    # Scheduled runs only upstream; forks can still run it by hand.
+    # Scheduled runs only upstream.
     if: github.event_name != 'schedule' || github.repository == 'linux-nvme/nvme-stas'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
