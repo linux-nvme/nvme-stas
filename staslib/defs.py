@@ -30,6 +30,9 @@ KERNEL_IFACE_MIN_VERSION = KernelVersion('5.14')
 KERNEL_TP8013_MIN_VERSION = KernelVersion('5.16')
 KERNEL_HOSTKEY_MIN_VERSION = KernelVersion('5.20')
 KERNEL_CTRLKEY_MIN_VERSION = KernelVersion('5.20')
+# Sends "rediscover" when a discovery controller reconnects. Not an option
+# /dev/nvme-fabrics reports, so not part of KERNEL_ALL_MIN_VERSION.
+KERNEL_REDISCOVER_MIN_VERSION = KernelVersion('6.1')
 KERNEL_ALL_MIN_VERSION = max(
     # Minimum version required to have support for all
     KERNEL_IFACE_MIN_VERSION,
