@@ -35,6 +35,12 @@ class GutilUnitTest(unittest.TestCase):
         op._errmsg = errmsg
         self.assertEqual(op.as_dict().get('error'), errmsg)
 
+        # Killing a task with a retry pending kills the retry timer too
+        retry_tmr = op._retry_tmr
+        op.kill()
+        self.assertIsNone(op._retry_tmr)
+        self.assertEqual(retry_tmr.time_remaining(), 0)
+
 
     def test_run_async_is_a_no_op_while_running(self):
         op = gutil.AsyncTask(self._on_success, self._on_fail, self._operation, 'hello')
