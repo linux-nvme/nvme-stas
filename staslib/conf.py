@@ -473,11 +473,6 @@ class ConnConf(metaclass=singleton.Singleton):
         self._loaded = False
         self.reload()
 
-    @property
-    def conf_file(self):
-        '''Return the configuration file name'''
-        return self._conf_file
-
     def set_conf_file(self, fname):
         '''Set the configuration file name and reload the configuration'''
         self._conf_file = fname

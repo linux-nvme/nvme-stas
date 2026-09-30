@@ -2,6 +2,7 @@
 import os
 import logging
 import unittest
+import unittest.mock
 from staslib import defs, conf, log
 from pyfakefs.fake_filesystem_unittest import TestCase
 
@@ -20,10 +21,15 @@ class TestStandardNvmeFabricsFile(unittest.TestCase):
 
 
 class Test(TestCase):
-    """Unit tests for class NvmeOptions"""
+    """Unit tests for class NvmeOptions, on a kernel old enough that it has to
+    read /dev/nvme-fabrics to find out what it supports. On a current kernel
+    the version alone answers, and the file is never read."""
 
     def setUp(self):
         self.setUpPyfakefs()
+        patcher = unittest.mock.patch.object(defs, 'KERNEL_VERSION', defs.KernelVersion('5.10'))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         log.init(syslog=False)
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
@@ -35,9 +41,18 @@ class Test(TestCase):
     def test_file_missing(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
         conf.NvmeOptions.destroy()  # Make sure singleton does not exist
-        nvme_options = conf.NvmeOptions()
-        self.assertIsInstance(nvme_options.discovery_supp, bool)
-        self.assertIsInstance(nvme_options.host_iface_supp, bool)
+        with self.assertLogs(level='WARNING') as captured:
+            nvme_options = conf.NvmeOptions()
+        self.assertIn('Cannot determine which NVMe options', captured.output[0])
+        self.assertFalse(nvme_options.discovery_supp)
+        self.assertFalse(nvme_options.host_iface_supp)
+
+    def test_fabrics_unreadable_file(self):
+        '''Only root can read it'''
+        self.fs.create_file('/dev/nvme-fabrics', st_mode=0o100000, contents='discovery\n')
+        conf.NvmeOptions.destroy()  # Make sure singleton does not exist
+        with self.assertRaises(PermissionError):
+            conf.NvmeOptions()
 
     def test_fabrics_empty_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
@@ -45,8 +60,8 @@ class Test(TestCase):
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         conf.NvmeOptions.destroy()  # Make sure singleton does not exist
         nvme_options = conf.NvmeOptions()
-        self.assertIsInstance(nvme_options.discovery_supp, bool)
-        self.assertIsInstance(nvme_options.host_iface_supp, bool)
+        self.assertFalse(nvme_options.discovery_supp)
+        self.assertFalse(nvme_options.host_iface_supp)
 
     def test_fabrics_wrong_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))
@@ -54,8 +69,8 @@ class Test(TestCase):
         self.assertTrue(os.path.exists('/dev/nvme-fabrics'))
         conf.NvmeOptions.destroy()  # Make sure singleton does not exist
         nvme_options = conf.NvmeOptions()
-        self.assertIsInstance(nvme_options.discovery_supp, bool)
-        self.assertIsInstance(nvme_options.host_iface_supp, bool)
+        self.assertFalse(nvme_options.discovery_supp)
+        self.assertFalse(nvme_options.host_iface_supp)
 
     def test_fabrics_correct_file(self):
         self.assertFalse(os.path.exists("/dev/nvme-fabrics"))

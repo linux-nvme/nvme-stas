@@ -112,9 +112,13 @@ class StasTimeparseUnitTest(unittest.TestCase):
         self.assertIsNone(timeparse.timeparse('1h -1m'))
 
     def test_overflow_is_rejected(self):
-        '''On the multiply, and on the sum of two valid terms'''
+        '''On the multiply, on the sum of two valid terms, and on a fraction's
+        digits. 18446744073709s leaves 551615 us below the ceiling, which .5s
+        fits in and .9s does not (as systemd-analyze timespan agrees).'''
         self.assertIsNone(timeparse.timeparse('100000000000000y'))
         self.assertIsNone(timeparse.timeparse('300000y 300000y'))
+        self.assertIsNone(timeparse.timeparse('18446744073708s 1.9s'))
+        self.assertEqual(timeparse.timeparse('18446744073708s 1.5s'), 18446744073709.5)
 
     def test_pytimeparse_syntax_is_gone(self):
         '''This module used to be pytimeparse, which accepted colon notation,

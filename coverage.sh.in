@@ -4,6 +4,10 @@ PRIMARY_USR=$( [ -n "${SUDO_USER}" ] && echo "${SUDO_USER}" || id -nu )
 PRIMARY_GRP=$( id -ng "${PRIMARY_USR}" )
 PYTHON_PATH=.:./subprojects/nvme-cli/libnvme
 AVAHI_PUBLISHER=mdns_publisher.service
+AVAHI_ADDR_PUBLISHER=mdns_addr_publisher.service
+AVAHI_BLACKHOLE_PUBLISHER=mdns_blackhole_publisher.service
+AVAHI_NOHOST_PUBLISHER=mdns_nohost_publisher.service
+AVAHI_REFUSED_PUBLISHER=mdns_refused_publisher.service
 SCRATCH_FILE=$(mktemp /tmp/stas-coverage-out.XXXXXX)
 
 file=/tmp/stafd.conf.XXXXXX
@@ -34,6 +38,36 @@ log() {
 	msg="$1"
 	printf "%b%s%s%b[0m\n" "\0033" ${CYAN} "${msg}" "\0033"
 	sudo logger -t COVERAGE -i "@@@@@ " -p warning -- "${msg}"
+}
+
+# Start the next phase: number it, announce it on the console and in the
+# journal, and give it a collapsible group of its own in a GitHub Actions log.
+PHASE=0
+phase() {
+	PHASE=$((PHASE + 1))
+	if [ -n "${GITHUB_ACTIONS}" ]; then
+		[ "${PHASE}" -gt 1 ] && echo "::endgroup::"
+		echo "::group::Phase ${PHASE}: $1"
+	fi
+	log "======== Phase ${PHASE}: $1 ========"
+}
+
+# Wait $1 seconds and say why ($2). On a terminal the remaining time counts
+# down in place; anywhere else (a GitHub Actions log keeps every "\r" update
+# as a line of its own) it is announced once.
+countdown() {
+	secs=$1
+	log "$2 (${secs} s)"
+	if [ -t 1 ]; then
+		while [ "${secs}" -gt 0 ]; do
+			printf "\r    %3d s remaining " "${secs}"
+			sleep 1
+			secs=$((secs - 1))
+		done
+		printf "\r%*s\r" 24 ""
+	else
+		sleep "${secs}"
+	fi
 }
 
 log_file_contents() {
@@ -261,10 +295,22 @@ run_cmd() {
 	fi
 }
 
+avahi_publishers_stop() {
+	for unit in ${AVAHI_PUBLISHER} ${AVAHI_ADDR_PUBLISHER} ${AVAHI_BLACKHOLE_PUBLISHER} ${AVAHI_NOHOST_PUBLISHER} ${AVAHI_REFUSED_PUBLISHER}; do
+		sudo systemctl stop "${unit}" >/dev/null 2>&1
+		sudo systemctl reset-failed "${unit}" >/dev/null 2>&1
+	done
+}
+
 prerun_setup() {
+	avahi_publishers_stop
+
 	if [ ! -d coverage ]; then
 		mkdir coverage
 	fi
+	# Leave nothing from an earlier (possibly interrupted) run to be counted
+	# in this run's report
+	coverage erase --rcfile=.coveragerc
 
 	for file in staf stac; do
 	if [ ! -f "/usr/share/dbus-1/system.d/org.nvmexpress.${file}.conf" -a \
@@ -281,6 +327,7 @@ prerun_setup() {
 }
 
 postrun_cleanup() {
+	phase "Clean up"
 	sd_stop "stafd"
 	sd_stop "stacd"
 
@@ -316,9 +363,9 @@ postrun_cleanup() {
 	sudo systemctl start avahi-daemon.service
 	sudo systemctl start avahi-daemon.socket
 
-	sudo systemctl stop ${AVAHI_PUBLISHER} >/dev/null 2>&1
-	sudo systemctl reset-failed ${AVAHI_PUBLISHER} >/dev/null 2>&1
+	avahi_publishers_stop
 
+	[ -n "${GITHUB_ACTIONS}" ] && echo "::endgroup::"
 	log "All done!!!"
 	log "FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED-FINISHED"
 }
@@ -342,6 +389,7 @@ prerun_setup
 
 #*******************************************************************************
 # Declare the @ETC@/nvme the daemons run against
+phase "Set up the host: its own @ETC@/nvme, nvme_tcp, nothing connected"
 etc_nvme_populate
 if etc_nvme_bind_supported; then
 	ETC_NVME_PROP="--property=BindPaths=${ETC_NVME_DIR}:@ETC@/nvme"
@@ -368,6 +416,7 @@ sd_stop stacd # make sure it's not running already
 # "johnny", "queue-size" and "reconnect-delay" are deliberate: the first was
 # never a keyword, the other two moved to the connectivity configuration. All
 # three must draw the "contains invalid options" warning and be ignored.
+phase "Write deliberately flawed starting configurations"
 log "Create dummy config file ${stafd_conf_fname}"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
@@ -438,16 +487,16 @@ EOF
 log_file_contents 0 "${stas_conf_fname}"
 printf "\n"
 
-log "Stop & Mask Avahi daemon"
-run_cmd sudo systemctl stop avahi-daemon.service
-run_cmd sudo systemctl stop avahi-daemon.socket
+phase "Clients with no daemon running, avahi-daemon masked"
+# Mask first: on a desktop, gvfsd-dnssd D-Bus-activates avahi-daemon again
+# as soon as it stops, and would have it running before the mask landed.
+log "Mask & Stop Avahi daemon"
 run_cmd sudo systemctl mask avahi-daemon.service
 run_cmd sudo systemctl mask avahi-daemon.socket
+run_cmd sudo systemctl stop avahi-daemon.service
+run_cmd sudo systemctl stop avahi-daemon.socket
 printf "\n"
 sleep 1
-
-log ">>>>>>>>>>>>>>>>>>>>> Marker [1] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
 
 run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl invalid-command
@@ -457,7 +506,7 @@ run_cmd_coverage stacctl invalid-command
 run_cmd_coverage stacctl
 
 #*******************************************************************************
-# Start nvme target simulator
+phase "Start nvmet"
 log "Start nvmet"
 sudo ../utils/nvmet/nvmet.py clean >/dev/null 2>&1
 sudo ../utils/nvmet/nvmet.py create -f ../utils/nvmet/nvmet.conf >${SCRATCH_FILE} 2>&1
@@ -466,11 +515,8 @@ printf "\n"
 
 sleep 2
 
-log ">>>>>>>>>>>>>>>>>>>>> Marker [2] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
 #*******************************************************************************
-# Start stafd and stacd
+phase "Start stafd and stacd with avahi-daemon masked, then bring it back"
 sd_start "stafd" "@STAFD_DBUS_NAME@" "${stafd_conf_fname}" "${stas_conf_fname}"
 sd_start "stacd" "@STACD_DBUS_NAME@" "${stacd_conf_fname}" "${stas_conf_fname}"
 sleep 2
@@ -488,10 +534,7 @@ run_cmd sudo systemctl start avahi-daemon.service
 printf "\n"
 sleep 2
 
-log ">>>>>>>>>>>>>>>>>>>>> Marker [3] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
-log "Change stafd config [2]: add a discovery controller"
+phase "Change stafd config: add a discovery controller"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron = true
@@ -529,8 +572,7 @@ printf "\n"
 reload_cfg "stafd"
 sleep 5
 
-
-log "Change stafd config [3]: unreachable controllers, one of them excluded"
+phase "Change stafd config: unreachable controllers, one of them excluded"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron              = true
@@ -583,7 +625,7 @@ printf "\n"
 reload_cfg "stafd"
 sleep 3
 
-log "Change stacd config [1]:"
+phase "Change stacd config: fabric zoning off, an invalid connect-attempts-on-ncc"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -604,7 +646,7 @@ sleep 5
 # "controller =" lines are two paths to one subsystem, and the second overrides
 # the section's ctrl-loss-tmo for that path only.
 #
-log "Change connectivity configuration: a configured I/O subsystem"
+phase "Change connectivity configuration: a configured I/O subsystem"
 cat > "${stas_conf_fname}" <<'EOF'
 [Discovery Controller Defaults]
 # nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
@@ -639,13 +681,10 @@ reload_cfg "stafd"
 reload_cfg "stacd"
 sleep 5
 
-log ">>>>>>>>>>>>>>>>>>>>> Marker [4] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
 run_cmd_coverage stafctl status
 
 #*******************************************************************************
-# Fake mDNS packets from a CDC
+phase "Announce a discovery controller over mDNS"
 log "Start Avahi publisher"
 run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
 run_cmd sudo systemctl reset-failed ${AVAHI_PUBLISHER}
@@ -658,7 +697,7 @@ run_cmd_coverage stafd --version
 run_cmd_coverage stacd --version
 
 #*******************************************************************************
-# Stimulate D-Bus activity
+phase "stafctl and stacctl against the running daemons"
 run_cmd_coverage sudo stafctl --version
 run_cmd_coverage sudo stafctl blah
 run_cmd_coverage sudo stafctl troff
@@ -678,11 +717,8 @@ run_cmd_coverage sudo stacctl tron
 run_cmd_coverage stacctl ls
 run_cmd_coverage stacctl ls -d
 
-log ">>>>>>>>>>>>>>>>>>>>> Marker [5] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
 #*******************************************************************************
-# Stimulate AENs activity by removing/restoring namespaces
+phase "AENs: unlink and relink klingons"
 log "Remove namespace: klingons"
 run_cmd sudo ../utils/nvmet/nvmet.py unlink -p 1 -s nqn.1988-11.com.dell:klingons
 printf "\n"
@@ -697,11 +733,8 @@ sleep 4
 run_cmd_coverage stacctl ls
 run_cmd_coverage stacctl ls -d
 
-log ">>>>>>>>>>>>>>>>>>>>> Marker [6] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
-
 #*******************************************************************************
+phase "mDNS: invalid, RoCE, missing and TCP protocols in the TXT record"
 log "Restart Avahi publisher with invalid protocol"
 run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
 printf "\n"
@@ -737,12 +770,96 @@ run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-p
 printf "\n"
 sleep 2
 
-log ">>>>>>>>>>>>>>>>>>>>> Marker [7] <<<<<<<<<<<<<<<<<<<<<"
+#*******************************************************************************
+# Three DCs that can never be used:
+# - blackhole.local resolves to 192.0.2.1 (TEST-NET-1), which nothing
+#   answers, so its connectivity check is still pending when it is withdrawn.
+#   The address record is published on every interface, so stafd also sees
+#   one IP on several interfaces.
+# - SFSS-refused is this host at port 8010, where nothing listens: its check
+#   is refused at once and retried.
+# - nohost.local has no address record at all, so its resolver times out.
+phase "mDNS: DCs that cannot be reached, and one with no address"
+log "Publish DCs that cannot be reached, and one with no address"
+run_cmd sudo systemd-run --unit=${AVAHI_ADDR_PUBLISHER} --working-directory=. avahi-publish -a -R blackhole.local 192.0.2.1
+run_cmd sudo systemd-run --unit=${AVAHI_BLACKHOLE_PUBLISHER} --working-directory=. avahi-publish -s -H blackhole.local SFSS-blackhole _nvme-disc._tcp 8009 "p=tcp"
+run_cmd sudo systemd-run --unit=${AVAHI_REFUSED_PUBLISHER} --working-directory=. avahi-publish -s SFSS-refused _nvme-disc._tcp 8010 "p=tcp"
+run_cmd sudo systemd-run --unit=${AVAHI_NOHOST_PUBLISHER} --working-directory=. avahi-publish -s -H nohost.local SFSS-nohost _nvme-disc._tcp 8009 "p=tcp"
 printf "\n"
+sleep 8
+
+run_cmd_coverage stafctl status
+
+log "Withdraw them"
+run_cmd sudo systemctl stop ${AVAHI_BLACKHOLE_PUBLISHER}
+run_cmd sudo systemctl stop ${AVAHI_REFUSED_PUBLISHER}
+run_cmd sudo systemctl stop ${AVAHI_NOHOST_PUBLISHER}
+run_cmd sudo systemctl stop ${AVAHI_ADDR_PUBLISHER}
+printf "\n"
+sleep 1
 
 #*******************************************************************************
-# Make config changes for stafd
-log "Change stafd config [4]:"
+# Take avahi-daemon away while stafd has services discovered. Mask first:
+# freeing the browsers and resolvers would otherwise D-Bus-activate it again.
+phase "avahi-daemon goes away while services are discovered"
+log "Mask & Stop Avahi daemon while services are discovered"
+run_cmd sudo systemctl mask avahi-daemon.service
+run_cmd sudo systemctl mask avahi-daemon.socket
+run_cmd sudo systemctl stop avahi-daemon.service
+run_cmd sudo systemctl stop avahi-daemon.socket
+printf "\n"
+sleep 2
+
+# A reload wakes avahi-daemon up immediately. With zeroconf on, the same
+# reload would push that wake-up back by its full period.
+log "Turn zeroconf off while avahi-daemon is gone"
+cat > "${stafd_conf_fname}" <<'EOF'
+[Global]
+tron = true
+
+[Discovery controller connection management]
+dc-giveup-timeout = 0.5
+
+[Service Discovery]
+zeroconf = disabled
+EOF
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
+
+reload_cfg "stafd"
+sleep 1
+
+log "Restart Avahi daemon and turn zeroconf back on"
+run_cmd sudo systemctl unmask avahi-daemon.socket
+run_cmd sudo systemctl unmask avahi-daemon.service
+run_cmd sudo systemctl start avahi-daemon.socket
+run_cmd sudo systemctl start avahi-daemon.service
+printf "\n"
+sleep 2
+
+cat > "${stafd_conf_fname}" <<'EOF'
+[Global]
+tron = true
+
+[Discovery controller connection management]
+dc-giveup-timeout = 0.5
+
+[Service Discovery]
+zeroconf = enabled
+EOF
+log_file_contents 0 "${stafd_conf_fname}"
+printf "\n"
+
+reload_cfg "stafd"
+
+run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
+run_cmd sudo systemctl reset-failed ${AVAHI_PUBLISHER}
+run_cmd sudo systemd-run --unit=${AVAHI_PUBLISHER} --working-directory=. avahi-publish -s SFSS _nvme-disc._tcp 8009 "p=tcp"
+printf "\n"
+sleep 3
+
+#*******************************************************************************
+phase "Change stafd config: zeroconf off"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron              = true
@@ -760,8 +877,7 @@ reload_cfg "stafd"
 sleep 5
 
 #*******************************************************************************
-# Make more config changes for stafd
-log "Change stafd config [5]: addresses stas itself has to reject"
+phase "Change stafd config: addresses stas itself has to reject"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -821,9 +937,6 @@ EOF
 log_file_contents 0 "${stas_conf_fname}"
 printf "\n"
 
-log ">>>>>>>>>>>>>>>>>>>>> Marker [8] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
 reload_cfg "stafd"
 sleep 2
 
@@ -832,14 +945,11 @@ sd_restart "stacd"
 sleep 3
 
 #*******************************************************************************
-# Stop Avahi Publisher
+phase "Withdraw the mDNS announcement"
 log "Stop Avahi publisher"
 run_cmd sudo systemctl stop ${AVAHI_PUBLISHER}
 printf "\n"
 sleep 2
-
-log ">>>>>>>>>>>>>>>>>>>>> Marker [9] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
 
 #*******************************************************************************
 # The other side of the phase above. nvmet listens on "::", so it reports its
@@ -849,7 +959,8 @@ printf "\n"
 # throw away every controller this target advertises. stacd is where it
 # matters most - the mapped addresses arrive in the log pages it reads from
 # stafd - so both daemons are set to IPv4 here.
-log "Change stafd config [6]: IPv4 only, against a target reporting IPv4-mapped addresses"
+phase "IPv4 only, against a target reporting IPv4-mapped addresses"
+log "Change stafd config: IPv4 only, against a target reporting IPv4-mapped addresses"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -858,7 +969,7 @@ EOF
 log_file_contents 0 "${stafd_conf_fname}"
 printf "\n"
 
-log "Change stacd config [2]: IPv4 only"
+log "Change stacd config: IPv4 only"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -887,7 +998,7 @@ sleep 5
 # Put both families back. Nothing later changes stacd.conf, and the phases
 # that follow reach subsystems over a link-local IPv6 address, which an
 # IPv4-only stacd would drop.
-log "Change stacd config [3]: both families again"
+log "Change stacd config: both families again"
 cat > "${stacd_conf_fname}" <<'EOF'
 [Global]
 tron=true
@@ -899,7 +1010,7 @@ reload_cfg "stacd"
 sleep 3
 
 #*******************************************************************************
-# Remove one of the NVMe device's
+phase "Disconnect a DC and an I/O controller behind the daemons' backs"
 file=/tmp/getdev-XXX.py
 getdev=$(mktemp $file)
 cat > "${getdev}" <<'EOF'
@@ -970,11 +1081,8 @@ sleep 3
 
 rm "${getdev}"
 
-
 #*******************************************************************************
-log ">>>>>>>>>>>>>>>>>>>>> Marker [10] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
+phase "Restart both daemons; make stafd's last known config unusable, then usable again"
 sd_restart "stafd"
 sd_restart "stacd"
 sleep 4
@@ -989,11 +1097,7 @@ mkdir -p "/tmp/stafd"
 sd_restart "stafd"
 sleep 2
 
-
-log ">>>>>>>>>>>>>>>>>>>>> Marker [11] <<<<<<<<<<<<<<<<<<<<<"
-printf "\n"
-
-log "Change stafd config [7]: connect under a persona"
+phase "Change stafd config: connect under a persona"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron              = true
@@ -1034,7 +1138,7 @@ sleep 2
 # DC does not support a persistent connection: stafd disconnects it, keeps its
 # log pages, and comes back on the poll timer. One minute is the shortest
 # interval the option accepts, so this phase is deliberately slow.
-log "Change stafd config [8]: let a DC park, then come back"
+phase "Change stafd config: let a DC park, then come back"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron                        = true
@@ -1062,20 +1166,20 @@ reload_cfg "stafd"
 # GET_SUPPORTED_MAX_ATTEMPTS * GET_SUPPORTED_RETRY_PERIOD_SEC seconds finding
 # out that nvmet does not implement Get Supported Log Pages, then fetches the
 # log page anyway. Only then is its persistence decided.
-sleep 30
+countdown 30 "Waiting for stafd to decide the DC's persistence"
 log "stafd should now have parked the DC (EPCSD=0)"
 run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl status
 
-log "Waiting out the poll interval so the DC comes back"
-sleep 75
+# The 1-minute epcsd-poll-interval-minutes above, plus a margin
+countdown 75 "Waiting out the 60 s poll interval so the DC comes back"
 run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl status
 
 #*******************************************************************************
 # A connectivity configuration that libnvme rejects outright. stafd must keep
 # the previous one running rather than tear down working connections.
-log "Change stafd config [9]: a connectivity configuration that must be rejected"
+phase "A connectivity configuration that must be rejected, then built-in defaults"
 cat > "${stas_conf_fname}" <<'EOF'
 [Discovery Controller Defaults]
 # nvmet never sets EFLAGS, so it always reports EPCSD=0. Hold the
@@ -1101,7 +1205,14 @@ sleep 2
 sd_stop "stafd"
 sleep 5
 sd_start "stafd" "@STAFD_DBUS_NAME@"
+sleep 3
 
+# A daemon writes its coverage data when it exits, so both must be gone before
+# the data is collected. Stopped any later, their data would be lost on a
+# fresh runner and counted in the next run's report on a reused build dir.
+log "Stop the daemons"
+sd_stop "stafd"
+sd_stop "stacd"
 
 #*******************************************************************************
 # Change ownership of files that were created as root
@@ -1116,6 +1227,7 @@ find subprojects/nvme-cli/libnvme/libnvme3/__pycache__ -maxdepth 0 -type d 2>/de
 # fallen four files behind (test-conn-conf, test-exclusions, test-protection
 # and test-singleton were never added to it), and the code they cover read as
 # untested in the report for no better reason than that.
+phase "Unit tests"
 TEST_DIR=$( realpath ../test )
 for test_file in "${TEST_DIR}"/test-*.py; do
 	run_unit_test "${test_file}"
@@ -1126,7 +1238,7 @@ done
 run_unit_test sudo ${TEST_DIR}/test-nvme_options.py
 
 #*******************************************************************************
-# Stop nvme target simulator
+phase "Coverage report"
 
 log "Collect all coverage data"
 coverage combine --rcfile=.coveragerc

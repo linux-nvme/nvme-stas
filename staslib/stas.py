@@ -21,6 +21,14 @@ from libnvme3 import nvme
 from staslib import conf, defs, gutil, iputil, log, trid
 
 try:
+    # GLib 2.80 moved the Unix-specific API to its own namespace, but only
+    # later GLib versions expose signal_add() there
+    from gi.repository import GLibUnix
+except ImportError:
+    GLibUnix = None
+_unix_signal_add = getattr(GLibUnix, 'signal_add', None) or GLib.unix_signal_add
+
+try:
     # Python 3.9 or later (preferred)
     from importlib.resources import files as _importlib_files
 except ImportError:
@@ -520,9 +528,9 @@ class ServiceABC(abc.ABC):
         self._cfg_soak_tmr = gutil.GTimer(self.CONF_STABILITY_SOAK_TIME_SEC, self._on_config_ctrls)
         self._sysbus = dasbus.connection.SystemMessageBus()
 
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, self._stop_hdlr)  # CTRL-C
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr)  # systemctl stop stafd
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGHUP, reload_hdlr)  # systemctl reload stafd
+        _unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, self._stop_hdlr)  # CTRL-C
+        _unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self._stop_hdlr)  # systemctl stop stafd
+        _unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGHUP, reload_hdlr)  # systemctl reload stafd
 
         nvme_options = conf.NvmeOptions()
         if not nvme_options.host_iface_supp or not nvme_options.discovery_supp:

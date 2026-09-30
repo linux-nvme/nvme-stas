@@ -369,9 +369,6 @@ class Udev:
         event_count = 0
         read_device = partial(self._monitor.poll, timeout=0)
         for device in iter(read_device, None):
-            if device is None:  # This should never happen,...
-                break  # ...but better safe than sorry.
-
             event_count += 1
 
             action_cbacks = self._action_event_registry.get(device.action, None)

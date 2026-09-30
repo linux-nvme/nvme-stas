@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 import os
+import logging
 import unittest
+import unittest.mock
+from gi.repository import Gio, GLib
 from staslib import conf, gutil, trid
 
 SUBSYSNQN = 'nqn.1988-11.com.dell:SFSS:2:20220208134025e8'
@@ -32,6 +35,41 @@ class GutilUnitTest(unittest.TestCase):
         op._errmsg = errmsg
         self.assertEqual(op.as_dict().get('error'), errmsg)
 
+
+    def test_run_async_is_a_no_op_while_running(self):
+        op = gutil.AsyncTask(self._on_success, self._on_fail, self._operation, 'hello')
+        self.addCleanup(op.kill)
+        running_task = unittest.mock.Mock()
+        running_task.get_completed.return_value = False
+        op._task = running_task
+        with unittest.mock.patch.object(gutil, '_TaskRunner') as task_runner:
+            op.run_async()
+        task_runner.assert_not_called()
+        self.assertIs(op._task, running_task)
+
+    def test_a_result_arriving_after_kill_is_dropped(self):
+        """The operation ran to the end in its thread after we stopped caring"""
+        success_cb = unittest.mock.Mock()
+        fail_cb = unittest.mock.Mock()
+        op = gutil.AsyncTask(success_cb, fail_cb, self._operation, 'hello')
+        op.kill()
+        runner = unittest.mock.Mock()
+        op._on_operation_complete(runner, None)
+        runner.communicate_finish.assert_not_called()
+        success_cb.assert_not_called()
+        fail_cb.assert_not_called()
+
+    def test_retry_timeout_reruns_only_a_live_task(self):
+        op = gutil.AsyncTask(self._on_success, self._on_fail, self._operation, 'hello')
+        with unittest.mock.patch.object(op, 'run_async') as run_async:
+            self.assertEqual(op._on_retry_timeout('arg'), GLib.SOURCE_REMOVE)
+            run_async.assert_called_once_with('arg')
+
+            op.cancel()
+            run_async.reset_mock()
+            self.assertEqual(op._on_retry_timeout('arg'), GLib.SOURCE_REMOVE)
+            run_async.assert_not_called()
+        op.kill()
 
     def test_Deferred(self):
         called = []
@@ -113,6 +151,32 @@ class TestNameResolver(unittest.TestCase):
         resolver.resolve_ctrl_async(None, [t], lambda ctrls: result.extend(ctrls))
         self.assertEqual(len(result), 1)
 
+    def test_an_empty_traddr_is_dropped(self):
+        resolver = gutil.NameResolver()
+        result = []
+        with self.assertLogs(level='ERROR') as captured:
+            resolver.resolve_ctrl_async(None, [self._make_tid('tcp', '')], lambda ctrls: result.append(ctrls))
+        self.assertIn('Invalid traddr', captured.output[0])
+        self.assertEqual(result, [[]])
+
+    def test_a_cancelled_resolution_drops_the_controller_quietly(self):
+        '''Cancelling is how a stopping daemon abandons a lookup: not an error'''
+        cancellable = Gio.Cancellable()
+        cancellable.cancel()
+        loop = GLib.MainLoop()
+        result = []
+
+        def done(ctrls):
+            result.append(ctrls)
+            loop.quit()
+
+        GLib.timeout_add_seconds(5, loop.quit)  # never hang the test
+        with self.assertLogs(level='DEBUG') as captured:
+            gutil.NameResolver().resolve_ctrl_async(cancellable, [self._make_tid('tcp', 'localhost')], done)
+            loop.run()
+        self.assertEqual(result, [[]])
+        self.assertFalse([r for r in captured.records if r.levelno >= logging.ERROR])
+
     def test_ipv4_excluded_when_only_ipv6_allowed(self):
         conf.SvcConf().set_conf_file(self.FNAME_IPV6)
         resolver = gutil.NameResolver()
@@ -120,6 +184,29 @@ class TestNameResolver(unittest.TestCase):
         result = []
         resolver.resolve_ctrl_async(None, [t], lambda ctrls: result.extend(ctrls))
         self.assertEqual(result, [])
+
+
+# ==============================================================================
+class TestTcpChecker(unittest.TestCase):
+    '''Socket errors that only a broken system produces'''
+
+    def test_a_socket_gio_cannot_wrap(self):
+        checker = gutil.TcpChecker('127.0.0.1', '8009', '', False, lambda connected: None)
+        for failure in ({'side_effect': GLib.Error('injected')}, {'return_value': None}):
+            with unittest.mock.patch.object(gutil.Gio.Socket, 'new_from_fd', **failure):
+                self.assertRaises(RuntimeError, checker.connect)
+            self.assertTrue(checker._native_sock._closed)
+        checker.close()
+
+    def test_a_socket_that_fails_to_close(self):
+        checker = gutil.TcpChecker('127.0.0.1', '8009', '', False, lambda connected: None)
+        gio_sock = unittest.mock.Mock()
+        gio_sock.close.side_effect = GLib.Error('injected')
+        checker._gio_sock = gio_sock
+        with self.assertLogs(level='DEBUG') as captured:
+            checker.close()
+        self.assertIn('gio_sock.close', captured.output[-1])
+        self.assertIsNone(checker._gio_sock)
 
 
 if __name__ == '__main__':

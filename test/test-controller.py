@@ -1027,6 +1027,98 @@ class TestCallbacksOnADeadObject(TestCase):
         self.assertGreater(dc._retry_connect_tmr.time_remaining(), 0)
 
 
+class PendingOp:
+    """An AsyncTask that records what is done to it."""
+
+    def __init__(self, name):
+        self.name = name
+        self.calls = []
+
+    def kill(self):
+        self.calls.append('kill')
+
+    def cancel(self):
+        self.calls.append('cancel')
+
+    def run_async(self):
+        self.calls.append('run_async')
+
+    def as_dict(self):
+        return {'name': self.name}
+
+
+class TestPendingOperations(TestCase):
+    """A registration or a Get Supported Log Pages exchange that is still in
+    flight when the controller is killed, cancelled, asked for its state or
+    resynced. The integration run has no CDC to register with, and nvmet
+    answers Get Supported Log Pages at once, so neither is ever pending."""
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        self.dc = TestDc(TestStaf(), tid=trid.TID(cid))
+        self.addCleanup(self.dc.kill)
+        self.register_op = PendingOp('register')
+        self.get_supported_op = PendingOp('get supported')
+
+    def test_kill(self):
+        self.dc._register_op = self.register_op
+        self.dc._get_supported_op = self.get_supported_op
+        self.dc._kill_ops()
+        self.assertEqual(self.register_op.calls, ['kill'])
+        self.assertEqual(self.get_supported_op.calls, ['kill'])
+        self.assertIsNone(self.dc._register_op)
+        self.assertIsNone(self.dc._get_supported_op)
+
+    def test_cancel(self):
+        self.dc._register_op = self.register_op
+        self.dc._get_supported_op = self.get_supported_op
+        self.dc.cancel()
+        self.assertEqual(self.register_op.calls, ['cancel'])
+        self.assertEqual(self.get_supported_op.calls, ['cancel'])
+
+    def test_info(self):
+        self.dc._register_op = self.register_op
+        self.dc._get_supported_op = self.get_supported_op
+        info = self.dc.info()
+        self.assertEqual(info['register operation'], str({'name': 'register'}))
+        self.assertEqual(info['get supported log page operation'], str({'name': 'get supported'}))
+
+    def test_resync_resumes_the_registration_first(self):
+        self.dc._register_op = self.register_op
+        self.dc._get_supported_op = self.get_supported_op
+        self.dc._resync_with_controller()
+        self.assertEqual(self.register_op.calls, ['run_async'])
+        self.assertEqual(self.get_supported_op.calls, [])
+
+    def test_resync_resumes_get_supported_log_pages(self):
+        self.dc._get_supported_op = self.get_supported_op
+        self.dc._resync_with_controller()
+        self.assertEqual(self.get_supported_op.calls, ['run_async'])
+
+    def test_a_malformed_get_supported_answer_means_no_pleo(self):
+        with unittest.mock.patch.object(ctrl.gutil, 'AsyncTask') as async_task:
+            self.dc._on_get_supported_success(PendingOp('get supported'), None)
+        lsp = async_task.call_args[0][-1]
+        self.assertEqual(lsp, 0)
+        async_task.return_value.run_async.assert_called_once_with()
+
+    def test_no_self_entry_matches_this_dc(self):
+        """Several self entries, none for the interface we fetched over"""
+        self.dc._log_pages = [
+            {'subtype': ctrl.SUBTYPE_SELF, 'trtype': 'tcp', 'traddr': '2.2.2.2', 'trsvcid': '8009'},
+            {'subtype': ctrl.SUBTYPE_SELF, 'trtype': 'tcp', 'traddr': '3.3.3.3', 'trsvcid': '8009'},
+        ]
+        self.assertIsNone(self.dc._self_entry())
+
+
 class RecordingStaf(TestStaf):
     """A service that counts the notifications a controller sends it."""
 

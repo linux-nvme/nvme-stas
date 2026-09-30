@@ -6,6 +6,8 @@ import logging
 import tempfile
 import unittest
 import unittest.mock
+import dasbus.error
+from gi.repository import GLib
 from libnvme3 import nvme
 from staslib import conf, ctrl, defs, log, service, trid, udev
 from pyfakefs.fake_filesystem_unittest import TestCase
@@ -79,6 +81,13 @@ class Test(TestCase):
         )
         self.assertEqual(srv.remove_controller(controller=None, success=True), None)
 
+    def test_a_kernel_without_the_options_we_need(self):
+        old_kernel = unittest.mock.Mock(host_iface_supp=False, discovery_supp=True)
+        with unittest.mock.patch.object(service.stas.conf, 'NvmeOptions', return_value=old_kernel):
+            with self.assertLogs(level='WARNING') as captured:
+                TestService(Args(), default_conf={}, reload_hdlr=lambda x: x)
+        self.assertTrue(any('Kernel does not appear to support' in line for line in captured.output))
+
 
 class FakeController:
     tid = 'fake-tid'
@@ -126,6 +135,137 @@ class TestCtrlTerminator(unittest.TestCase):
         # kill() with non-empty _controllers — covers line 111
         term.kill()
         self.assertEqual(removed, [True])
+
+
+class KeepRecordingController(FakeController):
+    """Idle, and records whether it was told to keep its connection"""
+
+    keep = None
+
+    def all_ops_completed(self):
+        return True
+
+    def disconnect(self, cb, keep):
+        self.keep = keep
+        cb(self, True)
+
+
+class TestCtrlTerminatorOwnership(unittest.TestCase):
+    def test_a_connection_that_is_not_ours_is_kept(self):
+        """Ownership changed under a controller we hold: let go, leave it up"""
+        term = service.CtrlTerminator()
+        self.addCleanup(term.kill)
+        controller = KeepRecordingController()
+        with unittest.mock.patch.object(service.stas, 'protected', return_value=True):
+            with self.assertLogs(level='INFO') as captured:
+                term.dispose(controller, lambda ctrl, ok: None, keep_connection=False)
+        self.assertTrue(controller.keep)
+        self.assertIn('not ours to remove', captured.output[0])
+
+
+class TestAfterTheServiceStopped(unittest.TestCase):
+    """Signal handlers and callbacks that land after the service has started
+    stopping. Each asks _alive() first. The window is a scheduling race, so
+    the integration run cannot reach these; each test names the work that
+    must not happen."""
+
+    def _svc(self, alive=False):
+        svc = unittest.mock.Mock()
+        svc._alive = lambda: alive
+        return svc
+
+    def test_reload(self):
+        for cls in (service.Stac, service.Staf):
+            svc = self._svc()
+            with unittest.mock.patch.object(service, 'sd_notify') as sd_notify:
+                self.assertEqual(cls._reload_hdlr(svc), GLib.SOURCE_REMOVE)
+            sd_notify.assert_not_called()
+
+    def test_config_ctrls_finish(self):
+        for cls in (service.Stac, service.Staf):
+            svc = self._svc()
+            cls._config_ctrls_finish(svc, [unittest.mock.Mock()])
+            svc._terminator.dispose.assert_not_called()
+            svc._cfg_soak_tmr.start.assert_not_called()
+
+    def test_stafd_signals(self):
+        svc = self._svc()
+        service.Stac._connect_to_staf(svc, None)
+        service.Stac._log_pages_changed(svc, 'tcp', '1.1.1.1', '8009', 'nqn', '', '', 'hostnqn', 'nvme1')
+        service.Stac._dc_removed(svc)
+        svc._sysbus.get_proxy.assert_not_called()
+        svc._cfg_soak_tmr.start.assert_not_called()
+
+    def test_a_dc_found_unresponsive(self):
+        svc = self._svc(alive=True)
+        service.Staf.controller_unresponsive(svc, 'tid')
+        svc._cfg_soak_tmr.start.assert_called_once_with()
+
+        svc = self._svc(alive=False)
+        service.Staf.controller_unresponsive(svc, 'tid')
+        svc._cfg_soak_tmr.start.assert_not_called()
+
+
+class TestStafdOverDbus(unittest.TestCase):
+    """D-Bus failures talking to stafd"""
+
+    def test_stafd_cannot_be_reached(self):
+        svc = unittest.mock.Mock()
+        svc._alive = lambda: True
+        svc._sysbus.get_proxy.side_effect = dasbus.error.DBusError('injected')
+        with self.assertLogs(level='ERROR') as captured:
+            service.Stac._connect_to_staf(svc, None)
+        self.assertIn('Failed to connect to staf', captured.output[0])
+        svc._cfg_soak_tmr.start.assert_not_called()
+
+    def test_stafd_does_not_answer(self):
+        """No answer is not an empty answer: None, so nothing gets removed"""
+        svc = unittest.mock.Mock()
+        svc._staf.get_all_log_pages.side_effect = dasbus.error.DBusError('injected')
+        self.assertIsNone(service.Stac._get_log_pages_from_stafd(svc))
+
+
+class TestStafConfiguredDcs(unittest.TestCase):
+    HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
+
+    def setUp(self):
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        self.addCleanup(conf.SvcConf.destroy)
+        conf.SvcConf(default_conf=service.Staf.DEFAULT_CONF)
+
+    def test_a_dc_without_an_nqn_gets_the_well_known_one(self):
+        staf = unittest.mock.Mock()
+        staf._alive = lambda: True
+        staf._avahi.get_controllers.return_value = []
+        staf._referrals.return_value = []
+        staf._udev.find_nvme_dc_device.return_value = None
+        staf._controllers = {}
+        tid = trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'hostnqn': self.HOSTNQN})
+        with unittest.mock.patch.object(service.ctrl, 'Dc') as dc_cls:
+            service.Staf._config_ctrls_finish(staf, [tid])
+        (_, created_tid), _ = dc_cls.call_args
+        self.assertEqual(created_tid.subsysnqn, defs.WELL_KNOWN_DISC_NQN)
+
+    def test_a_last_known_config_from_before_origin_was_kept(self):
+        """Log pages stored bare, without the dict that now carries origin"""
+        tid = trid.TID(
+            {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.x', 'hostnqn': self.HOSTNQN}
+        )
+        pages = [{'subtype': 'nvme subsystem'}]
+        staf = unittest.mock.Mock()
+        staf._read_lkc.return_value = {tid: pages}
+        with unittest.mock.patch.object(service.ctrl, 'Dc') as dc_cls:
+            controllers = service.Staf._load_last_known_config(staf)
+        dc_cls.assert_called_once_with(staf, tid, pages, None)
+        self.assertEqual(list(controllers), [tid])
+
+
+class TestStaleUdevRuleOverride(unittest.TestCase):
+    def test_a_rule_we_cannot_remove(self):
+        with unittest.mock.patch.object(service.pathlib.Path, 'unlink', side_effect=PermissionError('injected')):
+            with self.assertLogs(level='WARNING') as captured:
+                service._remove_stale_udev_rule_override()
+        self.assertIn('Unable to remove the stale udev rule override', captured.output[0])
 
 
 class FakeDc:

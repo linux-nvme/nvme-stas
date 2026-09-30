@@ -3,6 +3,7 @@ import json
 import shutil
 import logging
 import unittest
+from gi.repository import GLib
 import unittest.mock
 import subprocess
 from staslib import defs, iputil, log, trid, udev
@@ -816,6 +817,30 @@ class Test(unittest.TestCase):
             result = udev.UDEV._cid_matches_tcp_tid_legacy(tid, cid, ifaces)
         self.assertTrue(result)
         self.assertTrue(any('[2]' in r.getMessage() for r in captured.records))
+
+    def test_a_tid_whose_traddr_is_not_an_address(self):
+        """A hostname cannot be compared with the kernel's address"""
+        cid = {
+            'transport': 'tcp',
+            'traddr': traddr(4),
+            'trsvcid': '8009',
+            'subsysnqn': 'hello',
+            'host-traddr': '',
+            'host-iface': '',
+            'src-addr': '',
+            'hostnqn': '',
+        }
+        tid = trid.TID({'transport': 'tcp', 'traddr': 'localhost', 'trsvcid': '8009', 'subsysnqn': 'hello'})
+        self.assertFalse(udev.UDEV._cid_matches_tid(tid, cid, iputil.net_if_addrs()))
+
+    def test_udev_errors_are_logged_once_per_burst(self):
+        with unittest.mock.patch.multiple(udev.UDEV, _log_event_soak_time=0, _log_event_count=0):
+            with unittest.mock.patch.object(udev.UDEV, '_Udev__handle_events', side_effect=OSError('injected')):
+                with self.assertLogs(level='DEBUG') as captured:
+                    for _ in range(3):
+                        self.assertEqual(udev.UDEV._process_udev_event(None, GLib.IO_IN), GLib.SOURCE_CONTINUE)
+                self.assertEqual(len([line for line in captured.output if 'injected' in line]), 1)
+                self.assertEqual(udev.UDEV._log_event_count, 2)
 
 
 if __name__ == '__main__':
