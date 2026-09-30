@@ -84,7 +84,25 @@ jobs:
         # A normal run takes about 5 minutes. Timing out cancels the step
         # the normal way, so the steps below still collect what they can.
         timeout-minutes: 15
-        run: make coverage
+        run: |
+          # DEBUG, not for merging: the VM has hung mid-run and left no log.
+          # Whatever reaches GitHub before a hang is kept, so stream a
+          # heartbeat and the kernel log into this step's output.
+          heartbeat() {
+            while sleep 10; do
+              printf '=== heartbeat %s | %s MB available | load %s\n' "$(date -u +%T)" \
+                "$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)" \
+                "$(cut -d' ' -f1-3 /proc/loadavg)"
+              ps -eo rss=,comm= --sort=-rss | head -3 | awk '{printf "===   %6d MB %s\n", $1 / 1024, $2}'
+            done
+          }
+          heartbeat &
+          heartbeat_pid=$!
+          sudo dmesg --follow-new --time-format iso | sed 's/^/=== kernel: /' &
+          # The step runs under "bash -e", which applies here too: neither
+          # clean-up may change the step's exit status.
+          trap 'sudo pkill -x dmesg || true; kill "${heartbeat_pid}" 2>/dev/null || true' EXIT
+          make coverage
 
       - name: "REPORT: coverage.xml"
         if: always()
