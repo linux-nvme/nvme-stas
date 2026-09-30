@@ -210,25 +210,47 @@ sd_start() {
 	sleep 1
 }
 
+# A daemon that should be running and is not has died, which is a failure in
+# itself. Stop here and show why while the evidence is fresh: in CI the runner
+# has been seen to freeze minutes after such a death, taking every log with it,
+# whereas a run that ends now still gets its journal collected.
+expect_running() {
+	app="$1"
+	unit="${app}"-cov.service
+
+	if systemctl is-active --quiet "${unit}"; then
+		return
+	fi
+
+	msg="${app} died: ${unit} is not running"
+	printf "%b%s%s%b[0m\n\n" "\0033" ${RED} "${msg}" "\0033"
+	sudo logger -t COVERAGE -i "@@@@@ " -p err -- "${msg}"
+	systemctl status --no-pager --lines=0 "${unit}" 2>&1
+	printf "\n%s\n" "Last lines from ${app}:"
+	sudo journalctl --no-pager -o short-iso -n 40 -u "${unit}"
+	printf "\n%s\n" "Last kernel messages:"
+	sudo journalctl --no-pager -o short-iso -n 40 -k
+	exit 1
+}
+
 sd_restart() {
 	app="$1"
 	unit="${app}"-cov.service
 
-	if systemctl is-active "${unit}" >/dev/null 2>&1; then
-		log "Restart ${app}"
-		sudo systemctl restart "${unit}" && printf "systemctl restart %s\n" "${unit}" >${SCRATCH_FILE} 2>&1
-		log_file_contents $? ${SCRATCH_FILE}
-		sleep 1
-	else
-		msg="Cannot restart ${app}, which is not currently running."
-		printf "%b%s%s%b[0m\n\n" "\0033" ${RED} "${msg}" "\0033"
-	fi
+	expect_running "${app}"
+	log "Restart ${app}"
+	sudo systemctl restart "${unit}" && printf "systemctl restart %s\n" "${unit}" >${SCRATCH_FILE} 2>&1
+	log_file_contents $? ${SCRATCH_FILE}
+	sleep 1
 	printf "\n"
 }
 
 reload_cfg() {
 	app="$1"
 	unit="${app}"-cov.service
+	# Also keeps a dead daemon's MainPID of 0 away from kill, which would
+	# signal the whole process group instead.
+	expect_running "${app}"
 	pid=$( systemctl show --property MainPID --value "${unit}" )
 	log "Reload config ${app} - SIGHUP ${pid}"
 	#sudo systemctl reload "${unit}" && printf "systemctl reload %s\n" "${unit}" >${SCRATCH_FILE} 2>&1
