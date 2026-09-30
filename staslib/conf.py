@@ -275,6 +275,9 @@ class SvcConf(metaclass=singleton.Singleton):
 
     def reload(self):
         '''Reload the configuration file.'''
+        # Options are converted each time they are read, so an invalid value
+        # would otherwise be reported on every read. Report it once per load.
+        self._warned = set()
         self._config = self._read_conf_file()
 
     @property
@@ -360,12 +363,8 @@ class SvcConf(metaclass=singleton.Singleton):
         checker = self.OPTION_CHECKER[section][option]
         text_checker = checker.get('txt-chk', None)
         if text_checker is not None and not text_checker(text):
-            logging.warning(
-                'File:%s [%s]: %s - Text check found invalid value "%s". Default will be used',
-                self.conf_file,
-                section,
-                option,
-                text,
+            self._warn_once(
+                section, option, 'File:%s [%s]: %s - Text check found invalid value "%s". Default will be used', text
             )
             return self._defaults.get((section, option), default)
 
@@ -373,16 +372,20 @@ class SvcConf(metaclass=singleton.Singleton):
         try:
             value = converter(text)
         except InvalidOption:
-            logging.warning(
-                'File:%s [%s]: %s - Data converter found invalid value "%s". Default will be used',
-                self.conf_file,
+            self._warn_once(
                 section,
                 option,
+                'File:%s [%s]: %s - Data converter found invalid value "%s". Default will be used',
                 text,
             )
             return self._defaults.get((section, option), default)
 
         return value
+
+    def _warn_once(self, section, option, fmt, text):
+        if (section, option) not in self._warned:
+            self._warned.add((section, option))
+            logging.warning(fmt, self.conf_file, section, option, text)
 
     def _read_conf_file(self):
         '''Read and return a ConfigParser for the configuration file (if it exists).'''

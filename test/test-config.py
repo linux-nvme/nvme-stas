@@ -95,6 +95,40 @@ class StasProcessConfUnitTest(unittest.TestCase):
         with self.assertLogs(level='ERROR'):
             self.assertRaises(KeyError, service_conf.get_option, 'Global', 'no-such-option')
 
+    def test_an_invalid_value_is_reported_once_per_load(self):
+        '''Options are converted on every read, but a bad value is reported
+        once, and again only after the file is reloaded'''
+        fd, fname = tempfile.mkstemp(prefix='stas-warn-once-', suffix='.conf', dir='/tmp')
+        with os.fdopen(fd, 'w') as f:
+            f.write(
+                '[Discovery controller connection management]\n'
+                'dc-giveup-timeout = 1:01\n'
+                '[I/O controller connection management]\n'
+                'honor-fabric-zoning = joe\n'
+            )
+        self.addCleanup(os.remove, fname)
+        conf.SvcConf.destroy()
+        self.addCleanup(conf.SvcConf.destroy)
+        service_conf = conf.SvcConf(
+            default_conf={
+                ('Discovery controller connection management', 'dc-giveup-timeout'): None,
+                ('I/O controller connection management', 'honor-fabric-zoning'): True,
+            }
+        )
+        service_conf.set_conf_file(fname)
+
+        def read_both_three_times():
+            with self.assertLogs(level='WARNING') as captured:
+                for _ in range(3):
+                    self.assertIsNone(service_conf.dc_giveup_timeout_sec)
+                    self.assertTrue(service_conf.honor_fabric_zoning)
+            return captured.output
+
+        for output in (read_both_three_times(), (service_conf.reload(), read_both_three_times())[1]):
+            self.assertEqual(len(output), 2, output)
+            self.assertIn('dc-giveup-timeout - Data converter found invalid value', output[0])
+            self.assertIn('honor-fabric-zoning - Text check found invalid value', output[1])
+
     def test_parse_single_val(self):
         '''A plain string is taken as is, the last of repeated values wins, and
         anything else has no value'''
