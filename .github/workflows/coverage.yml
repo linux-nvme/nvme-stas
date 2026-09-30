@@ -89,7 +89,12 @@ jobs:
       - name: "REPORT: coverage.xml"
         if: always()
         working-directory: .build
-        run: coverage xml -i --rcfile=.coveragerc -o coverage.xml
+        run: |
+          coverage xml -i --rcfile=.coveragerc -o coverage.xml
+          # The scripts run under their installed names (stafd, ...), which
+          # the repository knows only as stafd.py, ..., so Codecov could not
+          # match them. Meson copies them unchanged: the lines still match.
+          sed -i -E 's/filename="(stafd|stacd|stafctl|stacctl)"/filename="\1.py"/' coverage.xml
 
       - name: "COLLECT: journal"
         if: always()
