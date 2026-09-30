@@ -4,7 +4,9 @@ import shutil
 import atexit
 import tempfile
 import unittest
+import unittest.mock
 from unittest.mock import patch
+from gi.repository import GLib
 from staslib import conf, stas, trid
 from pyfakefs.fake_filesystem_unittest import TestCase as FakeTestCase
 
@@ -309,6 +311,72 @@ class TestCheckIfAllowedToContinue(FakeTestCase):
         self.fs.create_file('/dev/nvme-fabrics')
         with patch('os.geteuid', return_value=0):
             stas.check_if_allowed_to_continue()  # Must not raise
+
+
+class TestRegistryOwner(unittest.TestCase):
+    def test_a_registry_we_cannot_read_names_no_owner(self):
+        """It must not get in the way of a teardown"""
+        with patch.object(stas.nvme, 'registry_retrieve', side_effect=OSError(13, 'Permission denied')):
+            with self.assertLogs(level='WARNING') as captured:
+                self.assertIsNone(stas._owner('nvme3'))
+        self.assertIn('Unable to read the registry entry of nvme3', captured.output[0])
+
+
+class TestTryToConnect(unittest.TestCase):
+    """A deferred connection attempt that fires too late"""
+
+    def test_a_dead_controller_does_not_connect(self):
+        controller = unittest.mock.Mock()
+        controller._alive = lambda: False
+        self.assertEqual(stas.ControllerABC._try_to_connect(controller), GLib.SOURCE_REMOVE)
+        controller._do_connect.assert_not_called()
+
+    def test_a_destroyed_deferred_does_not_connect(self):
+        controller = unittest.mock.Mock()
+        controller._alive = lambda: True
+        source = unittest.mock.Mock()
+        source.is_destroyed.return_value = True
+        with patch.object(stas.GLib, 'main_current_source', return_value=source):
+            self.assertEqual(stas.ControllerABC._try_to_connect(controller), GLib.SOURCE_REMOVE)
+        controller._do_connect.assert_not_called()
+
+
+class TestServiceABC(unittest.TestCase):
+    """ServiceABC methods, run against a stand-in for the service"""
+
+    def test_release_resources_cancels_a_live_service(self):
+        svc = unittest.mock.Mock()
+        svc._alive = lambda: True
+        cancellable = svc._cancellable
+        stas.ServiceABC._release_resources(svc)
+        cancellable.cancel.assert_called_once_with()
+        self.assertIsNone(svc._cancellable)
+
+    def test_a_main_loop_that_fails_is_logged(self):
+        svc = unittest.mock.Mock()
+        svc._loop.run.side_effect = RuntimeError('injected')
+        with self.assertLogs(level='ERROR') as captured:
+            stas.ServiceABC.run(svc)
+        self.assertIn('self._loop.run() failed!', captured.output[0])
+        self.assertIsNone(svc._loop)
+
+    def test_removing_a_controller_that_lost_its_tid(self):
+        """Found by identity instead, and removing it twice is harmless"""
+        controller = unittest.mock.Mock()
+        controller.tid = None
+        other = unittest.mock.Mock()
+        svc = unittest.mock.Mock()
+        svc._controllers = {'tid-a': other, 'tid-b': controller}
+
+        stas.ServiceABC._remove_ctrl_from_dict(svc, controller)
+        self.assertEqual(svc._controllers, {'tid-a': other})
+        svc._cfg_soak_tmr.start.assert_called_once_with()
+
+        svc._cfg_soak_tmr.reset_mock()
+        with self.assertLogs(level='DEBUG') as captured:
+            stas.ServiceABC._remove_ctrl_from_dict(svc, controller)
+        self.assertIn('already removed', captured.output[0])
+        svc._cfg_soak_tmr.start.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import atexit
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 from staslib import conf, stas, trid
 
 HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
@@ -94,6 +95,14 @@ class TestLibnvmeExclusions(unittest.TestCase):
     def test_no_exclusion_files(self):
         self.assertEqual(conf.SvcConf().get_excluded(), [])
         self.assertFalse(stas.excluded(self._make_tid()))
+
+    def test_an_unreadable_list_excludes_nothing(self):
+        '''A list we cannot read must never block connectivity'''
+        self._write_exclusions(['transport=tcp;traddr=10.10.10.10'])
+        with unittest.mock.patch.object(conf.nvme, 'exclusion_entries', side_effect=OSError(13, 'Permission denied')):
+            with self.assertLogs(level='WARNING') as captured:
+                self.assertFalse(stas.excluded(self._make_tid(traddr='10.10.10.10')))
+        self.assertIn('Unable to read libnvme', captured.output[0])
 
     def test_main_list(self):
         self._write_exclusions(['transport=tcp;traddr=10.10.10.10'])

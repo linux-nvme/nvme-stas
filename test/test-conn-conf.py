@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+import logging
 import unittest
 import tempfile
 from staslib import conf
@@ -40,6 +41,15 @@ class Test(unittest.TestCase):
         cnf = conf.ConnConf(conf_file=self.fname)
         self.assertEqual(cnf.get_controllers(True), [])
         self.assertEqual(cnf.get_controllers(False), [])
+
+    def test_a_number_we_cannot_represent_is_left_to_the_kernel(self):
+        '''libnvme validates the file first, so this is defensive: a numeric
+        parameter that is not a number is left unset'''
+        cnf = self._load('')
+        with self.assertLogs(logger=logging.getLogger(), level='WARNING') as captured:
+            self.assertIsNone(cnf._value('queue-size', 'NaN'))
+        self.assertIn('the kernel default will be used', captured.output[0])
+        self.assertEqual(cnf._value('queue-size', '128'), 128)
 
     def test_empty_file_configures_nothing(self):
         cnf = self._load('')

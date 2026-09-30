@@ -89,6 +89,19 @@ class StasProcessConfUnitTest(unittest.TestCase):
         self.assertIn(6, service_conf.ip_family)
         self.assertNotIn(4, service_conf.ip_family)
         self.assertEqual(service_conf.get_excluded(), [{'transport': 'tcp', 'traddr': '10.10.10.10'}])
+        # 1 is not a valid number of attempts: the minimum is 2 (0 disables)
+        self.assertEqual(service_conf.connect_attempts_on_ncc, 2)
+
+        with self.assertLogs(level='ERROR'):
+            self.assertRaises(KeyError, service_conf.get_option, 'Global', 'no-such-option')
+
+    def test_parse_single_val(self):
+        '''A plain string is taken as is, the last of repeated values wins, and
+        anything else has no value'''
+        self.assertEqual(conf._parse_single_val('text'), 'text')
+        self.assertEqual(conf._parse_single_val(['first', 'last']), 'last')
+        self.assertIsNone(conf._parse_single_val([]))
+        self.assertIsNone(conf._parse_single_val(None))
 
 
 class StasSysConfUnitTest(unittest.TestCase):
