@@ -26,22 +26,31 @@ jobs:
     # Scheduled runs only upstream.
     if: github.event_name != 'schedule' || github.repository == 'linux-nvme/nvme-stas'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # A normal run takes about 6 minutes, and about 13 with a slow package
+    # mirror. The step limits below catch a stall early; this one is the
+    # backstop for anything they miss.
+    timeout-minutes: 30
     steps:
       - name: "CHECKOUT: nvme-stas"
         uses: actions/checkout@v7
 
+      # The install steps normally take seconds each, and a few minutes when
+      # the package mirror is slow. A stalled download would otherwise hold
+      # the job until its own limit.
       - name: "INSTALL: build packages"
+        timeout-minutes: 10
         run: |
           sudo apt-get update
           sudo apt-get install --yes --quiet meson ninja-build cmake swig libjson-c-dev libssl-dev libkeyutils-dev
           sudo apt-get install --yes --quiet iproute2 libglib2.0-dev libgirepository1.0-dev libsystemd-dev
 
       - name: "INSTALL: python packages"
+        timeout-minutes: 10
         run: |
           sudo apt-get install --yes --quiet python3-pip python3-wheel python3-systemd python3-pyudev python3-lxml python3-dasbus python3-gi python3-importlib-resources python3-pyfakefs
 
       - name: "INSTALL: coverage test packages"
+        timeout-minutes: 10
         run: |
           # nvmet and nvme-tcp are not in the Azure kernel's base modules.
           sudo apt-get install --yes --quiet "linux-modules-extra-$(uname -r)"
@@ -51,9 +60,11 @@ jobs:
           sudo ln /usr/bin/python3-coverage /usr/local/bin/coverage
 
       - name: "BUILD: nvme-stas"
+        timeout-minutes: 10
         run: make
 
       - name: "INSTALL: nvme-cli 3.x"
+        timeout-minutes: 10
         run: |
           # The runner image ships Ubuntu's nvme-cli 2.x, whose autoconnect
           # udev rule runs "nvme connect-all" on every Discovery Log Page
