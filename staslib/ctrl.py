@@ -771,9 +771,15 @@ class Dc(Controller):
             self._get_log_op.run_async()
 
     def _on_nvme_event(self, nvme_event: str):
-        if nvme_event in ('connected', 'rediscover'):
-            # This event indicates that the kernel
-            # driver re-connected to the DC.
+        # The kernel sends "connected" every time a controller starts, the
+        # first connection included, and "rediscover" (since 6.1) only when a
+        # discovery controller reconnects. A first connection is ours, and we
+        # talk to the DC as soon as it completes, so only a reconnection calls
+        # for a resync: "rediscover" where the kernel sends it, and "connected"
+        # on older kernels, where nothing else tells a reconnection apart.
+        if nvme_event == 'rediscover' or (
+            nvme_event == 'connected' and defs.KERNEL_VERSION < defs.KERNEL_REDISCOVER_MIN_VERSION
+        ):
             logging.debug(
                 'Dc._on_nvme_event()                - %s | %s: Received "%s" event',
                 self.id,

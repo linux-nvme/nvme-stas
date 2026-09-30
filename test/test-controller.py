@@ -1119,6 +1119,52 @@ class TestPendingOperations(TestCase):
         self.assertIsNone(self.dc._self_entry())
 
 
+class TestNvmeEvents(TestCase):
+    """Which kernel events make a DC resync. The kernel sends "connected" on
+    every start, the first connection included, and since 6.1 "rediscover"
+    before it on a discovery controller's reconnection. A first connection is
+    stafd's own and needs no resync; each reconnection needs exactly one."""
+
+    FIRST_CONNECTION = ('connected',)
+    RECONNECTION_6_1 = ('rediscover', 'connected')
+    RECONNECTION_OLDER = ('connected',)
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        self.dc = TestDc(TestStaf(), tid=trid.TID(cid))
+        self.addCleanup(self.dc.kill)
+
+    def _resyncs(self, kernel, events):
+        with unittest.mock.patch.object(ctrl.defs, 'KERNEL_VERSION', ctrl.defs.KernelVersion(kernel)):
+            with unittest.mock.patch.object(self.dc, '_resync_with_controller') as resync:
+                for event in events:
+                    ctrl.Dc._on_nvme_event(self.dc, event)  # TestDc stubs it out
+        return resync.call_count
+
+    def test_kernel_with_rediscover(self):
+        for kernel in ('6.1', '7.0.0-34-generic'):
+            self.assertEqual(self._resyncs(kernel, self.FIRST_CONNECTION), 0, kernel)
+            self.assertEqual(self._resyncs(kernel, self.RECONNECTION_6_1), 1, kernel)
+
+    def test_kernel_without_rediscover(self):
+        # "connected" is the only sign of a reconnection, so a first
+        # connection still gets a redundant resync.
+        self.assertEqual(self._resyncs('5.18', self.FIRST_CONNECTION), 1)
+        self.assertEqual(self._resyncs('5.18', self.RECONNECTION_OLDER), 1)
+
+    def test_other_events_are_ignored(self):
+        for kernel in ('5.18', '6.1'):
+            self.assertEqual(self._resyncs(kernel, ('add', 'remove', 'change', '')), 0, kernel)
+
+
 class RecordingStaf(TestStaf):
     """A service that counts the notifications a controller sends it."""
 
