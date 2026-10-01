@@ -1,8 +1,10 @@
 #!/usr/bin/python3
+import gc
 import os
 import logging
 import unittest
 import unittest.mock
+import weakref
 from gi.repository import Gio, GLib
 from staslib import conf, gutil, trid
 
@@ -76,6 +78,39 @@ class GutilUnitTest(unittest.TestCase):
             self.assertEqual(op._on_retry_timeout('arg'), GLib.SOURCE_REMOVE)
             run_async.assert_not_called()
         op.kill()
+
+    def test_a_failed_operation_does_not_keep_its_object_alive(self):
+        '''A failing operation leaves its runner in a reference cycle. What
+        the operation is bound to - a libnvme controller, in the daemons - must
+        still go as soon as its last user drops it, not whenever the garbage
+        collector next runs: a controller still in libnvme's tree hands its old
+        parameters to the next connection on the same path.'''
+
+        class Ctrl:
+            def get_supported_log_pages(self):
+                raise RuntimeError('unrecognized (0)')
+
+        loop = GLib.MainLoop()
+        GLib.timeout_add_seconds(5, loop.quit)  # never hang the suite
+
+        def done(op_obj, *_args):
+            op_obj.kill()
+            loop.quit()
+
+        ctrl = Ctrl()
+        freed = []
+        weakref.finalize(ctrl, freed.append, True)
+        op = gutil.AsyncTask(done, done, ctrl.get_supported_log_pages)
+
+        gc.disable()
+        self.addCleanup(gc.enable)
+        op.run_async()
+        loop.run()
+        del op, ctrl
+        while GLib.MainContext.default().iteration(False):
+            pass
+
+        self.assertEqual(freed, [True])
 
     def test_Deferred(self):
         called = []
