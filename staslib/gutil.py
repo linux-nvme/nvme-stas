@@ -231,6 +231,13 @@ class _TaskRunner(GObject.Object):
                 task.return_value(value)
             except Exception as ex:
                 task.return_error(GLib.Error(message=str(ex), domain=type(ex).__name__))
+            finally:
+                # A failure leaves this runner in a reference cycle that only
+                # the garbage collector breaks, whenever it next runs. Let go of
+                # the operation now, or whatever it is bound to - a libnvme
+                # controller, typically - outlives its last real user.
+                self._user_function = None
+                self._user_args = None
 
         task = Gio.Task.new(self, cancellable, cb_function, *cb_args)
         task.set_return_on_cancel(False)

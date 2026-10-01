@@ -137,6 +137,24 @@ class Test(unittest.TestCase):
         self.assertNotEqual(self.tid, self.other_tid)
         self.assertNotEqual(self.tid, 'hello')
 
+    def test_cfg_is_replaced_whole(self):
+        '''A parameter dropped from the configuration must go too, and the
+        caller's dict must not become the TID's own.'''
+        tid = trid.TID(dict(self.cid, **{'keep-alive-tmo': 30, 'persistent': 'auto'}))
+        new_cfg = {'persistent': 'no'}
+        tid.cfg = new_cfg
+        new_cfg['persistent'] = 'force'
+        self.assertEqual(tid.cfg, {'persistent': 'no'})
+
+    def test_cfg_plays_no_part_in_identity(self):
+        '''A TID's cfg can change while it is a dict key.'''
+        tid = trid.TID(self.cid)
+        key, hashed = tid._key, hash(tid)
+        controllers = {tid: 'controller'}
+        tid.cfg = {'keep-alive-tmo': 10}
+        self.assertEqual((tid._key, hash(tid)), (key, hashed))
+        self.assertEqual(controllers[trid.TID(self.cid)], 'controller')
+
 
 if __name__ == '__main__':
     unittest.main()

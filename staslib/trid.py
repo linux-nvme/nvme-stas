@@ -170,7 +170,18 @@ class TID:
     hostid = property(lambda self: self._hostid)
     trsvcid = property(lambda self: self._trsvcid)
     traddr = property(lambda self: self._traddr)
-    cfg = property(lambda self: self._cfg)
+
+    @property
+    def cfg(self):
+        '''Return the connection parameters.'''
+        return self._cfg
+
+    @cfg.setter
+    def cfg(self, value: dict):
+        '''Replace the connection parameters as a whole, so that one dropped
+        from the configuration goes too. They play no part in _key, so this is
+        safe on a TID already used as a dict key.'''
+        self._cfg = dict(value)
 
     def as_dict(self):
         '''Return object members as a dictionary'''

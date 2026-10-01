@@ -418,6 +418,10 @@ class Dc(Controller):
     GET_LOG_PAGE_RETRY_PERIOD_SEC = 20
     REGISTRATION_RETRY_PERIOD_SEC = 5
 
+    # The keep-alive timeout requested for a connection held open by
+    # "persistent" when none is configured - nvme-cli's discovery default.
+    DEFAULT_KATO_SEC = 30
+
     def __init__(self, staf, tid: trid.TID, log_pages=None, origin=None):
         super().__init__(tid, staf, discovery_ctrl=True)
         self._register_op = None
@@ -441,6 +445,10 @@ class Dc(Controller):
         # way to notice.
         self._parked = False
         self._epcsd_poll_tmr = gutil.GTimer(0, self._on_epcsd_poll_expired)
+
+        # Whether the keep-alive timeout that "persistent=no" overrides has
+        # been reported since the configuration was last loaded.
+        self._kato_override_logged = False
 
     def _release_resources(self):
         logging.debug('Dc._release_resources()            - %s | %s', self.id, self.device)
@@ -499,6 +507,7 @@ class Dc(Controller):
         # "persistent" may have changed. Re-decide now rather than waiting for
         # the next log page retrieval, which for a connected and quiet
         # controller may never come.
+        self._kato_override_logged = False
         self._apply_persistence_policy()
         self._handle_lost_controller()
         self._resync_with_controller()
@@ -588,6 +597,25 @@ class Dc(Controller):
         mode = self.tid.cfg.get('persistent', conf.ConnConf().defaults(True).get('persistent'))
         return mode if mode in ('no', 'auto', 'force') else 'auto'
 
+    def _get_cfg(self):
+        """A host asks a Discovery controller for an explicit persistent
+        connection by sending a non-zero keep-alive timeout (Base Spec 2.4,
+        Discovery Service), and the kernel sends none unless told. So the
+        keep-alive follows "persistent": "auto" and "force" get a default when
+        none is configured, and "no" always gets 0, since holding open a
+        connection it says not to keep would contradict it.
+        """
+        cfg = super()._get_cfg()
+        if self.persistence_mode() == 'no':
+            kato = cfg.get('keep_alive_tmo')
+            if kato not in (None, 0, '0') and not self._kato_override_logged:
+                logging.info('%s - keep-alive-tmo=%s ignored: persistent=no', self.id, kato)
+                self._kato_override_logged = True
+            cfg['keep_alive_tmo'] = 0
+        elif cfg.get('keep_alive_tmo') is None:
+            cfg['keep_alive_tmo'] = self.DEFAULT_KATO_SEC
+        return cfg
+
     def _self_entry(self):
         """Return this controller's own entry in its log pages, if it published
         one. That entry describes the DC we are already connected to, which is
@@ -675,6 +703,12 @@ class Dc(Controller):
         logging.info('%s | %s - persistent discovery connection supported, resuming', self.id, self.device)
         self._parked = False
         self._epcsd_poll_tmr.stop()
+
+        # Unparked by a reload rather than by a log page we just read: the
+        # poll timer was what would have reconnected us.
+        if not self.connected():
+            self._connect_attempts = 0
+            self._try_to_connect_deferred.schedule()
 
     def _on_epcsd_poll_expired(self):
         """Time to look again: reconnect and re-read the log pages, since a

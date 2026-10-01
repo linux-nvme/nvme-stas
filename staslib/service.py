@@ -398,6 +398,8 @@ class Stac(Service):
                 dlpe = discovered_ctrls[tid]
                 controller.update_dlpe(dlpe)
 
+        self._refresh_cfg(new_controller_tids)
+
     def _connect_to_staf(self, _):
         '''Connect to the stafd D-Bus interface and hook up signal handlers.'''
         if not self._alive():
@@ -767,6 +769,8 @@ class Staf(Service):
             )
             if origin is not None:
                 controller.origin = origin
+
+        self._refresh_cfg(new_controller_tids)
 
         self._dump_last_known_config(self._controllers)
 
