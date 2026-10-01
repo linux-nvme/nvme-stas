@@ -691,6 +691,67 @@ class TestPersistence(TestCase):
         self.assertFalse(dc.epcsd())  # must read the matching entry's EFLAGS, not the other one's
 
 
+class TestKeepAlive(TestCase):
+    '''The keep-alive timeout a discovery controller is connected with follows
+    its "persistent" mode.'''
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file('/dev/nvme-fabrics', contents='instance=-1,cntlid=-1\n')
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+        # ConnConf is read by libnvme's C parser, which does not see pyfakefs:
+        # keep the machine's own nvme-stas.conf out of these tests.
+        patcher = unittest.mock.patch.object(conf.ConnConf, 'defaults', return_value={})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _kato(self, **cfg):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.unrelated'}
+        cid.update(cfg)
+        return TestDc(TestStaf(), tid=trid.TID(cid))._get_cfg().get('keep_alive_tmo')
+
+    def test_a_held_connection_gets_the_default(self):
+        self.assertEqual(self._kato(), ctrl.Dc.DEFAULT_KATO_SEC)  # "auto" by default
+        self.assertEqual(self._kato(persistent='auto'), ctrl.Dc.DEFAULT_KATO_SEC)
+        self.assertEqual(self._kato(persistent='force'), ctrl.Dc.DEFAULT_KATO_SEC)
+
+    def test_a_configured_value_wins_over_the_default(self):
+        self.assertEqual(self._kato(**{'persistent': 'force', 'keep-alive-tmo': 10}), 10)
+        self.assertEqual(self._kato(**{'persistent': 'auto', 'keep-alive-tmo': 0}), 0)
+
+    def test_persistent_no_always_means_zero(self):
+        self.assertEqual(self._kato(persistent='no'), 0)
+        self.assertEqual(self._kato(**{'persistent': 'no', 'keep-alive-tmo': 30}), 0)
+
+    def test_the_override_is_reported_once_per_load(self):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.x', 'persistent': 'no', 'keep-alive-tmo': 30}
+        dc = TestDc(TestStaf(), tid=trid.TID(cid))
+        with self.assertLogs(level=logging.INFO) as captured:
+            dc._get_cfg()
+            dc._get_cfg()  # a reconnect must not repeat it
+            with unittest.mock.patch.object(dc, '_apply_persistence_policy'), unittest.mock.patch.object(
+                dc, '_handle_lost_controller'
+            ), unittest.mock.patch.object(dc, '_resync_with_controller'):
+                ctrl.Dc.reload_hdlr(dc)  # TestDc stubs reload_hdlr
+            dc._get_cfg()
+        self.assertEqual(sum('keep-alive-tmo=30 ignored' in line for line in captured.output), 2)
+
+    def test_nothing_to_report_without_a_keep_alive(self):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.x', 'persistent': 'no'}
+        dc = TestDc(TestStaf(), tid=trid.TID(cid))
+        dc._get_cfg()
+        self.assertFalse(dc._kato_override_logged)
+
+    def test_an_io_controller_is_left_to_the_kernel(self):
+        ioc = TestIoc(TestStaf(), tid=trid.TID({'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.x'}))
+        self.assertNotIn('keep_alive_tmo', ioc._get_cfg())
+
+
 class ParkableDc(TestDc):
     '''A Dc whose disconnect is recorded rather than performed, so parking can
     be tested without a main loop.'''

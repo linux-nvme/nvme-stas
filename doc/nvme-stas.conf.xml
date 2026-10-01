@@ -97,12 +97,7 @@
         </para>
 
         <para>
-            The installed file is commented throughout except for the
-            Discovery Controller keep-alive timeout. The kernel applies its 30
-            second discovery default only when it recognises the well-known
-            discovery NQN, so a Discovery Controller with its own unique NQN
-            would otherwise get the 5 second I/O default; setting it
-            explicitly gives every Discovery Controller the same keep-alive.
+            The installed file is commented throughout.
         </para>
     </refsect1>
 
@@ -254,6 +249,15 @@
                 <refentrytitle>stafd.conf</refentrytitle>
                 <manvolnum>5</manvolnum>
             </citerefentry>.
+        </para>
+        <para>
+            A host asks a Discovery Controller for a persistent connection by
+            connecting with a non-zero keep-alive timeout, so
+            <varname>keep-alive-tmo</varname> follows
+            <varname>persistent</varname>. With <parameter>auto</parameter> or
+            <parameter>force</parameter> it defaults to 30 seconds when none is
+            configured. With <parameter>no</parameter> it is always 0, and a
+            configured value is ignored.
         </para>
     </refsect1>
 
