@@ -137,6 +137,43 @@ class TestCtrlTerminator(unittest.TestCase):
         self.assertEqual(removed, [True])
 
 
+class TestRefreshCfg(unittest.TestCase):
+    '''A controller kept across a reconfiguration must get the connection
+    parameters the configuration has now.'''
+
+    CID = {'transport': 'tcp', 'traddr': '1.1.1.1', 'trsvcid': '8009', 'subsysnqn': 'nqn.x', 'hostnqn': 'nqn.host'}
+
+    class Kept:
+        def __init__(self, tid):
+            self.tid = tid
+            self.reloads = 0
+
+        def reload_hdlr(self):
+            self.reloads += 1
+
+    def _refresh(self, old_cfg, new_cfg):
+        old = trid.TID(dict(TestRefreshCfg.CID, **old_cfg))
+        new = trid.TID(dict(TestRefreshCfg.CID, **new_cfg))
+        controller = TestRefreshCfg.Kept(old)
+        svc = unittest.mock.Mock(_controllers={old: controller})
+        service.Service._refresh_cfg(svc, {new})
+        return controller
+
+    def test_changed_parameters_reach_the_controller(self):
+        controller = self._refresh({'persistent': 'auto', 'keep-alive-tmo': 30}, {'persistent': 'no'})
+        self.assertEqual(controller.tid.cfg, {'persistent': 'no'})
+        self.assertEqual(controller.reloads, 1)  # so that it re-decides on them
+
+    def test_unchanged_parameters_cause_nothing(self):
+        '''Reconfiguration runs on every mDNS and log page change.'''
+        controller = self._refresh({'persistent': 'auto'}, {'persistent': 'auto'})
+        self.assertEqual(controller.reloads, 0)
+
+    def test_a_new_controller_is_left_alone(self):
+        svc = unittest.mock.Mock(_controllers={})
+        service.Service._refresh_cfg(svc, {trid.TID(TestRefreshCfg.CID)})  # must not raise
+
+
 class KeepRecordingController(FakeController):
     """Idle, and records whether it was told to keep its connection"""
 

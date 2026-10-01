@@ -1199,6 +1199,28 @@ run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl status
 
 #*******************************************************************************
+# The same DC, kept across the reload, switched to "no". Its next poll is a new
+# connection, so it must use the new parameters: keep-alive-tmo is overridden
+# to 0 (logged once), since "no" means the connection is not to be kept.
+phase "Change connectivity configuration: the parked DC turns persistent=no"
+cat > "${stas_conf_fname}" <<'EOF'
+[Discovery Controller Defaults]
+persistent     = no
+keep-alive-tmo = 30
+
+[Discovery Controller]
+controller = transport=tcp;traddr=localhost;trsvcid=8009
+EOF
+log_file_contents 0 "${stas_conf_fname}"
+printf "\n"
+
+reload_cfg "stafd"
+
+countdown 75 "Waiting out the 60 s poll interval so the DC reconnects with keep-alive-tmo=0"
+run_cmd_coverage stafctl ls
+run_cmd_coverage stafctl status
+
+#*******************************************************************************
 # A connectivity configuration that libnvme rejects outright. stafd must keep
 # the previous one running rather than tear down working connections.
 phase "A connectivity configuration that must be rejected, then built-in defaults"

@@ -704,6 +704,12 @@ class Dc(Controller):
         self._parked = False
         self._epcsd_poll_tmr.stop()
 
+        # Unparked by a reload rather than by a log page we just read: the
+        # poll timer was what would have reconnected us.
+        if not self.connected():
+            self._connect_attempts = 0
+            self._try_to_connect_deferred.schedule()
+
     def _on_epcsd_poll_expired(self):
         """Time to look again: reconnect and re-read the log pages, since a
         parked DC cannot tell us they changed."""

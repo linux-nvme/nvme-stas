@@ -646,6 +646,19 @@ class ServiceABC(abc.ABC):
         else:
             logging.debug('ServiceABC._remove_ctrl_from_dict()- already removed')
 
+    def _refresh_cfg(self, tids):
+        '''A controller we keep across a reconfiguration keeps its object, and
+        so its TID: an equal one, since connection parameters play no part in
+        a TID's identity. Hand it the parameters the configuration has now, so
+        that its next connection uses them. A live connection keeps what it
+        was made with; most of it cannot change without a reconnect.'''
+        for tid in tids:
+            controller = self._controllers.get(tid)
+            if controller is not None and controller.tid.cfg != tid.cfg:
+                logging.debug('ServiceABC._refresh_cfg()          - %s: connection parameters changed', tid)
+                controller.tid.cfg = tid.cfg
+                controller.reload_hdlr()
+
     def remove_controller(self, controller, success):
         '''Remove the specified controller object from the list of controllers.
         success indicates whether the preceding disconnect completed successfully.'''

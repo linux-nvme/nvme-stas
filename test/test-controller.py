@@ -840,6 +840,7 @@ class TestParking(TestCase):
         dc._apply_persistence_policy()
         self.assertTrue(dc.parked())
 
+        dc.set_connected(True)  # EPCSD is only ever read from a log page we fetched
         dc._log_pages = [{'subtype': ctrl.SUBTYPE_SELF, 'eflags': str(TestParking.EPCSD)}]
         dc._apply_persistence_policy()
         self.assertFalse(dc.parked())
@@ -950,6 +951,30 @@ class TestParking(TestCase):
 
         dc._on_epcsd_poll_expired()
         self.assertFalse(dc.parked())
+
+    def test_unparking_a_disconnected_dc_reconnects_it(self):
+        '''A reload that turns a parked DC's "persistent" to "force" stops the
+        poll timer, the only thing that would have reconnected it.'''
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        self.assertTrue(dc.parked())
+
+        dc._try_to_connect_deferred = unittest.mock.Mock()
+        dc.tid.cfg = {'persistent': 'force'}
+        dc._apply_persistence_policy()
+        self.assertFalse(dc.parked())
+        dc._try_to_connect_deferred.schedule.assert_called_once_with()
+
+    def test_unparking_a_connected_dc_does_not_reconnect(self):
+        dc = self._dc(eflags=0)
+        dc._apply_persistence_policy()
+        dc.set_connected(True)  # the poll reconnected it and read EPCSD=1
+
+        dc._try_to_connect_deferred = unittest.mock.Mock()
+        dc._log_pages = [{'subtype': ctrl.SUBTYPE_SELF, 'eflags': str(TestParking.EPCSD)}]
+        dc._apply_persistence_policy()
+        self.assertFalse(dc.parked())
+        dc._try_to_connect_deferred.schedule.assert_not_called()
 
 
 class DeadObjectOp:
