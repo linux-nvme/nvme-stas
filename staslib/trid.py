@@ -11,7 +11,7 @@ throughout nvme-stas to uniquely identify a Controller'''
 
 import inspect
 import hashlib
-from staslib import conf
+from staslib import conf, iputil
 
 # usedforsecurity was added to hashlib.md5 in Python 3.9. Pass it when available
 # to suppress FIPS-mode rejection of MD5 (used here as a non-cryptographic hash).
@@ -123,14 +123,19 @@ class TID:
             )
         }
         self._transport = cid.get('transport', '')
-        self._traddr = cid.get('traddr', '')
+        # Two spellings of one IP address make one TID: the canonical spelling
+        # is what identifies, hashes and connects. The address as given is
+        # kept for reference, e.g. to tell an IPv4-mapped address a target
+        # reported.
+        self._traddr_as_given = cid.get('traddr', '')
+        self._traddr = self._canonical_address(self._traddr_as_given)
         self._trsvcid = ''
         if self._transport in ('tcp', 'rdma'):
             trsvcid = cid.get('trsvcid', None)
             self._trsvcid = (
                 trsvcid if trsvcid else (TID.RDMA_IP_PORT if self._transport == 'rdma' else TID.DISC_IP_PORT)
             )
-        self._host_traddr = cid.get('host-traddr', '')
+        self._host_traddr = self._canonical_address(cid.get('host-traddr', ''))
         self._host_iface = '' if conf.SvcConf().ignore_iface else cid.get('host-iface', '')
         self._hostnqn, self._hostid, hostsymname = _host_identity(cid)
         if hostsymname:
@@ -162,6 +167,11 @@ class TID:
             parts.append(self._host_traddr)
         self._id = '(' + ', '.join(parts) + ')'
 
+    def _canonical_address(self, addr: str) -> str:
+        '''Return addr in canonical form if it is an IP address. Only TCP and
+        RDMA addresses are IP addresses; FC's are WWNs.'''
+        return iputil.canonical_ipaddress(addr) if self._transport in ('tcp', 'rdma') else addr
+
     host_traddr = property(lambda self: self._host_traddr)
     host_iface = property(lambda self: self._host_iface)
     subsysnqn = property(lambda self: self._subsysnqn)
@@ -170,6 +180,8 @@ class TID:
     hostid = property(lambda self: self._hostid)
     trsvcid = property(lambda self: self._trsvcid)
     traddr = property(lambda self: self._traddr)
+    # A TID pickled before the address was canonicalised has no copy of it as given
+    traddr_as_given = property(lambda self: getattr(self, '_traddr_as_given', self._traddr))
 
     @property
     def cfg(self):

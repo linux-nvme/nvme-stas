@@ -159,6 +159,16 @@ class TestIpv4MappedAddresses(unittest.TestCase):
     def _tid(traddr):
         return trid.TID({'transport': 'tcp', 'traddr': traddr, 'trsvcid': '8009', 'subsysnqn': 'nqn.probe'})
 
+    def test_canonical_ipaddress(self):
+        for addr, canonical in (
+            ('10.0.0.40', '10.0.0.40'),
+            ('::ffff:10.0.0.40', '10.0.0.40'),
+            ('FE80:0000:0000:0000:0000:0000:0000:0001', 'fe80::1'),
+            ('', ''),
+            ('localhost', 'localhost'),
+        ):
+            self.assertEqual(iputil.canonical_ipaddress(addr), canonical, msg=addr)
+
     def test_a_mapped_address_survives_an_ipv4_only_family(self):
         """It is an IPv4 address, so "ip-family=ipv4" must keep it."""
         conf.SvcConf(default_conf={('Global', 'ip-family'): (4,)})

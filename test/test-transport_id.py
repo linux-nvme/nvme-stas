@@ -155,6 +155,33 @@ class Test(unittest.TestCase):
         self.assertEqual((tid._key, hash(tid)), (key, hashed))
         self.assertEqual(controllers[trid.TID(self.cid)], 'controller')
 
+    def test_two_spellings_of_one_address_make_one_tid(self):
+        '''The canonical spelling identifies, hashes and connects'''
+        for given, canonical in (
+            ('::ffff:10.10.10.10', '10.10.10.10'),  # IPv4-mapped, as a target on the IPv6 wildcard reports it
+            ('FE80:0000:0000:0000:0000:0000:0000:00AA', 'fe80::aa'),
+            ('fe80::AA', 'fe80::aa'),
+        ):
+            tid = trid.TID(dict(self.cid, traddr=given, **{'host-traddr': given}))
+            plain = trid.TID(dict(self.cid, traddr=canonical, **{'host-traddr': canonical}))
+            self.assertEqual(tid, plain, msg=given)
+            self.assertEqual(hash(tid), hash(plain), msg=given)
+            self.assertEqual((tid.traddr, tid.host_traddr), (canonical, canonical))
+            self.assertEqual(tid.as_dict()['traddr'], canonical)
+            self.assertEqual(tid.traddr_as_given, given)
+            self.assertIn(canonical, str(tid))
+
+    def test_what_is_not_an_ip_address_is_left_alone(self):
+        tid = trid.TID(dict(self.cid, traddr='localhost'))  # Not resolved yet
+        self.assertEqual(tid.traddr, 'localhost')
+        fc = dict(self.cid, transport='fc', traddr='nn-0x20000090FA000001:pn-0x10000090FA000001')
+        self.assertEqual(trid.TID(fc).traddr, fc['traddr'])  # A WWN, not an IP address
+
+    def test_a_tid_pickled_before_canonical_addresses(self):
+        tid = trid.TID(self.cid)
+        del tid._traddr_as_given
+        self.assertEqual(tid.traddr_as_given, Test.TRADDR)
+
 
 if __name__ == '__main__':
     unittest.main()

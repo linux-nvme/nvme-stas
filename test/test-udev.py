@@ -903,6 +903,32 @@ class Test(unittest.TestCase):
             for cback in (first, second, other):
                 udev.UDEV.unregister_for_device_events(cback)
 
+    def test_find_device_matches_another_spelling_of_the_address(self):
+        """The kernel keeps the address as it was given at connect time"""
+        tid = trid.TID({'transport': 'tcp', 'traddr': '::ffff:127.0.0.1', 'trsvcid': '8009', 'subsysnqn': 'hello'})
+        device = DummyDevice()
+        device.sys_name = 'nvme1'
+        with unittest.mock.patch.object(udev.UDEV._context, 'list_devices', return_value=[device]) as list_devices:
+            with unittest.mock.patch.multiple(
+                udev.Udev,
+                is_live=staticmethod(lambda device: True),
+                is_dc_device=staticmethod(lambda device: True),
+                get_cid=staticmethod(
+                    lambda device: {
+                        'transport': 'tcp',
+                        'traddr': '127.0.0.1',
+                        'trsvcid': '8009',
+                        'subsysnqn': 'hello',
+                        'host-traddr': '',
+                        'host-iface': '',
+                        'src-addr': '',
+                        'hostnqn': '',
+                    }
+                ),
+            ):
+                self.assertIs(udev.UDEV.find_nvme_dc_device(tid), device)
+        self.assertNotIn('NVME_TRADDR', list_devices.call_args[1])
+
     def test_udev_errors_are_logged_once_per_burst(self):
         with unittest.mock.patch.multiple(udev.UDEV, _log_event_soak_time=0, _log_event_count=0):
             with unittest.mock.patch.object(udev.UDEV, '_Udev__handle_events', side_effect=OSError('injected')):

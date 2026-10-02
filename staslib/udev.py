@@ -328,9 +328,10 @@ class Udev:
         preferred; failing that, any match is returned, so that a caller can
         tell that the connection exists even though it cannot use it yet.'''
         candidate = None
-        devices = self._context.list_devices(
-            subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
-        )
+        # Not filtered on NVME_TRADDR: the kernel keeps the address as it was
+        # given at connect time, which can be another spelling of tid.traddr.
+        # _cid_matches_tid() compares addresses in canonical form.
+        devices = self._context.list_devices(subsystem='nvme', NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport)
         if devices:
             ifaces = iputil.net_if_addrs()
             for device in devices:
