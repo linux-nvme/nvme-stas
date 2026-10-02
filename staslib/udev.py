@@ -78,9 +78,13 @@ class Udev:
 
     def register_for_device_events(self, sys_name: str, user_cback):
         '''Register user_cback to be called when a udev event is received for sys_name (e.g. 'nvme1').
+        Several callbacks may watch the same device: controllers reaching the
+        same path under different transport IDs share one connection.
         Callback signature: cback(udev_obj).'''
         if sys_name:
-            self._device_event_registry[sys_name] = user_cback
+            cbacks = self._device_event_registry.setdefault(sys_name, [])
+            if user_cback not in cbacks:
+                cbacks.append(user_cback)
 
     def unregister_for_device_events(self, user_cback):
         '''Unregister a callback previously registered with register_for_device_events().
@@ -91,10 +95,11 @@ class Udev:
         its sys_name, so the registry is searched by callback value instead.
         Each callback may only be registered for one device at a time.
         '''
-        entries = list(self._device_event_registry.items())
-        for sys_name, _user_cback in entries:
-            if user_cback == _user_cback:
-                self._device_event_registry.pop(sys_name, None)
+        for sys_name, cbacks in list(self._device_event_registry.items()):
+            if user_cback in cbacks:
+                cbacks.remove(user_cback)
+                if not cbacks:
+                    self._device_event_registry.pop(sys_name)
                 break
 
     def get_attributes(self, sys_name: str, attr_ids) -> dict:
@@ -376,8 +381,8 @@ class Udev:
             event_count += 1
 
             action_cbacks = self._action_event_registry.get(device.action, None)
-            device_cback = self._device_event_registry.get(device.sys_name, None)
-            if action_cbacks or device_cback:
+            device_cbacks = self._device_event_registry.get(device.sys_name, None)
+            if action_cbacks or device_cbacks:
                 logging.debug(
                     'Udev.__handle_events()             - %-7s %-6s  %2s:%s',
                     device.sys_name,
@@ -390,8 +395,9 @@ class Udev:
                     for action_cback in action_cbacks:
                         GLib.idle_add(action_cback, device)
 
-                if device_cback is not None:
-                    GLib.idle_add(device_cback, device)
+                if device_cbacks:
+                    for device_cback in list(device_cbacks):
+                        GLib.idle_add(device_cback, device)
 
     @staticmethod
     def _get_property(device, prop, default=''):

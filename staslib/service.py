@@ -56,7 +56,8 @@ class CtrlTerminator:
 
     DISPOSAL_AUDIT_PERIOD_SEC = 30
 
-    def __init__(self):
+    def __init__(self, still_in_use=None):
+        self._still_in_use = still_in_use  # still_in_use(controller) -> bool
         self._udev = udev.UDEV
         self._controllers = list()  # The list of controllers to dispose of.
         self._audit_tmr = gutil.GTimer(self.DISPOSAL_AUDIT_PERIOD_SEC, self._on_disposal_check)
@@ -80,7 +81,7 @@ class CtrlTerminator:
             logging.debug(
                 'CtrlTerminator.dispose()           - %s | %s: Invoke disconnect()', controller.tid, controller.device
             )
-            controller.disconnect(on_controller_removed_cb, keep_connection)
+            self._disconnect(controller, on_controller_removed_cb, keep_connection)
         else:
             logging.debug(
                 'CtrlTerminator.dispose()           - %s | %s: Add controller to garbage disposal',
@@ -127,8 +128,19 @@ class CtrlTerminator:
         logging.debug('CtrlTerminator._on_disposal_check()- Periodic audit')
         return GLib.SOURCE_REMOVE if self._disposal_check() else GLib.SOURCE_CONTINUE
 
-    @staticmethod
-    def _keep_or_terminate(args):
+    def _disconnect(self, controller, on_controller_removed_cb, keep_connection):
+        if not keep_connection and self._still_in_use and self._still_in_use(controller):
+            # Another of our controllers reaches the same path through this
+            # connection. Disconnecting it would pull it from under that one.
+            logging.info(
+                '%s | %s - Connection still in use by another controller. Keeping it.',
+                controller.tid,
+                controller.device,
+            )
+            keep_connection = True
+        controller.disconnect(on_controller_removed_cb, keep_connection)
+
+    def _keep_or_terminate(self, args):
         '''Return False if controller is to be kept. True if controller
         was terminated and can be removed from the list.'''
         controller, keep_connection, on_controller_removed_cb, tid = args
@@ -138,7 +150,7 @@ class CtrlTerminator:
                 tid,
                 controller.device,
             )
-            controller.disconnect(on_controller_removed_cb, keep_connection)
+            self._disconnect(controller, on_controller_removed_cb, keep_connection)
             return True
 
         return False
@@ -167,7 +179,7 @@ class Service(stas.ServiceABC):
 
     def __init__(self, args, default_conf, reload_hdlr):
         self._udev = udev.UDEV
-        self._terminator = CtrlTerminator()
+        self._terminator = CtrlTerminator(self._still_in_use)
 
         super().__init__(args, default_conf, reload_hdlr)
 
@@ -192,6 +204,17 @@ class Service(stas.ServiceABC):
         )
         for controller in controllers:
             self._terminator.dispose(controller, self._on_final_disconnect, keep_connections)
+
+    def _still_in_use(self, controller) -> bool:
+        '''Return True if another of our controllers holds the device of
+        @controller. Controllers reaching the same path under different
+        transport IDs share one connection, which must stay up for as long as
+        one of them needs it. On shutdown, each lets go of it as it would of
+        its own.'''
+        device = controller.device
+        if device == 'nvme?' or not self._alive():
+            return False
+        return any(other is not controller and other.device == device for other in self._controllers.values())
 
     def info(self) -> dict:
         '''Return the status info for this object (used for debug).'''

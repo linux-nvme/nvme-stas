@@ -874,6 +874,35 @@ class Test(unittest.TestCase):
         self.assertEqual(find([connecting, other]), (connecting, connecting))
         self.assertEqual(find([]), (None, None))
 
+    def test_several_controllers_watch_one_device(self):
+        """Controllers sharing a connection must all hear about it"""
+        first, second, other = (lambda device: None), (lambda device: None), (lambda device: None)
+        registry = udev.UDEV._device_event_registry
+        try:
+            udev.UDEV.register_for_device_events('nvme7', first)
+            udev.UDEV.register_for_device_events('nvme7', second)
+            udev.UDEV.register_for_device_events('nvme7', second)  # Registering twice changes nothing
+            udev.UDEV.register_for_device_events('nvme8', other)
+            self.assertEqual(registry['nvme7'], [first, second])
+
+            event = unittest.mock.Mock(sys_name='nvme7', action='remove', sequence_number=1)
+            with unittest.mock.patch.object(udev.UDEV, '_monitor') as monitor:
+                monitor.poll.side_effect = [event, None]
+                with unittest.mock.patch.object(udev.GLib, 'idle_add') as idle_add:
+                    udev.UDEV._Udev__handle_events()
+            self.assertEqual(
+                idle_add.call_args_list, [unittest.mock.call(first, event), unittest.mock.call(second, event)]
+            )
+
+            udev.UDEV.unregister_for_device_events(first)
+            self.assertEqual(registry['nvme7'], [second])
+            udev.UDEV.unregister_for_device_events(second)
+            self.assertNotIn('nvme7', registry)
+            self.assertEqual(registry['nvme8'], [other])
+        finally:
+            for cback in (first, second, other):
+                udev.UDEV.unregister_for_device_events(cback)
+
     def test_udev_errors_are_logged_once_per_burst(self):
         with unittest.mock.patch.multiple(udev.UDEV, _log_event_soak_time=0, _log_event_count=0):
             with unittest.mock.patch.object(udev.UDEV, '_Udev__handle_events', side_effect=OSError('injected')):
