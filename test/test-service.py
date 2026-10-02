@@ -137,6 +137,68 @@ class TestCtrlTerminator(unittest.TestCase):
         self.assertEqual(removed, [True])
 
 
+class TestSharedConnection(unittest.TestCase):
+    """Controllers reaching one path under different transport IDs share a
+    connection, which stays up for as long as one of them needs it"""
+
+    @staticmethod
+    def _ctrl(device):
+        controller = unittest.mock.Mock()
+        controller.device = device
+        controller.all_ops_completed.return_value = True
+        return controller
+
+    def test_still_in_use(self):
+        me, sharer, other = self._ctrl('nvme1'), self._ctrl('nvme1'), self._ctrl('nvme2')
+        svc = unittest.mock.Mock()
+        svc._alive.return_value = True
+        svc._controllers = {'me': me, 'other': other}
+        self.assertFalse(service.Service._still_in_use(svc, me))
+        svc._controllers['sharer'] = sharer
+        self.assertTrue(service.Service._still_in_use(svc, me))
+
+        # On shutdown each controller lets go of the connection as it would of its own
+        svc._alive.return_value = False
+        self.assertFalse(service.Service._still_in_use(svc, me))
+
+        # A controller with no device has nothing to share
+        svc._alive.return_value = True
+        nodev = self._ctrl('nvme?')
+        svc._controllers = {'a': nodev, 'b': self._ctrl('nvme?')}
+        self.assertFalse(service.Service._still_in_use(svc, nodev))
+
+    def setUp(self):
+        # dispose() asks libnvme's registry whether a connection is ours. Do
+        # not let that set up libnvme's context here: TestStacAdoptOnStartup
+        # must be the first to, so that it gets its own registry directory.
+        patcher = unittest.mock.patch.object(service.stas, 'protected', return_value=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_the_terminator_keeps_a_shared_connection(self):
+        for in_use, expected_keep in ((True, True), (False, False)):
+            for pending in (False, True):  # Disconnected at once, or by the audit once its operations complete
+                term = service.CtrlTerminator(still_in_use=lambda controller: in_use)
+                controller = self._ctrl('nvme1')
+                controller.all_ops_completed.return_value = not pending
+                cback = lambda *_: None
+                term.dispose(controller, cback, keep_connection=False)
+                if pending:
+                    controller.disconnect.assert_not_called()
+                    controller.all_ops_completed.return_value = True
+                    term._disposal_check()
+                controller.disconnect.assert_called_once_with(cback, expected_keep)
+                term.kill()
+
+    def test_a_kept_connection_stays_kept(self):
+        term = service.CtrlTerminator(still_in_use=lambda controller: False)
+        controller = self._ctrl('nvme1')
+        cback = lambda *_: None
+        term.dispose(controller, cback, keep_connection=True)
+        controller.disconnect.assert_called_once_with(cback, True)
+        term.kill()
+
+
 class TestRefreshCfg(unittest.TestCase):
     '''A controller kept across a reconfiguration must get the connection
     parameters the configuration has now.'''

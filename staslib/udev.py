@@ -78,9 +78,45 @@ class Udev:
 
     def register_for_device_events(self, sys_name: str, user_cback):
         '''Register user_cback to be called when a udev event is received for sys_name (e.g. 'nvme1').
+        Several callbacks may watch the same device: controllers reaching the
+        same path under different transport IDs share one connection.
         Callback signature: cback(udev_obj).'''
         if sys_name:
-            self._device_event_registry[sys_name] = user_cback
+            cbacks = self._device_event_registry.setdefault(sys_name, {})
+            if user_cback not in cbacks:
+                cbacks[user_cback] = self._registration_seqnum(sys_name)
+
+    @staticmethod
+    def _registration_seqnum(sys_name: str):
+        '''Return the kernel's uevent sequence number as of now, if sys_name
+        exists, or None. The kernel reuses a device name as soon as it is free,
+        and udev can deliver the "remove" of the name's previous device after
+        the caller has taken the new one. A "remove" the kernel sent before
+        this point is not for the caller's device: that one existed then.'''
+        try:
+            with open('/sys/kernel/uevent_seqnum') as f:
+                seqnum = int(f.read())
+        except (OSError, ValueError):
+            return None
+
+        return seqnum if Udev._exists(sys_name) else None
+
+    @staticmethod
+    def _exists(sys_name: str) -> bool:
+        return os.path.exists(os.path.join('/sys/class/nvme', sys_name))
+
+    @staticmethod
+    def _stale_remove(device, since) -> bool:
+        '''Return True if device is a "remove" for a previous device of the
+        name: the kernel sent it before the name's current holder registered
+        (@since), and the name still exists, so its current device has not
+        gone too.'''
+        return (
+            device.action == 'remove'
+            and since is not None
+            and device.sequence_number <= since
+            and Udev._exists(device.sys_name)
+        )
 
     def unregister_for_device_events(self, user_cback):
         '''Unregister a callback previously registered with register_for_device_events().
@@ -91,10 +127,11 @@ class Udev:
         its sys_name, so the registry is searched by callback value instead.
         Each callback may only be registered for one device at a time.
         '''
-        entries = list(self._device_event_registry.items())
-        for sys_name, _user_cback in entries:
-            if user_cback == _user_cback:
-                self._device_event_registry.pop(sys_name, None)
+        for sys_name, cbacks in list(self._device_event_registry.items()):
+            if user_cback in cbacks:
+                del cbacks[user_cback]
+                if not cbacks:
+                    self._device_event_registry.pop(sys_name)
                 break
 
     def get_attributes(self, sys_name: str, attr_ids) -> dict:
@@ -310,43 +347,48 @@ class Udev:
 
         return True
 
-    def find_nvme_dc_device(self, tid):
-        '''Return the pyudev.Device for the Discovery Controller matching tid, or None.'''
-        devices = self._context.list_devices(
-            subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
-        )
+    @staticmethod
+    def is_live(device):
+        '''Return True if the controller behind device is LIVE. The kernel
+        refuses to open a controller in any other state (EWOULDBLOCK): one
+        that is still connecting for the first time, or one that lost its
+        connection and is reconnecting.'''
+        return Udev._get_attribute(device, 'state') == 'live'
+
+    def _find_nvme_device(self, tid, is_wanted_type):
+        '''Return the pyudev.Device matching tid, or None. A LIVE match is
+        preferred; failing that, any match is returned, so that a caller can
+        tell that the connection exists even though it cannot use it yet.'''
+        candidate = None
+        # Not filtered on NVME_TRADDR: the kernel keeps the address as it was
+        # given at connect time, which can be another spelling of tid.traddr.
+        # _cid_matches_tid() compares addresses in canonical form.
+        devices = self._context.list_devices(subsystem='nvme', NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport)
         if devices:
             ifaces = iputil.net_if_addrs()
             for device in devices:
-                if not self.is_dc_device(device):
+                if not is_wanted_type(device):
                     continue
 
                 cid = self.get_cid(device)
                 if not self._cid_matches_tid(tid, cid, ifaces):
                     continue
 
-                return device
+                if self.is_live(device):
+                    return device
 
-        return None
+                if candidate is None:
+                    candidate = device
+
+        return candidate
+
+    def find_nvme_dc_device(self, tid):
+        '''Return the pyudev.Device for the Discovery Controller matching tid, or None.'''
+        return self._find_nvme_device(tid, self.is_dc_device)
 
     def find_nvme_ioc_device(self, tid):
         '''Return the pyudev.Device for the I/O Controller matching tid, or None.'''
-        devices = self._context.list_devices(
-            subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
-        )
-        if devices:
-            ifaces = iputil.net_if_addrs()
-            for device in devices:
-                if not self.is_ioc_device(device):
-                    continue
-
-                cid = self.get_cid(device)
-                if not self._cid_matches_tid(tid, cid, ifaces):
-                    continue
-
-                return device
-
-        return None
+        return self._find_nvme_device(tid, self.is_ioc_device)
 
     def _process_udev_event(self, event_source, condition):
         if condition == GLib.IO_IN:
@@ -372,8 +414,8 @@ class Udev:
             event_count += 1
 
             action_cbacks = self._action_event_registry.get(device.action, None)
-            device_cback = self._device_event_registry.get(device.sys_name, None)
-            if action_cbacks or device_cback:
+            device_cbacks = self._device_event_registry.get(device.sys_name, None)
+            if action_cbacks or device_cbacks:
                 logging.debug(
                     'Udev.__handle_events()             - %-7s %-6s  %2s:%s',
                     device.sys_name,
@@ -386,8 +428,18 @@ class Udev:
                     for action_cback in action_cbacks:
                         GLib.idle_add(action_cback, device)
 
-                if device_cback is not None:
-                    GLib.idle_add(device_cback, device)
+                if device_cbacks:
+                    for device_cback, since in list(device_cbacks.items()):
+                        if self._stale_remove(device, since):
+                            logging.debug(
+                                'Udev.__handle_events()             - %-7s %-6s  %2s:%s is for a previous device of that name',
+                                device.sys_name,
+                                device.action,
+                                event_count,
+                                device.sequence_number,
+                            )
+                            continue
+                        GLib.idle_add(device_cback, device)
 
     @staticmethod
     def _get_property(device, prop, default=''):

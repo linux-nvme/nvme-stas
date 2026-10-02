@@ -163,6 +163,14 @@ def get_ipaddress_obj(ipaddr, ipv4_mapped_convert=False):
     return ip
 
 
+def canonical_ipaddress(addr: str) -> str:
+    '''Return the canonical spelling of addr if it is an IP address: IPv4 for
+    an IPv4-mapped IPv6 address, and compressed lowercase IPv6. Return addr
+    unchanged if it is not an IP address (e.g. a host name not resolved yet).'''
+    ip = get_ipaddress_obj(addr, ipv4_mapped_convert=True)
+    return str(ip) if ip is not None else addr
+
+
 # ******************************************************************************
 def net_if_addrs():
     '''Return a dict mapping interface names to their IP addresses, grouped by

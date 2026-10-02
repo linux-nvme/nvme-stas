@@ -412,6 +412,57 @@ class Test(TestCase):
         )
         self.assertEqual(controller._connect_attempts, 1)
 
+    def test_connect_waits_for_a_device_that_is_not_live(self):
+        '''A matching device the kernel is still connecting (or reconnecting)
+        cannot be opened. Neither adopt it nor connect beside it: wait'''
+        controller = TestController(tid=self.NVME_TID, service=TestStaf())
+        controller._find_existing_connection = lambda: unittest.mock.Mock(sys_name='nvme7')
+        controller._retry_connect_tmr.set_timeout(controller.CONNECT_RETRY_PERIOD_SEC)
+        with unittest.mock.patch.object(controller._udev, 'is_live', return_value=False):
+            with unittest.mock.patch.object(nvme, 'Ctrl') as mock_ctrl:
+                controller._try_to_connect()
+
+        mock_ctrl.assert_not_called()
+        self.assertIsNone(controller._connect_op)
+        self.assertIsNone(controller._device)
+        self.assertEqual(controller._connect_attempts, 0)  # Waiting is not an attempt
+        # A whole-second GLib timer fires on a per-process tick within the next second
+        remaining = controller._retry_connect_tmr.time_remaining()
+        self.assertTrue(0 < remaining < controller.FAST_CONNECT_RETRY_PERIOD_SEC + 1, msg=remaining)
+        self.assertEqual(controller._retry_connect_tmr.get_timeout(), controller.CONNECT_RETRY_PERIOD_SEC)
+        controller.kill()
+
+    def test_connect_adopts_a_live_device(self):
+        controller = TestController(tid=self.NVME_TID, service=TestStaf())
+        controller._find_existing_connection = lambda: unittest.mock.Mock(sys_name='nvme7', sys_number='7')
+        with unittest.mock.patch.object(controller._udev, 'is_live', return_value=True):
+            with unittest.mock.patch.object(nvme, 'Ctrl') as mock_ctrl:
+                with self.assertLogs(logger=logging.getLogger(), level='DEBUG') as captured:
+                    controller._try_to_connect()
+
+        mock_ctrl.assert_called_once()
+        self.assertEqual(controller.device, 'nvme7')
+        self.assertEqual(controller._connect_attempts, 1)
+        self.assertTrue(any('Found existing control device: nvme7' in r.getMessage() for r in captured.records))
+        controller.kill()
+
+    def test_an_event_for_a_device_let_go_of_is_ignored(self):
+        """A second "remove" queued in the same batch, for a name the kernel
+        has since given another device, must not reach us again"""
+        controller = TestController(tid=self.NVME_TID, service=TestStaf())
+        controller._device = 'nvme1'
+        with unittest.mock.patch.object(controller, '_on_ctrl_removed') as on_removed:
+            controller._on_udev_notification(unittest.mock.Mock(sys_name='nvme2', action='remove'))
+            on_removed.assert_not_called()
+            controller._device = None  # Let go of
+            controller._on_udev_notification(unittest.mock.Mock(sys_name='nvme1', action='remove'))
+            on_removed.assert_not_called()
+            controller._device = 'nvme1'
+            event = unittest.mock.Mock(sys_name='nvme1', action='remove')
+            controller._on_udev_notification(event)
+            on_removed.assert_called_once_with(event)
+        controller.kill()
+
     def test_excluded_controller_does_not_connect(self):
         '''A controller that gets excluded while the daemon is running must not
         be reconnected by the retry timer'''
