@@ -82,9 +82,41 @@ class Udev:
         same path under different transport IDs share one connection.
         Callback signature: cback(udev_obj).'''
         if sys_name:
-            cbacks = self._device_event_registry.setdefault(sys_name, [])
+            cbacks = self._device_event_registry.setdefault(sys_name, {})
             if user_cback not in cbacks:
-                cbacks.append(user_cback)
+                cbacks[user_cback] = self._registration_seqnum(sys_name)
+
+    @staticmethod
+    def _registration_seqnum(sys_name: str):
+        '''Return the kernel's uevent sequence number as of now, if sys_name
+        exists, or None. The kernel reuses a device name as soon as it is free,
+        and udev can deliver the "remove" of the name's previous device after
+        the caller has taken the new one. A "remove" the kernel sent before
+        this point is not for the caller's device: that one existed then.'''
+        try:
+            with open('/sys/kernel/uevent_seqnum') as f:
+                seqnum = int(f.read())
+        except (OSError, ValueError):
+            return None
+
+        return seqnum if Udev._exists(sys_name) else None
+
+    @staticmethod
+    def _exists(sys_name: str) -> bool:
+        return os.path.exists(os.path.join('/sys/class/nvme', sys_name))
+
+    @staticmethod
+    def _stale_remove(device, since) -> bool:
+        '''Return True if device is a "remove" for a previous device of the
+        name: the kernel sent it before the name's current holder registered
+        (@since), and the name still exists, so its current device has not
+        gone too.'''
+        return (
+            device.action == 'remove'
+            and since is not None
+            and device.sequence_number <= since
+            and Udev._exists(device.sys_name)
+        )
 
     def unregister_for_device_events(self, user_cback):
         '''Unregister a callback previously registered with register_for_device_events().
@@ -97,7 +129,7 @@ class Udev:
         '''
         for sys_name, cbacks in list(self._device_event_registry.items()):
             if user_cback in cbacks:
-                cbacks.remove(user_cback)
+                del cbacks[user_cback]
                 if not cbacks:
                     self._device_event_registry.pop(sys_name)
                 break
@@ -397,7 +429,16 @@ class Udev:
                         GLib.idle_add(action_cback, device)
 
                 if device_cbacks:
-                    for device_cback in list(device_cbacks):
+                    for device_cback, since in list(device_cbacks.items()):
+                        if self._stale_remove(device, since):
+                            logging.debug(
+                                'Udev.__handle_events()             - %-7s %-6s  %2s:%s is for a previous device of that name',
+                                device.sys_name,
+                                device.action,
+                                event_count,
+                                device.sequence_number,
+                            )
+                            continue
                         GLib.idle_add(device_cback, device)
 
     @staticmethod

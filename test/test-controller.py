@@ -446,6 +446,23 @@ class Test(TestCase):
         self.assertTrue(any('Found existing control device: nvme7' in r.getMessage() for r in captured.records))
         controller.kill()
 
+    def test_an_event_for_a_device_let_go_of_is_ignored(self):
+        """A second "remove" queued in the same batch, for a name the kernel
+        has since given another device, must not reach us again"""
+        controller = TestController(tid=self.NVME_TID, service=TestStaf())
+        controller._device = 'nvme1'
+        with unittest.mock.patch.object(controller, '_on_ctrl_removed') as on_removed:
+            controller._on_udev_notification(unittest.mock.Mock(sys_name='nvme2', action='remove'))
+            on_removed.assert_not_called()
+            controller._device = None  # Let go of
+            controller._on_udev_notification(unittest.mock.Mock(sys_name='nvme1', action='remove'))
+            on_removed.assert_not_called()
+            controller._device = 'nvme1'
+            event = unittest.mock.Mock(sys_name='nvme1', action='remove')
+            controller._on_udev_notification(event)
+            on_removed.assert_called_once_with(event)
+        controller.kill()
+
     def test_excluded_controller_does_not_connect(self):
         '''A controller that gets excluded while the daemon is running must not
         be reconnected by the retry timer'''

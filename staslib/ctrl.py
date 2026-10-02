@@ -193,6 +193,18 @@ class Controller(stas.ControllerABC):
             )
             return
 
+        if udev_obj.sys_name != self._device:
+            # Queued for a device we have since let go of, under a name the
+            # kernel may already have given another.
+            logging.debug(
+                'Controller._on_udev_notification() - %s | %s: Ignoring "%s" event for %s',
+                self.id,
+                self.device,
+                udev_obj.action,
+                udev_obj.sys_name,
+            )
+            return
+
         if udev_obj.action == 'change':
             nvme_aen = udev_obj.get('NVME_AEN')
             nvme_event = udev_obj.get('NVME_EVENT')

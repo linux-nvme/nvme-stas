@@ -878,12 +878,15 @@ class Test(unittest.TestCase):
         """Controllers sharing a connection must all hear about it"""
         first, second, other = (lambda device: None), (lambda device: None), (lambda device: None)
         registry = udev.UDEV._device_event_registry
+        no_seqnum = unittest.mock.patch.object(udev.Udev, '_registration_seqnum', return_value=None)
+        no_seqnum.start()
+        self.addCleanup(no_seqnum.stop)
         try:
             udev.UDEV.register_for_device_events('nvme7', first)
             udev.UDEV.register_for_device_events('nvme7', second)
             udev.UDEV.register_for_device_events('nvme7', second)  # Registering twice changes nothing
             udev.UDEV.register_for_device_events('nvme8', other)
-            self.assertEqual(registry['nvme7'], [first, second])
+            self.assertEqual(list(registry['nvme7']), [first, second])
 
             event = unittest.mock.Mock(sys_name='nvme7', action='remove', sequence_number=1)
             with unittest.mock.patch.object(udev.UDEV, '_monitor') as monitor:
@@ -895,10 +898,10 @@ class Test(unittest.TestCase):
             )
 
             udev.UDEV.unregister_for_device_events(first)
-            self.assertEqual(registry['nvme7'], [second])
+            self.assertEqual(list(registry['nvme7']), [second])
             udev.UDEV.unregister_for_device_events(second)
             self.assertNotIn('nvme7', registry)
-            self.assertEqual(registry['nvme8'], [other])
+            self.assertEqual(list(registry['nvme8']), [other])
         finally:
             for cback in (first, second, other):
                 udev.UDEV.unregister_for_device_events(cback)
@@ -928,6 +931,62 @@ class Test(unittest.TestCase):
             ):
                 self.assertIs(udev.UDEV.find_nvme_dc_device(tid), device)
         self.assertNotIn('NVME_TRADDR', list_devices.call_args[1])
+
+    def _dispatch(self, event):
+        with unittest.mock.patch.object(udev.UDEV, '_monitor') as monitor:
+            monitor.poll.side_effect = [event, None]
+            with unittest.mock.patch.object(udev.GLib, 'idle_add') as idle_add:
+                udev.UDEV._Udev__handle_events()
+        return idle_add.call_args_list
+
+    def test_a_remove_for_a_previous_device_of_the_name_is_not_dispatched(self):
+        """The kernel reuses a name at once; udev can deliver the previous
+        device's "remove" after the name's new holder registered"""
+        cback = lambda device: None
+        with unittest.mock.patch.object(udev.Udev, '_registration_seqnum', return_value=100):
+            udev.UDEV.register_for_device_events('nvme7', cback)
+        self.addCleanup(udev.UDEV.unregister_for_device_events, cback)
+
+        def event(action, seqnum):
+            return unittest.mock.Mock(sys_name='nvme7', action=action, sequence_number=seqnum)
+
+        exists = unittest.mock.patch.object(udev.Udev, '_exists', return_value=True)  # The name's new holder
+        exists.start()
+        self.addCleanup(exists.stop)
+        self.assertEqual(self._dispatch(event('remove', 99)), [])  # Sent before we took the name
+        self.assertEqual(self._dispatch(event('remove', 100)), [])
+        stale_change = event('change', 99)  # Only a "remove" is held back
+        self.assertEqual(self._dispatch(stale_change), [unittest.mock.call(cback, stale_change)])
+        ours = event('remove', 101)
+        self.assertEqual(self._dispatch(ours), [unittest.mock.call(cback, ours)])
+
+        # Ours went before we registered, yet after we read the sequence
+        # number: the name is gone, so the "remove" must get through
+        exists.stop()
+        with unittest.mock.patch.object(udev.Udev, '_exists', return_value=False):
+            early = event('remove', 99)
+            self.assertEqual(self._dispatch(early), [unittest.mock.call(cback, early)])
+        exists.start()
+
+    def test_a_remove_is_always_dispatched_without_a_registration_seqnum(self):
+        cback = lambda device: None
+        with unittest.mock.patch.object(udev.Udev, '_registration_seqnum', return_value=None):
+            udev.UDEV.register_for_device_events('nvme7', cback)
+        self.addCleanup(udev.UDEV.unregister_for_device_events, cback)
+        removed = unittest.mock.Mock(sys_name='nvme7', action='remove', sequence_number=1)
+        self.assertEqual(self._dispatch(removed), [unittest.mock.call(cback, removed)])
+
+    def test_registration_seqnum(self):
+        opener = unittest.mock.mock_open(read_data='12345\n')
+        with unittest.mock.patch('builtins.open', opener):
+            with unittest.mock.patch.object(udev.os.path, 'exists', return_value=True) as exists:
+                self.assertEqual(udev.Udev._registration_seqnum('nvme7'), 12345)
+            exists.assert_called_once_with('/sys/class/nvme/nvme7')
+            with unittest.mock.patch.object(udev.os.path, 'exists', return_value=False):
+                # Gone already: the "remove" that says so must get through
+                self.assertIsNone(udev.Udev._registration_seqnum('nvme7'))
+        with unittest.mock.patch('builtins.open', side_effect=OSError('injected')):
+            self.assertIsNone(udev.Udev._registration_seqnum('nvme7'))
 
     def test_udev_errors_are_logged_once_per_burst(self):
         with unittest.mock.patch.multiple(udev.UDEV, _log_event_soak_time=0, _log_event_count=0):
