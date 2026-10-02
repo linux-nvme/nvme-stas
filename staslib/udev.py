@@ -310,43 +310,47 @@ class Udev:
 
         return True
 
-    def find_nvme_dc_device(self, tid):
-        '''Return the pyudev.Device for the Discovery Controller matching tid, or None.'''
+    @staticmethod
+    def is_live(device):
+        '''Return True if the controller behind device is LIVE. The kernel
+        refuses to open a controller in any other state (EWOULDBLOCK): one
+        that is still connecting for the first time, or one that lost its
+        connection and is reconnecting.'''
+        return Udev._get_attribute(device, 'state') == 'live'
+
+    def _find_nvme_device(self, tid, is_wanted_type):
+        '''Return the pyudev.Device matching tid, or None. A LIVE match is
+        preferred; failing that, any match is returned, so that a caller can
+        tell that the connection exists even though it cannot use it yet.'''
+        candidate = None
         devices = self._context.list_devices(
             subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
         )
         if devices:
             ifaces = iputil.net_if_addrs()
             for device in devices:
-                if not self.is_dc_device(device):
+                if not is_wanted_type(device):
                     continue
 
                 cid = self.get_cid(device)
                 if not self._cid_matches_tid(tid, cid, ifaces):
                     continue
 
-                return device
+                if self.is_live(device):
+                    return device
 
-        return None
+                if candidate is None:
+                    candidate = device
+
+        return candidate
+
+    def find_nvme_dc_device(self, tid):
+        '''Return the pyudev.Device for the Discovery Controller matching tid, or None.'''
+        return self._find_nvme_device(tid, self.is_dc_device)
 
     def find_nvme_ioc_device(self, tid):
         '''Return the pyudev.Device for the I/O Controller matching tid, or None.'''
-        devices = self._context.list_devices(
-            subsystem='nvme', NVME_TRADDR=tid.traddr, NVME_TRSVCID=tid.trsvcid, NVME_TRTYPE=tid.transport
-        )
-        if devices:
-            ifaces = iputil.net_if_addrs()
-            for device in devices:
-                if not self.is_ioc_device(device):
-                    continue
-
-                cid = self.get_cid(device)
-                if not self._cid_matches_tid(tid, cid, ifaces):
-                    continue
-
-                return device
-
-        return None
+        return self._find_nvme_device(tid, self.is_ioc_device)
 
     def _process_udev_event(self, event_source, condition):
         if condition == GLib.IO_IN:

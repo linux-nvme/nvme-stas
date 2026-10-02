@@ -833,6 +833,47 @@ class Test(unittest.TestCase):
         tid = trid.TID({'transport': 'tcp', 'traddr': 'localhost', 'trsvcid': '8009', 'subsysnqn': 'hello'})
         self.assertFalse(udev.UDEV._cid_matches_tid(tid, cid, iputil.net_if_addrs()))
 
+    def test_is_live(self):
+        class Attributes:
+            def __init__(self, state):
+                self._state = state
+
+            def asstring(self, attr_id):
+                if attr_id != 'state' or self._state is None:
+                    raise KeyError(attr_id)
+                return self._state + '\n'
+
+        device = DummyDevice()
+        for state, expected in (('live', True), ('connecting', False), ('new', False), ('deleting', False)):
+            device.attributes = Attributes(state)
+            self.assertEqual(udev.UDEV.is_live(device), expected, msg=state)
+
+        device.attributes = Attributes(None)  # Gone from sysfs
+        self.assertFalse(udev.UDEV.is_live(device))
+
+    def test_find_device_prefers_a_live_match(self):
+        tid = trid.TID({'transport': 'tcp', 'traddr': traddr(4), 'trsvcid': '8009', 'subsysnqn': 'hello'})
+        connecting, live, other = DummyDevice(), DummyDevice(), DummyDevice()
+        states = {connecting: 'connecting', live: 'live', other: 'connecting'}
+
+        def find(devices):
+            with unittest.mock.patch.object(udev.UDEV._context, 'list_devices', return_value=devices):
+                with unittest.mock.patch.multiple(
+                    udev.Udev,
+                    is_live=staticmethod(lambda device: states[device] == 'live'),
+                    get_cid=staticmethod(lambda device: {}),
+                    _cid_matches_tid=staticmethod(lambda tid, cid, ifaces: True),
+                    is_dc_device=staticmethod(lambda device: True),
+                    is_ioc_device=staticmethod(lambda device: True),
+                ):
+                    return udev.UDEV.find_nvme_dc_device(tid), udev.UDEV.find_nvme_ioc_device(tid)
+
+        self.assertEqual(find([connecting, live]), (live, live))
+        # Nothing live: the first match is still returned, so that callers
+        # can tell the connection exists (e.g. whose it is)
+        self.assertEqual(find([connecting, other]), (connecting, connecting))
+        self.assertEqual(find([]), (None, None))
+
     def test_udev_errors_are_logged_once_per_burst(self):
         with unittest.mock.patch.multiple(udev.UDEV, _log_event_soak_time=0, _log_event_count=0):
             with unittest.mock.patch.object(udev.UDEV, '_Udev__handle_events', side_effect=OSError('injected')):

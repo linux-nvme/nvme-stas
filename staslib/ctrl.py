@@ -258,6 +258,27 @@ class Controller(stas.ControllerABC):
         return cfg
 
     def _do_connect(self):
+        # Audit existing nvme devices. If we find a match, then
+        # we'll just borrow that device instead of creating a new one.
+        udev_obj = self._find_existing_connection()
+        if udev_obj is not None and not self._udev.is_live(udev_obj):
+            # The connection exists but cannot be opened until it is LIVE: it
+            # is still being made, or the kernel is reconnecting it. Making
+            # another beside it could duplicate it, so wait for it to come up
+            # or go away. This is not a connection attempt, and the retry
+            # interval in force must survive the short wait.
+            logging.debug(
+                'Controller._do_connect()           - %s Existing control device %s is not live yet. Retry in %s sec.',
+                self.id,
+                udev_obj.sys_name,
+                self.FAST_CONNECT_RETRY_PERIOD_SEC,
+            )
+            self._connect_attempts -= 1
+            interval = self._retry_connect_tmr.get_timeout()
+            self._retry_connect_tmr.start(self.FAST_CONNECT_RETRY_PERIOD_SEC)
+            self._retry_connect_tmr.set_timeout(interval)
+            return
+
         cfg = self._get_cfg()
         try:
             self._ctrl = nvme.Ctrl(self._ctx, cfg)
@@ -289,9 +310,6 @@ class Controller(stas.ControllerABC):
         if kxchap_ctrl_key and self._nvme_options.kxchap_ctrlkey_supp:
             self._ctrl.kxchap_ctrl_key = kxchap_ctrl_key
 
-        # Audit existing nvme devices. If we find a match, then
-        # we'll just borrow that device instead of creating a new one.
-        udev_obj = self._find_existing_connection()
         if udev_obj is not None:
             # A device already exists.
             self._device = udev_obj.sys_name
