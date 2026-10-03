@@ -8,6 +8,7 @@ concurrency=thread
 omit =
 	/usr/*
 	*/test/test-*.py
+	*/utils/coverage-launcher.py
 	subprojects/nvme-cli/libnvme/*
 
 # Regexes for lines to exclude from consideration

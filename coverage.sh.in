@@ -10,6 +10,10 @@ AVAHI_NOHOST_PUBLISHER=mdns_nohost_publisher.service
 AVAHI_REFUSED_PUBLISHER=mdns_refused_publisher.service
 SCRATCH_FILE=$(mktemp /tmp/stas-coverage-out.XXXXXX)
 
+# The daemons are started through this, which cuts the shortest EPCSD poll
+# interval (1 minute) to 10 seconds. Nothing else about them changes.
+LAUNCHER=$( realpath ../utils/coverage-launcher.py )
+
 file=/tmp/stafd.conf.XXXXXX
 stafd_conf_fname=$(mktemp $file)
 
@@ -204,7 +208,7 @@ sd_start() {
 	log "Start ${app}"
 	# ETC_NVME_PROP is deliberately unquoted: it is one word, or nothing at
 	# all on a systemd without BindPaths=.
-	sudo systemd-run --unit="${unit}" --working-directory=. ${ETC_NVME_PROP} --property=Type=dbus --property=BusName="${dbus}" --property="SyslogIdentifier=${app}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${cmd}  >${SCRATCH_FILE} 2>&1
+	sudo systemd-run --unit="${unit}" --working-directory=. ${ETC_NVME_PROP} --property=Type=dbus --property=BusName="${dbus}" --property="SyslogIdentifier=${app}" --setenv=PYTHONPATH=${PYTHON_PATH} --setenv=RUNTIME_DIRECTORY=${RUNTIME_DIRECTORY} coverage run --rcfile=.coveragerc ${LAUNCHER} ${cmd}  >${SCRATCH_FILE} 2>&1
 	log_file_contents $? ${SCRATCH_FILE}
 	printf "\n"
 	sleep 1
@@ -1159,7 +1163,7 @@ sleep 2
 # Let a discovery controller park. nvmet reports EPCSD=0, so under "auto" the
 # DC does not support a persistent connection: stafd disconnects it, keeps its
 # log pages, and comes back on the poll timer. One minute is the shortest
-# interval the option accepts, so this phase is deliberately slow.
+# interval the option accepts; the launcher makes it 10 seconds.
 phase "Change stafd config: let a DC park, then come back"
 cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
@@ -1184,17 +1188,15 @@ printf "\n"
 
 reload_cfg "stafd"
 
-# The DC is created fresh by this config change, so it first spends up to
-# GET_SUPPORTED_MAX_ATTEMPTS * GET_SUPPORTED_RETRY_PERIOD_SEC seconds finding
-# out that nvmet does not implement Get Supported Log Pages, then fetches the
-# log page anyway. Only then is its persistence decided.
-countdown 30 "Waiting for stafd to decide the DC's persistence"
+# Persistence is decided as soon as the DC's log page is in, which is within
+# about a second of the reload.
+countdown 5 "Waiting for stafd to decide the DC's persistence"
 log "stafd should now have parked the DC (EPCSD=0)"
 run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl status
 
-# The 1-minute epcsd-poll-interval-minutes above, plus a margin
-countdown 75 "Waiting out the 60 s poll interval so the DC comes back"
+# The poll interval (10 s, see LAUNCHER), plus a margin
+countdown 20 "Waiting out the 10 s poll interval so the DC comes back"
 run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl status
 
@@ -1216,7 +1218,7 @@ printf "\n"
 
 reload_cfg "stafd"
 
-countdown 75 "Waiting out the 60 s poll interval so the DC reconnects with keep-alive-tmo=0"
+countdown 20 "Waiting out the 10 s poll interval so the DC reconnects with keep-alive-tmo=0"
 run_cmd_coverage stafctl ls
 run_cmd_coverage stafctl status
 
