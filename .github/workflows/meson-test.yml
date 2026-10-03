@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-24.04]
     steps:
       - name: "CHECKOUT: nvme-stas"
         uses: actions/checkout@v7
@@ -25,13 +25,7 @@ jobs:
       - name: "INSTALL: build packages"
         run: |
           sudo apt update
-          sudo apt-get install --yes --quiet ninja-build cmake
-          # Jammy ships meson 0.61 which is too old; install a newer version via pip
-          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            pip install meson
-          else
-            sudo apt-get install --yes --quiet meson
-          fi
+          sudo apt-get install --yes --quiet meson ninja-build cmake
 
       - name: "INSTALL: python packages"
         run: |
