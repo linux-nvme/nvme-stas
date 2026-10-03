@@ -9,7 +9,7 @@ Build-Depends:
  docbook-xsl,
  iproute2,
  libglib2.0-dev-bin,
- meson,
+ meson (>= 1.0.0),
  python3-lxml,
  python3:any,
  xsltproc,

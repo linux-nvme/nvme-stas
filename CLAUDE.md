@@ -31,11 +31,7 @@ make purge    # remove .build/ entirely
 
 ## Critical: The `.build/` Directory
 
-Meson copies all Python source files into `.build/` at setup time. Tests run against `.build/`, not the source tree directly. After editing source files, Meson's incremental build often does **not** re-copy them (the `configure_file(copy: true)` step doesn't track file timestamps reliably). The safest approach after non-trivial edits:
-
-```bash
-rm -rf .build/ && meson setup .build && meson compile -C .build
-```
+Meson copies all Python source files into `.build/` at configure time (`configure_file(copy: true)`). Tests run against `.build/`, not the source tree directly. An edited source file is copied again by the next `meson compile` or `meson test`, both of which re-run the configure step when an input has changed. A test run directly with `python3` (see above) does not do this, so run `meson compile -C .build` first or it tests the old copy.
 
 `staslib/defs.py` is a template — `@VERSION@`, `@ETC@`, etc. are substituted by Meson into `.build/staslib/defs.py`. Always read the source version for logic, but the runnable version lives in `.build/`.
 
