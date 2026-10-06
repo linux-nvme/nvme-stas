@@ -706,6 +706,31 @@ class TestStacAdoptOnStartup(unittest.TestCase):
 
         self.assertEqual(list(adopted), [ours])
 
+    def test_two_connections_with_one_tid_make_one_controller(self):
+        '''A second Ioc would not fit in the dict, yet would live on and
+        connect on its own. The second connection is reported, not touched,
+        and the report names the device the controller will really pick.'''
+        self._register('nvme77', defs.REGISTRY_OWNER)
+        self._register('nvme78', defs.REGISTRY_OWNER)
+        tid = TestStacAdoptOnStartup._tid('10.10.10.77')
+        same_tid = TestStacAdoptOnStartup._tid('10.10.10.77')
+
+        stac = unittest.mock.Mock()
+        ioc = unittest.mock.Mock(side_effect=lambda serv, tid: tid)
+        picked = unittest.mock.Mock(sys_name='nvme78')  # Not the first one listed
+        with unittest.mock.patch.object(udev.UDEV, 'get_ioc_tids', return_value={'nvme77': tid, 'nvme78': same_tid}):
+            with unittest.mock.patch.object(udev.UDEV, 'find_nvme_ioc_device', return_value=picked) as finder:
+                with unittest.mock.patch.object(ctrl, 'Ioc', ioc):
+                    with self.assertLogs(level='WARNING') as captured:
+                        adopted = service.Stac._load_last_known_config(stac)
+
+        self.assertEqual(list(adopted), [tid])
+        self.assertEqual(ioc.call_count, 1)
+        finder.assert_called_once_with(tid)
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn('nvme77, nvme78 connect to the same controller', captured.output[0])
+        self.assertIn('managing nvme78,', captured.output[0])
+
 
 if __name__ == '__main__':
     unittest.main()
