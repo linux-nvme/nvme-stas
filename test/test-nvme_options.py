@@ -4,6 +4,7 @@ import logging
 import unittest
 import unittest.mock
 from staslib import defs, conf, log
+from pyfakefs import helpers
 from pyfakefs.fake_filesystem_unittest import TestCase
 
 
@@ -49,6 +50,9 @@ class Test(TestCase):
 
     def test_fabrics_unreadable_file(self):
         '''Only root can read it'''
+        # Act as a regular user, also when the tests run as root (coverage)
+        helpers.set_uid(1)
+        self.addCleanup(helpers.reset_ids)
         self.fs.create_file('/dev/nvme-fabrics', st_mode=0o100000, contents='discovery\n')
         conf.NvmeOptions.destroy()  # Make sure singleton does not exist
         with self.assertRaises(PermissionError):
