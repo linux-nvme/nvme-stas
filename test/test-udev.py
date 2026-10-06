@@ -874,6 +874,30 @@ class Test(unittest.TestCase):
         self.assertEqual(find([connecting, other]), (connecting, connecting))
         self.assertEqual(find([]), (None, None))
 
+    def test_find_device_prefers_a_pinned_match(self):
+        """Of two connections to one controller, one pinned to an interface and
+        one only routed through it, the pinned one is picked"""
+        tid = trid.TID({'transport': 'tcp', 'traddr': traddr(4), 'trsvcid': '8009', 'subsysnqn': 'hello'})
+        pinned, routed, connecting = DummyDevice(), DummyDevice(), DummyDevice()
+        live = {pinned: True, routed: True, connecting: False}
+        host_iface = {pinned: 'eth0', routed: '', connecting: 'eth0'}
+
+        def find(devices):
+            with unittest.mock.patch.object(udev.UDEV._context, 'list_devices', return_value=devices):
+                with unittest.mock.patch.multiple(
+                    udev.Udev,
+                    is_live=staticmethod(lambda device: live[device]),
+                    get_cid=staticmethod(lambda device: {'host-iface': host_iface[device]}),
+                    _cid_matches_tid=staticmethod(lambda tid, cid, ifaces: True),
+                    is_ioc_device=staticmethod(lambda device: True),
+                ):
+                    return udev.UDEV.find_nvme_ioc_device(tid)
+
+        self.assertIs(find([routed, pinned]), pinned)
+        self.assertIs(find([pinned, routed]), pinned)
+        # Live still comes first: a pinned device that is not live loses
+        self.assertIs(find([connecting, routed]), routed)
+
     def test_several_controllers_watch_one_device(self):
         """Controllers sharing a connection must all hear about it"""
         first, second, other = (lambda device: None), (lambda device: None), (lambda device: None)

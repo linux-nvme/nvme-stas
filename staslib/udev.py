@@ -358,8 +358,13 @@ class Udev:
     def _find_nvme_device(self, tid, is_wanted_type):
         '''Return the pyudev.Device matching tid, or None. A LIVE match is
         preferred; failing that, any match is returned, so that a caller can
-        tell that the connection exists even though it cannot use it yet.'''
+        tell that the connection exists even though it cannot use it yet.
+
+        Among equally live matches, one connected with an explicit host-iface
+        wins over one that was merely routed through that interface. Ties
+        go to the first in enumeration order.'''
         candidate = None
+        candidate_rank = -1
         # Not filtered on NVME_TRADDR: the kernel keeps the address as it was
         # given at connect time, which can be another spelling of tid.traddr.
         # _cid_matches_tid() compares addresses in canonical form.
@@ -374,11 +379,12 @@ class Udev:
                 if not self._cid_matches_tid(tid, cid, ifaces):
                     continue
 
-                if self.is_live(device):
+                rank = (2 if self.is_live(device) else 0) + (1 if cid.get('host-iface') else 0)
+                if rank == 3:
                     return device
 
-                if candidate is None:
-                    candidate = device
+                if rank > candidate_rank:
+                    candidate, candidate_rank = device, rank
 
         return candidate
 

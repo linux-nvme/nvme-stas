@@ -287,12 +287,33 @@ class Stac(Service):
         else owns - an unowned connection predates the registry or belongs to
         somebody who never registered it, and adopting it would be taking over
         a connection we never made.
+
+        Several of our connections can map to one TID, e.g. one pinned to an
+        interface with host-iface and one unpinned but routed through it. One
+        controller is created per TID, and it picks its device the way the
+        finder does (the pinned one, if any). The others are left as they are,
+        neither managed nor disconnected.
         '''
-        controllers = {}
+        devices = {}
         for device, tid in udev.UDEV.get_ioc_tids().items():
-            if not stas.owned_by_us(device):
-                continue
-            logging.debug('Stac._load_last_known_config()     - %s | %s: adopted', tid, device)
+            if stas.owned_by_us(device):
+                devices.setdefault(tid, []).append(device)
+
+        controllers = {}
+        for tid, names in devices.items():
+            managed = names[0]
+            if len(names) > 1:
+                found = udev.UDEV.find_nvme_ioc_device(tid)
+                if found is not None:
+                    managed = found.sys_name
+                logging.warning(
+                    '%s connect to the same controller (%s); managing %s, leaving the others alone. '
+                    'Is the same controller configured twice (e.g. with and without host-iface)?',
+                    ', '.join(names),
+                    tid,
+                    managed,
+                )
+            logging.debug('Stac._load_last_known_config()     - %s | %s: adopted', tid, managed)
             controllers[tid] = ctrl.Ioc(self, tid)
 
         logging.debug('Stac._load_last_known_config()     - IOC count = %s', len(controllers))
