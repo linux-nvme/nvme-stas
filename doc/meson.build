@@ -72,10 +72,8 @@ if want_man or want_html or want_readthedocs
             env: env,
         )
 
-        i = 0
-        foreach stem : stems
-            docbooks += [ [stem, '5', idl_docbooks[i], []] ]
-            i += 1
+        foreach i : range(stems.length())
+            docbooks += [ [stems[i], '5', idl_docbooks[i], []] ]
         endforeach
     endforeach
 
