@@ -546,7 +546,7 @@ class Staf(Service):
         ('Global', 'ignore-iface'): False,
         ('Global', 'ip-family'): (4, 6),
         ('Global', 'pleo'): True,
-        ('Service Discovery', 'zeroconf'): True,
+        ('Service Discovery', 'zeroconf'): False,
         ('Discovery controller connection management', 'dc-giveup-timeout'): timeparse.timeparse('72hours'),
         ('Discovery controller connection management', 'epcsd-poll-interval-minutes'): 15,
     }

@@ -452,6 +452,9 @@ johnny            = be-good
 queue-size        = 2000000
 reconnect-delay   = NaN
 
+[Service Discovery]
+zeroconf = enabled
+
 [Discovery controller connection management]
 dc-giveup-timeout = infinity
 
@@ -604,6 +607,9 @@ cat > "${stafd_conf_fname}" <<'EOF'
 tron              = true
 ip-family         = ipv4
 pleo              = disabled
+
+[Service Discovery]
+zeroconf = enabled
 
 [Discovery controller connection management]
 dc-giveup-timeout  = 1:01
@@ -910,6 +916,9 @@ tron=true
 ip-family=ipv6
 pleo=disabled
 
+[Service Discovery]
+zeroconf=enabled
+
 [Discovery controller connection management]
 dc-giveup-timeout=0
 EOF
@@ -991,6 +1000,9 @@ cat > "${stafd_conf_fname}" <<'EOF'
 [Global]
 tron=true
 ip-family=ipv4
+
+[Service Discovery]
+zeroconf=enabled
 EOF
 log_file_contents 0 "${stafd_conf_fname}"
 printf "\n"

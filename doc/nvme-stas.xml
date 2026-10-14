@@ -58,7 +58,13 @@
                     with Avahi, the service discovery daemon. This allows <code>stafd</code>
                     to automatically locate Centralized or Direct Discovery
                     Controllers (CDC, DDC) with zero-configuration networking
-                    (zeroconf). <code>stafd</code> also allows users to manually enter CDCs
+                    (zeroconf). This is disabled by default; see
+                    <varname>zeroconf=</varname> in
+                    <citerefentry>
+                        <refentrytitle>stafd.conf</refentrytitle>
+                        <manvolnum>5</manvolnum>
+                    </citerefentry>.
+                    <code>stafd</code> also allows users to manually enter CDCs
                     and DDCs as <literal>[Discovery Controller]</literal>
                     sections of the connectivity configuration
                     (<filename>/etc/nvme/nvme-stas.conf</filename>) when users
