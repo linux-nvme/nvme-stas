@@ -505,6 +505,16 @@ class TestDefaultConf(unittest.TestCase):
             with self.subTest(daemon=name):
                 self.assertIn(('Global', 'tron'), daemon.DEFAULT_CONF)
 
+    def test_stafd_zeroconf_is_off_unless_enabled(self):
+        '''mDNS discovery is opt-in, as in nvme-discoverd. The two defaults must
+        agree: DEFAULT_CONF is the one that is used.'''
+        self.assertFalse(conf.SvcConf.OPTION_CHECKER['Service Discovery']['zeroconf']['default'])
+        conf.SvcConf.destroy()  # Make sure singleton does not exist
+        self.addCleanup(conf.SvcConf.destroy)
+        svcconf = conf.SvcConf(default_conf=service.Staf.DEFAULT_CONF)
+        self.assertFalse(svcconf.zeroconf_enabled)
+        self.assertEqual(svcconf.stypes, [])
+
 
 class TestStacReconcileWithoutStafd(unittest.TestCase):
     '''stacd learns about I/O controllers from stafd and from nowhere else. When

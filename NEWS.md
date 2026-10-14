@@ -1,5 +1,11 @@
 # STorage Appliance Services (STAS)
 
+## Changes with release 3.2
+
+### zeroconf is disabled by default
+
+`stafd` no longer looks for Discovery Controllers over mDNS unless told to. The `zeroconf` option in `stafd.conf`'s `[Service Discovery]` section now defaults to `disabled`, the same default as nvme-discoverd, so a host with both installed does not connect twice to what is announced over mDNS. A host that configures itself from whatever announces itself on the network is also a security concern for many sites. **If you rely on mDNS discovery, set `zeroconf=enabled` in `stafd.conf` after upgrading.**
+
 ## Changes with release 3.1
 
 nvme-stas 3.1 is a minor release, timed to ship alongside nvme-cli 3.1. It carries no breaking changes and remains compatible with any libnvme/nvme-cli 3.x.

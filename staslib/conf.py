@@ -232,7 +232,7 @@ class SvcConf(metaclass=singleton.Singleton):
         'Service Discovery': {
             'zeroconf': {
                 'convert': functools.partial(_to_bool, positive='enabled'),
-                'default': True,
+                'default': False,
                 'txt-chk': lambda text: str(_parse_single_val(text)).lower() in ('disabled', 'enabled'),
             },
         },

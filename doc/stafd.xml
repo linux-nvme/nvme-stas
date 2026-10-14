@@ -195,8 +195,8 @@
           <command>&daemon;</command> connects to the <code>avahi-daemon</code>
           using D-Bus. The <code>avahi-daemon</code>, or simply
           <emphasis>Avahi</emphasis>, is an mDNS discovery service used for
-          zero-configuration networking (zeroconf). <command>&daemon;</command>
-          registers with Avahi to automatically locate Centralized Discovery
+          zero-configuration networking (zeroconf). When zeroconf is enabled,
+          <command>&daemon;</command> registers with Avahi to automatically locate Centralized Discovery
           Controllers (CDC) and Direct Discovery Controllers (DDC). When Avahi
           finds Discovery Controllers (DC), it notifies <command>&daemon;</command>
           which connects to the DC with the help of the <code>libnvme</code> library.
@@ -211,7 +211,13 @@
         <title>Configuration</title>
         <para>
             <command>&daemon;</command> can automatically locate discovery
-            controllers (DC) with the help of Avahi and connect to them. However,
+            controllers (DC) with the help of Avahi and connect to them. This
+            is disabled by default and is turned on with
+            <varname>zeroconf=enabled</varname> in
+            <citerefentry>
+                <refentrytitle>stafd.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
             <command>&daemon;</command> can also operate in a non-automatic
             mode based on manually entered configuration. DCs are entered as
             <literal>[Discovery Controller]</literal> sections of the

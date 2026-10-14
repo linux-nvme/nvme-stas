@@ -36,7 +36,7 @@ The fundamental reason is that **nvme-cli is stateless**: it issues one-off comm
 
 *stafd* is responsible for discovering storage appliances and discovery controllers:
 
-- Registers with the Avahi daemon for `_nvme-disc._tcp` mDNS service announcements, enabling **zero-configuration networking (zeroconf)**.
+- Registers with the Avahi daemon for `_nvme-disc._tcp` mDNS service announcements, enabling **zero-configuration networking (zeroconf)**. Disabled by default; set `zeroconf=enabled` in `stafd.conf` to turn it on.
 - Supports **manual discovery configurations** as an alternative to mDNS.
 - Connects to discovered or configured Centralized or Direct Discovery Controllers (CDC/DDC).
 - Retrieves discovery log pages from controllers.

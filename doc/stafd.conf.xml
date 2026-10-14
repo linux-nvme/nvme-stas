@@ -175,10 +175,14 @@
                             <parameter>disabled</parameter>.
                         </para>
                         <para>
-                            When <parameter>enabled</parameter>, the default,
+                            When <parameter>enabled</parameter>,
                             <code>stafd</code> makes a request with the
                             Avahi daemon to locate Discovery Controllers using
-                            DNS-SD/mDNS.
+                            DNS-SD/mDNS. When <parameter>disabled</parameter>,
+                            the default, <code>stafd</code> connects only to
+                            the Discovery Controllers configured in
+                            <filename>/etc/nvme/nvme-stas.conf</filename> and
+                            the ones they refer it to.
                         </para>
                         <para>
                             Discovery Controllers that support zeroconf advertise
@@ -186,7 +190,7 @@
                             <literal>_nvme-disc._tcp</literal>.
                         </para>
                         <para>
-                            Defaults to <parameter>true</parameter>.
+                            Defaults to <parameter>disabled</parameter>.
                         </para>
                     </listitem>
                 </varlistentry>
