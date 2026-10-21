@@ -52,8 +52,11 @@ jobs:
       - name: "INSTALL: coverage test packages"
         timeout-minutes: 10
         run: |
-          # nvmet and nvme-tcp are not in the Azure kernel's base modules.
-          sudo apt-get install --yes --quiet "linux-modules-extra-$(uname -r)"
+          # Some Azure kernels ship nvmet-tcp and nvme-tcp only in
+          # linux-modules-extra, and some have no such package.
+          if ! modinfo nvmet_tcp nvme_tcp > /dev/null; then
+            sudo apt-get install --yes --quiet "linux-modules-extra-$(uname -r)"
+          fi
           sudo apt-get install --yes --quiet avahi-daemon avahi-utils python3-coverage
           # coverage.sh runs a bare "coverage". A hard link, not a symlink:
           # see TESTING.md.
