@@ -6,6 +6,14 @@
 
 `stafd` no longer looks for Discovery Controllers over mDNS unless told to. The `zeroconf` option in `stafd.conf`'s `[Service Discovery]` section now defaults to `disabled`, the same default as nvme-discoverd, so a host with both installed does not connect twice to what is announced over mDNS. A host that configures itself from whatever announces itself on the network is also a security concern for many sites. **If you rely on mDNS discovery, set `zeroconf=enabled` in `stafd.conf` after upgrading.**
 
+### KX-HMAC-CHAP secrets for discovered controllers
+
+A controller learned from a Discovery Log Page, or found over mDNS, used to be connected with no KX-HMAC-CHAP secret at all. It now gets the secrets of the section of `nvme-stas.conf` with its NQN (a `[Subsystem]` for an I/O controller, a `[Discovery Controller]` for a Discovery Controller), which needs no `controller =` line, or else those of the file's `[Host]` section or type defaults. The section must be in the file of the persona the controller is connected under. A secret is never taken from the Discovery Controller that reported the controller: this is what nvme-discoverd does, while `nvme connect-all` differs. Its other parameters now also come from the file of its persona, a drop-in's included, rather than from the top-level file. Matching a section requires libnvme 3.2; with an older libnvme, a discovered controller gets the top-level defaults without their secrets.
+
+### Bug fixes
+
+* **An empty value (`key =`) in a section is no longer overridden by the type defaults.** It reset the parameter in libnvme, but nvme-stas then filled the default back in, so for instance `ctrl-loss-tmo =` in a `[Subsystem]` still connected with the `[I/O Controller Defaults]` value.
+
 ## Changes with release 3.1
 
 nvme-stas 3.1 is a minor release, timed to ship alongside nvme-cli 3.1. It carries no breaking changes and remains compatible with any libnvme/nvme-cli 3.x.

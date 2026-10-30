@@ -1,12 +1,42 @@
 #!/usr/bin/python3
 import os
+import types
+import shutil
 import logging
 import unittest
 import tempfile
+import unittest.mock
 from staslib import conf
 
 HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
 HOSTID = '01234567-89ab-cdef-0123-456789abcdef'
+DROPIN_HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:22222222-2222-2222-2222-222222222222'
+DROPIN_HOSTID = '22222222-2222-2222-2222-222222222222'
+SYSTEM_HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:33333333-3333-3333-3333-333333333333'
+SUB1 = 'nqn.2026-10.com.example:sub1'
+DISC = 'nqn.2014-08.org.nvmexpress.discovery'
+
+# libnvme checks the form of a secret, not what it decodes to
+DEFAULT_IOC_SECRET = 'DHHC-1:00:ZGVmYXVsdC1pb2MtaG9zdC1zZWNyZXQtMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3:'
+DEFAULT_DC_SECRET = 'DHHC-1:00:ZGVmYXVsdC1kYy1ob3N0LXNlY3JldC0wMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1Njc4:'
+SECTION_SECRET = 'DHHC-1:00:c2VjdGlvbi1ob3N0LXNlY3JldC0wMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1Njc4OTAx:'
+SECTION_CTRL_SECRET = 'DHHC-1:00:c2VjdGlvbi1jdHJsLXNlY3JldC0wMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1Njc4OTAx:'
+DROPIN_SECRET = 'DHHC-1:00:ZHJvcGluLWhvc3Qtc2VjcmV0LTAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5MDEy:'
+
+DEFAULTS = (
+    '[I/O Controller Defaults]\n'
+    'kxchap-secret  = %s\n'
+    'ctrl-loss-tmo  = 900\n'
+    '\n'
+    '[Discovery Controller Defaults]\n'
+    'kxchap-secret  = %s\n' % (DEFAULT_IOC_SECRET, DEFAULT_DC_SECRET)
+)
+SUB1_SECTION = (
+    '[Subsystem]\n'
+    'nqn                = %s\n'
+    'kxchap-secret      = %s\n'
+    'kxchap-ctrl-secret = %s\n' % (SUB1, SECTION_SECRET, SECTION_CTRL_SECRET)
+)
 
 
 class Test(unittest.TestCase):
@@ -18,6 +48,7 @@ class Test(unittest.TestCase):
         fd, self.fname = tempfile.mkstemp(prefix='stas-conn-conf-', suffix='.conf', dir='/tmp')
         os.close(fd)
         self.addCleanup(self._remove, self.fname)
+        self.addCleanup(shutil.rmtree, self.fname + '.d', True)  # the drop-in directory
         conf.ConnConf.destroy()  # Make sure singleton does not exist
         self.addCleanup(conf.ConnConf.destroy)
 
@@ -28,6 +59,11 @@ class Test(unittest.TestCase):
 
     def _write(self, text):
         with open(self.fname, 'w') as f:
+            f.write(text)
+
+    def _write_dropin(self, text):
+        os.makedirs(self.fname + '.d', exist_ok=True)
+        with open(os.path.join(self.fname + '.d', 'persona.conf'), 'w') as f:
             f.write(text)
 
     def _load(self, text):
@@ -157,8 +193,9 @@ class Test(unittest.TestCase):
         self.assertIs(ioc['hdr-digest'], True)
         self.assertIs(ioc['data-digest'], False)
 
-    def test_empty_value_leaves_the_parameter_unset(self):
-        '''"key =" resets a parameter so the kernel default applies.'''
+    def test_empty_value_resets_the_parameter(self):
+        '''"key =" resets a parameter so the kernel default applies. It stays
+        in as an empty value, so that nothing fills it back in.'''
         cnf = self._load(
             '[I/O Controller Defaults]\n'
             'ctrl-loss-tmo =\n'
@@ -167,20 +204,100 @@ class Test(unittest.TestCase):
             'nqn        = nqn.2024-01.com.example:vol1\n'
             'controller = transport=tcp;traddr=2.2.2.2;trsvcid=4420\n'
         )
-        self.assertNotIn('ctrl-loss-tmo', cnf.get_controllers(False)[0])
+        self.assertEqual(cnf.get_controllers(False)[0]['ctrl-loss-tmo'], '')
 
-    def test_defaults_are_exposed_by_controller_class(self):
-        '''What a controller we discovered draws on: it is in no file, so it
-        gets the top-level defaults for its class.'''
-        cnf = self._load(
-            '[Discovery Controller Defaults]\n'
-            'keep-alive-tmo = 30\n'
-            '\n'
-            '[I/O Controller Defaults]\n'
-            'ctrl-loss-tmo = 900\n'
+    def test_a_discovered_controller_gets_its_sections_secrets(self):
+        '''A section with the controller's NQN gives it its secrets, on top of
+        the defaults for its class. The section needs no "controller =".'''
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        self.assertEqual(
+            cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN),
+            {'kxchap-secret': SECTION_SECRET, 'kxchap-ctrl-secret': SECTION_CTRL_SECRET, 'ctrl-loss-tmo': 900},
         )
-        self.assertEqual(cnf.defaults(True), {'keep-alive-tmo': 30})
-        self.assertEqual(cnf.defaults(False), {'ctrl-loss-tmo': 900})
+
+    def test_a_discovered_controller_without_a_section_gets_the_defaults(self):
+        '''What nvme-discoverd does. The secret of the Discovery Controller
+        that reported the controller is not inherited.'''
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        self.assertEqual(
+            cnf.discovered_params(False, 'nqn.2026-10.com.example:other', SYSTEM_HOSTNQN),
+            {'kxchap-secret': DEFAULT_IOC_SECRET, 'ctrl-loss-tmo': 900},
+        )
+        self.assertEqual(cnf.discovered_params(True, DISC, SYSTEM_HOSTNQN), {'kxchap-secret': DEFAULT_DC_SECRET})
+
+    def test_a_section_of_the_other_class_does_not_match(self):
+        '''A [Subsystem] is for an I/O controller, not a Discovery Controller
+        with the same NQN.'''
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        self.assertEqual(cnf.discovered_params(True, SUB1, SYSTEM_HOSTNQN), {'kxchap-secret': DEFAULT_DC_SECRET})
+
+    def test_an_empty_secret_in_the_section_resets_it(self):
+        cnf = self._load(DEFAULTS + '[Subsystem]\nnqn = %s\nkxchap-secret =\n' % SUB1)
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN)['kxchap-secret'], '')
+
+    def test_a_drop_in_persona_gets_its_own_section(self):
+        '''A secret belongs to one (host, subsystem) pair: the drop-in's
+        section is for the drop-in's persona only, and the reverse.'''
+        self._write_dropin(
+            '[Host]\n'
+            'hostnqn = %s\n'
+            'hostid  = %s\n'
+            '\n'
+            '[Subsystem]\n'
+            'nqn           = %s\n'
+            'kxchap-secret = %s\n' % (DROPIN_HOSTNQN, DROPIN_HOSTID, SUB1, DROPIN_SECRET)
+        )
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        self.assertEqual(cnf.discovered_params(False, SUB1, DROPIN_HOSTNQN)['kxchap-secret'], DROPIN_SECRET)
+        self.assertNotIn('kxchap-ctrl-secret', cnf.discovered_params(False, SUB1, DROPIN_HOSTNQN))
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN)['kxchap-secret'], SECTION_SECRET)
+
+    def test_the_top_level_persona_is_found_by_its_hostnqn(self):
+        cnf = self._load('[Host]\nhostnqn = %s\nhostid = %s\n\n' % (HOSTNQN, HOSTID) + DEFAULTS + SUB1_SECTION)
+        self.assertEqual(cnf.discovered_params(False, SUB1, HOSTNQN)['kxchap-secret'], SECTION_SECRET)
+
+    def test_another_host_identity_gets_no_secret(self):
+        '''A host NQN no file has, while the top-level file names its own: the
+        top-level defaults may apply to it, the secrets may not.'''
+        cnf = self._load('[Host]\nhostnqn = %s\nhostid = %s\n\n' % (HOSTNQN, HOSTID) + DEFAULTS + SUB1_SECTION)
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN), {'ctrl-loss-tmo': 900})
+
+    def test_the_answers_are_kept_until_a_reload(self):
+        '''The file is not read again on every connection attempt, and a
+        reload picks up the new secrets.'''
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN)['kxchap-secret'], SECTION_SECRET)
+
+        self._write(DEFAULTS)
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN)['kxchap-secret'], SECTION_SECRET)
+        self.assertTrue(cnf.reload())
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN)['kxchap-secret'], DEFAULT_IOC_SECRET)
+
+    def test_a_rejected_reload_keeps_the_answers(self):
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN)['kxchap-secret'], SECTION_SECRET)
+
+        # Two sections with one NQN and different secrets: rejected.
+        self._write(DEFAULTS + SUB1_SECTION + '[Subsystem]\nnqn = %s\nkxchap-secret = %s\n' % (SUB1, DROPIN_SECRET))
+        with self.assertLogs(level='ERROR'):
+            self.assertFalse(cnf.reload())
+        self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN)['kxchap-secret'], SECTION_SECRET)
+
+    def test_a_file_that_cannot_be_read_gives_no_secret(self):
+        '''Edited into something libnvme rejects since the last reload: the
+        last defaults read apply, without their secrets.'''
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        self._write(DEFAULTS + SUB1_SECTION + '[Subsystem]\nnqn = %s\nkxchap-secret = %s\n' % (SUB1, DROPIN_SECRET))
+        with self.assertLogs(level='WARNING') as captured:
+            self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN), {'ctrl-loss-tmo': 900})
+        self.assertIn('Unable to read the parameters of %s' % SUB1, captured.output[0])
+
+    def test_an_older_libnvme_gives_no_secret(self):
+        '''libnvme before 3.2 cannot match a section, and its defaults are not
+        attributed to a persona.'''
+        cnf = self._load(DEFAULTS + SUB1_SECTION)
+        with unittest.mock.patch.object(conf, 'nvme', types.SimpleNamespace()):
+            self.assertEqual(cnf.discovered_params(False, SUB1, SYSTEM_HOSTNQN), {'ctrl-loss-tmo': 900})
 
     def test_host_identity_without_connections(self):
         '''A [Host] and nothing else still names the persona - the case of a
