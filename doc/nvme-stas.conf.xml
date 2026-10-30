@@ -87,7 +87,8 @@
             <filename>/etc/nvme/nvme-stas.conf</filename> is optional. If it does
             not exist, nvme-stas configures no controllers &#8212; that is not an
             error. Controllers discovered over mDNS, or learned from a Discovery
-            Log Page, need no entry here.
+            Log Page, need no entry here, but take their parameters from it
+            (see Discovered controllers below).
         </para>
 
         <para>
@@ -284,6 +285,46 @@
     </refsect1>
 
     <refsect1>
+        <title>Discovered controllers</title>
+        <para>
+            A controller found through discovery &#8212; an I/O controller or a
+            referral in a Discovery Log Page, or a Discovery Controller found
+            over mDNS &#8212; has no <varname>controller=</varname> line of its
+            own. It is connected with the parameters of its persona's file:
+            the type defaults, then <literal>[Host]</literal>.
+        </para>
+        <para>
+            Its KX-HMAC-CHAP secrets, <varname>kxchap-secret</varname> and
+            <varname>kxchap-ctrl-secret</varname>, also come from the section
+            of that file with its NQN: a <literal>[Subsystem]</literal> for an
+            I/O controller, a <literal>[Discovery Controller]</literal> for a
+            Discovery Controller. The section needs no
+            <varname>controller=</varname> line, and its other keys do not
+            apply. An empty value in the section means no secret. The section
+            must be in the file of the Discovery Controller that reported the
+            controller (the top-level file for mDNS), because a secret belongs
+            to one host and subsystem pair. A
+            <literal>[Discovery Controller]</literal> section with the
+            well-known discovery NQN never matches.
+        </para>
+        <para>
+            A secret that no section sets is never taken from the Discovery
+            Controller that reported the controller. This is what nvme-discoverd
+            does; <command>nvme connect-all</command> differs. See DISCOVERED
+            CONTROLLERS in
+            <citerefentry>
+                <refentrytitle>nvme-fabrics.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
+            </citerefentry>.
+        </para>
+        <para>
+            The sections are matched with libnvme 3.2 and later. With an older
+            libnvme, a discovered controller gets the top-level file's type
+            defaults without their secrets.
+        </para>
+    </refsect1>
+
+    <refsect1>
         <title>Security parameters</title>
         <para>
             <varname>kxchap-secret</varname>,
@@ -352,6 +393,10 @@ controller    = transport=tcp;traddr=192.168.1.21;trsvcid=4420;host-iface=eth1
             <citerefentry project="man-pages">
                 <refentrytitle>stacd</refentrytitle>
                 <manvolnum>8</manvolnum>
+            </citerefentry>,
+            <citerefentry>
+                <refentrytitle>nvme-fabrics.conf</refentrytitle>
+                <manvolnum>5</manvolnum>
             </citerefentry>
         </para>
     </refsect1>

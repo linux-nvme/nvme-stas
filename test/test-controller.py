@@ -757,7 +757,7 @@ class TestKeepAlive(TestCase):
         self.addCleanup(conf.ConnConf.destroy)
         # ConnConf is read by libnvme's C parser, which does not see pyfakefs:
         # keep the machine's own nvme-stas.conf out of these tests.
-        patcher = unittest.mock.patch.object(conf.ConnConf, 'defaults', return_value={})
+        patcher = unittest.mock.patch.object(conf.ConnConf, 'discovered_params', return_value={})
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -1435,6 +1435,79 @@ class TestUnusableConfiguration(TestCase):
 
         self.assertIsNotNone(dc._connect_op)
         self.assertEqual(dc._retry_connect_tmr.time_remaining(), 0)
+
+
+class TestConnectionParameters(TestCase):
+    """A configured controller's own parameters win. One we discovered draws
+    on what the configuration has for its NQN and persona, secrets included."""
+
+    def setUp(self):
+        self.setUpPyfakefs()
+        self.fs.create_file(
+            '/etc/nvme/hostnqn', contents='nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab\n'
+        )
+        self.fs.create_file('/etc/nvme/hostid', contents='01234567-89ab-cdef-0123-456789abcdef\n')
+        self.fs.create_file(
+            '/dev/nvme-fabrics', contents='instance=-1,cntlid=-1,dhchap_secret=%s,dhchap_ctrl_secret=%s\n'
+        )
+        conf.ConnConf.destroy()
+        self.addCleanup(conf.ConnConf.destroy)
+        # ConnConf is read by libnvme's C parser, which does not see pyfakefs.
+        self.discovered = {'kxchap-secret': 'host-secret', 'kxchap-ctrl-secret': 'ctrl-secret', 'ctrl-loss-tmo': 900}
+        patcher = unittest.mock.patch.object(conf.ConnConf, 'discovered_params', return_value=self.discovered)
+        self.discovered_params = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _ioc(self, **cfg):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.2026-10.com.example:sub1'}
+        cid.update(cfg)
+        return TestIoc(TestStac(), tid=trid.TID(cid))
+
+    def _connect(self, controller):
+        """Return the nvme.Ctrl that _do_connect() makes, without connecting."""
+        controller._connect_op = None
+        with unittest.mock.patch.object(ctrl.nvme, 'Ctrl') as nvme_ctrl:
+            with unittest.mock.patch.object(ctrl.gutil, 'AsyncTask'):
+                controller._do_connect()
+        return nvme_ctrl.return_value
+
+    def test_a_discovered_controller_gets_the_secrets(self):
+        ioc = self._ioc()
+        nvme_ctrl = self._connect(ioc)
+        self.assertEqual(nvme_ctrl.kxchap_host_key, 'host-secret')
+        self.assertEqual(nvme_ctrl.kxchap_ctrl_key, 'ctrl-secret')
+        self.assertEqual(ioc._get_cfg()['ctrl_loss_tmo'], 900)
+        self.discovered_params.assert_called_with(False, 'nqn.2026-10.com.example:sub1', ioc.tid.hostnqn)
+
+    def test_a_discovery_controller_asks_for_its_own_class(self):
+        cid = {'transport': 'tcp', 'traddr': '1.1.1.1', 'subsysnqn': 'nqn.2014-08.org.nvmexpress.discovery'}
+        TestDc(TestStaf(), tid=trid.TID(cid))._conn_param('persistent')
+        self.discovered_params.assert_called_with(True, 'nqn.2014-08.org.nvmexpress.discovery', unittest.mock.ANY)
+
+    def test_the_controllers_own_parameters_win(self):
+        ioc = self._ioc(**{'kxchap-secret': 'own-secret', 'ctrl-loss-tmo': 60})
+        self.assertEqual(self._connect(ioc).kxchap_host_key, 'own-secret')
+        self.assertEqual(ioc._get_cfg()['ctrl_loss_tmo'], 60)
+
+    def test_an_empty_value_is_not_filled_back_in(self):
+        """An empty value ("key =") in a controller's own section resets it:
+        neither the secret nor the parameter may come from anywhere else."""
+        ioc = self._ioc(**{'kxchap-secret': '', 'kxchap-ctrl-secret': '', 'ctrl-loss-tmo': ''})
+        nvme_ctrl = self._connect(ioc)
+        self.assertNotIn('kxchap_host_key', vars(nvme_ctrl))
+        self.assertNotIn('kxchap_ctrl_key', vars(nvme_ctrl))
+        self.assertNotIn('ctrl_loss_tmo', ioc._get_cfg())
+
+    def test_a_kernel_without_authentication_gets_no_secret(self):
+        for prop in ('kxchap_hostkey_supp', 'kxchap_ctrlkey_supp'):
+            patcher = unittest.mock.patch.object(
+                conf.NvmeOptions, prop, new_callable=unittest.mock.PropertyMock, return_value=False
+            )
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        nvme_ctrl = self._connect(self._ioc())
+        self.assertNotIn('kxchap_host_key', vars(nvme_ctrl))
+        self.assertNotIn('kxchap_ctrl_key', vars(nvme_ctrl))
 
 
 if __name__ == '__main__':

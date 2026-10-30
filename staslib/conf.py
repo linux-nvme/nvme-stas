@@ -467,11 +467,15 @@ class ConnConf(metaclass=singleton.Singleton):
     )
     _BOOLEAN = frozenset(('tls', 'concat', 'hdr-digest', 'data-digest', 'disable-sqflow'))
 
+    # A secret belongs to one (host, subsystem) pair.
+    _SECRETS = frozenset(('kxchap-secret', 'kxchap-ctrl-secret'))
+
     def __init__(self, conf_file=defs.NVME_STAS_CONF_FILE):
         self._conf_file = conf_file
         self._connections = list()
         self._dc_defaults = dict()
         self._ioc_defaults = dict()
+        self._discovered = dict()
         self._host = dict()
         self._loaded = False
         self.reload()
@@ -517,6 +521,7 @@ class ConnConf(metaclass=singleton.Singleton):
         self._connections = connections
         self._dc_defaults = self._params(defaults.get('dc', {}))
         self._ioc_defaults = self._params(defaults.get('ioc', {}))
+        self._discovered = dict()
         self._host = host
         self._loaded = True
         logging.debug('ConnConf.reload()                  - %s connection(s)', len(connections))
@@ -531,15 +536,55 @@ class ConnConf(metaclass=singleton.Singleton):
         '''
         return [self._to_cid(conn) for conn in self._connections if conn.get('is_dc', False) == discovery]
 
-    def defaults(self, discovery: bool):
-        '''Return the default connection parameters for a controller we
-        discovered, which is in no file and so has no parameters of its own.
+    def discovered_params(self, discovery: bool, subsysnqn: str, hostnqn: str):
+        '''Return the connection parameters for a controller we discovered,
+        which has no "controller =" line of its own.
 
-        These are the top-level file's defaults for the controller's class. A
-        drop-in's are deliberately out of reach: a controller found over mDNS,
-        or in a discovery log page, cannot be attributed to one.
+        These come from the file of its persona (@hostnqn): the defaults for
+        the controller's class, then [Host], then the KX-HMAC-CHAP secrets of
+        the section with its NQN - what nvme-discoverd uses. A secret
+        no section sets is not taken from the Discovery Controller that
+        reported the controller.
+
+        Each answer is read once and kept until the next successful reload().
+        A controller first seen after the file was edited, but before the
+        daemon was reloaded, therefore gets the edited file's answer.
         '''
-        return self._dc_defaults if discovery else self._ioc_defaults
+        key = (discovery, subsysnqn, hostnqn)
+        params = self._discovered.get(key)
+        if params is None:
+            params = self._read_discovered_params(discovery, subsysnqn, hostnqn)
+            self._discovered[key] = params
+        return params
+
+    def _read_discovered_params(self, discovery, subsysnqn, hostnqn):
+        # The top-level defaults are not attributed to a persona, so they come
+        # without the secrets whenever the persona's own file cannot be read.
+        defaults = self._dc_defaults if discovery else self._ioc_defaults
+        defaults = {k: v for k, v in defaults.items() if k not in self._SECRETS}
+        if not hasattr(nvme, 'config_discovered_params'):
+            return defaults  # libnvme < 3.2
+
+        ctx = libnvme_ctx()
+        try:
+            params = nvme.config_discovered_params(ctx, subsysnqn, discovery, hostnqn, self._conf_file)
+            if params is None:
+                # No file has this persona.
+                if self.hostnqn:
+                    return defaults  # another host identity than the top-level file's
+                # The top-level file names no persona, so it is the system
+                # identity's, which is how libnvme knows it: without one.
+                params = nvme.config_discovered_params(ctx, subsysnqn, discovery, None, self._conf_file)
+        except (OSError, ValueError) as ex:
+            logging.warning(
+                'File:%s - Unable to read the parameters of %s, using the last defaults read: %s',
+                self._conf_file,
+                subsysnqn,
+                ex,
+            )
+            return defaults
+
+        return self._params(params or {})
 
     hostnqn = property(lambda self: self._host.get('hostnqn'))
     hostid = property(lambda self: self._host.get('hostid'))
@@ -587,8 +632,9 @@ class ConnConf(metaclass=singleton.Singleton):
         value we cannot represent rather than a malformed one.
         '''
         if not text:
-            # "key =" resets a parameter to the kernel default: leave it out.
-            return None
+            # "key =" resets a parameter to the kernel default. Keep it empty
+            # rather than leave it out, so that nothing fills it back in.
+            return ''
 
         if option in self._NUMERIC:
             try:

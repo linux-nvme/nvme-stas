@@ -258,16 +258,25 @@ class Controller(stas.ControllerABC):
         if self.tid.host_iface and not service_conf.ignore_iface and self._nvme_options.host_iface_supp:
             cfg['host_iface'] = self.tid.host_iface
 
-        # A configured controller arrives with its parameters already resolved
-        # by libnvme. One we discovered is in no file, so it draws the defaults
-        # for its class.
-        defaults = conf.ConnConf().defaults(self._discovery_ctrl)
         for option, keyword in _CONN_PARAMS:
-            value = self.tid.cfg.get(option, defaults.get(option))
-            if value is not None:
+            value = self._conn_param(option)
+            if value not in (None, ''):
                 cfg[keyword] = value
 
         return cfg
+
+    def _conn_param(self, option):
+        '''Return a connection parameter, or None if nothing sets it. An empty
+        value means the configuration resets it to the kernel default.
+
+        A configured controller arrives with its parameters already resolved
+        by libnvme. One we discovered has no "controller =" line, so it draws
+        on the parameters libnvme resolves for its NQN and persona.
+        '''
+        if option in self.tid.cfg:
+            return self.tid.cfg[option]
+        params = conf.ConnConf().discovered_params(self._discovery_ctrl, self.tid.subsysnqn, self.tid.hostnqn)
+        return params.get(option)
 
     def _do_connect(self):
         # Audit existing nvme devices. If we find a match, then
@@ -310,7 +319,7 @@ class Controller(stas.ControllerABC):
         # NOTE that this may eventually have to
         # change once we have support for AVE (TP8019)
         # This is used for in-band authentication
-        kxchap_host_key = self.tid.cfg.get('kxchap-secret')
+        kxchap_host_key = self._conn_param('kxchap-secret')
         if kxchap_host_key and self._nvme_options.kxchap_hostkey_supp:
             self._ctrl.kxchap_host_key = kxchap_host_key
 
@@ -318,7 +327,7 @@ class Controller(stas.ControllerABC):
         # NOTE that this may eventually have to
         # change once we have support for AVE (TP8019)
         # This is used for bidirectional authentication
-        kxchap_ctrl_key = self.tid.cfg.get('kxchap-ctrl-secret')
+        kxchap_ctrl_key = self._conn_param('kxchap-ctrl-secret')
         if kxchap_ctrl_key and self._nvme_options.kxchap_ctrlkey_supp:
             self._ctrl.kxchap_ctrl_key = kxchap_ctrl_key
 
@@ -616,15 +625,14 @@ class Dc(Controller):
     def persistence_mode(self):
         """Return "no", "auto" or "force" for this discovery controller.
 
-        The mode comes from the connectivity configuration: this DC's own
-        "persistent" key when it has one, else the defaults for discovery
-        controllers. Note the default differs from libnvme's, whose unset
+        The mode comes from the connectivity configuration (see
+        _conn_param()). Note the default differs from libnvme's, whose unset
         value behaves as "no": stafd exists to hold discovery connections
         open so that it is told when log pages change, so tearing them down
         by default would defeat the daemon. nvme-discoverd makes the same
         choice.
         """
-        mode = self.tid.cfg.get('persistent', conf.ConnConf().defaults(True).get('persistent'))
+        mode = self._conn_param('persistent')
         return mode if mode in ('no', 'auto', 'force') else 'auto'
 
     def _get_cfg(self):
