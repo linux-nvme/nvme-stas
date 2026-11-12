@@ -43,6 +43,28 @@ def libnvme_sandbox():
     return path
 
 
+def fake_controller(testcase, device):
+    '''Make @device exist in a test sysfs for the rest of @testcase.
+
+    libnvme's registry readers ignore an entry whose controller is not in
+    sysfs. The test sysfs dir also redirects other sysfs reads (DMI,
+    machine-id), so it is reset when the test ends. An older libnvme has no
+    set_test_sysfs_dir() and does not check sysfs.
+    '''
+    ctx = conf.libnvme_ctx()
+    if not hasattr(ctx, 'set_test_sysfs_dir'):
+        return
+    sysfs = getattr(testcase, '_fake_sysfs', None)
+    if sysfs is None:
+        sysfs = tempfile.mkdtemp()
+        testcase._fake_sysfs = sysfs
+        testcase.addCleanup(shutil.rmtree, sysfs, ignore_errors=True)
+        testcase.addCleanup(delattr, testcase, '_fake_sysfs')
+        testcase.addCleanup(ctx.set_test_sysfs_dir, None)
+        ctx.set_test_sysfs_dir(sysfs)
+    os.makedirs(os.path.join(sysfs, 'sys', 'class', 'nvme', device), exist_ok=True)
+
+
 # ==============================================================================
 class TestProtected(unittest.TestCase):
     '''Unit tests for stas.protected(), which decides whether a connection is
@@ -59,6 +81,7 @@ class TestProtected(unittest.TestCase):
         self.addCleanup(conf.NbftConf.destroy)
 
     def _register(self, device, owner):
+        fake_controller(self, device)
         nvme.registry_update(conf.libnvme_ctx(), device, 'owner', owner)
         self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
 
@@ -135,10 +158,12 @@ class TestClaim(unittest.TestCase):
         cls.SANDBOX = libnvme_sandbox()
 
     def _owner_of(self, device):
+        fake_controller(self, device)
         self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
         return nvme.registry_retrieve(conf.libnvme_ctx(), device, 'owner')
 
     def _register(self, device, owner):
+        fake_controller(self, device)
         nvme.registry_update(conf.libnvme_ctx(), device, 'owner', owner)
         self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
 
@@ -193,6 +218,7 @@ class TestRemoveProtected(unittest.TestCase):
         self.addCleanup(conf.NbftConf.destroy)
 
     def _register(self, device, owner):
+        fake_controller(self, device)
         nvme.registry_update(conf.libnvme_ctx(), device, 'owner', owner)
         self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
 
