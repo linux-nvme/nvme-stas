@@ -1091,11 +1091,19 @@ get_device() {
     echo ${dev}
 }
 
+# These disconnects come from outside stas. A newer nvme refuses to
+# disconnect a controller that has an owner (stas) unless told --force.
+# An older nvme has no --force and rejects it, so probe for it.
+disconnect_force=
+if nvme disconnect --help 2>&1 | grep -q -- '--force'; then
+	disconnect_force=--force
+fi
+
 # Find a Discovery Controller and issue a "nvme disconnect"
 dev=$(get_device @STAFD_DBUS_NAME@ @STAFD_DBUS_PATH@)
 if [[ -n "${dev}" ]]; then
 	log "Remove connection (disconnect) to Discovery Controller ${dev}"
-	run_cmd sudo nvme disconnect -d ${dev}
+	run_cmd sudo nvme disconnect -d ${dev} ${disconnect_force}
 	printf "\n"
 else
 	msg="Failed to find a connection to a Discovery Controller"
@@ -1107,7 +1115,7 @@ fi
 dev=$(get_device @STACD_DBUS_NAME@ @STACD_DBUS_PATH@)
 if [[ -n "${dev}" ]]; then
 	log "Remove connection (disconnect) to I/O Controller ${dev}"
-	run_cmd sudo nvme disconnect -d ${dev}
+	run_cmd sudo nvme disconnect -d ${dev} ${disconnect_force}
 	printf "\n"
 else
 	msg="Failed to find a connection to an I/O Controller"
