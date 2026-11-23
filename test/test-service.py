@@ -697,9 +697,21 @@ class TestStacAdoptOnStartup(unittest.TestCase):
         nvme.registry_update(conf.libnvme_ctx(), device, 'owner', owner)
         self.addCleanup(nvme.registry_delete, conf.libnvme_ctx(), device)
 
+    # An explicit hostnqn, or the TID would read the real /etc/nvme/hostnqn
+    # and /etc/nvme/hostid, which a CI runner may not have.
+    HOSTNQN = 'nqn.2014-08.org.nvmexpress:uuid:01234567-0123-0123-0123-0123456789ab'
+
     @staticmethod
     def _tid(traddr):
-        return trid.TID({'transport': 'tcp', 'traddr': traddr, 'trsvcid': '4420', 'subsysnqn': 'nqn.probe'})
+        return trid.TID(
+            {
+                'transport': 'tcp',
+                'traddr': traddr,
+                'trsvcid': '4420',
+                'subsysnqn': 'nqn.probe',
+                'hostnqn': TestStacAdoptOnStartup.HOSTNQN,
+            }
+        )
 
     def _adopted(self, ioc_tids):
         '''Run the startup scan over @ioc_tids and return the TIDs it adopted.'''
